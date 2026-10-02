@@ -1,4 +1,6 @@
 
+import Link from "next/link";
+
 export default function Landing() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-20 sm:px-8">
@@ -10,6 +12,9 @@ export default function Landing() {
         Edityy sits on top of the site you already run. Preview changes, shape them visually, and hand a
         reviewable change set to your coding agent. Your code stays the source of truth.
       </p>
+      <Link className="mt-8 w-fit rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-neutral-900" href="/launcher">
+        Add the launcher to your site
+      </Link>
       </main>
   );
 }
