@@ -91,6 +91,7 @@ npm run dev      # start the dev server
 npm run build    # production build
 npm run start    # serve the production build
 npm run lint     # run ESLint
+npm run test     # run the node:test checks
 npm run migrate  # apply db/schema.sql to DATABASE_URL
 ```
 
@@ -101,6 +102,12 @@ npm run migrate  # apply db/schema.sql to DATABASE_URL
 - TypeScript
 - Tailwind CSS 4
 
+## Try it — V1 local launcher
+
+Add one script tag to any site you are already running and Edityy places its own floating launcher in the bottom-right
+corner of it. No npm package, no build step. See [docs/local-launcher.md](docs/local-launcher.md).
+
 ## Status
 
-Early / in progress. This README describes the product direction; implementation is being built incrementally.
+V1 (local connection + floating launcher) is built. The editor itself is not — this README describes the product
+direction; implementation is being built incrementally.
