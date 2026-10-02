@@ -16,7 +16,7 @@ export default async function SpaceSettingsPage(props: PageProps<"/spaces/[space
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">Space settings</h1>
+        <h1>Space settings</h1>
       </header>
 
       <Error message={(await props.searchParams).error} />

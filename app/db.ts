@@ -10,6 +10,15 @@ export type Space = {
   updated_at: string;
 };
 
+export async function listSpaces(): Promise<(Space & { component_count: number })[]> {
+  const rows = await sql`
+    select s.*, (
+      select count(*)::int from components c where c.space_id = s.id
+    ) as component_count
+    from spaces s order by s.created_at desc`;
+  return rows as (Space & { component_count: number })[];
+}
+
 export type Codebase = {
   space_id: string;
   repo_url: string;
@@ -36,10 +45,6 @@ export type Activity = {
   summary: string;
   created_at: string;
 };
-
-export async function listSpaces() {
-  return sql`select * from spaces order by created_at desc`;
-}
 
 export async function getSpace(id: string) {
   const [space] = await sql`select * from spaces where id = ${id}`;

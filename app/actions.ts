@@ -14,7 +14,7 @@ async function logActivity(spaceId: string | null, kind: string, summary: string
 
 export async function createSpace(form: FormData) {
   const name = str(form, "name");
-  if (!name) redirect("/?error=Name+is+required");
+  if (!name) redirect("/spaces?error=Name+is+required");
 
   const [space] = await sql`
     insert into spaces (name, description) values (${name}, ${str(form, "description")}) returning id`;
@@ -44,7 +44,7 @@ export async function deleteSpace(form: FormData) {
   await sql`delete from spaces where id = ${id}`;
   await logActivity(null, "space.deleted", `Deleted space ${name}`);
 
-  redirect("/");
+  redirect("/spaces");
 }
 
 export async function updateCodebase(form: FormData) {

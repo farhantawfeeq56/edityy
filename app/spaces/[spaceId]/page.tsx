@@ -16,9 +16,9 @@ export default async function SpaceOverview(props: PageProps<"/spaces/[spaceId]"
   const count = await getSpaceComponentCount(spaceId);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10">
+    <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">{space.name}</h1>
+        <h1>{space.name}</h1>
         <p className="mt-1 text-sm text-neutral-500">{space.description || "No description"}</p>
       </header>
 

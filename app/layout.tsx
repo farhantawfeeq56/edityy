@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-// ponytail: system font stack instead of next/font/google. Geist is fetched from
-// fonts.gstatic.com at build time, which fails on restricted networks. Add a bundled
-// font when the brand needs one.
+// ponytail: system stack. DESIGN.md wants Nohemi + Plus Jakarta Sans, but
+// next/font/google is fetched at build and fails on restricted networks — add
+// bundled faces from app/fonts when the brand needs its own type.
 export const metadata: Metadata = {
   title: "Edityy",
   description: "A visual editing layer for code-based websites.",

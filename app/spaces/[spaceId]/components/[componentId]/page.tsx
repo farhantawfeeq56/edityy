@@ -20,7 +20,7 @@ export default async function ComponentPage(props: PageProps<"/spaces/[spaceId]/
           <Link className="text-sm text-neutral-500 hover:underline" href={`/spaces/${spaceId}/components`}>
             ← Component library
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold">{component.name}</h1>
+          <h1 className="mt-1">{component.name}</h1>
         </div>
       </header>
 

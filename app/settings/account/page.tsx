@@ -7,7 +7,7 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
       <header>
-        <h1 className="text-2xl font-semibold">Account</h1>
+        <h1>Account</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Edityy runs as a single local user for now. Sign-in is not built yet.
         </p>
