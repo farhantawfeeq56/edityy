@@ -78,6 +78,7 @@ This repository is a fresh implementation of that idea.
 
 ```bash
 npm install
+npm run migrate   # apply db/schema.sql to DATABASE_URL
 npm run dev
 ```
 
@@ -86,10 +87,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Scripts
 
 ```bash
-npm run dev     # start the dev server
-npm run build   # production build
-npm run start   # serve the production build
-npm run lint    # run ESLint
+npm run dev      # start the dev server
+npm run build    # production build
+npm run start    # serve the production build
+npm run lint     # run ESLint
+npm run migrate  # apply db/schema.sql to DATABASE_URL
 ```
 
 ### Stack
