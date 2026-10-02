@@ -17,8 +17,27 @@ npm ci
 npm run dev
 ```
 
-Edityy serves the launcher at <http://localhost:3000/edityy.js> and explains the setup at
-<http://localhost:3000/launcher>.
+Edityy serves the launcher from its own origin and explains the setup at `/launcher`.
+
+### Port
+
+**Edityy needs port 3000, and your site needs a different one.** `next dev` takes 3000 by default, and Edityy's own
+app pages live there, so a second site cannot use it.
+
+| | |
+| --- | --- |
+| Edityy | `http://localhost:3000` |
+| your site | anything else — `npm run dev -- -p 5173`, `npx serve -l 4000`, etc. |
+
+If you need 3000 for your site, move Edityy instead:
+
+```bash
+npx next dev -p 3001
+```
+
+The `/launcher` page reads the host you are actually on and prints the tag to match, so a moved Edityy gives the right
+URL — but only while you copy it from that page. **A tag with the wrong port 404s silently**, with nothing on your
+page to tell you why.
 
 ## Add it to your site
 
@@ -59,19 +78,28 @@ Manual check:
 3. Scroll — the launcher stays put. Click links, use forms — they still work.
 4. Open the console and click the launcher: `[edityy] launcher clicked`.
 
-## Why a script tag
+## Why a tag, and what it costs you
 
-The obvious alternative — Edityy proxies your site and injects the launcher into the HTML it serves — was built and
-thrown away. It needs nothing in your project either, but it has to re-serve your entire site, which means it can
-only ever map the root URL (`/about` silently becomes `/`), it does not proxy assets, APIs or websockets correctly,
-and it puts a reverse proxy between you and your own dev server. One tag has the same install cost and a far smaller
-blast radius: your site is served by your own server, exactly as before, and Edityy only adds a button.
+**You edit your own markup.** One line in `index.html` or a layout, and it is a real edit to a real file: it can be
+committed, it can conflict, and it will sit there in production HTML unless you strip it. Edityy does not decide where
+it goes or how it gets there — you do. That is the trade for working in any stack with no build step; §"What comes
+next" describes the package that removes the choice from your markup.
+
+An alternative — Edityy proxies your site and injects the launcher into the HTML it serves — needs nothing in your
+project either, but it has to re-serve your entire site, which means it can only ever map the root URL (`/about`
+silently becomes `/`), it does not proxy assets, APIs or websockets correctly, and it puts a reverse proxy between you
+and your own dev server. One tag has the same install cost and a far smaller blast radius: your site is served by
+your own server, exactly as before, and Edityy only adds a button.
 
 The tag is also the seam every later feature needs. Element selection, text editing and the rest all have to run
 *inside* your page to see your DOM. Proving the launcher proves that path works.
 
 ## Known limits
 
+- **A wrong port in the tag fails silently** — no launcher, no error on the page. Check the URL Edityy prints on
+  `/launcher` matches the tag you pasted.
+- **The tag will ship to production if you leave it there.** V1 is local-only; strip it, or use a dev-only
+  condition, before you deploy.
 - **A strict `script-src` CSP will block the tag.** The launcher cannot be injected from outside a page that forbids
   external scripts. Nothing at the Edityy side changes that.
 - **`https` on a LAN address or real domain** would treat `http://localhost:3000` as mixed content. Plain

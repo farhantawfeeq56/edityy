@@ -4,7 +4,9 @@ import { useState } from "react";
 import { input, submit } from "@/app/ui";
 
 export function LocalLauncher() {
-  const [url, setUrl] = useState("http://localhost:3000");
+  // Left empty on purpose: Edityy's own default is :3000, so pre-filling it
+  // would frame Edityy inside Edityy.
+  const [url, setUrl] = useState("");
   // The target's own page, not a proxy: Edityy is a layer on top of the real
   // site, not a copy of it.
   const [target, setTarget] = useState<string | null>(null);
@@ -24,15 +26,17 @@ export function LocalLauncher() {
           className={input}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="http://localhost:3000"
+          placeholder="http://localhost:5173"
           spellCheck={false}
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <button className={submit} type="submit">
+        <button className={submit} disabled={!url.trim()} type="submit">
           Open in frame
         </button>
-        <span className="text-sm text-neutral-500">V1: clicking the launcher only logs to the console.</span>
+        <span className="text-sm text-neutral-500">
+          Your site&apos;s own URL, not Edityy&apos;s. V1: clicking the launcher only logs to the console.
+        </span>
       </div>
       {target && (
         <div className="mt-2 flex flex-col gap-2">
