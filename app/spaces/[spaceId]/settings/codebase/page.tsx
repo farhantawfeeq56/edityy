@@ -12,7 +12,7 @@ export default async function CodebaseSettingsPage(props: PageProps<"/spaces/[sp
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">Codebase connection</h1>
+        <h1>Codebase connection</h1>
         <p className="mt-1 text-sm text-neutral-500">
           The repository Edityy treats as the source of truth for this space.
         </p>

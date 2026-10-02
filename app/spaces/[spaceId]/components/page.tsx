@@ -12,7 +12,7 @@ export default async function ComponentsPage(props: PageProps<"/spaces/[spaceId]
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">Component library</h1>
+        <h1>Component library</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Components belong to this space only. The code stays in the codebase.
         </p>
@@ -35,7 +35,7 @@ export default async function ComponentsPage(props: PageProps<"/spaces/[spaceId]
       {components.length === 0 ? (
         <Empty>No components yet. Add the first one above.</Empty>
       ) : (
-        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-neutral-100">
           {components.map((component) => (
             <li key={component.id} className="flex items-center justify-between gap-4 px-5 py-3">
               <div className="min-w-0">

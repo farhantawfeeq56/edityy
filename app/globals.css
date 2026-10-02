@@ -1,10 +1,49 @@
 @import "tailwindcss";
 
+/* Paper + ink palette. The neutral ramp IS the design: every neutral-* class in
+   the app resolves to one of these, so the tokens are the whole change. */
 @theme inline {
+  --color-neutral-50: #f6f5f3;
+  --color-neutral-100: #fbfaf9;
+  --color-neutral-200: #11111114;
+  --color-neutral-300: #11111126;
+  --color-neutral-400: #11111159;
+  --color-neutral-500: #5e5c5a;
+  --color-neutral-600: #5e5c5a;
+  --color-neutral-700: #272625;
+  --color-neutral-800: #272625;
+  --color-neutral-900: #111111;
+
+  /* mint drives action and the "running" signal, always with ink text */
+  --color-green-100: #b7efb2;
+  --color-green-800: #111111;
+
+  /* the three tile pastels, cycled across the space deck */
+  --color-mint: #b7efb2;
+  --color-butter: #ffef99;
+  --color-lilac: #e2ddfd;
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 body {
   font-family: var(--font-sans);
+  background: #f6f5f3;
+  color: #111111;
+}
+
+::selection {
+  background: #b7efb2;
+  color: #111111;
+}
+
+/* Page titles: one display statement per view. ponytail: the system stack
+   until a brand face is bundled — no fonts.gstatic.com fetch at build. */
+h1 {
+  font-family: var(--font-sans);
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -1.76px;
 }
