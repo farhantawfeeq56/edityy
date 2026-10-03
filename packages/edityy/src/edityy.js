@@ -1,12 +1,16 @@
 /*
- * Edityy V1 launcher.
+ * Edityy launcher — the payload this package serves.
  *
- * Drop this into ANY localhost app with one tag, no npm package, no build step:
+ * Runs inside the page it is injected into, and mounts one launcher button:
+ * a fixed, full-viewport host that ignores pointer events, an open shadow root
+ * so the host page's CSS cannot reach the launcher (and the launcher cannot
+ * leak styles back out), and a single button in the bottom-right corner.
  *
- *   <script src="http://localhost:3000/edityy.js" defer></script>
+ * Clicking dispatches `edityy:launcher-click` on window — the seam an editor
+ * panel uses to talk to the page — and logs to the console.
  *
- * It mounts a launcher in the page's own document, so the site keeps running
- * exactly as it was — this file only adds a button.
+ * Browser IIFE on purpose: this file is served to the page as-is, so it cannot
+ * be a module.
  */
 (function () {
   "use strict";
@@ -20,8 +24,6 @@
   // later without ever coming between the user and the site.
   host.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
 
-  // Shadow DOM, so the site's CSS (button resets, font rules, z-index wars)
-  // cannot reach the launcher, and the launcher cannot leak styles out.
   var root = host.attachShadow({ mode: "open" });
   root.innerHTML = [
     "<style>",
