@@ -80,6 +80,27 @@ CI (`.github/workflows/ci.yml`) runs on every PR and every push to `main`: the p
 a check that the tarball ships exactly `src/`, the README, LICENSE and CHANGELOG, and the site's lint and build. The
 `ci` job passes only when all of them do; it is the check branch protection requires.
 
+## Deploying the site
+
+The site in `app/` deploys to Cloudflare Workers (https://edityy.webdesignbyft.workers.dev) by
+`.github/workflows/deploy.yml`. Every push to `main` deploys automatically once CI passes on that commit; a red CI run
+never deploys. To redeploy `main` by hand: **Actions → Deploy → Run workflow**.
+
+The deploy is `npx vinext-cloudflare deploy` (build with Vite, deploy with Wrangler). To check it locally without
+deploying: `npx vinext build && npx wrangler deploy --dry-run`.
+
+### One-time setup (owner)
+
+1. **Cloudflare API token.** Cloudflare dashboard → **My Profile → API Tokens → Create Token** → template *Edit
+   Cloudflare Workers*, scoped to the account that owns the `edityy` Worker. Copy the account ID from **Workers &
+   Pages** too.
+2. **GitHub `production` environment.** Repo **Settings → Environments → New environment** `production`. Limit
+   deployment branches to `main`, then add two environment secrets: `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID`. As environment secrets, only a job deploying `main` can read them.
+
+No required reviewers on `production`: deploys are meant to be automatic. The review gate is the PR approval before
+merge (AGENTS.md rule 12).
+
 ## Releasing
 
 `packages/edityy` is published to npm by `.github/workflows/release.yml` when a GitHub Release is published. There is
