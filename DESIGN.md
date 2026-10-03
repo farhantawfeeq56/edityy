@@ -16,24 +16,24 @@ colors:
   accent-violet: "#E2DDFD"
 typography:
   h1:
-    fontFamily: system-ui
+    fontFamily: "Plus Jakarta Sans"
     fontSize: 2.75rem
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: -1.76px
   h2:
-    fontFamily: system-ui
+    fontFamily: "Plus Jakarta Sans"
     fontSize: 1rem
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: -0.48px
   body-md:
-    fontFamily: system-ui
+    fontFamily: "Plus Jakarta Sans"
     fontSize: 1rem
     fontWeight: 400
     lineHeight: 1.3
   label:
-    fontFamily: system-ui
+    fontFamily: "Plus Jakarta Sans"
     fontSize: 0.875rem
     fontWeight: 500
     lineHeight: 1.2
@@ -135,8 +135,7 @@ Single ink anchors everything; mint drives action, orange signals alerts.
 
 ## Typography
 
-A system stack carries everything for now, and the ramp is carried by weight as
-well as size:
+The ramp is carried by weight as well as size:
 
 - **Page title (2.75rem / 600 / -1.76px):** one per view.
 - **Section and card title (1rem / 600 / -0.02em):** panels and lists.
@@ -144,12 +143,15 @@ well as size:
 - **Label (0.875rem / 500):** form-field names, plus buttons, nav links and badges.
 
 Body and meta text is 400, a name or an action is 500, a heading is 600.
+Those three weights are exactly what is shipped — the site loads Plus Jakarta
+Sans 400/500/600 (Latin subset) from `app/fonts` via `next/font/local`, because
+`next/font/google` fetches at build time and fails on restricted networks.
 
 The design calls for Nohemi as a display face (hero statements, wordmark,
-page titles) over Plus Jakarta Sans for everything else. Neither is loaded:
-`next/font/google` fetches at build time and fails on restricted networks, so
-bundle the two files under `app/fonts` and wire `next/font/local` when the
-brand needs its own type.
+page titles) over Plus Jakarta Sans for everything else. Nohemi is not loaded
+yet; page titles currently set in Plus Jakarta Sans 600. Bundle it the same way
+— the files under `app/fonts`, wired through `next/font/local` — when the brand
+needs its own display type.
 
 ## Layout
 
