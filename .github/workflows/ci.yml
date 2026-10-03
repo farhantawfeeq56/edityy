@@ -48,7 +48,7 @@ jobs:
             const [pkg] = require(process.argv[1]);
             const files = pkg.files.map((f) => f.path).sort();
             console.log(files.join("\n"));
-            const want = ["CHANGELOG.md", "LICENSE", "README.md", "package.json", "src/edityy.js", "src/index.js"];
+            const want = ["CHANGELOG.md", "LICENSE", "README.md", "package.json", "src/client.js", "src/edityy.js", "src/index.js"];
             const missing = want.filter((f) => !files.includes(f));
             const extra = files.filter((f) => !want.includes(f));
             if (missing.length || extra.length) {

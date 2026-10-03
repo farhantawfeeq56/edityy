@@ -25,7 +25,8 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./inject": "./src/index.js"
+    "./inject": "./src/index.js",
+    "./client": "./src/client.js"
   },
   "files": [
     "src",
@@ -34,7 +35,10 @@
   "engines": {
     "node": ">=18"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/edityy.js",
+    "./src/client.js"
+  ],
   "publishConfig": {
     "access": "public"
   },
