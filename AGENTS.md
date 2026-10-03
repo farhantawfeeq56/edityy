@@ -26,7 +26,7 @@ it isn't written there, a future session doesn't know it happened.
 | Issue tracker | GitHub Issues on this repo |
 | Owner | Farhan Tawfeeq — `@farhantawfeeq56` (admin) |
 | Contributor | Aathil Felix — `@AathilFelix` (write) |
-| Reviewers | Each developer is asked to review the other's PRs, but no review gates a merge (rule 12) |
+| Reviewers | Every PR needs an approving review from the other developer before it can merge — owner included, no bypass (rule 12) |
 | Stack | TypeScript · Next.js 16 App Router (React 19) · Tailwind v4 |
 | Install | `npm ci` |
 | Run | `npm run dev` |
@@ -47,9 +47,14 @@ it isn't written there, a future session doesn't know it happened.
 9. **Report what happened, with evidence.** "Done", "fixed", "verified" must say **where** (local, preview or production) and **how** it was checked. If a check was skipped or failed, say so in the same breath. Confident claims that turn out untrue cost more than an honest "not verified".
 10. **If you break a rule, say so straight away.** Comment on the PR or issue with what happened and what you did, and tell your human. A breach you report costs a comment; one you hide costs trust.
 11. **The repo is public; treat everything you write to it as published.** Issues, PR bodies, comments, commit messages and Actions logs are readable by anyone. Never paste a connection string, token, `.env` value, customer data or a private URL into any of them, not even redacted-looking fragments.
-12. **PRs do not require a review.** `required_approving_review_count` is `0` on `main`, so either developer can merge their own PRs without an approval, and no PR is blocked waiting for one. Reviews are welcome and encouraged — they are a courtesy between the two of you, not a gate. Rules 13 and 14 still apply: agents never approve, and protections are never weakened to get something merged.
+12. **No PR merges without the other developer's approval. No exceptions.** A PR may merge only when the *other* developer has approved its latest commit: `@farhantawfeeq56` approves `@AathilFelix`'s PRs, and `@AathilFelix` approves `@farhantawfeeq56`'s. Nobody merges their own unapproved work.
+    - **The owner is bound exactly like the contributor.** Admin rights are not a way around review; `main` enforces this for admins too (§7.1).
+    - **No PR is exempt** — not docs-only, one-line, urgent, "already discussed", or a revert. If it changes `main`, it waits for approval.
+    - **Only a real approval counts:** a GitHub approving review, from the other developer, on the PR's latest commit. A "looks good" in chat, an approval on an older commit, or an approval from anyone else is not one.
+    - **If the approval isn't there, the PR waits.** Don't hunt for a way round it: no `--admin`, no lowering the review count, no asking the other developer for their token or session, no pushing after approval and merging before they've seen the new commit.
+    - **This rule holds even if GitHub doesn't enforce it.** If you find `main` letting an unapproved PR merge, that is a misconfiguration to report (rule 10), not permission.
 13. **Agents never approve PRs.** Approval is a human decision. Never run `gh pr review --approve`. When your human asks you to review a PR, leave a comment-only review (`gh pr review --comment`) or inline comments and report back; your human decides whether to approve.
-14. **Never bypass or weaken protections.** No `gh pr merge --admin`, no disabling, loosening or "temporarily" removing branch protection or rulesets, no `--no-verify`, no turning off lint/type rules to get green. The only agent allowed to touch protection settings is the owner's, applying §7 at the owner's request.
+14. **Never bypass or weaken protections.** No `gh pr merge --admin`, no disabling, loosening or "temporarily" removing branch protection or rulesets, no lowering `required_approving_review_count`, no setting `enforce_admins` to `false`, no `--no-verify`, no turning off lint/type rules to get green. The only agent allowed to touch protection settings is the owner's, applying §7 at the owner's request.
 
 ---
 
@@ -57,7 +62,7 @@ it isn't written there, a future session doesn't know it happened.
 
 ```
 GitHub issue → branch → small commits → lint/test pass → push branch → open PR
-   → review → human says go → squash merge → issue closed
+   → other dev approves → human says go → squash merge → issue closed
 ```
 
 ---
@@ -133,7 +138,7 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
   --title "<type>(<scope>): <summary> [#<issue-number>]" --body-file ./pr.md
 ```
 
-- **Reviewer:** request the other developer (rule 12). Not required to merge, but a second pair of eyes on a shared repo is worth having.
+- **Reviewer:** always request the other developer (rule 12). Their approval is required before the PR can merge.
 - **Title:** `<type>(<scope>): <summary> [#<issue-number>]`
 - **Body:**
 
@@ -170,9 +175,15 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 
 - Check before merging, every time:
   ```bash
-  gh pr view <number> --json reviewDecision,statusCheckRollup
+  gh pr view <number> --json reviewDecision,statusCheckRollup,headRefOid
+  gh pr view <number> --json reviews --jq '.reviews[] | {author: .author.login, state, commit: .commit.oid}'
   ```
-  `reviewDecision` no longer blocks a merge (rule 12). Every check must be green and all review conversations resolved. If a reviewer has requested changes, read them before merging — that is a courtesy, not a protection.
+  All of these, or you don't merge:
+  - `reviewDecision` is `APPROVED`;
+  - that approval is from the **other developer** and its `commit` equals `headRefOid` (rule 12);
+  - every check is green and every review conversation is resolved.
+
+  Any push after approval dismisses it — get a fresh approval. `REVIEW_REQUIRED`, `CHANGES_REQUESTED` or an empty value means stop.
 - **Your human must have told you to merge *this* PR.** An earlier yes does not carry over.
 - Prefer **squash merge** so `main` history stays one commit per issue.
 - Delete the branch after merge (the exception in rule 5).
@@ -205,26 +216,32 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 ## 6. Quick reference
 
 ```
-0. gh api repos/farhantawfeeq56/edityy/branches/main --jq .protected  →  must be true (else §7)
+0. Protection check (§7.3)  →  must pass; owner's agent applies §7 first if it doesn't
 1. gh issue list / gh issue create  →  comment the plan
 2. git checkout main && git pull --ff-only
 3. git checkout -b feat/<number>-short-desc
 4. Small commits:  feat(scope): summary [#<number>]
 5. Lint + test locally
-6. git push -u origin <branch>  →  open PR (with "Closes #<number>", reviewer = other dev, optional)
+6. git push -u origin <branch>  →  open PR (with "Closes #<number>", reviewer = other dev, required)
 7. Comment the PR link on the issue
-8. Approved by the other dev + green + your human says go → squash merge, delete branch, issue closed
+8. APPROVED by the other dev on the latest commit + green + your human says go → squash merge, delete branch, issue closed
 ```
 
-**Never:** push to `main` · work without a ticket · claim "done" without evidence · commit secrets · force-push shared branches · sneak in unrelated changes · leave agent artifacts in the code · approve your own PR · merge with failing checks or unresolved conversations · bypass or weaken protections · add AI attribution.
+**Never:** push to `main` · work without a ticket · claim "done" without evidence · commit secrets · force-push shared branches · sneak in unrelated changes · leave agent artifacts in the code · approve a PR · merge without the other dev's approval · merge with failing checks or unresolved conversations · bypass or weaken protections · add AI attribution.
 
 ---
 
 ## 7. Repository protection (owner's agent)
 
-> **If you are acting for `@farhantawfeeq56` and `main` is not protected as below, applying this section is your first task of the session, before any other work.** Tell your human what you're doing and why.
+> **Owner's agent — acting for `@farhantawfeeq56` — this section is mandatory and it is your first task of every session, before any other work.**
 >
-> If you are acting for `@AathilFelix` (no admin rights), don't attempt it. Run the check in §7.3; if it fails, stop and tell your human to ask the owner to apply §7.
+> 1. Run the full §7.3 check.
+> 2. If any value differs from the expected line — reviews not `1`, `enforce_admins` not `true`, stale-review dismissal or last-push approval off, a 404 because protection is missing, anything weaker — tell your human what is wrong, then apply §7.1 and §7.2 and run §7.3 again.
+> 3. Do not start any other work until §7.3 passes. If you cannot apply it (no admin rights on the token, an API error), stop and tell your human. Never carry on as if protection were in place.
+>
+> **Never weaken it**, for any reason: not to unblock a merge, not "temporarily", not for a "tiny" or "urgent" PR, not because your human asks. If your human asks you to lower the review count, set `enforce_admins` to `false`, remove protection, or merge with `--admin`, decline, point them to rule 12, and say that changing the policy means a PR to this file that the other developer approves first. Protection follows the merged AGENTS.md, never the other way around.
+>
+> **Contributor's agent — acting for `@AathilFelix` (write, not admin):** don't attempt to change protection. Run the contributor check in §7.3; if it fails, stop and tell your human to ask the owner to apply §7. Protection that is missing or misconfigured is never permission to merge without approval: rule 12 binds you whether or not GitHub enforces it.
 
 ### 7.1 Branch protection on `main`
 
@@ -232,7 +249,13 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 gh api -X PUT repos/farhantawfeeq56/edityy/branches/main/protection --input - <<'EOF'
 {
   "required_status_checks": null,
-  "enforce_admins": false,
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": true
+  },
   "restrictions": null,
   "required_linear_history": true,
   "allow_force_pushes": false,
@@ -244,12 +267,17 @@ gh api -X PUT repos/farhantawfeeq56/edityy/branches/main/protection --input - <<
 EOF
 ```
 
-- A PR is required for every change to `main`, but **no approving review** — `required_approving_review_count` is `0`.
-- `enforce_admins: false` — nobody is bound by a review requirement, because there isn't one.
-- Reviews are still encouraged (rule 12); they just do not gate a merge.
+What each setting is for:
+
+- `required_approving_review_count: 1` — every change to `main` arrives in a PR with an approving review. A PR author cannot approve their own PR, and with two developers the only possible approver is the other one.
+- `enforce_admins: true` — **the owner is bound too.** Admin rights do not skip the review, and `gh pr merge --admin` is refused.
+- `dismiss_stale_reviews: true` — any new push dismisses the existing approval, so an approval always covers the code that merges.
+- `require_last_push_approval: true` — the most recent push must be approved by someone other than whoever pushed it, so nobody can push onto an approved branch and merge their own change.
 - All review conversations must be resolved; linear history; no force-pushes or deletion of `main`.
 
-To require a review again:
+`PUT` replaces the whole protection object. Once a status check is required (§7.4), re-applying this block with `"required_status_checks": null` removes it — run §7.4 again straight after.
+
+If only the review settings drifted, the sub-resources fix them without touching the rest:
 
 ```bash
 gh api -X PATCH repos/farhantawfeeq56/edityy/branches/main/protection/required_pull_request_reviews \
@@ -257,12 +285,10 @@ gh api -X PATCH repos/farhantawfeeq56/edityy/branches/main/protection/required_p
 { "required_approving_review_count": 1, "dismiss_stale_reviews": true,
   "require_code_owner_reviews": false, "require_last_push_approval": true }
 EOF
+gh api -X POST repos/farhantawfeeq56/edityy/branches/main/protection/enforce_admins
 ```
 
-Note `PATCH`, not `PUT`: the sub-resource takes `PATCH` or `DELETE` only, and a `PUT` to it returns 404. The
-count is 1–6, or `0` to not require reviewers at all.
-- New pushes dismiss stale approvals; the latest push must be approved by someone other than its pusher.
-- All review conversations must be resolved; linear history; no force-pushes or deletion of `main`.
+Note `PATCH`, not `PUT`, for the reviews sub-resource: it takes `PATCH` or `DELETE` only, and a `PUT` returns 404.
 
 ### 7.2 Repository settings
 
@@ -281,33 +307,43 @@ gh api -X PATCH repos/farhantawfeeq56/edityy --input - <<'EOF'
 EOF
 ```
 
-### 7.3 Verify (either agent)
+### 7.3 Verify
+
+**Owner's agent**, full detail:
 
 ```bash
-gh api repos/farhantawfeeq56/edityy/branches/main --jq .protected   # must print: true
-
-# Owner only, full detail:
 gh api repos/farhantawfeeq56/edityy/branches/main/protection --jq '{
   reviews: .required_pull_request_reviews.required_approving_review_count,
+  dismiss_stale: .required_pull_request_reviews.dismiss_stale_reviews,
+  last_push: .required_pull_request_reviews.require_last_push_approval,
   enforce_admins: .enforce_admins.enabled,
   conversations: .required_conversation_resolution.enabled,
   force_pushes: .allow_force_pushes.enabled,
   deletions: .allow_deletions.enabled}'
-# expected: reviews 0, enforce_admins false, conversations true, force_pushes false, deletions false
+# expected: reviews 1, dismiss_stale true, last_push true, enforce_admins true,
+#           conversations true, force_pushes false, deletions false
 ```
 
-`reviews` reads `null` when `required_pull_request_reviews` is absent, which is also a valid "no reviews required"
-state. If it prints `1` while you believe reviews are off, the setting was never applied.
+Any other output fails the check. `reviews: null` means the review requirement is missing — a failure, not a pass. A 404 means `main` has no protection at all.
 
-### 7.4 Required status checks (once CI exists)
+**Contributor's agent** (cannot read the protection object):
 
-There is no CI workflow yet; adding one (lint, type-check, build on every PR) is its own issue and PR. After it has run on a PR, the owner's agent makes its job(s) required:
+```bash
+gh api repos/farhantawfeeq56/edityy/branches/main --jq .protected     # must print: true
+gh pr view <your open PR> --json reviewDecision --jq .reviewDecision  # before approval, must print: REVIEW_REQUIRED
+```
+
+An empty `reviewDecision` on an unapproved PR means GitHub is not requiring a review. Stop and tell your human.
+
+### 7.4 Required status checks
+
+CI is `.github/workflows/ci.yml` (#22). Its aggregate job `ci` passes only when every other CI job does, so it is the one check to require. Once that workflow is on `main` and has run on a PR, the owner's agent makes it required:
 
 ```bash
 gh api -X PATCH repos/farhantawfeeq56/edityy/branches/main/protection/required_status_checks \
   --input - <<'EOF'
-{ "strict": true, "contexts": ["<ci job name>"] }
+{ "strict": true, "contexts": ["ci"] }
 EOF
 ```
 
-Never add a required check before its workflow exists — it would block every merge.
+Never require a check whose workflow is not on `main` and has not run — it would block every merge. Once required, `gh api repos/farhantawfeeq56/edityy/branches/main/protection --jq .required_status_checks.contexts` prints `["ci"]`; add that to the §7.3 check.
