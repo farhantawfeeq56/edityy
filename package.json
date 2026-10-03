@@ -8,8 +8,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "vinext build",
+    "start": "vite preview",
     "lint": "eslint",
     "test": "npm test --workspaces --if-present"
   },

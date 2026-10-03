@@ -89,7 +89,8 @@ Settings → Builds**): every push to `main` builds and deploys, and its status 
 Workers Builds does not wait for this repo's CI, so a merge deploys even if CI is red. CI must be green before merge
 (AGENTS.md §3.7) for that to be safe.
 
-To check the build locally without deploying: `npx vinext build && npx wrangler deploy --dry-run`.
+`npm run build` is `vinext build`, the same Workers bundle Cloudflare deploys; `npm start` serves it locally on the
+Workers runtime. To check a deploy without deploying: `npm run build && npx wrangler deploy --dry-run`.
 
 ## Releasing
 
