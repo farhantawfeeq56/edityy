@@ -1,6 +1,6 @@
 {
   "name": "edityy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A visual editing layer for code-based websites. Drop the launcher into a dev server you already run.",
   "license": "MIT",
   "author": "Farhan Tawfeeq <webdesignbyft@gmail.com>",
@@ -10,18 +10,33 @@
     "url": "git+https://github.com/farhantawfeeq56/edityy.git",
     "directory": "packages/edityy"
   },
-  "bugs": { "url": "https://github.com/farhantawfeeq56/edityy/issues" },
-  "keywords": ["visual-editor", "dev-server", "middleware", "localhost", "ai", "codebase"],
+  "bugs": {
+    "url": "https://github.com/farhantawfeeq56/edityy/issues"
+  },
+  "keywords": [
+    "visual-editor",
+    "dev-server",
+    "middleware",
+    "localhost",
+    "ai",
+    "codebase"
+  ],
   "type": "module",
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
     "./inject": "./src/index.js"
   },
-  "files": ["src"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "sideEffects": false,
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "node --test test/*.test.js"
   }

@@ -69,7 +69,7 @@ test("leaves a page that already has the tag alone", () => {
     fakeRes({ headers: { "content-type": "text/html", "content-length": html.length } })
   );
   res.end(html);
-  assert.equal(res.body, html);
+  assert.equal(res.body.toString(), html);
   assert.equal(res.getHeader("content-length"), html.length);
 });
 
@@ -106,14 +106,62 @@ test("skips a chunked HTML response instead of hijacking the stream", () => {
   assert.equal(res.body.toString(), "<html><head></head><body>streamed</body></html>");
 });
 
-test("a throwing response does not take the dev server down", () => {
+test("a throwing setHeader still delivers the page, tag and all", () => {
   const { res } = handle("/", fakeRes({ headers: { "content-type": "text/html", "content-length": 10 } }));
-  // Whatever goes wrong while patching the body, the page is still served.
+  // A response whose header store explodes must not take the page down with it.
   res.setHeader = () => {
     throw new Error("boom");
   };
   assert.doesNotThrow(() => res.end("<html><head></head><body>hi</body></html>"));
-  assert.equal(res.body, "<html><head></head><body>hi</body></html>");
+  assert.match(res.body.toString(), /defer><\/script>/);
+  assert.match(res.body.toString(), /<body>hi<\/body>/);
+});
+
+test("a response whose getHeader throws still defers to next()", () => {
+  const res = fakeRes();
+  res.getHeader = () => {
+    throw new Error("boom");
+  };
+  // Must not escape: an exception here would 500 the user's page.
+  const out = handle("/", res);
+  assert.equal(out.passed, true);
+  // Nothing was written; the user's handler owns the response.
+  assert.equal(res.body, undefined);
+});
+
+test("injects a body split across write() and end()", () => {
+  const res = fakeRes({ headers: { "content-type": "text/html", "content-length": 20 } });
+  const written = [];
+  res.write = (chunk) => written.push(String(chunk));
+  handle("/", res);
+
+  res.write("<!doctype html><html><head><title>t</title>");
+  res.end("</head><body>hi</body></html>");
+
+  const out = res.body.toString();
+  assert.match(out, /<script src="\/__edityy\/edityy\.js" defer><\/script><\/head>/);
+  assert.match(out, /<body>hi<\/body>/);
+  assert.equal(res.getHeader("content-length"), Buffer.byteLength(out));
+  // The head was held back rather than written straight to the wire.
+  assert.deepEqual(written, []);
+});
+
+test("a write() with no end() body still flushes on end()", () => {
+  const res = fakeRes({ headers: { "content-type": "text/html" } });
+  res.write = () => {};
+  handle("/", res);
+  res.write("<html><head></head><body>x</body></html>");
+  res.end();
+  assert.match(res.body.toString(), /defer><\/script>/);
+});
+
+test("encodes correctly for a multi-byte body", () => {
+  const res = fakeRes({ headers: { "content-type": "text/html; charset=utf-8", "content-length": 1 } });
+  handle("/", res);
+  res.end("<html><head></head><body>café ✓</body></html>");
+  const out = res.body.toString();
+  assert.match(out, /café ✓/);
+  assert.equal(res.getHeader("content-length"), Buffer.byteLength(out));
 });
 
 test("inject() covers the shapes dev servers actually return", () => {
