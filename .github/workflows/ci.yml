@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  package:
+    name: package (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every major `engines.node` in packages/edityy claims to support.
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # The package has no dependencies, so its tests run without an install.
+      - run: npm test
+        working-directory: packages/edityy
+
+  pack:
+    name: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check what the tarball ships
+        working-directory: packages/edityy
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const [pkg] = require(process.argv[1]);
+            const files = pkg.files.map((f) => f.path).sort();
+            console.log(files.join("\n"));
+            const want = ["CHANGELOG.md", "LICENSE", "README.md", "package.json", "src/edityy.js", "src/index.js"];
+            const missing = want.filter((f) => !files.includes(f));
+            const extra = files.filter((f) => !want.includes(f));
+            if (missing.length || extra.length) {
+              console.error("missing:", missing, "unexpected:", extra);
+              process.exit(1);
+            }
+          ' "$RUNNER_TEMP/pack.json"
+
+  site:
+    name: site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  # The one check branch protection requires (AGENTS.md §7.4). Matrix job names
+  # change with the matrix; this one does not.
+  ci:
+    name: ci
+    if: always()
+    needs: [package, pack, site]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All jobs passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          test "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false"

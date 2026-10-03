@@ -72,9 +72,43 @@ npm run dev          # the site in this repo
 
 ```bash
 cd packages/edityy
-npm test             # 14 checks
+npm test             # the package's checks
 npm pack --dry-run   # what would ship
 ```
+
+CI (`.github/workflows/ci.yml`) runs on every PR and every push to `main`: the package tests on Node 18, 20, 22 and 24,
+a check that the tarball ships exactly `src/`, the README, LICENSE and CHANGELOG, and the site's lint and build. The
+`ci` job passes only when all of them do; it is the check branch protection requires.
+
+## Releasing
+
+`packages/edityy` is published to npm by `.github/workflows/release.yml` when a GitHub Release is published. There is
+no npm token anywhere: the workflow authenticates with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC), and every version gets a provenance attestation.
+
+1. In a normal PR, bump `version` in `packages/edityy/package.json` (semver) and move the `Unreleased` notes in
+   `packages/edityy/CHANGELOG.md` under the new version with today's date. Merge it the usual way.
+2. Publish a GitHub Release from `main` whose tag is `v` plus that version:
+   ```bash
+   gh release create v0.1.1 --target main --title v0.1.1 --notes-file <notes.md>
+   ```
+3. The `Release` workflow checks the tag matches `package.json`, checks the version is not already on npm, runs the
+   tests, and publishes. A version with a prerelease suffix (`1.0.0-beta.1`) goes to the `next` dist-tag, never
+   `latest`.
+
+To rehearse without publishing: **Actions → Release → Run workflow** with `dry-run` ticked.
+
+### One-time setup (owner)
+
+Both steps need the owner's accounts; the workflow cannot publish until they are done.
+
+1. **npm trusted publisher.** On npmjs.com, `edityy` → **Settings** → **Trusted publishing** → GitHub Actions:
+   organization or user `farhantawfeeq56`, repository `edityy`, workflow filename `release.yml`, environment `npm`. Then
+   set **Publishing access** to *require two-factor authentication and disallow tokens*, so trusted publishing is the
+   only way in.
+2. **GitHub `npm` environment.** Repo **Settings** → **Environments** → **New environment** `npm`. Add the other
+   both developers as required reviewers, tick *Prevent self-review*, and limit deployment branches and tags to `main`
+   and `v*`. Whoever publishes the release then needs the other developer to approve the publish job.
 
 ## License
 

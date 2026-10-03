@@ -28,7 +28,8 @@
     "./inject": "./src/index.js"
   },
   "files": [
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=18"
