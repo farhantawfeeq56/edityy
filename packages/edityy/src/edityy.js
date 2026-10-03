@@ -83,6 +83,22 @@
     "input[type=range]{padding:0}",
     "input[type=color]{height:26px;padding:2px}",
     ".grid{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}",
+    /* Tabs: one visible surface at a time, so a section that isn't open costs
+       nothing. This is DESIGN.md's "unrevealed controls have no footprint". */
+    "#tabs{display:flex;gap:4px;margin:0 0 10px;border-bottom:1px solid #3a283c1a}",
+    "#tabs button{flex:1;border:0;border-radius:8px 8px 0 0;background:transparent;color:#86546b;",
+    "padding:5px 0;font:500 11px/1.2 inherit;cursor:pointer}",
+    "#tabs button[aria-selected=true]{background:#d79eac33;color:#3a283c}",
+    "#pane-text hr{border:0;border-top:1px solid #3a283c1a;margin:10px 0 0}",
+    /* Shorthand rows: one property, four fields. Empty means "leave it alone", so
+       `margin: 8px` needs one box filled, not four. */
+    ".row{margin-top:8px}",
+    ".row>b{display:block;font-weight:500;color:#86546b;margin-bottom:3px}",
+    ".quad{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}",
+    ".pair{display:grid;grid-template-columns:1fr 1fr;gap:4px}",
+    "input[type=text]{padding:4px 5px;font:inherit;font-size:11px}",
+    "details.sec{margin-top:6px;border:1px solid #3a283c1a;border-radius:8px;background:#3a283c08}",
+    "details.sec>summary{cursor:pointer;padding:6px 8px;font-weight:500;border-radius:8px}",
     "#changes{margin-top:12px;border-top:1px solid #3a283c1a;padding-top:8px}",
     "#changes summary{cursor:pointer;font-weight:600}",
     "#list{margin:8px 0 0;padding:0;list-style:none}",
@@ -97,18 +113,12 @@
     '<div class="box" id="sel"></div>',
     '<div id="panel" hidden>',
     '<div class="head" id="grip" title="Drag to move"><span id="target"></span><button type="button" id="done" title="Exit edit mode (Esc)">Done</button></div>',
+    '<nav id="tabs"></nav>',
+    '<section id="pane-text">',
     '<textarea id="fText" rows="2" spellcheck="false"></textarea>',
-    '<div class="grid">',
-    '<label>Font<select id="fFamily"></select></label>',
-    '<label>Size (px)<input id="fSize" type="number" min="6" max="200" step="1"></label>',
-    '<label>Weight<select id="fWeight"></select></label>',
-    '<label>Line height<input id="fLine" type="number" min="0.5" max="4" step="0.05"></label>',
-    '<label>Tracking (px)<input id="fSpacing" type="number" min="-8" max="20" step="0.1"></label>',
-    '<label>Align<select id="fAlign"></select></label>',
-    '<label>Case<select id="fTransform"></select></label>',
-    '<label>Decoration<select id="fDecoration"></select></label>',
-    '<label>Colour<input id="fColor" type="color"></label>',
-    "</div>",
+    '<div class="grid" id="typeGrid"></div>',
+    "</section>",
+    '<section id="pane-box" hidden></section>',
     '<details id="changes"><summary>Changes (<span id="count">0</span>)</summary>',
     '<ul id="list"></ul><button type="button" id="revertAll">Revert all changes</button></details>',
     "</div>",
@@ -162,6 +172,208 @@
       select.appendChild(option);
     });
   }
+
+  /* ------------------------------------------------------------- the panel */
+
+  // Every control in the panel, in one table. A row is a CSS property and the
+  // widgets to drive it; building the UI from this is what keeps a 40-property
+  // inspector from becoming 40 hand-written inputs. `apply()` already handles
+  // every one of them, so a new property is one line here and nothing else.
+  //
+  // kind: text | number | color | select | check | shadow | gradient
+  // sides: for shorthands, which longhands the boxes map to, in order.
+  var ENUMS = {
+    display: ["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "flow-root", "contents", "none"],
+    position: ["static", "relative", "absolute", "fixed", "sticky"],
+    overflow: ["visible", "hidden", "scroll", "auto", "clip"],
+    direction: ["ltr", "rtl"],
+    wrap: ["nowrap", "wrap", "wrap-reverse"],
+    justify: ["flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly", "stretch", "start", "end", "normal", "baseline"],
+    align: ["flex-start", "center", "flex-end", "stretch", "baseline", "start", "end", "normal", "self-start", "self-end"],
+    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    blend: ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion"],
+    timing: ["ease", "ease-in", "ease-out", "ease-in-out", "linear", "step-start", "step-end"],
+  };
+
+  var SCHEMA = [
+    { id: "text", label: "Text", rows: [
+      { p: "font-family", k: "select", o: FONTS },
+      { p: "font-size", k: "number", px: 1 },
+      { p: "font-weight", k: "select", o: ["100", "200", "300", "400", "500", "600", "700", "800", "900"] },
+      { p: "line-height", k: "number" },
+      { p: "letter-spacing", k: "number", px: 1 },
+      { p: "text-align", k: "select", o: [["left", "Left"], ["center", "Center"], ["right", "Right"], ["justify", "Justify"]] },
+      { p: "text-transform", k: "select", o: [["none", "As typed"], ["uppercase", "UPPERCASE"], ["lowercase", "lowercase"], ["capitalize", "Capitalize"]] },
+      { p: "text-decoration", k: "select", o: [["none", "None"], ["underline", "Underline"], ["line-through", "Line through"], ["overline", "Overline"]] },
+      { p: "color", k: "color" },
+    ] },
+    { id: "layout", label: "Layout", rows: [
+      { p: "width", k: "text" }, { p: "height", k: "text" },
+      { p: "min-width", k: "text" }, { p: "min-height", k: "text" },
+      { p: "max-width", k: "text" }, { p: "max-height", k: "text" },
+      { p: "display", k: "select", o: ENUMS.display },
+      { p: "position", k: "select", o: ENUMS.position },
+      { p: "z-index", k: "number" },
+      { p: "overflow", k: "select", o: ENUMS.overflow },
+    ] },
+    { id: "spacing", label: "Spacing", rows: [
+      { p: "margin", k: "quad", s: ["margin-top", "margin-right", "margin-bottom", "margin-left"] },
+      { p: "padding", k: "quad", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"] },
+      { p: "gap", k: "pair", s: ["row-gap", "column-gap"] },
+    ] },
+    { id: "flex", label: "Flex & grid", rows: [
+      { p: "flex-direction", k: "select", o: [["row", "row"], ["row-reverse", "row-reverse"], ["column", "column"], ["column-reverse", "column-reverse"]] },
+      { p: "flex-wrap", k: "select", o: ENUMS.wrap },
+      { p: "justify-content", k: "select", o: ENUMS.justify },
+      { p: "align-items", k: "select", o: ENUMS.align },
+      { p: "align-content", k: "select", o: ENUMS.justify },
+      { p: "flex-grow", k: "number" }, { p: "flex-shrink", k: "number" },
+      { p: "flex-basis", k: "text" }, { p: "order", k: "number" },
+      { p: "grid-template-columns", k: "text" }, { p: "grid-template-rows", k: "text" },
+      { p: "grid-auto-flow", k: "select", o: [["row", "row"], ["column", "column"], ["row dense", "row dense"], ["column dense", "column dense"]] },
+      { p: "grid-column", k: "text" }, { p: "grid-row", k: "text" },
+      { p: "place-items", k: "text" }, { p: "place-content", k: "text" },
+    ] },
+    { id: "appearance", label: "Appearance", rows: [
+      { p: "background", k: "color" },
+      { p: "background-image", k: "text", ph: "url(...) or linear-gradient(...)" },
+      { p: "background-size", k: "select", o: [["", ""], ["cover", "cover"], ["contain", "contain"], ["auto", "auto"]] },
+      { p: "background-position", k: "text" }, { p: "background-repeat", k: "select", o: [["no-repeat", "no-repeat"], ["repeat", "repeat"], ["repeat-x", "repeat-x"], ["repeat-y", "repeat-y"]] },
+      { p: "background-blend-mode", k: "select", o: ENUMS.blend },
+      { p: "border", k: "text", ph: "1px solid ..." },
+      { p: "border-radius", k: "quad", s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"] },
+      { p: "box-shadow", k: "shadow" },
+      { p: "opacity", k: "number", min: 0, max: 1, step: 0.01 },
+      { p: "backdrop-filter", k: "text", ph: "blur(8px)" },
+      { p: "filter", k: "text", ph: "blur(2px)" },
+    ] },
+    { id: "effects", label: "Effects", rows: [
+      { p: "transform", k: "text" },
+      { p: "rotate", k: "text" }, { p: "scale", k: "text" }, { p: "translate", k: "text" },
+      { p: "transform-origin", k: "text" },
+      { p: "transition", k: "text" },
+      { p: "transition-duration", k: "number", px: 1 },
+      { p: "transition-timing-function", k: "select", o: ENUMS.timing },
+      { p: "animation", k: "text" },
+      { p: "animation-duration", k: "number", px: 1 },
+      { p: "animation-timing-function", k: "select", o: ENUMS.timing },
+    ] },
+  ];
+
+  /** Every input, by the property it drives. fillControls reads from this. */
+  var inputs = {};
+  root.inputs = inputs; // the panel's own registry, readable for debugging
+
+  /** One input, wired to apply(). Built once, never rebuilt. */
+  function field(row, prop, placeholder) {
+    var input;
+    if (row.k === "select") {
+      input = document.createElement("select");
+      fill(input, typeof row.o[0] === "string" ? row.o.map(function (v) { return [v, v]; }) : row.o);
+    } else {
+      input = document.createElement("input");
+      input.type = row.k === "check" ? "checkbox" : row.k === "color" ? "color" : row.k === "number" ? "number" : "text";
+      if (row.k === "number") {
+        if (row.min !== undefined) input.min = row.min;
+        if (row.max !== undefined) input.max = row.max;
+        input.step = row.step ?? 1;
+      }
+    }
+    if (placeholder) input.placeholder = placeholder;
+    input.title = prop;
+    inputs[prop] = input;
+    input.addEventListener("input", function () {
+      if (selected) apply(prop, input.value ? units(row, prop, input.value) : "");
+    });
+    return input;
+  }
+
+  /** Bare numbers are pixels for lengths; ratios and z-index are unitless. */
+  function units(row, prop, value) {
+    if (row.k !== "number") return value;
+    // Line height is the one number that is a ratio, and the panel shows it that
+    // way whatever the stylesheet stores.
+    if (prop === "line-height") return String(value);
+    return row.px ? value + "px" : value;
+  }
+
+  /** A labelled row: one property, one or four boxes. */
+  function buildRow(row) {
+    var wrap = document.createElement("div");
+    wrap.className = "row";
+    var caption = document.createElement("b");
+    caption.textContent = row.p;
+    wrap.appendChild(caption);
+
+    if (row.k === "quad" || row.k === "pair") {
+      var grid = document.createElement("div");
+      grid.className = row.k === "quad" ? "quad" : "pair";
+      row.s.forEach(function (side) {
+        var input = field({ k: "text" }, side, "");
+        input.placeholder = side.split("-")[1].slice(0, 3);
+        grid.appendChild(input);
+      });
+      wrap.appendChild(grid);
+      return wrap;
+    }
+
+    wrap.appendChild(field(row, row.p, row.ph));
+    return wrap;
+  }
+
+  /** The whole inspector, from SCHEMA. Sections start closed. */
+  function buildPanel() {
+    var tabs = $("tabs");
+    SCHEMA.forEach(function (section, i) {
+      var tab = document.createElement("button");
+      tab.type = "button";
+      tab.textContent = section.label;
+      tab.setAttribute("aria-selected", String(i === 0));
+      tab.addEventListener("click", function () {
+        showSection(section.id);
+      });
+      tabs.appendChild(tab);
+    });
+
+    $("pane-text").appendChild(document.createElement("hr"));
+    var grid = $("typeGrid");
+    // The first section's rows live on the always-visible text pane; the rest
+    // live in a details element per section, so an unopened one costs nothing.
+    SCHEMA.forEach(function (section) {
+      var host = section.id === "text" ? grid : sectionHost(section);
+      section.rows.forEach(function (row) {
+        host.appendChild(buildRow(row));
+      });
+    });
+  }
+
+  function sectionHost(section) {
+    var details = document.createElement("details");
+    details.className = "sec";
+    details.setAttribute("data-section", section.id);
+    var summary = document.createElement("summary");
+    summary.textContent = section.label;
+    details.appendChild(summary);
+    $("pane-box").appendChild(details);
+    return details;
+  }
+
+  function showSection(id) {
+    Array.prototype.forEach.call($("tabs").children, function (tab, i) {
+      tab.setAttribute("aria-selected", String(SCHEMA[i].id === id));
+    });
+    $("pane-text").hidden = id !== "text";
+    $("pane-box").hidden = id === "text";
+    if (id === "text") return;
+    // Exactly one section open: the one being looked at. Closing it is what makes
+    // the panel stay small no matter how many properties it holds.
+    Array.prototype.forEach.call($("pane-box").children, function (details) {
+      details.open = details.getAttribute("data-section") === id;
+    });
+  }
+
+  buildPanel();
+  showSection("text"); // Text opens first; every other section stays collapsed
   fill($("fFamily"), FONTS);
   fill($("fWeight"), WEIGHTS.map(function (w) { return [w, w]; }));
   fill($("fAlign"), ALIGNS);
@@ -169,26 +381,8 @@
   fill($("fDecoration"), DECORATIONS);
 
   // Every control maps to one CSS longhand, so applying a value and recording
-  // what was there before are the same code path.
-  var CONTROLS = [
-    ["fFamily", "font-family"],
-    ["fSize", "font-size"],
-    ["fWeight", "font-weight"],
-    ["fLine", "line-height"],
-    ["fSpacing", "letter-spacing"],
-    ["fAlign", "text-align"],
-    ["fTransform", "text-transform"],
-    ["fDecoration", "text-decoration"],
-    ["fColor", "color"],
-  ];
-  CONTROLS.forEach(function (pair) {
-    var input = $(pair[0]);
-    // Every control listens for the same event. `input` is the one that fires
-    // while a number is being typed into and while a colour is being dragged.
-    input.addEventListener("input", function () {
-      if (selected) apply(pair[1], input.value ? withUnit(pair[1], input.value) : "");
-    });
-  });
+  // what was there before are the same code path. Typed controls get their units
+  // from their schema row, not from a hardcoded list that would grow forever.
   $("fText").addEventListener("input", function (e) {
     if (selected) setText(selected, e.target.value);
   });
@@ -196,11 +390,6 @@
   $("revertAll").addEventListener("click", function () {
     changes.slice().forEach(revert);
   });
-
-  /** The two lengths the panel takes as bare pixels; everything else is a keyword. */
-  function withUnit(prop, value) {
-    return prop === "font-size" || prop === "letter-spacing" ? value + "px" : value;
-  }
 
   var active = false;
   var selected = null;
@@ -227,13 +416,23 @@
   }
 
   /** The nearest ancestor-or-self of the point that holds its own text. */
+  /**
+   * The element under the pointer, preferring one with text.
+   *
+   * Text wins because that is what a click means in a text editor. With no text
+   * anywhere, the raw target is returned so containers stay styleable — an
+   * element inspector that could only reach text would not be one. The elements
+   * that make up Edityy's own chrome are never returned.
+   */
   function textAt(x, y) {
     var el = document.elementFromPoint(x, y);
+    while (el && el.host === host) el = el.parentElement; // never select ourselves
+    var fallback = el;
     while (el && el !== document.body && el !== document.documentElement) {
       if (hasOwnText(el)) return el;
       el = el.parentElement;
     }
-    return null;
+    return fallback && fallback !== document.body && fallback !== document.documentElement ? fallback : null;
   }
 
   /** A short, human way to name an element in the changes list. */
@@ -310,31 +509,46 @@
   /** Show the selection's current values, so the panel reads as its state. */
   function fillControls(el) {
     var cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
-    var value = function (prop) {
+    var computed = function (prop) {
       return (cs ? cs.getPropertyValue(prop) : "") || el.style.getPropertyValue(prop);
     };
-    var family = value("font-family").replace(/["']/g, "").replace(/\s+/g, " ").trim();
-    // Matched on the leading family, not the whole stack: a resolved stack never
-    // equals its source, and `var()` never resolves at all. `var()` is skipped
-    // when reading the list, because it is a reference, not a family name.
+    // One pass over the table, not a hand-written line per control: the schema
+    // already knows which property each input belongs to.
+    Object.keys(inputs).forEach(function (prop) {
+      var input = inputs[prop];
+      var raw = computed(prop);
+      // Colours arrive as rgb() or hsl() from getComputedStyle; the swatch only
+      // understands #rrggbb, so anything else leaves the swatch alone.
+      if (input.type === "color") {
+        var hex = toHex(raw);
+        if (hex) input.value = hex;
+        return;
+      }
+      input.value = raw === "none" && input.tagName === "SELECT" ? "" : raw;
+    });
+    // Font family is the one property the generic pass gets wrong: a resolved
+    // stack never equals its source and `var()` never resolves, so the choice is
+    // matched on the leading family name instead.
+    var family = computed("font-family").replace(/["\x27]/g, "").replace(/\s+/g, " ").trim();
     var first = family.split(",")[0].trim().toLowerCase();
-    $("fFamily").value = FONTS.filter(function (f) {
-      var lead = f[1].split(",").map(function (part) {
-        return part.trim();
-      }).filter(function (part) {
-        return !part.startsWith("var(");
-      })[0];
-      return lead.replace(/["']/g, "").toLowerCase() === first;
-    })[0]?.[0] ?? "";
-    $("fSize").value = parseFloat(value("font-size")) || "";
-    $("fWeight").value = value("font-weight").split(" ")[0];
-    $("fLine").value = parseFloat(value("line-height")) / (parseFloat(value("font-size")) || 1) || "";
-    $("fSpacing").value = parseFloat(value("letter-spacing")) || "";
-    $("fAlign").value = value("text-align");
-    $("fTransform").value = value("text-transform");
-    $("fDecoration").value = value("text-decoration-line");
-    var hex = toHex(value("color"));
-    if (hex) $("fColor").value = hex;
+    var font = inputs["font-family"];
+    if (font) {
+      font.value = FONTS.filter(function (f) {
+        return f[1].split(",").map(function (part) {
+          return part.trim();
+        }).filter(function (part) {
+          return !part.startsWith("var(");
+        })[0].replace(/["\x27]/g, "").toLowerCase() === first;
+      })[0]?.[0] ?? "";
+    }
+    // Line height reads as a number because that is how anyone thinks of it; the
+    // stylesheet stores it unitless or as a length.
+    var lh = inputs["line-height"];
+    if (lh) {
+      var size = parseFloat(computed("font-size"));
+      var line = parseFloat(computed("line-height"));
+      if (line && size) lh.value = Math.round((line / size) * 100) / 100;
+    }
     var field = $("fText");
     field.value = el.textContent;
     // Only a leaf can be rewritten wholesale; replacing the text of an element

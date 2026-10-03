@@ -8,6 +8,16 @@ All notable changes to the `edityy` package. The format follows
 
 ### Added
 
+- An element inspector: selecting any element — not only text — opens a panel of
+  the CSS that shapes it. Layout (size, min/max, display, position, overflow,
+  z-index), spacing (margin, padding, gap as four- and two-box shorthands), flex
+  and grid properties, appearance (background, background image, border, radius,
+  shadow, opacity, blur and backdrop blur, blend mode), and effects (transform,
+  rotate, scale, translate, transitions and animations). Every control maps to a
+  real CSS longhand, so a change is one inline style that reverts like any other.
+- The inspector is built from one table of properties rather than hand-written
+  inputs, and the panel shows one section at a time: unrevealed controls have no
+  footprint, so a 78-property inspector stays small. (#47)
 - The orb is replaced by a custom editing cursor while the mode is on, so the
   pointer carries the affordance and the orb has no footprint until it is needed.
   The selection and hover frames stand 3px off the element and round to the

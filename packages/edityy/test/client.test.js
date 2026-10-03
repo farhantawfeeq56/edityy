@@ -10,28 +10,35 @@ import { test } from "node:test";
 
 const appended = [];
 
+/** A node the payload can build a control out of: styles, attributes, events. */
+const stubNode = () => ({
+  style: { cssText: "" },
+  className: "",
+  type: "",
+  value: "",
+  textContent: "",
+  children: [],
+  appendChild() {},
+  setAttribute() {},
+  addEventListener() {},
+  attachShadow() {
+    const nodes = {};
+    return {
+      innerHTML: "",
+      // The panel is built from ids inside the shadow root; mounting only needs
+      // one placeholder per id, not a real form control. The drag handlers live
+      // on the root itself, and controls are created with the document's factory.
+      getElementById: (id) => (nodes[id] ??= stubNode()),
+      createElement: stubNode,
+      addEventListener() {},
+    };
+  },
+});
+
 /** A document/window pair just big enough for the launcher to mount into. */
 const dom = {
   document: {
-    createElement: () => ({
-      style: { cssText: "" },
-      setAttribute() {},
-      attachShadow() {
-        const nodes = {};
-        return {
-          innerHTML: "",
-          // The panel is built from ids inside the shadow root; mounting only
-          // needs one placeholder per id, not a real form control. The drag
-          // handlers live on the root itself.
-          getElementById: (id) => (nodes[id] ??= { value: "", textContent: "", style: {}, appendChild() {}, addEventListener() {} }),
-          addEventListener() {},
-        };
-      },
-      appendChild(node) {
-        appended.push(node);
-        return node;
-      },
-    }),
+    createElement: stubNode,
     body: { appendChild: (node) => appended.push(node) },
     documentElement: { appendChild: (node) => appended.push(node) },
   },

@@ -60,10 +60,12 @@ function fakeDom() {
     childNodes: [],
     children: [],
     disabled: false,
+    className: "",
     setAttribute: (k, v) => (attrs[k] = v),
     getAttribute: (k) => attrs[k],
     appendChild: (child) => {
       created.push(child);
+      node.children.push(child);
       return child;
     },
     addEventListener: (type, fn) => (bubble(node, type).push(fn)),
@@ -90,6 +92,8 @@ function fakeDom() {
     innerHTML: "",
     nodes: {},
     bubbles: {},
+    // Every input the payload builds, keyed by the CSS property it drives.
+    inputs: {},
     addEventListener: (type, fn) => (root.bubbles[type] ??= []).push(fn),
     removeEventListener: (type, fn) => {
       root.bubbles[type] = (root.bubbles[type] ?? []).filter((f) => f !== fn);
@@ -198,6 +202,14 @@ function fakeDom() {
       hover: (node) => {
         hovered = node;
       },
+      /** Drive a control by the CSS property it owns, as a user would. */
+      type: (prop, value) => {
+        const input = root.inputs[prop];
+        input.value = value;
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** The control that owns a property, for asserting what it read. */
+      control: (prop) => root.inputs[prop],
     };
   }
 
@@ -352,23 +364,28 @@ test("the font dropdown reads the selection's own family back", () => {
     app.click();
     app.hover(heading);
     app.clickPage();
-    assert.equal(app.root.nodes.fFamily.value, "Plus Jakarta Sans");
+    assert.equal(app.control("font-family").value, "Plus Jakarta Sans");
     app.hover(plain);
     app.clickPage();
-    assert.equal(app.root.nodes.fFamily.value, "Georgia");
+    assert.equal(app.control("font-family").value, "Georgia");
   });
 });
 
-test("an element with no text of its own is not selectable", () => {
-  const { run, el } = fakeDom();
+test("a text element wins over the container around it", () => {
+  const { run, text, el } = fakeDom();
   const app = run();
-  const wrapper = el("div");
+  const card = el("section");
+  const heading = text("h1", "Edityy");
+  card.childNodes = [heading];
+  card.parentElement = null;
+  heading.parentElement = card;
   quiet(() => {
     app.click();
-    app.hover(wrapper);
+    app.hover(heading);
     app.clickPage();
   });
-  assert.equal(app.root.nodes.panel.hidden, true);
+  // Clicking the words selects the words, not the box they sit in.
+  assert.match(app.root.nodes.target.textContent, /h1/);
 });
 
 test("editing a control applies one inline style and records one change", () => {
@@ -379,8 +396,7 @@ test("editing a control applies one inline style and records one change", () => 
     app.click();
     app.hover(heading);
     app.clickPage();
-    app.root.nodes.fSize.value = "48";
-    app.root.nodes.fSize.bubbles.input.bubble.forEach((fn) => fn({}));
+    app.type("font-size", "48");
   });
   assert.equal(heading.style.getPropertyValue("font-size"), "48px");
   assert.equal(String(app.root.nodes.count.textContent), "1");
@@ -394,10 +410,8 @@ test("a keyword control applies the keyword, not a length", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.root.nodes.fAlign.value = "center";
-    app.root.nodes.fAlign.bubbles.input.bubble.forEach((fn) => fn({}));
-    app.root.nodes.fColor.value = "#ff0000";
-    app.root.nodes.fColor.bubbles.input.bubble.forEach((fn) => fn({}));
+    app.type("text-align", "center");
+    app.type("color", "#ff0000");
   });
   assert.equal(p.style.getPropertyValue("text-align"), "center");
   assert.equal(p.style.getPropertyValue("color"), "#ff0000");
@@ -425,10 +439,8 @@ test("clearing a control puts the stylesheet's value back", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.root.nodes.fAlign.value = "center";
-    app.root.nodes.fAlign.bubbles.input.bubble.forEach((fn) => fn({}));
-    app.root.nodes.fAlign.value = "";
-    app.root.nodes.fAlign.bubbles.input.bubble.forEach((fn) => fn({}));
+    app.type("text-align", "center");
+    app.type("text-align", "");
   });
   assert.equal(p.style.getPropertyValue("text-align"), "");
 });
@@ -441,8 +453,7 @@ test("a revert restores the value that was there before the change", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.root.nodes.fAlign.value = "center";
-    app.root.nodes.fAlign.bubbles.input.bubble.forEach((fn) => fn({}));
+    app.type("text-align", "center");
     app.root.nodes.fText.value = "after";
     app.root.nodes.fText.bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
     app.root.nodes.revertAll.bubbles.click.bubble.forEach((fn) => fn({}));
@@ -460,8 +471,7 @@ test("leaving edit mode reverts every change", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.root.nodes.fSize.value = "48";
-    app.root.nodes.fSize.bubbles.input.bubble.forEach((fn) => fn({}));
+    app.type("font-size", "48");
     app.fire("keydown", { key: "Escape" });
   });
   assert.equal(p.style.getPropertyValue("font-size"), "");
@@ -513,6 +523,113 @@ test("a dragged panel is not re-parked by a scroll or a resize", () => {
     app.clickPage();
   });
   assert.equal(panel.style.left, "512px", "parked beside the new selection");
+});
+
+test("the inspector covers every property the schema lists", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "body");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  // Layout, spacing, flex/grid, appearance and effects are all reachable, and
+  // each owns a real CSS longhand rather than a made-up name.
+  for (const prop of [
+    "width", "height", "min-width", "max-width", "max-height",
+    "margin-top", "padding-left", "row-gap",
+    "display", "position", "z-index", "overflow",
+    "flex-direction", "justify-content", "align-items", "flex-grow",
+    "grid-template-columns", "grid-column", "place-items",
+    "background", "background-image", "border", "border-top-left-radius",
+    "box-shadow", "opacity", "backdrop-filter",
+    "transform", "rotate", "scale", "translate",
+    "transition", "transition-duration", "animation", "animation-duration",
+  ]) {
+    assert.ok(app.control(prop), `${prop} has a control`);
+  }
+});
+
+test("one section open at a time keeps the panel from becoming a wall", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "body");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  const tabs = app.root.nodes.tabs.children;
+  // Text plus Layout, Spacing, Flex & grid, Appearance, Effects.
+  assert.equal(tabs.length, 6);
+  // Exactly one tab is selected, and the non-Text panes start hidden: the panel
+  // shows one section at a time, so unrevealed controls cost no space.
+  assert.equal(tabs.filter((t) => t.getAttribute("aria-selected") === "true").length, 1);
+  assert.equal(app.root.nodes["pane-text"].hidden, false, "Text is what opens first");
+  assert.equal(app.root.nodes["pane-box"].hidden, true, "the rest is collapsed away");
+});
+
+test("any schema property applies and records like a typography one", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const card = text("div", "card");
+  quiet(() => {
+    app.click();
+    app.hover(card);
+    app.clickPage();
+    app.type("padding-left", "24");
+    app.type("border-top-left-radius", "12");
+  });
+  assert.equal(card.style.getPropertyValue("padding-left"), "24");
+  assert.equal(card.style.getPropertyValue("border-top-left-radius"), "12");
+  assert.equal(String(app.root.nodes.count.textContent), "1", "one element, one entry");
+});
+
+test("a shorthand side is recorded under its own longhand", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const box = text("div", "box");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    app.type("margin-top", "8");
+    app.type("margin-bottom", "8");
+  });
+  // Two longhands, two entries: nothing is written as `margin`, so reverting one
+  // side cannot disturb the other.
+  assert.equal(box.style.getPropertyValue("margin-top"), "8");
+  assert.equal(box.style.getPropertyValue("margin-bottom"), "8");
+  assert.equal(box.style.getPropertyValue("margin"), "");
+});
+
+test("an element with no text can still be selected for styling", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const wrapper = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(wrapper);
+    app.clickPage();
+  });
+  // Styling a container is the whole point of an element inspector, so an element
+  // without its own text is still a legal target.
+  assert.equal(app.root.nodes.panel.hidden, false);
+  assert.match(app.root.nodes.target.textContent, /div/);
+});
+
+test("the text field is disabled when the element holds markup", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const wrapper = el("p");
+  wrapper.childNodes = [{ nodeType: 1, nodeValue: "" }];
+  quiet(() => {
+    app.click();
+    app.hover(wrapper);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.fText.disabled, true);
 });
 
 test("clicks inside the editing panel are not swallowed by the page", () => {
