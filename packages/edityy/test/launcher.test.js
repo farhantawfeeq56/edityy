@@ -212,6 +212,22 @@ test("the button is a real button with an accessible name", () => {
   assert.match(root.innerHTML, />Edityy<\/button>/);
 });
 
+test("the launcher wears the DESIGN.md palette", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // Orb: Primary fill, On-primary label, Secondary on hover. Floating layer:
+  // translucent paper with blur and a diffuse ink shadow.
+  assert.match(css, /background:#3a283c/, "Primary");
+  assert.match(css, /color:#f9f2ee/, "On-primary");
+  assert.match(css, /#launch:hover\{background:#86546b\}/, "Secondary on hover");
+  assert.match(css, /backdrop-filter:blur/, "the mist");
+  // The ramp is closed: five values, nothing pure black or pure white, and none
+  // of the ink + mint palette #48 replaced.
+  for (const banned of [/#111[^0-9a-f]/i, /#fff[^0-9a-f]/i, /#b7efb2/i, /#ffef99/i, /#e2ddfd/i]) {
+    assert.doesNotMatch(css, banned, "no colour outside the DESIGN.md ramp");
+  }
+});
+
 test("loading twice mounts only one launcher", () => {
   const { run } = fakeDom();
   const app = run();

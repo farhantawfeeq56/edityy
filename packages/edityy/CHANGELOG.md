@@ -15,6 +15,14 @@ All notable changes to the `edityy` package. The format follows
   inline to the live element and listed as proposals, each reversible, and
   leaving the mode reverts all of them. Nothing is written to the codebase and
   nothing is persisted. (#47)
+
+### Changed
+
+- The launcher and the editor panel now wear the `DESIGN.md` palette: Primary
+  `#3a283c` orb, On-primary `#f9f2ee` label, Secondary `#86546b` hover, hairline
+  `#3a283c1a` borders, and a blurred translucent-paper floating layer. The panel
+  radius follows the 16px layer token. The ink + mint colours the payload used
+  before are gone. (#48)
 - `edityy/client`: a browser bootstrap that mounts the launcher. Frameworks that
   inject client modules can use it directly — on Next 16.3+ it makes the launcher
   one line in `next.config.ts` via `instrumentationClientInject`, with no route
