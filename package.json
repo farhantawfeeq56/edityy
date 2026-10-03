@@ -1,20 +1,19 @@
 {
-  "name": "edityy",
+  "name": "edityy-site",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test scripts/*.test.ts",
-    "migrate": "node --env-file=.env.local scripts/migrate.mjs"
+    "test": "npm test --workspaces --if-present"
   },
   "dependencies": {
-    "@neon/config": "^1.8.3",
-    "@neon/env": "^1.4.8",
-    "@neondatabase/serverless": "^1.2.0",
     "@vinext/cloudflare": "^1.0.1",
     "next": "16.3.8",
     "react": "19.2.8",

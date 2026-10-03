@@ -2,59 +2,44 @@
 
 **A visual editing layer for code-based websites.**
 
-Edityy lets developers work with their existing website visually through the running application, while the actual codebase stays the source of truth.
+`npm install -D edityy`, one line in your dev server config, and the Edityy launcher appears in the bottom-right corner
+of the site you are already running. Your codebase stays the source of truth.
 
-It is not a traditional CMS, page builder, or replacement for the codebase.
-
-## The Core Idea
-
-A developer already has a website built in their codebase. Instead of rebuilding that website inside another visual editor, Edityy works on top of the running application.
-
-```
-Codebase
-   ↓
-Running website
-   ↓
-Edityy
-   ↓
-Visual changes
-   ↓
-Reviewable change set
-   ↓
-AI coding agent
-   ↓
-Actual code changes
+```bash
+npm install -D edityy
 ```
 
-Edityy provides the visual layer between the developer and their codebase. You make and preview changes visually, without Edityy becoming the owner of the website.
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import { edityy } from "edityy";
 
-## Codebase as the Source of Truth
+export default defineConfig({
+  plugins: [{ name: "edityy", configureServer(server) { server.middlewares.use(edityy()); } }],
+});
+```
 
-The application and its source code remain authoritative. Edityy does not create a competing representation of your site or require it to be rebuilt inside Edityy.
+Reload the page. The launcher is there. Full setup for Vite, Connect/Express and Next.js is in the
+[package README](packages/edityy/README.md).
 
-Visual changes made through Edityy are **proposed changes** until they are implemented in the actual codebase.
+## How it works
 
-## Spaces
+```
+your codebase → your dev server → edityy middleware → the page, with a launcher
+```
 
-Edityy is organized around **Spaces**.
+The middleware serves `/__edityy/edityy.js` and injects a relative `<script>` tag into the HTML your dev server already
+returns. A relative URL means it follows whatever port you are on, so there is nothing to configure and no port to keep
+in sync.
 
-- Each Space represents an individual project and has its own unique ID.
-- A codebase connects to a specific Space, so Edityy knows which project it is working with.
-- Each Space has its own component ecosystem; components belonging to one Space stay isolated from others.
+The launcher itself mounts a host element that is fixed to the viewport, ignores pointer events, and renders its button
+inside an **open shadow root** — so your page's CSS cannot restyle it and it cannot leak styles back out. Clicking
+dispatches an `edityy:launcher-click` event on `window`: the seam a later editor panel uses to talk to your page.
 
-## Components
+## The idea
 
-A Space can have custom components that come from the connected codebase and are made available to Edityy. Edityy understands and works with these components without taking ownership of their implementation — the component code continues to live in your repository.
-
-## MCP
-
-MCP is part of the connection between Edityy and a project's component ecosystem. It lets Edityy work with the resources and context associated with a particular Space, rather than treating every project as a generic website.
-
-## AI Coding Agents
-
-Edityy does not need to modify your source code directly. Changes made during a visual editing session are represented as a clear, human-readable change set, which you hand off to an AI coding agent to implement in your codebase.
-
-This keeps a clean separation:
+You already have a website built in your codebase. Edityy works on top of the running application instead of asking you
+to rebuild that site inside a visual editor.
 
 | Concern | Owner |
 | --- | --- |
@@ -62,52 +47,35 @@ This keeps a clean separation:
 | Implementation | AI coding agent |
 | Source of truth | Codebase |
 
-## Product Philosophy
-
-Edityy is built around one fundamental idea:
-
-> The website should remain a real codebase, while visual editing becomes a better interface for expressing changes to that codebase.
-
-Edityy makes working with existing code-based websites feel more visual, without turning itself into another website-building environment.
-
----
-
-## Getting Started
-
-This repository is a fresh implementation of that idea.
-
-```bash
-npm install
-npm run migrate   # apply db/schema.sql to DATABASE_URL
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### Scripts
-
-```bash
-npm run dev      # start the dev server
-npm run build    # production build
-npm run start    # serve the production build
-npm run lint     # run ESLint
-npm run test     # run the node:test checks
-npm run migrate  # apply db/schema.sql to DATABASE_URL
-```
-
-### Stack
-
-- [Next.js](https://nextjs.org) 16 (App Router)
-- React 19
-- TypeScript
-- Tailwind CSS 4
-
-## Try it — V1 local launcher
-
-Add one script tag to any site you are already running and Edityy places its own floating launcher in the bottom-right
-corner of it. No npm package, no build step. See [docs/local-launcher.md](docs/local-launcher.md).
+See [DESIGN.md](DESIGN.md) for the visual language.
 
 ## Status
 
-V1 (local connection + floating launcher) is built. The editor itself is not — this README describes the product
-direction; implementation is being built incrementally.
+V1 is the launcher. It runs, it is tested, and it is packaged — the editor panel behind the click does not exist yet.
+
+## Repository layout
+
+| Path | What |
+| --- | --- |
+| `packages/edityy` | The published npm package. The middleware and the launcher payload. |
+| `app` | A one-page site for this repo. Not the product. |
+| `DESIGN.md` | Visual language. |
+
+## Development
+
+```bash
+npm install          # installs the workspace
+npm test             # the package's checks
+npm run lint
+npm run dev          # the site in this repo
+```
+
+```bash
+cd packages/edityy
+npm test             # 14 checks
+npm pack --dry-run   # what would ship
+```
+
+## License
+
+MIT

@@ -1,5 +1,5 @@
-// Regression check for the launcher script (public/edityy.js).
-// Run: npm run test
+// Regression check for the launcher payload this package ships
+// (src/edityy.js). Run: npm test
 //
 // The script is plain browser JS with no imports, so it can be run against a
 // hand-rolled DOM stub instead of pulling in a browser or a DOM library.
@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-const source = readFileSync(new URL("../public/edityy.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
 
 /** Just enough DOM for the launcher: elements, one shadow root, one event. */
 function fakeDom() {
