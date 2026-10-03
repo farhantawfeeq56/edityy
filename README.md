@@ -85,6 +85,8 @@ a check that the tarball ships exactly `src/`, the README, LICENSE and CHANGELOG
 The site in `app/` runs on Cloudflare Workers (https://edityy.webdesignbyft.workers.dev). Deploys are done by
 Cloudflare **Workers Builds**, connected to this repo in the Cloudflare dashboard (**Workers & Pages → edityy →
 Settings → Builds**): every push to `main` builds and deploys, and its status shows up as a check on the commit.
+Pushes to other branches build and run `npx wrangler preview`, which creates a Worker Preview for the branch; that
+command needs the `previews` block in `wrangler.jsonc`, so keep it even though it is empty.
 
 Workers Builds does not wait for this repo's CI, so a merge deploys even if CI is red. CI must be green before merge
 (AGENTS.md §3.7) for that to be safe.
