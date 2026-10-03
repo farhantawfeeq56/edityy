@@ -88,6 +88,10 @@ Settings → Builds**): every push to `main` builds and deploys, and its status 
 Pushes to other branches build and run `npx wrangler preview`, which creates a Worker Preview for the branch; that
 command needs the `previews` block in `wrangler.jsonc`, so keep it even though it is empty.
 
+Workers Builds installs with npm 10, and `.npmrc` raises npm's fetch retries and timeouts so the ~127 MB `workerd`
+Linux binary doesn't silently fail to download (the same mitigation `farhantawfeeq56/cmsy` uses). `.nvmrc` pins Node
+24. `.github/workflows/cloudflare-deployments.yml` mirrors each build onto the repo's Deployments page with a live link.
+
 Workers Builds does not wait for this repo's CI, so a merge deploys even if CI is red. CI must be green before merge
 (AGENTS.md §3.7) for that to be safe.
 
