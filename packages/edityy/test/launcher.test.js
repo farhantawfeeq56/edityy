@@ -16,6 +16,11 @@ const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8"
 function fakeDom() {
   const created = [];
   let hovered = null;
+
+  /** What the browser would report: inline style wins, else the inherited map. */
+  const computed = (el) => ({
+    getPropertyValue: (prop) => el.style.getPropertyValue(prop) || el.computed?.[prop] || "",
+  });
   /** Listener buckets, keyed by phase: capture runs before bubble. */
   const bucket = (node, type, phase) => ((node.bubbles ??= {})[type] ??= {})[phase] ??= [];
   const bubble = (node, type) => bucket(node, type, "bubble");
@@ -99,7 +104,7 @@ function fakeDom() {
       const list = bucket(win, type, "bubble");
       list.splice(list.indexOf(fn), 1);
     },
-    getComputedStyle: () => null,
+    getComputedStyle: (el) => computed(el),
     CustomEvent: class {
       constructor(type) {
         this.type = type;
@@ -228,6 +233,17 @@ test("the launcher wears the DESIGN.md palette", () => {
   }
 });
 
+test("the launcher wears the site's own font", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // Plus Jakarta Sans, the face DESIGN.md and the app ship. `all:initial` on the
+  // host severs inheritance, so the payload has to name it — with the token
+  // first so the app's loaded face wins, and the bare family as the fallback.
+  assert.match(css, /font-family:var\(--font-sans,\\?"?\+?Plus Jakarta Sans/, "Jakarta via the app token");
+  assert.doesNotMatch(css, /font-family:system-ui/, "not a bare system-ui stack");
+  assert.match(css, /font:600 15px\/1 inherit/, "the orb inherits that face");
+});
+
 test("loading twice mounts only one launcher", () => {
   const { run } = fakeDom();
   const app = run();
@@ -259,6 +275,24 @@ test("hovering text outlines it, clicking selects it and fills the panel", () =>
   assert.equal(app.root.nodes.panel.hidden, false);
   assert.match(app.root.nodes.target.textContent, /h1/);
   assert.equal(app.root.nodes.fText.value, "Edityy");
+});
+
+test("the font dropdown reads the selection's own family back", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // A resolved stack never equals the source string, so only the leading family
+  // can be matched. `var()` in the inline style resolves to nothing at all.
+  const heading = text("h1", "Edityy", { "font-family": "'Plus Jakarta Sans', system-ui, sans-serif" });
+  const plain = text("p", "body", { "font-family": "Georgia, serif" });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+    assert.equal(app.root.nodes.fFamily.value, "Plus Jakarta Sans");
+    app.hover(plain);
+    app.clickPage();
+    assert.equal(app.root.nodes.fFamily.value, "Georgia");
+  });
 });
 
 test("an element with no text of its own is not selectable", () => {

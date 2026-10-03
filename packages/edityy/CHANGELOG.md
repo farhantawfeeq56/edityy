@@ -11,17 +11,19 @@ All notable changes to the `edityy` package. The format follows
 - A temporary text editing mode. The launcher button toggles it: hover outlines
   any element that has text, click selects it, and a panel next to the selection
   edits its text and its typography — font family, size, weight, line height,
-  letter spacing, alignment, case, decoration and colour. Changes are applied
-  inline to the live element and listed as proposals, each reversible, and
-  leaving the mode reverts all of them. Nothing is written to the codebase and
-  nothing is persisted. (#47)
+  letter spacing, alignment, case, decoration and colour. The font list leads
+  with the site's own face and offers the stacks a machine already has; no
+  webfont is ever loaded. Changes are applied inline to the live element and
+  listed as proposals, each reversible, and leaving the mode reverts all of
+  them. Nothing is written to the codebase and nothing is persisted. (#47)
 
 ### Changed
 
-- The launcher and the editor panel now wear the `DESIGN.md` palette: Primary
-  `#3a283c` orb, On-primary `#f9f2ee` label, Secondary `#86546b` hover, hairline
-  `#3a283c1a` borders, and a blurred translucent-paper floating layer. The panel
-  radius follows the 16px layer token. The ink + mint colours the payload used
+- The launcher and the editor panel now wear the `DESIGN.md` design system: Plus
+  Jakarta Sans for every label, field and the orb; Primary `#3a283c` orb,
+  On-primary `#f9f2ee` label, Secondary `#86546b` hover, hairline `#3a283c1a`
+  borders, and a blurred translucent-paper floating layer at the 16px layer
+  radius. The ink + mint colours and the bare `system-ui` stack the payload used
   before are gone. (#48)
 - `edityy/client`: a browser bootstrap that mounts the launcher. Frameworks that
   inject client modules can use it directly — on Next 16.3+ it makes the launcher

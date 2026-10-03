@@ -41,11 +41,15 @@
   root.innerHTML = [
     "<style>",
     ":host{all:initial}",
-    "*{box-sizing:border-box;font-family:system-ui,sans-serif;color:#3a283c}",
+    // `all:initial` severs inheritance, so the payload names the site's own font
+    // itself. --font-sans is the app's stack (Plus Jakarta Sans first); the bare
+    // family name covers a host that has the font without the token, and the
+    // rest keeps the panel readable anywhere.
+    "*{box-sizing:border-box;font-family:var(--font-sans,\"Plus Jakarta Sans\",ui-sans-serif,system-ui,sans-serif);color:#3a283c}",
     "[hidden]{display:none}", // a shadow root has no UA stylesheet, so `hidden` is ours to honour
     "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:3;",
-    "display:grid;place-items:center;font:600 15px/1 system-ui,sans-serif;color:#f9f2ee;",
+    "display:grid;place-items:center;font:600 15px/1 inherit;color:#f9f2ee;",
     "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
     "#launch:hover{background:#86546b}",
     "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
@@ -105,15 +109,17 @@
   var panel = $("panel");
 
   // The font stacks a machine already has. No webfonts: the editor must not
-  // change what the page loads, only what it looks like.
+  // change what the page loads, only what it looks like. The first entry is the
+  // site's own face, taken from the app's own token wherever it sets one.
   var FONTS = [
+    ["Plus Jakarta Sans", "var(--font-sans), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif"],
     ["System UI", "system-ui, sans-serif"],
-    ["Sans", "Arial, Helvetica, sans-serif"],
-    ["Serif", "Georgia, 'Times New Roman', serif"],
+    ["Arial", "Arial, Helvetica, sans-serif"],
+    ["Georgia", "Georgia, 'Times New Roman', serif"],
     ["Monospace", "ui-monospace, SFMono-Regular, Menlo, monospace"],
-    ["Humanist", "'Trebuchet MS', Tahoma, sans-serif"],
-    ["Rounded", "ui-rounded, 'Hiragino Maru Gothic ProN', Quicksand, sans-serif"],
-    ["Garamond", "Garamond, Baskerville, serif"],
+    ["Trebuchet MS", "'Trebuchet MS', Tahoma, sans-serif"],
+    ["Quicksand", "ui-rounded, 'Hiragino Maru Gothic ProN', Quicksand, sans-serif"],
+    ["Baskerville", "Baskerville, Garamond, serif"],
     ["Impact", "Impact, Haettenschweiler, sans-serif"],
   ];
   var WEIGHTS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"];
@@ -292,9 +298,18 @@
     var value = function (prop) {
       return (cs ? cs.getPropertyValue(prop) : "") || el.style.getPropertyValue(prop);
     };
-    var family = value("font-family");
+    var family = value("font-family").replace(/["']/g, "").replace(/\s+/g, " ").trim();
+    // Matched on the leading family, not the whole stack: a resolved stack never
+    // equals its source, and `var()` never resolves at all. `var()` is skipped
+    // when reading the list, because it is a reference, not a family name.
+    var first = family.split(",")[0].trim().toLowerCase();
     $("fFamily").value = FONTS.filter(function (f) {
-      return f[1] === family;
+      var lead = f[1].split(",").map(function (part) {
+        return part.trim();
+      }).filter(function (part) {
+        return !part.startsWith("var(");
+      })[0];
+      return lead.replace(/["']/g, "").toLowerCase() === first;
     })[0]?.[0] ?? "";
     $("fSize").value = parseFloat(value("font-size")) || "";
     $("fWeight").value = value("font-weight").split(" ")[0];
