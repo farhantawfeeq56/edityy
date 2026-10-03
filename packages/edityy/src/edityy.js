@@ -365,7 +365,10 @@
   // what was there before are the same code path. Typed controls get their units
   // from their schema row, not from a hardcoded list that would grow forever.
   $("fText").addEventListener("input", function (e) {
-    if (selected) setText(selected, e.target.value);
+    // Guarded on the classification, not on the field being disabled: a
+    // container or a media element never gets its text rewritten, however the
+    // event arrived.
+    if (selected && selectedKind === "text") setText(selected, e.target.value);
   });
   $("done").addEventListener("click", exit);
   $("revertAll").addEventListener("click", function () {
@@ -374,6 +377,7 @@
 
   var active = false;
   var selected = null;
+  var selectedKind = null; // "text" | "container" | "media"
   var changes = []; // { el, props: {longhand: value-before}, text: value-before, textEdited: bool }
 
   /* ------------------------------------------------------------ selection */
@@ -405,15 +409,55 @@
    * element inspector that could only reach text would not be one. The elements
    * that make up Edityy's own chrome are never returned.
    */
-  function textAt(x, y) {
+  /**
+ * What kind of thing is this element? Three buckets, nothing else.
+ *
+ * Decided before anything is selected, because the three need different handling
+ * and guessing later is how a media element ends up with a text cursor in it.
+ *
+ *   media     — it *is* the media: img, svg, video, canvas, and the host it loads
+ *   text      — it holds words of its own
+ *   container — everything else: structure, layout, components
+ *
+ * Order matters. An <img alt="..."> is media, not text: the alt is a
+ * description of the media, not copy anyone can edit.
+ */
+  function kind(el) {
+    if (!el) return null;
+    var tag = el.tagName.toLowerCase();
+    if (tag === "img" || tag === "svg" || tag === "video" || tag === "audio" || tag === "canvas" || tag === "picture") {
+      return "media";
+    }
+    if (hasOwnText(el)) return "text";
+    return "container";
+  }
+
+  /**
+   * The element under the pointer, classified.
+   *
+   * Text wins the walk upward, because clicking words should select words. But a
+   * media element wins over the text around it: clicking a picture must not land
+   * on the caption beside it.
+   */
+  function pickAt(x, y) {
     var el = document.elementFromPoint(x, y);
     while (el && el.host === host) el = el.parentElement; // never select ourselves
     var fallback = el;
     while (el && el !== document.body && el !== document.documentElement) {
-      if (hasOwnText(el)) return el;
+      var k = kind(el);
+      // Media stops the walk outright: the nearest one is what was aimed at.
+      if (k === "media") return { el: el, kind: k };
+      if (k === "text") return { el: el, kind: k };
       el = el.parentElement;
     }
-    return fallback && fallback !== document.body && fallback !== document.documentElement ? fallback : null;
+    return fallback && fallback !== document.body && fallback !== document.documentElement
+      ? { el: fallback, kind: kind(fallback) }
+      : null;
+  }
+
+  function textAt(x, y) {
+    var hit = pickAt(x, y);
+    return hit ? hit.el : null;
   }
 
   /** A short, human way to name an element in the changes list. */
@@ -531,11 +575,19 @@
       if (line && size) lh.value = Math.round((line / size) * 100) / 100;
     }
     var field = $("fText");
-    field.value = el.textContent;
-    // Only a leaf can be rewritten wholesale; replacing the text of an element
-    // that holds markup would delete it.
-    field.disabled = !isLeafText(el);
-    field.title = field.disabled ? "This element holds markup — pick a plain text element" : "";
+    field.value = selectedKind === "media" ? "" : el.textContent;
+    // Only a text element can be rewritten, and only a leaf one: replacing the
+    // text of an element that holds markup would delete it. A container has no
+    // text of its own to replace, and media has none at all.
+    field.disabled = selectedKind !== "text" || !isLeafText(el);
+    field.title =
+      selectedKind === "media"
+        ? "Media has no text to edit"
+        : selectedKind === "container"
+          ? "A container has no text of its own — click the words inside it"
+          : isLeafText(el)
+            ? ""
+            : "This element holds markup — pick a plain text element";
   }
 
   /** #rgb or #rrggbb as #rrggbb, or nothing when it is not a plain colour. */
@@ -622,6 +674,9 @@
 
   function select(el) {
     selected = el;
+    // Classified here, once, before any control is filled: the kind decides what
+    // the panel offers and whether the text field is usable at all.
+    selectedKind = el ? kind(el) : null;
     $("target").textContent = el ? label(el) : "";
     panel.hidden = !el;
     if (!el) {

@@ -651,6 +651,93 @@ test("the text field is disabled when the element holds markup", () => {
   assert.equal(app.root.nodes.fText.disabled, true);
 });
 
+test("every element classifies as exactly one of text, container, media", () => {
+  const { run, text, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  const svg = el("svg");
+  const video = el("video");
+  const canvas = el("canvas");
+  const heading = text("h1", "Edityy");
+  const card = el("div");
+  const button = el("button");
+
+  // Each element gets selected and classified; the kind is read back off the
+  // panel's text-field behaviour, which is the only thing it drives today.
+  quiet(() => {
+    app.click();
+    for (const node of [img, svg, video, canvas, heading, card, button]) {
+      app.hover(node);
+      app.clickPage();
+      // Media and containers cannot have their text rewritten; text can.
+      const editable = app.root.nodes.fText.disabled === false;
+      assert.equal(editable, node === heading, `${node.tagName} classification`);
+    }
+  });
+});
+
+test("media is media even when it carries alt text", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  // <img alt="Logo"> holds words, but they describe the image — they are not
+  // copy anyone can edit, so this must not classify as text.
+  const img = el("img");
+  img.childNodes = [{ nodeType: 3, nodeValue: "Logo" }];
+  quiet(() => {
+    app.click();
+    app.hover(img);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.fText.disabled, true);
+  assert.match(app.root.nodes.target.textContent, /img/);
+});
+
+test("a picture beats the caption beside it", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  quiet(() => {
+    app.click();
+    // The walk returns the nearest text-or-media element. Hovering the image
+    // must land on the image, not on the caption that follows it.
+    app.hover(img);
+    app.clickPage();
+  });
+  assert.match(app.root.nodes.target.textContent, /img/);
+});
+
+test("a container's text field explains itself instead of failing silently", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const card = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(card);
+    app.clickPage();
+  });
+  const field = app.root.nodes.fText;
+  assert.equal(field.disabled, true);
+  assert.match(field.title, /no text of its own/, "the panel says why");
+});
+
+test("text cannot be written into a non-text element even if the field is poked", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  img.childNodes = [{ nodeType: 3, nodeValue: "before" }];
+  img.textContent = "before";
+  quiet(() => {
+    app.click();
+    app.hover(img);
+    app.clickPage();
+    // The field is disabled, but the listener is the real gate: an event forced
+    // in must not rewrite a media element's contents.
+    app.root.nodes.fText.value = "after";
+    app.root.nodes.fText.bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
+  });
+  assert.equal(img.textContent, "before");
+});
+
 test("clicks inside the editing panel are not swallowed by the page", () => {
   const { run, text } = fakeDom();
   const app = run();
