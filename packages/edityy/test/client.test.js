@@ -17,7 +17,13 @@ const dom = {
       style: { cssText: "" },
       setAttribute() {},
       attachShadow() {
-        return { innerHTML: "", querySelector: () => ({ addEventListener() {} }) };
+        const nodes = {};
+        return {
+          innerHTML: "",
+          // The panel is built from ids inside the shadow root; mounting only
+          // needs one placeholder per id, not a real form control.
+          getElementById: (id) => (nodes[id] ??= { value: "", textContent: "", style: {}, appendChild() {}, addEventListener() {} }),
+        };
       },
       appendChild(node) {
         appended.push(node);

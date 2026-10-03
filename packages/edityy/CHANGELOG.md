@@ -8,6 +8,13 @@ All notable changes to the `edityy` package. The format follows
 
 ### Added
 
+- A temporary text editing mode. The launcher button toggles it: hover outlines
+  any element that has text, click selects it, and a panel next to the selection
+  edits its text and its typography — font family, size, weight, line height,
+  letter spacing, alignment, case, decoration and colour. Changes are applied
+  inline to the live element and listed as proposals, each reversible, and
+  leaving the mode reverts all of them. Nothing is written to the codebase and
+  nothing is persisted. (#47)
 - `edityy/client`: a browser bootstrap that mounts the launcher. Frameworks that
   inject client modules can use it directly — on Next 16.3+ it makes the launcher
   one line in `next.config.ts` via `instrumentationClientInject`, with no route
