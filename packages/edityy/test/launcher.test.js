@@ -89,7 +89,17 @@ function fakeDom() {
   };
 
   const root = {
-    innerHTML: "",
+    // The payload assigns innerHTML; a browser parses it. The stub does the
+    // minimum of that: it registers an element for every id in the markup, so an
+    // id that is never written fails loudly instead of being invented on demand.
+    _html: "",
+    set innerHTML(value) {
+      root._html = value;
+      root.declare(...[...String(value).matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+    },
+    get innerHTML() {
+      return root._html;
+    },
     nodes: {},
     bubbles: {},
     // Every input the payload builds, keyed by the CSS property it drives.
@@ -98,7 +108,16 @@ function fakeDom() {
     removeEventListener: (type, fn) => {
       root.bubbles[type] = (root.bubbles[type] ?? []).filter((f) => f !== fn);
     },
-    getElementById: (id) => (root.nodes[id] ??= el(id === "fFamily" ? "select" : id === "fColor" ? "input" : "div", { id })),
+    // Real ids only: the panel's markup is parsed from innerHTML in a browser,
+    // but the stub never parses it. Handing back a node for an id that was never
+    // declared would hide exactly the bug where the payload reaches for a control
+    // the panel no longer has.
+    getElementById: (id) => {
+      if (root.nodes[id]) return root.nodes[id];
+      throw new Error(`no element with id "${id}" — the payload asks for something the panel does not have`);
+    },
+    /** Declare an id the innerHTML would have created. */
+    declare: (...ids) => ids.forEach((id) => (root.nodes[id] ??= el("div", { id }))),
   };
   // Every created element can host a shadow root and it is always this one: the
   // payload only ever attaches one, and tests need the nodes it finds by id.

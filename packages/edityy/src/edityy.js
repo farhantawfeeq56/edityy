@@ -147,20 +147,6 @@
     ["Baskerville", "Baskerville, Garamond, serif"],
     ["Impact", "Impact, Haettenschweiler, sans-serif"],
   ];
-  var WEIGHTS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"];
-  var ALIGNS = [["left", "Left"], ["center", "Center"], ["right", "Right"], ["justify", "Justify"]];
-  var CASES = [
-    ["none", "As typed"],
-    ["uppercase", "UPPERCASE"],
-    ["lowercase", "lowercase"],
-    ["capitalize", "Capitalize Each Word"],
-  ];
-  var DECORATIONS = [
-    ["none", "None"],
-    ["underline", "Underline"],
-    ["line-through", "Line through"],
-    ["overline", "Overline"],
-  ];
 
   /** Fill a select from [value, label] pairs, with a blank first option. */
   function fill(select, pairs) {
@@ -374,11 +360,6 @@
 
   buildPanel();
   showSection("text"); // Text opens first; every other section stays collapsed
-  fill($("fFamily"), FONTS);
-  fill($("fWeight"), WEIGHTS.map(function (w) { return [w, w]; }));
-  fill($("fAlign"), ALIGNS);
-  fill($("fTransform"), CASES);
-  fill($("fDecoration"), DECORATIONS);
 
   // Every control maps to one CSS longhand, so applying a value and recording
   // what was there before are the same code path. Typed controls get their units
