@@ -1,0 +1,85 @@
+name: Release
+
+# Publishes packages/edityy to npm when a GitHub Release is published.
+# Auth is npm trusted publishing (OIDC): no npm token is stored anywhere, and
+# every version gets a provenance attestation. One-time setup is in README.md
+# under "Releasing".
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Run every check and `npm publish --dry-run`, without publishing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    # Must match the environment in the npm trusted publisher config. The owner
+    # can add a required reviewer to it, so no publish runs unapproved.
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/edityy
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # Node 24 ships npm >= 11.5.1, the minimum for trusted publishing.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          # No cache in a job that holds an OIDC token: a poisoned cache could read it.
+          package-manager-cache: false
+
+      - name: Check the version
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          echo "package.json: $version"
+
+          if [ "$EVENT" = "release" ] && [ "$TAG" != "v$version" ]; then
+            echo "::error::Release tag '$TAG' does not match package.json version 'v$version'."
+            exit 1
+          fi
+
+          if npm view "edityy@$version" version >/dev/null 2>&1; then
+            echo "::error::edityy@$version is already on npm. Bump the version first."
+            exit 1
+          fi
+
+          # A prerelease (1.0.0-beta.1) must never become `latest`.
+          case "$version" in
+            *-*) echo "dist-tag=next" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "dist-tag=latest" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - run: npm test
+
+      - name: Publish
+        env:
+          DIST_TAG: ${{ steps.version.outputs.dist-tag }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+        run: |
+          npm --version
+          if [ "$DRY_RUN" = "true" ]; then
+            npm publish --dry-run --tag "$DIST_TAG"
+          else
+            npm publish --tag "$DIST_TAG"
+          fi
