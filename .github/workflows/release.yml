@@ -80,6 +80,18 @@ jobs:
           npm --version
           if [ "$DRY_RUN" = "true" ]; then
             npm publish --dry-run --tag "$DIST_TAG"
-          else
-            npm publish --tag "$DIST_TAG"
+            exit 0
           fi
+
+          # A failed trusted-publishing exchange is only logged at verbose level,
+          # after which npm publishes unauthenticated and gets a bare E404. Keep
+          # the oidc lines so the registry's reason is in the job log.
+          log="$RUNNER_TEMP/publish.log"
+          status=0
+          npm publish --tag "$DIST_TAG" --loglevel verbose > "$log" 2>&1 || status=$?
+          grep -v '^npm verbose' "$log" || true
+          grep -i 'oidc' "$log" || echo "npm logged no oidc lines"
+          if [ "$status" -ne 0 ] && grep -q 'E404' "$RUNNER_TEMP/publish.log"; then
+            echo "::error::npm rejected the publish. If the oidc lines above show a failed token exchange, the trusted publisher on npmjs.com must be user farhantawfeeq56, repo edityy, workflow release.yml, environment npm (README.md, Releasing)."
+          fi
+          exit "$status"
