@@ -6,7 +6,23 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
-## 0.1.1 — not yet published
+### Added
+
+- `edityy/client`: a browser bootstrap that mounts the launcher. Frameworks that
+  inject client modules can use it directly — on Next 16.3+ it makes the launcher
+  one line in `next.config.ts` via `instrumentationClientInject`, with no route
+  handler and no `<script>` tag.
+
+### Fixed
+
+- The launcher is no longer tree-shaken out of client bundles. `sideEffects` was
+  `false`, which let a bundler drop the payload from an import that existed only
+  for its side effects. (#43)
+- The README's Next.js setup is one config line, not two files to write by hand.
+  The previous instructions produced no launcher and no error if you skipped
+  them. (#43)
+
+## 0.1.1 — 2026-10-03
 
 ### Fixed
 

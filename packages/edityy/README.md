@@ -45,25 +45,35 @@ Reload the page. The launcher is in the bottom-right.
 
 ### Next.js
 
-Next renders the page itself, so a dev-server middleware cannot patch its HTML —
-`proxy.ts` (Next 16's name for `middleware.ts`) gets a Web `Request`, not the
-node response stream. Add the script to your root layout instead:
-
-```tsx
-// app/layout.tsx
-<script src="/__edityy/edityy.js" defer />
-```
-
-and serve that path with a route handler:
+Next renders the page itself, so a dev-server middleware cannot patch its HTML.
+Hand the client bootstrap to `instrumentationClientInject` instead — it runs
+before hydration, so there is no route handler and no `<script>` tag in the layout:
 
 ```ts
-// app/__edityy/edityy.js/route.ts
-import { launcher } from "edityy/inject";
+// next.config.ts
+import type { NextConfig } from "next";
 
-export function GET() {
-  return new Response(launcher, { headers: { "content-type": "text/javascript" } });
-}
+const nextConfig: NextConfig = {
+  instrumentationClientInject: ["edityy/client"],
+};
+
+export default nextConfig;
 ```
+
+Keep it off in production, since this is a dev tool:
+
+```ts
+...(process.env.NODE_ENV === "development" && {
+  instrumentationClientInject: ["edityy/client"],
+}),
+```
+
+The launcher script is bundled into the page rather than served from
+`ASSET_PATH`, so nothing extra is requested at runtime. If you would rather
+serve it over HTTP — to keep it out of your client bundle — use the layout
+approach instead: put `<script src="/__edityy/edityy.js" defer />` in
+`app/layout.tsx` and serve that path with a route handler that returns
+`launcher` from `edityy/inject`.
 
 ## What it does
 
@@ -92,7 +102,9 @@ edityy({ tag }) // returns a (req, res, next) middleware
 
 `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
 
-Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source) and `inject(body, tag?)` for injecting into an HTML string yourself.
+Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
+for injecting into an HTML string yourself, and `edityy/client` — the browser
+bootstrap that mounts the launcher, for frameworks that inject client modules.
 
 ## Known limits
 
