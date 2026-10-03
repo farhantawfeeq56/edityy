@@ -47,20 +47,33 @@
     // rest keeps the panel readable anywhere.
     "*{box-sizing:border-box;font-family:var(--font-sans,\"Plus Jakarta Sans\",ui-sans-serif,system-ui,sans-serif);color:#3a283c}",
     "[hidden]{display:none}", // a shadow root has no UA stylesheet, so `hidden` is ours to honour
-    "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
+    // Or `#launch` while the mode is off. Hidden once it is on: a custom cursor
+  // takes over, and DESIGN.md wants controls to have no footprint until needed.
+  "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:3;",
     "display:grid;place-items:center;font:600 15px/1 inherit;color:#f9f2ee;",
     "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
     "#launch:hover{background:#86546b}",
     "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
-    "#launch[aria-pressed=true]{background:#86546b;box-shadow:0 1px 1px #3a283c26,0 6px 12px #3a283c33}",
-    ".box{position:fixed;pointer-events:none;border-radius:2px;display:none;z-index:1}",
+    // The editing cursor. Kept inside the ramp, and it rides above the page in
+    // the fixed, top-layer host so the page cannot hide it.
+    "#cursor{position:fixed;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;",
+    "border-radius:50%;background:#3a283c1f;border:1px solid #3a283c;pointer-events:none;z-index:4;",
+    "transition:transform .12s ease-out}",
+    ".box{position:fixed;pointer-events:none;display:none;z-index:1}",
+    // Inflated by 3px and rounded per DESIGN.md: an approximate, clearly separate
+    // frame around the element, not a traced outline.
     "#hover{border:1px dashed #3a283c59;background:#d79eac2e}",
     "#sel{border:2px solid #3a283c;background:transparent}",
-    "#panel{position:fixed;pointer-events:auto;z-index:2;width:270px;max-height:calc(100vh - 24px);",
+    "#panel{position:fixed;pointer-events:auto;z-index:5;width:270px;max-height:calc(100vh - 24px);",
     "overflow:auto;padding:12px;border:1px solid #3a283c1a;border-radius:16px;background:#f9f2eecc;",
-    "backdrop-filter:blur(8px);box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;font-size:12px}",
-    ".head{display:flex;align-items:center;gap:8px;margin-bottom:10px}",
+    "backdrop-filter:blur(8px);box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;font-size:12px;",
+    // The scale-and-fade DESIGN.md's interaction model asks for on entry.
+    "animation:rise .16s cubic-bezier(.2,.8,.3,1)}",
+    "@keyframes rise{from{opacity:0;transform:scale(.96) translateY(4px)}to{opacity:1;transform:none}}",
+    "@media (prefers-reduced-motion:reduce){#panel{animation:none}#cursor{transition:none}}",
+    ".head{display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:grab;touch-action:none}",
+    ".head:active{cursor:grabbing}",
     "#target{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}",
     "#done{border:1px solid #3a283c;border-radius:8px;background:#3a283c;color:#f9f2ee;padding:4px 8px;cursor:pointer}",
     "label{display:block;margin-top:8px;font-weight:500;color:#86546b}",
@@ -78,11 +91,12 @@
     "#list button{border:1px solid #3a283c26;border-radius:8px;background:#f9f2ee;padding:2px 6px;cursor:pointer}",
     "#revertAll{width:100%;margin-top:8px;border:1px solid #3a283c;border-radius:8px;background:#ecc5c9;padding:5px;cursor:pointer}",
     "</style>",
-    '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy" aria-pressed="false">Edityy</button>',
+    '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy">Edityy</button>',
+    '<div id="cursor" hidden></div>',
     '<div class="box" id="hover"></div>',
     '<div class="box" id="sel"></div>',
     '<div id="panel" hidden>',
-    '<div class="head"><span id="target"></span><button type="button" id="done" title="Exit edit mode (Esc)">Done</button></div>',
+    '<div class="head" id="grip" title="Drag to move"><span id="target"></span><button type="button" id="done" title="Exit edit mode (Esc)">Done</button></div>',
     '<textarea id="fText" rows="2" spellcheck="false"></textarea>',
     '<div class="grid">',
     '<label>Font<select id="fFamily"></select></label>',
@@ -104,6 +118,7 @@
     return root.getElementById(id);
   };
   var launch = $("launch");
+  var cursor = $("cursor");
   var hoverBox = $("hover");
   var selBox = $("sel");
   var panel = $("panel");
@@ -337,18 +352,42 @@
     return /^#[0-9a-f]{6}$/i.test(color) ? color : "";
   }
 
-  function place(el, rect) {
-    el.style.left = rect.left + "px";
-    el.style.top = rect.top + "px";
-    el.style.width = rect.width + "px";
-    el.style.height = rect.height + "px";
+  // A frame drawn around an element, deliberately not hugging it: 3px of air on
+  // every side, so the box is unmistakably Edityy's and not the page's own edge.
+  var GAP = 3;
+  // The ramp's own radii (8 UI / 12 / 16 / pill), used inside out — whatever the
+  // element rounds to, the frame is never sharper than the design allows.
+  var RADII = [28, 16, 12, 8, 4];
+
+  function place(el, rect, target) {
+    el.style.left = rect.left - GAP + "px";
+    el.style.top = rect.top - GAP + "px";
+    el.style.width = rect.width + GAP * 2 + "px";
+    el.style.height = rect.height + GAP * 2 + "px";
+    el.style.borderRadius = pickRadius(rect, target) + "px";
   }
+
+  /** The first ramp radius that fits inside the element's own corner radius. */
+  function pickRadius(rect, target) {
+    var el = target || document.documentElement;
+    var own = parseFloat((window.getComputedStyle ? window.getComputedStyle(el) : { getPropertyValue: function () { return ""; } }).getPropertyValue("border-top-left-radius")) || 0;
+    // Shorter side first: a radius larger than half the smaller dimension becomes
+    // a lozenge, which is not what the design means.
+    var fit = Math.min(rect.width, rect.height) / 2;
+    for (var i = 0; i < RADII.length; i++) {
+      if (RADII[i] <= Math.max(own, fit)) return RADII[i];
+    }
+    return RADII[RADII.length - 1];
+  }
+
+  var dragged = false; // the panel has been moved by hand; stop re-parking it
 
   /** Park the panel beside the selection, inside the viewport. */
   function positionPanel() {
     if (!selected) return;
     var rect = selected.getBoundingClientRect();
-    place(selBox, rect);
+    place(selBox, rect, selected);
+    if (dragged) return;
     var w = panel.offsetWidth || 270;
     var h = panel.offsetHeight || 300;
     var left = rect.right + 12;
@@ -360,6 +399,32 @@
     panel.style.top = top + "px";
   }
 
+  /* ------------------------------------------------------------------ drag */
+
+  /** The panel travels wherever it is dropped, clamped to stay on screen. */
+  var grip = $("grip");
+  var drag = null;
+
+  grip.addEventListener("pointerdown", function (e) {
+    if (e.target === $("done")) return; // the button keeps its own click
+    e.preventDefault();
+    dragged = true;
+    drag = { dx: e.clientX - panel.offsetLeft, dy: e.clientY - panel.offsetTop };
+    grip.setPointerCapture(e.pointerId);
+  });
+
+  root.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var w = panel.offsetWidth;
+    var h = panel.offsetHeight;
+    panel.style.left = Math.min(Math.max(12, e.clientX - drag.dx), Math.max(12, window.innerWidth - w - 12)) + "px";
+    panel.style.top = Math.min(Math.max(12, e.clientY - drag.dy), Math.max(12, window.innerHeight - h - 12)) + "px";
+  });
+
+  root.addEventListener("pointerup", function () {
+    drag = null;
+  });
+
   function select(el) {
     selected = el;
     $("target").textContent = el ? label(el) : "";
@@ -369,6 +434,7 @@
       return;
     }
     selBox.style.display = "block";
+    dragged = false; // a fresh selection parks beside itself again
     fillControls(el);
     positionPanel();
   }
@@ -377,36 +443,46 @@
 
   function enter() {
     active = true;
-    launch.setAttribute("aria-pressed", "true");
-    launch.title = "Exit edit mode (Esc)";
+    // The orb steps aside for a cursor: while editing, the pointer IS the
+    // control, so it carries the affordance the orb used to.
+    launch.hidden = true;
+    cursor.hidden = false;
     document.addEventListener("mousemove", onMove, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", positionPanel, true);
+    // The selection frame is viewport-fixed like everything else, so a scroll
+    // moves the element out from under it and the frame must go with it.
+    window.addEventListener("scroll", hideHover, true);
     window.addEventListener("resize", positionPanel, true);
   }
 
   function exit() {
     active = false;
-    launch.setAttribute("aria-pressed", "false");
-    launch.title = "Edityy launcher";
+    launch.hidden = false;
+    cursor.hidden = true;
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKey, true);
-    window.removeEventListener("scroll", positionPanel, true);
+    window.removeEventListener("scroll", hideHover, true);
     window.removeEventListener("resize", positionPanel, true);
     changes.slice().forEach(revert);
     select(null);
+    hideHover();
+  }
+
+  /** The hover frame is only meaningful while the pointer is still on it. */
+  function hideHover() {
     hoverBox.style.display = "none";
   }
 
   function onMove(e) {
+    cursor.style.transform = "translate(" + e.clientX + "px," + e.clientY + "px)";
     var el = textAt(e.clientX, e.clientY);
     if (!el) {
       hoverBox.style.display = "none";
       return;
     }
-    place(hoverBox, el.getBoundingClientRect());
+    place(hoverBox, el.getBoundingClientRect(), el);
     hoverBox.style.display = "block";
   }
 

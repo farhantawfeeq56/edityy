@@ -21,8 +21,10 @@ const dom = {
         return {
           innerHTML: "",
           // The panel is built from ids inside the shadow root; mounting only
-          // needs one placeholder per id, not a real form control.
+          // needs one placeholder per id, not a real form control. The drag
+          // handlers live on the root itself.
           getElementById: (id) => (nodes[id] ??= { value: "", textContent: "", style: {}, appendChild() {}, addEventListener() {} }),
+          addEventListener() {},
         };
       },
       appendChild(node) {

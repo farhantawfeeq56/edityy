@@ -8,6 +8,14 @@ All notable changes to the `edityy` package. The format follows
 
 ### Added
 
+- The orb is replaced by a custom editing cursor while the mode is on, so the
+  pointer carries the affordance and the orb has no footprint until it is needed.
+  The selection and hover frames stand 3px off the element and round to the
+  nearest radius in the `DESIGN.md` ramp that the element's own corner radius and
+  short side allow, and the panel enters on a short scale-and-fade. The panel can
+  be picked up by its header and dropped anywhere; a hand-placed panel stays
+  where it is put until the next selection. (#47)
+
 - A temporary text editing mode. The launcher button toggles it: hover outlines
   any element that has text, click selects it, and a panel next to the selection
   edits its text and its typography — font family, size, weight, line height,

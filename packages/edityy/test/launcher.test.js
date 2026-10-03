@@ -53,6 +53,10 @@ function fakeDom() {
     hidden: false,
     offsetWidth: 270,
     offsetHeight: 300,
+    offsetLeft: 0,
+    offsetTop: 0,
+    setPointerCapture() {},
+    releasePointerCapture() {},
     childNodes: [],
     children: [],
     disabled: false,
@@ -85,6 +89,11 @@ function fakeDom() {
   const root = {
     innerHTML: "",
     nodes: {},
+    bubbles: {},
+    addEventListener: (type, fn) => (root.bubbles[type] ??= []).push(fn),
+    removeEventListener: (type, fn) => {
+      root.bubbles[type] = (root.bubbles[type] ?? []).filter((f) => f !== fn);
+    },
     getElementById: (id) => (root.nodes[id] ??= el(id === "fFamily" ? "select" : id === "fColor" ? "input" : "div", { id })),
   };
   // Every created element can host a shadow root and it is always this one: the
@@ -177,6 +186,15 @@ function fakeDom() {
         for (const fn of [...bucket(doc, type, "capture"), ...bucket(doc, type, "bubble")]) fn(event);
       },
       countDoc: (type) => bucket(doc, type, "capture").length,
+      /** Grab the panel's header, then move and release it. */
+      grab: (event) =>
+        quiet(() => {
+          for (const fn of root.nodes.grip.bubbles.pointerdown.bubble) fn({ ...event, target: root.nodes.target, preventDefault() {} });
+        }),
+      dragTo: (clientX, clientY) => {
+        for (const fn of root.bubbles.pointermove ?? []) fn({ clientX, clientY });
+        for (const fn of root.bubbles.pointerup ?? []) fn({ clientX, clientY });
+      },
       hover: (node) => {
         hovered = node;
       },
@@ -256,8 +274,54 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   const app = run();
   quiet(() => app.click());
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
-  assert.equal(app.launch().getAttribute("aria-pressed"), "true");
+  assert.equal(app.launch().hidden, true, "the orb steps aside for the cursor");
+  assert.equal(app.root.nodes.cursor.hidden, false);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
+});
+
+test("the editing cursor follows the pointer", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "body");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.fire("mousemove", { clientX: 40, clientY: 90 });
+  });
+  assert.equal(app.root.nodes.cursor.style.transform, "translate(40px,90px)");
+});
+
+test("the hover frame stands off the element and rounds with the ramp", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // A 120x48 heading: shorter side 48, so 16px is the largest ramp radius that
+  // does not turn the frame into a lozenge. Inset 3px on every side.
+  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.fire("mousemove", { clientX: 10, clientY: 10 });
+  });
+  const hover = app.root.nodes.hover.style;
+  assert.equal(hover.left, "97px");
+  assert.equal(hover.top, "47px");
+  assert.equal(hover.width, "126px");
+  assert.equal(hover.height, "54px");
+  assert.equal(hover.borderRadius, "16px");
+});
+
+test("the frame never rounds sharper than a short element can carry", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 100x20: half the short side is 10, so 16px would be a lozenge and 8 is the
+  // largest ramp radius that actually fits.
+  const line = text("p", "body", {}, { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 });
+  quiet(() => {
+    app.click();
+    app.hover(line);
+    app.fire("mousemove", { clientX: 10, clientY: 10 });
+  });
+  assert.equal(app.root.nodes.hover.style.borderRadius, "8px");
 });
 
 test("hovering text outlines it, clicking selects it and fills the panel", () => {
@@ -402,8 +466,53 @@ test("leaving edit mode reverts every change", () => {
   });
   assert.equal(p.style.getPropertyValue("font-size"), "");
   assert.equal(app.root.nodes.panel.hidden, true);
+  assert.equal(app.launch().hidden, false, "the orb comes back");
+  assert.equal(app.root.nodes.cursor.hidden, true);
   assert.equal(app.countDoc("click"), 0, "the page is released");
-  assert.equal(app.launch().getAttribute("aria-pressed"), "false");
+});
+
+test("the panel travels wherever it is dragged", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "body");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  const panel = app.root.nodes.panel;
+  const parked = panel.style.left;
+  // Grabbed 20px in from its left edge, 5px down: the panel keeps that offset.
+  app.grab({ clientX: 20, clientY: 5, pointerId: 1 });
+  app.dragTo(300, 200);
+  assert.equal(panel.style.left, "280px");
+  assert.equal(panel.style.top, "195px");
+  assert.notEqual(panel.style.left, parked, "it left where it was parked");
+});
+
+test("a dragged panel is not re-parked by a scroll or a resize", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "one");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  const panel = app.root.nodes.panel;
+  app.grab({ clientX: 0, clientY: 0, pointerId: 1 });
+  app.dragTo(500, 400);
+  const moved = panel.style.left;
+  assert.notEqual(moved, "", "the drag moved it somewhere");
+  app.fire("resize", {});
+  assert.equal(panel.style.left, moved, "a hand-placed panel stays put");
+  // A new selection re-parks it, because the new element deserves its own spot.
+  const other = text("h2", "two", {}, { left: 300, top: 300, right: 500, bottom: 340, width: 200, height: 40 });
+  quiet(() => {
+    app.hover(other);
+    app.clickPage();
+  });
+  assert.equal(panel.style.left, "512px", "parked beside the new selection");
 });
 
 test("clicks inside the editing panel are not swallowed by the page", () => {
