@@ -82,24 +82,14 @@ a check that the tarball ships exactly `src/`, the README, LICENSE and CHANGELOG
 
 ## Deploying the site
 
-The site in `app/` deploys to Cloudflare Workers (https://edityy.webdesignbyft.workers.dev) by
-`.github/workflows/deploy.yml`. Every push to `main` deploys automatically once CI passes on that commit; a red CI run
-never deploys. To redeploy `main` by hand: **Actions → Deploy → Run workflow**.
+The site in `app/` runs on Cloudflare Workers (https://edityy.webdesignbyft.workers.dev). Deploys are done by
+Cloudflare **Workers Builds**, connected to this repo in the Cloudflare dashboard (**Workers & Pages → edityy →
+Settings → Builds**): every push to `main` builds and deploys, and its status shows up as a check on the commit.
 
-The deploy is `npx vinext-cloudflare deploy` (build with Vite, deploy with Wrangler). To check it locally without
-deploying: `npx vinext build && npx wrangler deploy --dry-run`.
+Workers Builds does not wait for this repo's CI, so a merge deploys even if CI is red. CI must be green before merge
+(AGENTS.md §3.7) for that to be safe.
 
-### One-time setup (owner)
-
-1. **Cloudflare API token.** Cloudflare dashboard → **My Profile → API Tokens → Create Token** → template *Edit
-   Cloudflare Workers*, scoped to the account that owns the `edityy` Worker. Copy the account ID from **Workers &
-   Pages** too.
-2. **GitHub `production` environment.** Repo **Settings → Environments → New environment** `production`. Limit
-   deployment branches to `main`, then add two environment secrets: `CLOUDFLARE_API_TOKEN` and
-   `CLOUDFLARE_ACCOUNT_ID`. As environment secrets, only a job deploying `main` can read them.
-
-No required reviewers on `production`: deploys are meant to be automatic. The review gate is the PR approval before
-merge (AGENTS.md rule 12).
+To check the build locally without deploying: `npx vinext build && npx wrangler deploy --dry-run`.
 
 ## Releasing
 
