@@ -1,27 +1,29 @@
 @import "tailwindcss";
 
-/* Paper + ink palette. The neutral ramp IS the design: every neutral-* class in
-   the app resolves to one of these, so the tokens are the whole change. */
+/* Paper + plum + rose palette, graded like the reference frame: washed
+   highlights, faded shadows, nothing pure black or pure white. The neutral
+   ramp IS the design: every neutral-* class in the app resolves to one of
+   these, so the tokens are the whole change. */
 @theme inline {
-  --color-neutral-50: #f6f5f3;
-  --color-neutral-100: #fbfaf9;
-  --color-neutral-200: #11111114;
-  --color-neutral-300: #11111126;
-  --color-neutral-400: #11111159;
-  --color-neutral-500: #5e5c5a;
-  --color-neutral-600: #5e5c5a;
-  --color-neutral-700: #272625;
-  --color-neutral-800: #272625;
-  --color-neutral-900: #111111;
+  --color-neutral-50: #f9f2ee;
+  --color-neutral-100: #f9f2ee;
+  --color-neutral-200: #3a283c1a;
+  --color-neutral-300: #3a283c26;
+  --color-neutral-400: #3a283c59;
+  --color-neutral-500: #86546b;
+  --color-neutral-600: #86546b;
+  --color-neutral-700: #86546b;
+  --color-neutral-800: #86546b;
+  --color-neutral-900: #3a283c;
 
-  /* mint drives action and the "running" signal, always with ink text */
-  --color-green-100: #b7efb2;
-  --color-green-800: #111111;
+  /* mid rose drives action and the "running" signal, always with ink text */
+  --color-rose-500: #b6758b;
+  --color-rose-900: #3a283c;
 
   /* the three tile pastels, cycled across the space deck */
-  --color-mint: #b7efb2;
-  --color-butter: #ffef99;
-  --color-lilac: #e2ddfd;
+  --color-blush: #ecc5c9;
+  --color-rose: #d79eac;
+  --color-plum: #3a283c;
 
   /* --font-jakarta is set by next/font/local on <html>; the rest is the
      pre-swap fallback so the first paint never reflows into a different face. */
@@ -31,13 +33,13 @@
 
 body {
   font-family: var(--font-sans);
-  background: #f6f5f3;
-  color: #111111;
+  background: #f9f2ee;
+  color: #3a283c;
 }
 
 ::selection {
-  background: #b7efb2;
-  color: #111111;
+  background: #d79eac;
+  color: #3a283c;
 }
 
 /* Page titles: one display statement per view, at the ramp's 600. */
@@ -47,4 +49,18 @@ h1 {
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -1.76px;
+}
+
+/* Analog grain. The one thing that makes the ramp read as graded rather than
+   picked: a fixed noise veil over the whole canvas, above the surfaces and
+   below the text. Under the launcher's z-index, so the injected editor is
+   never tinted. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }

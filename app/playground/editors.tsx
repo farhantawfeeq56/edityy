@@ -46,5 +46,5 @@ export function TiptapEditor() {
     immediatelyRender: false,
   });
 
-  return <EditorContent editor={editor} className="min-h-64 border border-neutral-300 bg-white p-3" />;
+  return <EditorContent editor={editor} className="min-h-64 border border-neutral-300 bg-neutral-50 p-3" />;
 }
