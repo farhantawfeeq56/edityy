@@ -75,10 +75,12 @@
     // are painted, so the element underneath is never covered or tinted.
     ".frame{position:fixed;pointer-events:none;z-index:1}",
     "[hidden]{display:none!important}", // also for .frame: display:block would beat it
-    // Stroke weight of every piece: 2px, so the accent bars read as the dominant
-    // layer exactly as a design tool's outline does.
-    ".line{position:absolute;height:2px;background:#000}",
-    ".bar{position:absolute;height:2px;border-radius:2px;background:#d79eac}",
+    // Every piece of a frame is the same violet bar: `width` and `height` are both
+    // 2px so an edge can be placed by writing just the one it runs along, and
+    // place() overrides the other per edge. The 4px radius is DESIGN.md's sm step,
+    // the smallest the ramp allows — enough to soften the joins, not enough to
+    // turn the box into a lozenge the way the old rounded border did.
+    ".bar{position:absolute;width:2px;height:2px;border-radius:4px;background:#d79eac}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
@@ -256,38 +258,33 @@
   // side, so the frame is unmistakably Edityy's and not the page's own edge.
   //
   // It is a stack of small divs rather than one styled border, because the whole
-  // look is in how each edge is split: accent bars at each end and the middle,
-  // with a solid black line filling the gaps between them and stopping short of
-  // each bar, so there is clear space between the two colours. Sixteen divs do
-  // that in a dozen lines; a border-image would be more code for the same
+  // look is in how each edge is split: a violet bar at each end and the middle,
+  // and another filling the gap between them, with clear space either side. One
+  // colour, sixteen divs; a border-image would be more code for the same
   // picture.
   var GAP = 4;
-  // Accent bars are 16px, which is what turns a bar at a corner into an L. An
-  // element narrower than that simply has no gap to fill and keeps one short bar
-  // per edge — the right answer, not a degenerate one — so the pattern never
-  // depends on the size of what it is drawn around.
+  // Bars are 16px, which is what turns a bar at a corner into an L, and what
+  // leaves the gap its space. An element narrower than that has no gap to fill
+  // and keeps one short bar per edge — the right answer, not a degenerate one —
+  // so the pattern never depends on the size of what it is drawn around.
   var BAR = 16;
   // Where each accent bar sits along its edge, as a fraction of its own length
   // between the two end bars: flush left, centred, flush right.
   var SPOTS = [0, 0.5, 1];
   // The four edges, and which way each one runs. Their children are built in this
-  // order — the gap line first, the three bars over it — so the bars land on top.
+  // order — the gap bar first, the three bars over it — so they land on top.
   var SIDES = [["top", true], ["left", false], ["bottom", true], ["right", false]];
 
   /** Build the bars of one frame. Two frames, one shape — they cannot drift. */
   function build(frame) {
-    SIDES.forEach(function (side) {
-      var line = document.createElement("i");
-      // One element per edge, filling the gap between the two end bars. Black,
-      // because this line has to read on any surface the host page puts behind
-      // it; the accent bars are what carry the design.
-      line.className = "line";
-      frame.appendChild(line);
-      SPOTS.forEach(function () {
+    SIDES.forEach(function () {
+      // Four per edge: the one that fills the gap, then the three that mark the
+      // corners and the midpoint.
+      for (var i = 0; i < 4; i++) {
         var bar = document.createElement("i");
         bar.className = "bar";
         frame.appendChild(bar);
-      });
+      }
     });
   }
 
@@ -311,16 +308,20 @@
         (horizontal ? box.top : box.left) + (side[0] === "top" || side[0] === "left" ? 0 : depth);
       var line = frame.children[s * 4];
       // Only the gap between the two end bars: it stops short of each one, and
-      // that space is what keeps the accent and the black from reading as a
-      // single line. Zero when the edge is too short to have a gap at all.
+      // that space is what keeps the ends and the middle from reading as one
+      // line. Zero when the edge is too short to have a gap at all.
       var gap = Math.max(0, across - BAR * 2);
+      // Both dimensions are written every time: a vertical bar that never gets
+      // a width renders 0px wide and the box loses its left and right sides.
       if (horizontal) {
         line.style.left = origin + BAR + "px";
         line.style.top = cross + "px";
         line.style.width = gap + "px";
+        line.style.height = "2px";
       } else {
         line.style.left = cross + "px";
         line.style.top = origin + BAR + "px";
+        line.style.width = "2px";
         line.style.height = gap + "px";
       }
       SPOTS.forEach(function (spot, i) {
@@ -330,9 +331,11 @@
           bar.style.left = offset + "px";
           bar.style.top = cross + "px";
           bar.style.width = BAR + "px";
+          bar.style.height = "2px";
         } else {
           bar.style.left = cross + "px";
           bar.style.top = offset + "px";
+          bar.style.width = "2px";
           bar.style.height = BAR + "px";
         }
       });
