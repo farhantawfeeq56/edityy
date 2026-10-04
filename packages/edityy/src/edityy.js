@@ -74,22 +74,38 @@
     ".ic:hover{background:#3a283c0f}",
     ".ic:active{transform:scale(.92)}",
     ".ic[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
-    ".ic svg{width:18px;height:18px;display:block}",
+    ".ic svg{width:18px;height:18px;display:block;color:inherit}",
     // Type controls are their own glyphs: a letterform says "this is about type"
-    // faster than any abstract mark could.
-    ".g{font-size:15px;font-weight:600;line-height:1;pointer-events:none}",
+    // faster than any abstract mark could. color:inherit is not optional: the
+    // universal * rule above sets a colour on every element, so a glyph would
+    // stay plum on the plum of an active button and vanish.
+    ".g{font-size:15px;font-weight:600;line-height:1;color:inherit;pointer-events:none}",
     ".g.serif{font-family:Georgia,\"Times New Roman\",serif;font-weight:400;font-size:16px}",
     ".g.heavy{font-weight:800}",
     ".g.thin{font-size:13px}",
-    ".pop{min-width:200px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
+    // No min-width: each control is exactly as wide as its own content. A floor
+    // here is what makes a row of four icons as wide as a list of face names,
+    // with dead paper either side of the icons.
+    ".pop{padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
     // Above the dock, not under it: the dock never moves, but the page does, and
     // a control that opens downward gets swallowed by the viewport.
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;",
     "animation:popIn .16s ease-out}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
-    ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto}",
+    ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
+    // The host page scrollbar is the page scrollbar: without this the list shows
+    // whatever the site styles its scrollbars with, or a chunky default. A hairline
+    // in the ramp, inset so it never sits on the text, and no buttons.
+    "scrollbar-width:thin;scrollbar-color:#3a283c40 transparent;padding-right:4px}",
+    ".list::-webkit-scrollbar{width:6px}",
+    ".list::-webkit-scrollbar-track{background:transparent}",
+    ".list::-webkit-scrollbar-thumb{background:#3a283c40;border-radius:6px}",
+    ".list::-webkit-scrollbar-thumb:hover{background:#3a283c66}",
     // One row per option: a face shows itself, an alignment shows its own lines.
-    ".opt{display:block;width:100%;text-align:left;border:0;border-radius:8px;padding:7px 10px;",
+    // width:max-content, not 100%: a row is as wide as its own label, so a short
+    // name does not stretch the list and a long one is not clipped.
+    ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
+    "border-radius:8px;padding:7px 10px;",
     "background:transparent;color:#3a283c;font:500 14px/1.2 inherit;cursor:pointer;",
     "transition:background .12s ease,color .12s ease}",
     ".opt:hover{background:#3a283c0f}",
@@ -569,11 +585,6 @@ function faces() {
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
-    // Each control is as wide as it needs to be. The shared min-width is only a
-    // floor: a list of faces is wide, a row of four icons is not, and stretching
-    // a slider to the width of the widest control just leaves dead space.
-    pop.style.minWidth = "";
-    pop.style.width = "";
     ICONS.forEach(function (icon) {
       var b = row.children[ICONS.indexOf(icon)];
       b.setAttribute("aria-expanded", icon.key === key ? "true" : "false");

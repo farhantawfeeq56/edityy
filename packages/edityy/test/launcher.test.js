@@ -655,6 +655,38 @@ test("the box is the same on a small element", () => {
 
 
 
+test("the open icon stays visible on its own dark background", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
+  // colour never reaches it: without an explicit inherit the Aa is plum on plum
+  // and disappears. Both glyph kinds need it, one by letterform one by svg.
+  assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
+  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the drawn ones");
+});
+
+test("each control is as wide as it needs to be, not a shared width", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // A min-width is what made a row of four icons as wide as a list of face
+  // names, with dead paper either side of the icons.
+  assert.doesNotMatch(css, /\.pop\{[^}]*min-width/, "no floor on the popover");
+  assert.doesNotMatch(css, /\.pop\{[^}]*width:/, "and no width either");
+  // Rows shrink to their label rather than filling the list.
+  assert.match(css, /\.opt\{[^}]*width:max-content/, "a row is as wide as its own text");
+});
+
+test("the scrolling list brings its own scrollbar", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // The list scrolls, and inside a shadow root it would otherwise show whatever
+  // the host page styles its scrollbars with.
+  assert.match(css, /\.list\{[^}]*overflow-y:auto/, "it scrolls");
+  assert.match(css, /\.list\{[^}]*scrollbar-width:thin/, "a hairline, not the UA default");
+  assert.match(css, /\.list\{[^}]*scrollbar-color:#3a283c40 transparent/, "on the ramp");
+  assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
+});
+
 test("the dock opens on text and stays shut on anything else", () => {
   const { run, el } = fakeDom();
   const app = run();
