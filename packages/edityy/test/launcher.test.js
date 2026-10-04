@@ -326,7 +326,7 @@ test("the button is a real button with an accessible name", () => {
   const { root } = run();
   assert.match(root.innerHTML, /<button type="button" id="launch"/);
   assert.match(root.innerHTML, /aria-label="Open Edityy"/);
-  assert.match(root.innerHTML, />Edityy<\/button>/);
+  assert.match(root.innerHTML, /<span id="label">Edityy<\/span><\/button>/);
 });
 
 test("the launcher wears the site's own font", () => {
@@ -352,21 +352,45 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   const app = run();
   quiet(() => app.click());
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
-  assert.equal(app.launch().hidden, true, "the orb steps aside for the cursor");
-  assert.equal(app.root.nodes.cursor.hidden, false);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
 });
 
-test("the editing cursor follows the pointer", () => {
+test("the orb itself becomes the pointer, shrinking into a point", () => {
   const { run, text } = fakeDom();
   const app = run();
-  const p = text("p", "body");
+  // A 56px orb centred at (1180, 748): right 24 from a 1200 wide viewport, and
+  // 24 up from the bottom of 800.
+  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
   quiet(() => {
     app.click();
-    app.hover(p);
+    // One step in, still at the orb: scale only, no travel.
+    assert.match(app.launch().style.transform, /translate\(0px,0px\) scale\(0\.16\)$/, "the shrink starts where the orb is");
+    app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
-  assert.equal(app.root.nodes.cursor.style.transform, "translate(40px,90px)");
+  // Then it tracks the pointer, translated from the orb's own centre.
+  assert.equal(
+    app.launch().style.transform,
+    "translate(-1140px,-658px) scale(0.16)",
+  );
+  assert.equal(app.launch().style.pointerEvents, "none", "the dot is not a button any more");
+  assert.equal(app.root.nodes.label.style.opacity, "0", "the word fades on the way down");
+});
+
+test("the pointer travels home and grows back into the orb on exit", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
+  quiet(() => {
+    app.click();
+    app.hover(text("p", "body"));
+    app.fire("mousemove", { clientX: 40, clientY: 90 });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(app.launch().style.transform, "translate(0px,0px) scale(1)");
+  assert.equal(app.launch().style.pointerEvents, "", "the orb takes clicks again");
+  assert.equal(app.root.nodes.label.style.opacity, "");
+  assert.equal(app.countDoc("click"), 0, "the page is released");
 });
 
 test("the hover frame stands off the element and rounds with the ramp", () => {

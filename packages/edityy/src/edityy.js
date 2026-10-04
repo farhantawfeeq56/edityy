@@ -8,11 +8,12 @@
  *    dispatches `edityy:launcher-click` on window — the seam a host app can
  *    listen to — and toggles the editing mode below.
  *
- * 2. A temporary editing mode: the orb steps aside for a cursor, hovering any
- *    element outlines it, and clicking selects it. That is the whole interface
- *    for now — selection with no panel attached. `kind()` classifies what was
- *    picked as text, container or media before anything else happens, and
- *    `root.selection()` reports it.
+ * 2. A temporary editing mode. There is no second control: the orb itself
+ *    shrinks into the pointer, so the thing the user clicked is the thing that
+ *    follows them. Hovering any element outlines it and clicking selects it.
+ *    That is the whole interface for now — selection with no panel attached.
+ *    `kind()` classifies what was picked as text, container or media before
+ *    anything else happens, and `root.selection()` reports it.
  *
  * The machinery for changing an element is still here and still correct —
  * apply() writes an inline style, remembers what was there, and revert() puts
@@ -54,28 +55,30 @@
     // family name covers a host that has the font without the token.
     "*{box-sizing:border-box;font-family:var(--font-sans,\"Plus Jakarta Sans\",ui-sans-serif,system-ui,sans-serif);color:#3a283c}",
     "[hidden]{display:none}", // a shadow root has no UA stylesheet, so `hidden` is ours to honour
-    // Or `#launch` while the mode is off. Hidden once it is on: a custom cursor
-  // takes over, and DESIGN.md wants controls to have no footprint until needed.
-  "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
-    "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:3;",
+    // One element, both states. Anchored bottom-right while the mode is off, moved
+    // to the pointer and scaled down once it is on — so the orb shrinks into the
+    // point rather than one control swapping in for another.
+    "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
+    "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
     "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#f9f2ee;",
-    "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
+    "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;",
+    // transform only: a scale from the centre and a translate to the pointer are
+    // the same property, so the shrink and the travel animate as one move. The
+    // default centre origin is what makes the dot land exactly under the pointer.
+    "transition:transform .3s cubic-bezier(.2,.8,.2,1),background .15s}",
     "#launch:hover{background:#86546b}",
     "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
-    // The editing cursor. Kept inside the ramp, and it rides above the page in
-    // the fixed, top-layer host so the page cannot hide it.
-    "#cursor{position:fixed;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;",
-    "border-radius:50%;background:#3a283c1f;border:1px solid #3a283c;pointer-events:none;z-index:4;",
-    "transition:transform .12s ease-out}",
+    // The word fades rather than scales: shrinking text is the one thing that
+    // reads as a label getting tiny instead of an orb becoming a point.
+    "#label{transition:opacity .12s ease-out}",
     ".box{position:fixed;pointer-events:none;display:none;z-index:1}",
     // Inflated by 3px and rounded per DESIGN.md: an approximate, clearly separate
     // frame around the element, not a traced outline.
     "#hover{border:1px dashed #3a283c59;background:#d79eac2e}",
     "#sel{border:2px solid #3a283c;background:transparent}",
-    "@media (prefers-reduced-motion:reduce){#cursor{transition:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
     "</style>",
-    '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy">Edityy</button>',
-    '<div id="cursor" hidden></div>',
+    '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="box" id="hover"></div>',
     '<div class="box" id="sel"></div>',
     "</div>",
@@ -85,7 +88,14 @@
     return root.getElementById(id);
   };
   var launch = $("launch");
-  var cursor = $("cursor");
+  var label = $("label");
+  // The orb's centre, measured once as the mode opens. Every transform after
+  // that translates from this point, so tracking the pointer never has to know
+  // where the orb was and the first move animates out of the orb, not into air.
+  var anchorX = 0;
+  var anchorY = 0;
+  // 56px orb → 9px: a point, not a smaller circle.
+  var POINT = 0.16;
   var hoverBox = $("hover");
   var selBox = $("sel");
 
@@ -290,25 +300,50 @@
 
   /* ----------------------------------------------------------------- mode */
 
+  /** Park the orb's centre, the single origin every pointer transform is from. */
+  function anchor() {
+    var box = launch.getBoundingClientRect();
+    anchorX = box.left + box.width / 2;
+    anchorY = box.top + box.height / 2;
+  }
+
+  /**
+   * The orb and the pointer are one element with one transform.
+   *
+   * `scale()` is the whole of the state: at 1 it is the orb in its corner, at
+   * POINT it is the dot under the pointer. CSS transitions between the two, so
+   * clicking the orb is what starts the shrink and the travel together.
+   */
+  function moveTo(sx, sy) {
+    launch.style.transform =
+      "translate(" + (sx - anchorX) + "px," + (sy - anchorY) + "px) scale(" + (active ? POINT : 1) + ")";
+  }
+
   function enter() {
     active = true;
-    // The orb steps aside for a cursor: while editing, the pointer IS the
-    // control, so it carries the affordance the orb used to.
-    launch.hidden = true;
-    cursor.hidden = false;
+    anchor();
+    // Scale from the orb before it travels, so the shrink reads as the beginning
+    // of the morph rather than a jump.
+    moveTo(anchorX, anchorY);
+    label.style.opacity = "0";
+    // The button is no longer a button: the pointer takes over, and a click that
+    // lands on the dot must reach the page below it.
+    launch.style.pointerEvents = "none";
     document.addEventListener("mousemove", onMove, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKey, true);
-    // The selection frame is viewport-fixed like everything else, so a scroll
-    // moves the element out from under it and the frame must go with it.
+    // The frames are viewport-fixed like everything else, so a scroll moves the
+    // element out from under them and they must go with it.
     window.addEventListener("scroll", hideHover, true);
     window.addEventListener("resize", onResize, true);
   }
 
   function exit() {
     active = false;
-    launch.hidden = false;
-    cursor.hidden = true;
+    // Travel home and grow back into the orb in one transition.
+    moveTo(anchorX, anchorY);
+    label.style.opacity = "";
+    launch.style.pointerEvents = "";
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKey, true);
@@ -332,7 +367,11 @@
   }
 
   function onMove(e) {
-    cursor.style.transform = "translate(" + e.clientX + "px," + e.clientY + "px)";
+    // The orb follows the pointer with no lag: a dot that trails is a dot the
+    // user aims past. The one place the shadow root takes a real listener, since
+    // the page's own mousemove never has to fire.
+    launch.style.transform =
+      "translate(" + (e.clientX - anchorX) + "px," + (e.clientY - anchorY) + "px) scale(" + POINT + ")";
     var el = textAt(e.clientX, e.clientY);
     if (!el) {
       hoverBox.style.display = "none";
