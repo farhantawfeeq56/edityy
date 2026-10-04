@@ -13,9 +13,13 @@ const appended = [];
 /** A node the payload can build a control out of: styles, attributes, events. */
 const stubNode = () => ({
   style: { cssText: "" },
+  dataset: {},
   className: "",
   type: "",
   value: "",
+  hidden: false,
+  title: "",
+  innerHTML: "",
   textContent: "",
   children: [],
   appendChild() {},
