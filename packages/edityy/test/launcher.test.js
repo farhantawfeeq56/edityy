@@ -814,6 +814,19 @@ test("picking an option keeps the control open, and moves the tick", () => {
   assert.equal(fields(pop)[0].type, "range", "and it is the new control that is showing");
 });
 
+test("picking a face writes the whole stack to the element", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "family"));
+  const opts = app.root.nodes.pop.children[0].children;
+  for (const fn of opts[1].bubbles.click.bubble) fn({});
+  // The stack, not the bare name: "Helvetica" alone resolves to whatever the
+  // machine substitutes, while "Helvetica,Arial,sans-serif" is a real choice.
+  assert.equal(p.style.getPropertyValue("font-family"), "Helvetica,Arial,sans-serif");
+  assert.equal(app.root.nodes.pop.hidden, false, "and the list stays open");
+});
+
 test("decorations stack, because CSS lets them", () => {
   const { run } = fakeDom();
   const app = run();

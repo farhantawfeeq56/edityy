@@ -403,10 +403,12 @@ function faceName(stack) {
 function faces() {
   var out = [];
   var seen = {};
-  var add = function (label, stack) {
+  var add = function (label, stack, value) {
     if (!label || seen[label]) return;
     seen[label] = true;
-    out.push({ label: label, stack: stack });
+    // `v` is what picking the row writes, so it has to be the full stack and not
+    // the name: "Helvetica" alone resolves differently from "Helvetica,Arial".
+    out.push({ label: label, stack: stack, v: value });
   };
 
   // A span of text, measured twice: once in a fallback, once in the candidate. A
@@ -461,14 +463,14 @@ function faces() {
       // Generics and the vendor prefixes are never a face anyone picked on
       // purpose, and none of them can be measured.
       if (!label || GENERIC.test(label)) return;
-      if (available(label)) add(label, label);
+      if (available(label)) add(label, label, label);
     });
   } finally {
     probe.remove();
   }
 
   // The floor, in case a page declares nothing a probe can measure.
-  SYSTEM_FONTS.forEach(function (f) { add(f.label, f.stack); });
+  SYSTEM_FONTS.forEach(function (f) { add(f.label, f.stack, f.stack); });
   return out;
 }
 
@@ -589,21 +591,25 @@ function faces() {
     var list = document.createElement("div");
     list.className = "list";
     items.forEach(function (item) {
-      var b = button("opt", "", item.label || item.v, function () {
+      // Every row writes item.v, whatever the control is: a list of faces and a
+      // list of alignments are both just choices, and one that forgets its value
+      // silently writes nothing at all.
+      var value = item.v === undefined ? item.stack : item.v;
+      var b = button("opt", "", item.label || value, function () {
         // Picking an option does not close anything. The control stays open on
         // purpose: comparing two weights or two faces means looking at the page
         // with the choices still in view, and a click that dismisses the list is
         // a click you have to make again before trying the next value.
-        onPick(item.v);
-        mark(item.v);
-      }, item.v);
+        onPick(value);
+        mark(value);
+      }, value);
       // The label is added rather than passed in, because a face name is text and
       // text is a node — there is no markup to parse it out of.
       b.appendChild(text(label(item)));
       // cssText rather than the property: a face stack is commas and quotes, and
       // the shorthand carries them through without the DOM re-parsing anything.
       b.style.cssText = "font-family:" + item.stack;
-      b.setAttribute("aria-pressed", item.v === current ? "true" : "false");
+      b.setAttribute("aria-pressed", value === current ? "true" : "false");
       list.appendChild(b);
     });
     pop.appendChild(list);
