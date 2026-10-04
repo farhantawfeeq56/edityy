@@ -75,7 +75,7 @@
     // are painted, so the element underneath is never covered or tinted.
     ".frame{position:fixed;pointer-events:none;z-index:1}",
     "[hidden]{display:none!important}", // also for .frame: display:block would beat it
-    // Stroke weight and the gap between paper dashes: 2px, so the accent bars
+    // Stroke weight, and the gap between dashes: 2px, so the accent bars on top
     // read as the dominant layer exactly as a design tool's outline does.
     ".dash{position:absolute;height:2px;background-repeat:repeat}",
     ".bar{position:absolute;height:2px;border-radius:2px;background:#d79eac}",
