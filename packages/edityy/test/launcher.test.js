@@ -224,7 +224,8 @@ function fakeDom() {
       /** One of a frame's bars, in the order the payload built them: run first
           for each edge, then the three accent bars over it. */
       bar: (edge, spot) => root.nodes.sel.children[edge * 4 + 1 + spot],
-      dash: (edge, frame = "sel") => root.nodes[frame].children[edge * 4],
+      /** The black that fills the gap on one edge of a frame. */
+      line: (edge, frame = "sel") => root.nodes[frame].children[edge * 4],
       countDoc: (type) => bucket(doc, type, "capture").length,
       /** Grab the panel's header, then move and release it. */
       grab: (event) =>
@@ -408,10 +409,10 @@ test("the frame stands off the element and rounds with the ramp", () => {
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
-  assert.equal(app.dash(0, "hover").style.top, "46px");
-  assert.equal(app.dash(0, "hover").style.left, "96px");
-  assert.equal(app.dash(0, "hover").style.width, "128px");
-  assert.equal(app.dash(1, "hover").style.left, "96px");
+  assert.equal(app.line(0, "hover").style.top, "46px");
+  assert.equal(app.line(0, "hover").style.left, "112px");
+  assert.equal(app.line(0, "hover").style.width, "96px");
+  assert.equal(app.line(1, "hover").style.left, "96px");
 });
 
 test("a text element wins over the container around it", () => {
@@ -447,7 +448,7 @@ test("an element with no text is still selectable", () => {
   assert.equal(app.root.nodes.sel.hidden, false);
 });
 
-test("the box is a black dash line with accent bars at the corners and midpoints", () => {
+test("the box is accent bars at the corners and midpoints, black filling the gaps", () => {
   const { run, text } = fakeDom();
   const app = run();
   // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by 46..102:
@@ -463,7 +464,7 @@ test("the box is a black dash line with accent bars at the corners and midpoints
   // Four edges, each a dash run plus three 16px accent bars.
   assert.equal(sel.children.length, 16);
   for (const edge of [0, 1, 2, 3]) {
-    assert.equal(app.dash(edge).className, "dash");
+    assert.equal(app.line(0).className, "line");
     for (const spot of [0, 1, 2]) assert.equal(app.bar(edge, spot).className, "bar");
   }
   assert.equal(app.bar(0, 0).style.left, "96px", "flush with the left end of the top edge");
@@ -475,17 +476,15 @@ test("the box is a black dash line with accent bars at the corners and midpoints
   assert.equal(app.bar(1, 0).style.left, "96px");
   assert.equal(app.bar(1, 0).style.top, "46px");
   assert.equal(app.bar(1, 2).style.top, "86px", "16px up from the bottom of a 56px edge");
-  // The dash line runs the whole edge, ends included, under the accent bars.
-  assert.equal(app.dash(0).style.left, "96px");
-  assert.equal(app.dash(0).style.width, "128px");
-  assert.equal(app.dash(2).style.top, "102px", "the bottom edge, at the far side of the box");
-  assert.equal(app.dash(3).style.left, "224px", "and the right edge at the far side of it");
-  // Black dashes with rounded caps; the accent bars carry the design on top.
-  assert.match(app.dash(0).style.backgroundImage, /data:image\/svg\+xml/);
-  assert.match(app.dash(0).style.backgroundImage, /stroke-linecap='round'/, "rounded caps");
-  assert.match(app.dash(0).style.backgroundImage, /%23000'/, "black, so it reads on any surface");
+  // The black fills exactly the gap between the two end bars, touching neither.
+  assert.equal(app.line(0).style.left, "112px");
+  assert.equal(app.line(0).style.width, "96px");
+  assert.equal(app.line(2).style.top, "102px", "the bottom edge, at the far side of the box");
+  assert.equal(app.line(3).style.left, "224px", "and the right edge at the far side of it");
+  // Solid black; the accent bars carry the design on top of it.
+  assert.match(app.root.innerHTML, /\.line\{[^}]*background:#000/, "solid, not dashed");
   assert.match(app.root.innerHTML, /\.bar\{[^}]*background:#d79eac/, "the accent is the dominant layer");
-  assert.match(app.root.innerHTML, /\.dash\{[^}]*height:2px/, "and thicker than the dashes' stroke");
+  assert.match(app.root.innerHTML, /\.line\{[^}]*height:2px/, "the same stroke weight as the bars");
 });
 
 test("the pattern stays the same on a small element", () => {
@@ -500,8 +499,7 @@ test("the pattern stays the same on a small element", () => {
     app.clickPage();
   });
   assert.equal(app.bar(0, 1).style.left, "2px", "the middle bar is still centred on the element");
-  assert.equal(app.dash(0).style.left, "-4px");
-  assert.equal(app.dash(0).style.width, "28px", "the dash line is never shortened to fit the bars");
+  assert.equal(app.line(0).style.width, "0px", "no gap means no black, not a squashed one");
   assert.equal(app.root.nodes.sel.children.length, 16, "and the same sixteen pieces either way");
 });
 

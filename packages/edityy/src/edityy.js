@@ -71,13 +71,13 @@
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
-    // A frame drawn around an element, fully transparent: only its bars and dashes
+    // A frame drawn around an element, fully transparent: only its bars and lines
     // are painted, so the element underneath is never covered or tinted.
     ".frame{position:fixed;pointer-events:none;z-index:1}",
     "[hidden]{display:none!important}", // also for .frame: display:block would beat it
-    // Stroke weight, and the gap between dashes: 2px, so the accent bars on top
-    // read as the dominant layer exactly as a design tool's outline does.
-    ".dash{position:absolute;height:2px;background-repeat:repeat}",
+    // Stroke weight of every piece: 2px, so the accent bars read as the dominant
+    // layer exactly as a design tool's outline does.
+    ".line{position:absolute;height:2px;background:#000}",
     ".bar{position:absolute;height:2px;border-radius:2px;background:#d79eac}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
     "</style>",
@@ -256,50 +256,33 @@
   // side, so the frame is unmistakably Edityy's and not the page's own edge.
   //
   // It is a stack of small divs rather than one styled border, because the whole
-  // look is in how each edge is split: a black dash line running its full length,
-// with accent bars laid over it at each end and the middle. Sixteen divs do that
-  // in a dozen lines; a border-image or a redrawn SVG per frame would be a lot
-  // more code for the same picture.
+  // look is in how each edge is split: accent bars at each end and the middle,
+  // with a solid black line filling the gaps between them and stopping short of
+  // each bar, so there is clear space between the two colours. Sixteen divs do
+  // that in a dozen lines; a border-image would be more code for the same
+  // picture.
   var GAP = 4;
   // Accent bars are 16px, which is what turns a bar at a corner into an L. An
-  // element narrower than that simply has its end bars meet and still gets one
-  // centred bar per edge — the right answer, not a degenerate one — so the
-  // pattern never depends on the size of what it is drawn around.
+  // element narrower than that simply has no gap to fill and keeps one short bar
+  // per edge — the right answer, not a degenerate one — so the pattern never
+  // depends on the size of what it is drawn around.
   var BAR = 16;
   // Where each accent bar sits along its edge, as a fraction of its own length
   // between the two end bars: flush left, centred, flush right.
   var SPOTS = [0, 0.5, 1];
   // The four edges, and which way each one runs. Their children are built in this
-  // order — the dash line first, the three bars over it — so the bars land on top.
+  // order — the gap line first, the three bars over it — so the bars land on top.
   var SIDES = [["top", true], ["left", false], ["bottom", true], ["right", false]];
-
-  /**
-   * The dash line, as a tiling SVG rather than a gradient.
-   *
-   * A gradient's dashes are square-ended, and rounded caps are the whole
-   * difference between a dashed line and the tool outline this is imitating. One
-   * 12x2 tile repeated along an edge: 8px of ink, 4px of gap, identical on every
-   * edge of every element, so there is no rhythm to keep in sync. Black, because
-   * this line has to read on any surface the host page puts behind it; the accent
-   * bars on top of it are what carry the design.
-   */
-  function dashes(w, h, d) {
-    return 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'' + w +
-      '\' height=\'' + h + '\'%3E%3Cpath d=\'' + d +
-      '\' stroke=\'%23000\' stroke-width=\'2\' stroke-linecap=\'round\'/%3E%3C/svg%3E")';
-  }
-  var DASH = [dashes(12, 2, "M3 1h6"), dashes(2, 12, "M1 3v6")];
 
   /** Build the bars of one frame. Two frames, one shape — they cannot drift. */
   function build(frame) {
     SIDES.forEach(function (side) {
-      var horizontal = side[1];
-      var run = document.createElement("i");
-      run.className = "dash";
-      // One element per edge, running its whole length with the accent bars over
-      // it — nothing to keep in step per side.
-      run.style.backgroundImage = DASH[horizontal ? 0 : 1];
-      frame.appendChild(run);
+      var line = document.createElement("i");
+      // One element per edge, filling the gap between the two end bars. Black,
+      // because this line has to read on any surface the host page puts behind
+      // it; the accent bars are what carry the design.
+      line.className = "line";
+      frame.appendChild(line);
       SPOTS.forEach(function () {
         var bar = document.createElement("i");
         bar.className = "bar";
@@ -326,17 +309,19 @@
       var origin = horizontal ? box.left : box.top;
       var cross =
         (horizontal ? box.top : box.left) + (side[0] === "top" || side[0] === "left" ? 0 : depth);
-      var run = frame.children[s * 4];
+      var line = frame.children[s * 4];
+      // Only the gap between the two end bars: it stops short of each one, and
+      // that space is what keeps the accent and the black from reading as a
+      // single line. Zero when the edge is too short to have a gap at all.
+      var gap = Math.max(0, across - BAR * 2);
       if (horizontal) {
-        // The full length of the edge, ends included: the accent bars are drawn
-        // over it, so the dashes run unbroken underneath them.
-        run.style.left = origin + "px";
-        run.style.top = cross + "px";
-        run.style.width = across + "px";
+        line.style.left = origin + BAR + "px";
+        line.style.top = cross + "px";
+        line.style.width = gap + "px";
       } else {
-        run.style.left = cross + "px";
-        run.style.top = origin + "px";
-        run.style.height = across + "px";
+        line.style.left = cross + "px";
+        line.style.top = origin + BAR + "px";
+        line.style.height = gap + "px";
       }
       SPOTS.forEach(function (spot, i) {
         var bar = frame.children[s * 4 + 1 + i];
@@ -480,7 +465,7 @@
     else enter();
   });
 
-  // Both frames are built the same way, once, at mount — a dash run and three
+  // Both frames are built the same way, once, at mount — a gap line and three
   // accent bars per edge. Last, because it needs everything above defined.
   build(hoverBox);
   build(selBox);
