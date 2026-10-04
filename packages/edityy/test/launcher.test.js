@@ -88,6 +88,17 @@ function fakeDom() {
     return node;
   };
 
+  /** Find the + button that reveals an optional control, by its display name. */
+  const plusFor = (name) => {
+    for (const sec of root.nodes.pane?.children ?? []) {
+      for (const line of sec.children.slice(1)) {
+        if (line.className !== "addLine") continue;
+        if (line.children[0]?.title === "Add " + name) return line.children[0];
+      }
+    }
+    return null;
+  };
+
   const root = {
     // The payload assigns innerHTML; a browser parses it. The stub does the
     // minimum of that: it registers an element for every id in the markup, so an
@@ -221,14 +232,38 @@ function fakeDom() {
       hover: (node) => {
         hovered = node;
       },
-      /** Drive a control by the CSS property it owns, as a user would. */
+      /** Drive a plain input by the CSS property it owns, as a user would. */
       type: (prop, value) => {
         const input = root.inputs[prop];
         input.value = value;
         for (const fn of input.bubbles.input.bubble) fn({});
       },
+      /** Remove a property entirely, as clearing its box would. */
+      clear: (prop) => {
+        const input = root.inputs[prop];
+        if (input.kind === "seg") {
+          for (const fn of input.reset.bubbles.click.bubble) fn({});
+          return;
+        }
+        input.value = "";
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** Click a segment of a segmented control. */
+      segment: (prop, value) => {
+        const group = root.inputs[prop];
+        const btn = (group.children ?? []).find((b) => b.title === value);
+        for (const fn of btn.bubbles.click.bubble) fn({});
+      },
+      /** Press the + that reveals an optional control, then return it. */
+      add: (prop, name) => {
+        const plus = plusFor(name);
+        for (const fn of plus.bubbles.click.bubble) fn({});
+        return root.inputs[prop];
+      },
       /** The control that owns a property, for asserting what it read. */
       control: (prop) => root.inputs[prop],
+      /** The + button that would add an optional property, by its name. */
+      querySelectorPlus: (name) => plusFor(name),
     };
   }
 
@@ -369,7 +404,7 @@ test("hovering text outlines it, clicking selects it and fills the panel", () =>
   assert.equal(app.root.nodes.sel.style.display, "block");
   assert.equal(app.root.nodes.panel.hidden, false);
   assert.match(app.root.nodes.target.textContent, /h1/);
-  assert.equal(app.root.nodes.fText.value, "Edityy");
+  assert.equal(app.root.inputs["@text"].value, "Edityy");
 });
 
 test("the font dropdown reads the selection's own family back", () => {
@@ -429,7 +464,8 @@ test("a keyword control applies the keyword, not a length", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.type("text-align", "center");
+    app.segment("text-align", "center");
+    app.add("color", "Colour");
     app.type("color", "#ff0000");
   });
   assert.equal(p.style.getPropertyValue("text-align"), "center");
@@ -444,8 +480,8 @@ test("the text field rewrites the element's text", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.root.nodes.fText.value = "after";
-    app.root.nodes.fText.bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
+    app.root.inputs["@text"].value = "after";
+    app.root.inputs["@text"].bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
   });
   assert.equal(p.textContent, "after");
 });
@@ -458,8 +494,8 @@ test("clearing a control puts the stylesheet's value back", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.type("text-align", "center");
-    app.type("text-align", "");
+    app.segment("text-align", "center");
+    app.clear("text-align");
   });
   assert.equal(p.style.getPropertyValue("text-align"), "");
 });
@@ -472,9 +508,9 @@ test("a revert restores the value that was there before the change", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.type("text-align", "center");
-    app.root.nodes.fText.value = "after";
-    app.root.nodes.fText.bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
+    app.segment("text-align", "center");
+    app.root.inputs["@text"].value = "after";
+    app.root.inputs["@text"].bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
     app.root.nodes.revertAll.bubbles.click.bubble.forEach((fn) => fn({}));
   });
   assert.equal(p.style.getPropertyValue("text-align"), "right"); // its own inline value
@@ -544,7 +580,7 @@ test("a dragged panel is not re-parked by a scroll or a resize", () => {
   assert.equal(panel.style.left, "512px", "parked beside the new selection");
 });
 
-test("the inspector covers every property the schema lists", () => {
+test("every property of a text element is offered", () => {
   const { run, text } = fakeDom();
   const app = run();
   const p = text("p", "body");
@@ -553,51 +589,134 @@ test("the inspector covers every property the schema lists", () => {
     app.hover(p);
     app.clickPage();
   });
-  // Layout, spacing, flex/grid, appearance and effects are all reachable, and
-  // each owns a real CSS longhand rather than a made-up name.
   for (const prop of [
-    "width", "height", "min-width", "max-width", "max-height",
-    "margin-top", "padding-left", "row-gap",
-    "display", "position", "z-index", "overflow",
-    "flex-direction", "justify-content", "align-items", "flex-grow",
-    "grid-template-columns", "grid-column", "place-items",
-    "background", "background-image", "border", "border-top-left-radius",
-    "box-shadow", "opacity", "backdrop-filter",
-    "transform", "rotate", "scale", "translate",
-    "transition", "transition-duration", "animation", "animation-duration",
+    "font-family", "font-size", "font-weight", "line-height", "letter-spacing",
+    "text-align", "text-transform", "text-decoration", "@text",
   ]) {
     assert.ok(app.control(prop), `${prop} has a control`);
   }
+  // Appearance is additive, so those controls do not exist until the + is used.
+  for (const prop of ["color", "background", "border", "box-shadow"]) {
+    assert.equal(app.control(prop), undefined, `${prop} waits behind +`);
+  }
+  // A paragraph is not a flex container, so it is never offered one.
+  assert.equal(app.control("flex-direction"), undefined);
+  assert.equal(app.control("grid-template-columns"), undefined);
 });
 
-test("one section open at a time keeps the panel from becoming a wall", () => {
-  const { run, text } = fakeDom();
-  const app = run();
-  const p = text("p", "body");
+test("flex controls appear only on something that is actually flex", () => {
+  // A fresh DOM per case: the payload guards on window.__edityy, so a second run
+  // against the same window would mount nothing.
+  const plain = fakeDom();
+  const app = plain.run();
+  const block = plain.el("div");
   quiet(() => {
     app.click();
-    app.hover(p);
+    app.hover(block);
     app.clickPage();
   });
-  const tabs = app.root.nodes.tabs.children;
-  // Text plus Layout, Spacing, Flex & grid, Appearance, Effects.
-  assert.equal(tabs.length, 6);
-  // Exactly one tab is selected, and the non-Text panes start hidden: the panel
-  // shows one section at a time, so unrevealed controls cost no space.
-  assert.equal(tabs.filter((t) => t.getAttribute("aria-selected") === "true").length, 1);
-  assert.equal(app.root.nodes["pane-text"].hidden, false, "Text is what opens first");
-  assert.equal(app.root.nodes["pane-box"].hidden, true, "the rest is collapsed away");
+  // "must come only when needed": not offered, not hidden — absent.
+  assert.equal(app.control("flex-direction"), undefined, "a block div has no flex controls");
+  assert.equal(app.control("justify-content"), undefined);
+
+  const flexed = fakeDom();
+  const app2 = flexed.run();
+  const flexBox = flexed.el("div", {}, { display: "flex" });
+  quiet(() => {
+    app2.click();
+    app2.hover(flexBox);
+    app2.clickPage();
+  });
+  assert.ok(app2.control("flex-direction"), "a flex div does");
+  assert.ok(app2.control("justify-content"));
+  assert.ok(app2.control("align-items"));
+  assert.equal(app2.control("grid-template-columns"), undefined, "but not grid");
+});
+
+test("grid controls appear only on something that is actually grid", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const grid = el("div", {}, { display: "grid" });
+  quiet(() => {
+    app.click();
+    app.hover(grid);
+    app.clickPage();
+  });
+  for (const prop of ["grid-template-columns", "grid-template-rows", "grid-auto-flow", "grid-column", "grid-row"]) {
+    assert.ok(app.control(prop), prop);
+  }
+  assert.equal(app.control("flex-direction"), undefined);
+});
+
+test("min/max are behind a toggle and come only when it is pressed", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const div = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(div);
+    app.clickPage();
+  });
+  assert.equal(app.control("min-width"), undefined, "quiet until asked for");
+  assert.equal(app.control("max-width"), undefined);
+  assert.equal(app.control("min-height"), undefined);
+  assert.equal(app.control("max-height"), undefined);
+
+  // Press the one switch in the Size header.
+  const size = app.root.nodes.pane.children[0];
+  const toggle = size.children[0].children.find((n) => n.className === "tog");
+  assert.ok(toggle, "a Min / max switch exists");
+  quiet(() => toggle.bubbles.click.bubble.forEach((fn) => fn({})));
+  for (const prop of ["min-width", "max-width", "min-height", "max-height"]) {
+    assert.ok(app.control(prop), `${prop} appears once the switch is on`);
+  }
+});
+
+test("optional appearance stays behind + until it is added", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("div"));
+    app.clickPage();
+  });
+  const before = Object.keys(app.root.inputs);
+  for (const prop of ["background", "border", "box-shadow", "opacity", "border-top-left-radius"]) {
+    assert.equal(before.includes(prop), false, `${prop} is not in the tree yet`);
+  }
+  // Press the + on the Fill row.
+  app.add("background", "Fill");
+  assert.ok(app.control("background"), "adding it brings only its own control");
+  assert.equal(app.control("border"), undefined, "the others stay quiet");
+});
+
+test("media is offered object fit, and never padding or gap", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("img"));
+    app.clickPage();
+  });
+  assert.ok(app.control("object-fit"));
+  assert.ok(app.control("object-position"));
+  assert.ok(app.control("width"));
+  assert.equal(app.control("padding-left"), undefined, "an image has no padding");
+  assert.equal(app.control("row-gap"), undefined);
+  assert.equal(app.control("font-size"), undefined);
+  assert.equal(app.control("@text"), undefined);
 });
 
 test("any schema property applies and records like a typography one", () => {
-  const { run, text } = fakeDom();
+  const { run, el } = fakeDom();
   const app = run();
-  const card = text("div", "card");
+  const card = el("div");
   quiet(() => {
     app.click();
     app.hover(card);
     app.clickPage();
     app.type("padding-left", "24");
+    app.add("border-radius", "Radius");
     app.type("border-top-left-radius", "12");
   });
   assert.equal(card.style.getPropertyValue("padding-left"), "24");
@@ -606,21 +725,21 @@ test("any schema property applies and records like a typography one", () => {
 });
 
 test("a shorthand side is recorded under its own longhand", () => {
-  const { run, text } = fakeDom();
+  const { run, el } = fakeDom();
   const app = run();
-  const box = text("div", "box");
+  const box = el("div");
   quiet(() => {
     app.click();
     app.hover(box);
     app.clickPage();
-    app.type("margin-top", "8");
-    app.type("margin-bottom", "8");
+    app.type("padding-top", "8");
+    app.type("padding-bottom", "8");
   });
-  // Two longhands, two entries: nothing is written as `margin`, so reverting one
-  // side cannot disturb the other.
-  assert.equal(box.style.getPropertyValue("margin-top"), "8");
-  assert.equal(box.style.getPropertyValue("margin-bottom"), "8");
-  assert.equal(box.style.getPropertyValue("margin"), "");
+  // Two longhands, two entries: nothing is written as the `padding` shorthand,
+  // so reverting one side cannot disturb the other.
+  assert.equal(box.style.getPropertyValue("padding-top"), "8");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8");
+  assert.equal(box.style.getPropertyValue("padding"), "");
 });
 
 test("an element with no text can still be selected for styling", () => {
@@ -648,7 +767,7 @@ test("the text field is disabled when the element holds markup", () => {
     app.hover(wrapper);
     app.clickPage();
   });
-  assert.equal(app.root.nodes.fText.disabled, true);
+  assert.equal(app.root.inputs["@text"], undefined, "a container has no content field at all");
 });
 
 

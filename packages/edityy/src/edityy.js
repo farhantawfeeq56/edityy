@@ -85,20 +85,44 @@
     ".grid{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}",
     /* Tabs: one visible surface at a time, so a section that isn't open costs
        nothing. This is DESIGN.md's "unrevealed controls have no footprint". */
-    "#tabs{display:flex;gap:4px;margin:0 0 10px;border-bottom:1px solid #3a283c1a}",
-    "#tabs button{flex:1;border:0;border-radius:8px 8px 0 0;background:transparent;color:#86546b;",
-    "padding:5px 0;font:500 11px/1.2 inherit;cursor:pointer}",
-    "#tabs button[aria-selected=true]{background:#d79eac33;color:#3a283c}",
-    "#pane-text hr{border:0;border-top:1px solid #3a283c1a;margin:10px 0 0}",
-    /* Shorthand rows: one property, four fields. Empty means "leave it alone", so
-       `margin: 8px` needs one box filled, not four. */
-    ".row{margin-top:8px}",
-    ".row>b{display:block;font-weight:500;color:#86546b;margin-bottom:3px}",
-    ".quad{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}",
-    ".pair{display:grid;grid-template-columns:1fr 1fr;gap:4px}",
-    "input[type=text]{padding:4px 5px;font:inherit;font-size:11px}",
-    "details.sec{margin-top:6px;border:1px solid #3a283c1a;border-radius:8px;background:#3a283c08}",
-    "details.sec>summary{cursor:pointer;padding:6px 8px;font-weight:500;border-radius:8px}",
+    /* The inspector: dense, icon-led, one compact line per control. A labelled
+       row per property ("Width: [ ]") spends a whole line on what a single glyph
+       already says, and forty of them become a scroll. Here the glyph IS the
+       label, the control sits beside it, and related controls share a line. */
+    "#panel{width:252px}",
+    ".sec{margin-top:10px}",
+    ".sec:first-child{margin-top:0}",
+    ".secHead{display:flex;align-items:center;gap:6px;margin-bottom:5px}",
+    ".secHead>b{font:600 10px/1 inherit;letter-spacing:.06em;text-transform:uppercase;color:#86546b}",
+    ".tog{margin-left:auto;border:1px solid #3a283c26;border-radius:6px;background:transparent;",
+    "color:#86546b;padding:2px 6px;font:500 10px/1.4 inherit;cursor:pointer}",
+    ".tog[aria-pressed=true]{background:#d79eac33;color:#3a283c}",
+    ".line{display:flex;align-items:center;gap:6px;margin-bottom:4px}",
+    /* The glyph carries the meaning, so the caption is a tooltip not a label. */
+    ".ic{flex:0 0 16px;text-align:center;font:600 11px/1 inherit;color:#86546b}",
+    ".nm{flex:0 0 auto;font:500 11px/1 inherit;color:#86546b}",
+    ".line>input,.line>select{flex:1;min-width:0;margin:0;padding:3px 5px;font-size:11px;border-radius:6px}",
+    ".line>input[type=color]{flex:0 0 34px;height:22px;padding:2px}",
+    "input.big{font:600 12px/1 inherit}",
+    ".quad,.pair{display:grid;gap:3px;flex:1;min-width:0}",
+    ".quad{grid-template-columns:repeat(4,1fr)}",
+    ".pair{grid-template-columns:1fr 1fr}",
+    ".quad>input,.pair>input{margin:0;padding:3px 4px;font-size:11px;border-radius:6px;text-align:center}",
+    /* Segmented control: the choices are visible rather than behind a dropdown,
+       and the glyph is the label. */
+    ".seg{display:flex;flex:1;min-width:0;gap:2px;border:1px solid #3a283c1a;border-radius:6px;padding:2px;background:#f9f2ee}",
+    ".seg>button{flex:1;min-width:0;border:0;border-radius:4px;background:transparent;color:#3a283c;",
+    "padding:3px 0;font:500 11px/1 inherit;cursor:pointer;overflow:hidden;text-overflow:clip;white-space:nowrap}",
+    ".seg>button:hover{background:#3a283c0f}",
+    ".seg>button[aria-checked=true]{background:#3a283c;color:#f9f2ee}",
+    /* Additive appearance: quiet until asked for. Having the capability does not
+       mean it has to occupy attention all the time. */
+    ".addLine{display:flex;align-items:center;gap:6px;margin-bottom:3px}",
+    ".plus{flex:0 0 18px;width:18px;height:18px;border:1px solid #3a283c26;border-radius:5px;",
+    "background:transparent;color:#86546b;font:600 11px/1 inherit;cursor:pointer;padding:0}",
+    ".plus:hover{background:#d79eac33;color:#3a283c}",
+    ".addLine>span{font:500 11px/1 inherit;color:#86546b}",
+    "#pane>textarea{width:100%;margin:0 0 4px;font-size:11px;resize:vertical}",
     "#changes{margin-top:12px;border-top:1px solid #3a283c1a;padding-top:8px}",
     "#changes summary{cursor:pointer;font-weight:600}",
     "#list{margin:8px 0 0;padding:0;list-style:none}",
@@ -113,12 +137,7 @@
     '<div class="box" id="sel"></div>',
     '<div id="panel" hidden>',
     '<div class="head" id="grip" title="Drag to move"><span id="target"></span><button type="button" id="done" title="Exit edit mode (Esc)">Done</button></div>',
-    '<nav id="tabs"></nav>',
-    '<section id="pane-text">',
-    '<textarea id="fText" rows="2" spellcheck="false"></textarea>',
-    '<div class="grid" id="typeGrid"></div>',
-    "</section>",
-    '<section id="pane-box" hidden></section>',
+    '<div id="pane"></div>',
     '<details id="changes"><summary>Changes (<span id="count">0</span>)</summary>',
     '<ul id="list"></ul><button type="button" id="revertAll">Revert all changes</button></details>',
     "</div>",
@@ -181,70 +200,134 @@
     timing: ["ease", "ease-in", "ease-out", "ease-in-out", "linear", "step-start", "step-end"],
   };
 
-  var SCHEMA = [
-    { id: "text", label: "Text", rows: [
-      { p: "font-family", k: "select", o: FONTS },
-      { p: "font-size", k: "number", px: 1 },
-      { p: "font-weight", k: "select", o: ["100", "200", "300", "400", "500", "600", "700", "800", "900"] },
-      { p: "line-height", k: "number" },
-      { p: "letter-spacing", k: "number", px: 1 },
-      { p: "text-align", k: "select", o: [["left", "Left"], ["center", "Center"], ["right", "Right"], ["justify", "Justify"]] },
-      { p: "text-transform", k: "select", o: [["none", "As typed"], ["uppercase", "UPPERCASE"], ["lowercase", "lowercase"], ["capitalize", "Capitalize"]] },
-      { p: "text-decoration", k: "select", o: [["none", "None"], ["underline", "Underline"], ["line-through", "Line through"], ["overline", "Overline"]] },
-      { p: "color", k: "color" },
-    ] },
-    { id: "layout", label: "Layout", rows: [
-      { p: "width", k: "text" }, { p: "height", k: "text" },
-      { p: "min-width", k: "text" }, { p: "min-height", k: "text" },
-      { p: "max-width", k: "text" }, { p: "max-height", k: "text" },
-      { p: "display", k: "select", o: ENUMS.display },
-      { p: "position", k: "select", o: ENUMS.position },
-      { p: "z-index", k: "number" },
-      { p: "overflow", k: "select", o: ENUMS.overflow },
-    ] },
-    { id: "spacing", label: "Spacing", rows: [
-      { p: "margin", k: "quad", s: ["margin-top", "margin-right", "margin-bottom", "margin-left"] },
-      { p: "padding", k: "quad", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"] },
-      { p: "gap", k: "pair", s: ["row-gap", "column-gap"] },
-    ] },
-    { id: "flex", label: "Flex & grid", rows: [
-      { p: "flex-direction", k: "select", o: [["row", "row"], ["row-reverse", "row-reverse"], ["column", "column"], ["column-reverse", "column-reverse"]] },
-      { p: "flex-wrap", k: "select", o: ENUMS.wrap },
-      { p: "justify-content", k: "select", o: ENUMS.justify },
-      { p: "align-items", k: "select", o: ENUMS.align },
-      { p: "align-content", k: "select", o: ENUMS.justify },
-      { p: "flex-grow", k: "number" }, { p: "flex-shrink", k: "number" },
-      { p: "flex-basis", k: "text" }, { p: "order", k: "number" },
-      { p: "grid-template-columns", k: "text" }, { p: "grid-template-rows", k: "text" },
-      { p: "grid-auto-flow", k: "select", o: [["row", "row"], ["column", "column"], ["row dense", "row dense"], ["column dense", "column dense"]] },
-      { p: "grid-column", k: "text" }, { p: "grid-row", k: "text" },
-      { p: "place-items", k: "text" }, { p: "place-content", k: "text" },
-    ] },
-    { id: "appearance", label: "Appearance", rows: [
-      { p: "background", k: "color" },
-      { p: "background-image", k: "text", ph: "url(...) or linear-gradient(...)" },
-      { p: "background-size", k: "select", o: [["", ""], ["cover", "cover"], ["contain", "contain"], ["auto", "auto"]] },
-      { p: "background-position", k: "text" }, { p: "background-repeat", k: "select", o: [["no-repeat", "no-repeat"], ["repeat", "repeat"], ["repeat-x", "repeat-x"], ["repeat-y", "repeat-y"]] },
-      { p: "background-blend-mode", k: "select", o: ENUMS.blend },
-      { p: "border", k: "text", ph: "1px solid ..." },
-      { p: "border-radius", k: "quad", s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"] },
-      { p: "box-shadow", k: "shadow" },
-      { p: "opacity", k: "number", min: 0, max: 1, step: 0.01 },
-      { p: "backdrop-filter", k: "text", ph: "blur(8px)" },
-      { p: "filter", k: "text", ph: "blur(2px)" },
-    ] },
-    { id: "effects", label: "Effects", rows: [
-      { p: "transform", k: "text" },
-      { p: "rotate", k: "text" }, { p: "scale", k: "text" }, { p: "translate", k: "text" },
-      { p: "transform-origin", k: "text" },
-      { p: "transition", k: "text" },
-      { p: "transition-duration", k: "number", px: 1 },
-      { p: "transition-timing-function", k: "select", o: ENUMS.timing },
-      { p: "animation", k: "text" },
-      { p: "animation-duration", k: "number", px: 1 },
-      { p: "animation-timing-function", k: "select", o: ENUMS.timing },
-    ] },
+  // A control is one of:
+  //   { p, k, o?, s?, px?, min?, max?, step?, ph?, icon?, name?, only?, when?, add?, seg?, big? }
+  //
+  //   k      text | number | color | select | quad | pair | textarea
+  //   s      the longhands a quad/pair maps to, in order
+  //   only   the section appears only when this holds for the selection. No
+  //          control at all is offered when it does not.
+  //   when   the control hides unless this holds
+  //   add    additive: behind a + until switched on
+  //   seg    render as a segmented control rather than a select
+  //
+  // Three kinds, three schemas. An element is classified before the panel is
+  // built, so an <img> is never offered padding, gap or flex direction.
+  var SIZE = [
+    { p: "width", k: "text", icon: "W" },
+    { p: "height", k: "text", icon: "H" },
   ];
+  var APPEARANCE = [
+    { p: "background", k: "color", add: 1, icon: "□", name: "Fill" },
+    { p: "background-image", k: "text", add: 1, icon: "▧", name: "Image", when: always, ph: "url(...) / gradient(...)" },
+    { p: "border", k: "text", add: 1, icon: "▬", name: "Outline", ph: "1px solid #3a283c" },
+    { p: "box-shadow", k: "text", add: 1, icon: "◑", name: "Shadow", ph: "0 1px 2px #3a283c1f" },
+    { p: "backdrop-filter", k: "text", add: 1, icon: "▒", name: "Blur", ph: "blur(8px)" },
+    { p: "opacity", k: "number", add: 1, min: 0, max: 1, step: 0.01, icon: "◐", name: "Opacity" },
+  ];
+  var RADIUS = {
+    p: "border-radius",
+    k: "quad",
+    s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"],
+    add: 1,
+    icon: "◜",
+    name: "Radius",
+  };
+  var CLAMPS = [
+    { p: "min-width", k: "text", icon: "W⇒", when: clamps },
+    { p: "max-width", k: "text", icon: "W⇐", when: clamps },
+    { p: "min-height", k: "text", icon: "H⇓", when: clamps },
+    { p: "max-height", k: "text", icon: "H⇑", when: clamps },
+  ];
+
+  var SCHEMAS = {
+    text: [
+      {
+        label: "Typography",
+        rows: [
+          { p: "font-family", k: "select", o: FONTS },
+          { p: "font-size", k: "number", px: 1, icon: "Aa", big: 1 },
+          { p: "font-weight", k: "select", o: ENUMS.weight, seg: 1 },
+          { p: "line-height", k: "number", icon: "↕" },
+          { p: "letter-spacing", k: "number", px: 1, icon: "↔" },
+          { p: "text-align", k: "select", o: [["left", "⇤"], ["center", "↔"], ["right", "⇥"], ["justify", "☰"]], seg: 1 },
+          { p: "text-transform", k: "select", o: [["none", "aa"], ["uppercase", "AA"], ["lowercase", "aa"], ["capitalize", "Aa"]], seg: 1 },
+          { p: "text-decoration", k: "select", o: [["none", "—"], ["underline", "U̲"], ["line-through", "S̶"], ["overline", "̅"]], seg: 1 },
+        ],
+      },
+      { label: "Content", rows: [{ p: "@text", k: "textarea" }] },
+      { label: "Appearance", additive: true, rows: [{ p: "color", k: "color", add: 1, icon: "A", name: "Colour" }].concat(APPEARANCE, [RADIUS]) },
+    ],
+    container: [
+      {
+        label: "Size",
+        rows: SIZE.concat(CLAMPS),
+        // Clamps are off by default: four boxes nobody needs is noise, and no
+        // switch to turn them on would make them unreachable on a plain div.
+        toggle: { id: "clamps", name: "Min / max", props: ["min-width", "max-width", "min-height", "max-height"] },
+      },
+      { label: "Layout", rows: [{ p: "display", k: "select", o: ENUMS.display, seg: 1 }] },
+      {
+        label: "Flex",
+        only: isFlex,
+        rows: [
+          { p: "flex-direction", k: "select", o: [["row", "↔"], ["row-reverse", "↖"], ["column", "↕"], ["column-reverse", "↗"]], seg: 1 },
+          { p: "flex-wrap", k: "select", o: [["nowrap", "⇅"], ["wrap", "↩"]], seg: 1 },
+          { p: "justify-content", k: "select", o: [["flex-start", "◤"], ["center", "◆"], ["flex-end", "◥"], ["space-between", "⇹"], ["space-around", "⇔"]], seg: 1 },
+          { p: "align-items", k: "select", o: [["flex-start", "↑"], ["center", "↕"], ["flex-end", "↓"], ["stretch", "⤢"]], seg: 1 },
+        ],
+      },
+      {
+        label: "Grid",
+        only: isGrid,
+        rows: [
+          { p: "grid-template-columns", k: "text", icon: "⇉" },
+          { p: "grid-template-rows", k: "text", icon: "⇊" },
+          { p: "grid-auto-flow", k: "select", o: [["row", "↔"], ["column", "↕"], ["row dense", "↔+"], ["column dense", "↕+"]], seg: 1 },
+          { p: "grid-column", k: "text", icon: "⊞" },
+          { p: "grid-row", k: "text", icon: "⊟" },
+        ],
+      },
+      {
+        label: "Spacing",
+        rows: [
+          { p: "padding", k: "quad", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"], icon: "▣" },
+          { p: "gap", k: "pair", s: ["row-gap", "column-gap"], icon: "⇸" },
+        ],
+      },
+      { label: "Appearance", additive: true, rows: APPEARANCE.concat([RADIUS]) },
+    ],
+    media: [
+      { label: "Size", rows: SIZE },
+      {
+        label: "Media",
+        rows: [
+          { p: "object-fit", k: "select", o: [["cover", "■"], ["contain", "▫"], ["fill", "□"], ["none", "▭"], ["scale-down", "▬"]], seg: 1 },
+          { p: "object-position", k: "select", o: [["center", "⊙"], ["top", "↑"], ["bottom", "↓"], ["left", "←"], ["right", "→"]], seg: 1 },
+        ],
+      },
+      { label: "Appearance", additive: true, rows: APPEARANCE.concat([RADIUS]) },
+    ],
+  };
+
+  // Predicates the schema leans on. Each reads the selection's own computed
+  // style, so they answer "is this element actually a flex container" rather
+  // than "did someone set a flex property on it".
+  function mode() {
+    return computedOf(selected, "display") || "";
+  }
+  function isFlex() {
+    return /flex/.test(mode());
+  }
+  function isGrid() {
+    return /grid/.test(mode());
+  }
+  function always() {
+    return true; // an additive control is offered, but stays behind its +
+  }
+  function clamps() {
+    return !!on["clamps"];
+  }
 
   /** Every input, by the property it drives. fillControls reads from this. */
   var inputs = {};
@@ -256,7 +339,11 @@
     return selected ? { el: selected, kind: selectedKind } : null;
   };
 
-  /** One input, wired to apply(). Built once, never rebuilt. */
+  // Switch state for the panel's toggles, reset per selection so a section never
+  // opens on one element and stays open on the next.
+  var on = {};
+
+  /** One input, wired to apply(). Registered by property for fillControls. */
   function field(row, prop, placeholder) {
     var input;
     if (row.k === "select") {
@@ -264,7 +351,7 @@
       fill(input, typeof row.o[0] === "string" ? row.o.map(function (v) { return [v, v]; }) : row.o);
     } else {
       input = document.createElement("input");
-      input.type = row.k === "check" ? "checkbox" : row.k === "color" ? "color" : row.k === "number" ? "number" : "text";
+      input.type = row.k === "color" ? "color" : row.k === "number" ? "number" : "text";
       if (row.k === "number") {
         if (row.min !== undefined) input.min = row.min;
         if (row.max !== undefined) input.max = row.max;
@@ -272,7 +359,9 @@
       }
     }
     if (placeholder) input.placeholder = placeholder;
+    if (row.big) input.className = "big";
     input.title = prop;
+    input.kind = "text";
     inputs[prop] = input;
     input.addEventListener("input", function () {
       if (selected) apply(prop, input.value ? units(row, prop, input.value) : "");
@@ -280,7 +369,7 @@
     return input;
   }
 
-  /** Bare numbers are pixels for lengths; ratios and z-index are unitless. */
+  /** Bare numbers are pixels for lengths; ratios are unitless. */
   function units(row, prop, value) {
     if (row.k !== "number") return value;
     // Line height is the one number that is a ratio, and the panel shows it that
@@ -289,93 +378,194 @@
     return row.px ? value + "px" : value;
   }
 
-  /** A labelled row: one property, one or four boxes. */
-  function buildRow(row) {
-    var wrap = document.createElement("div");
-    wrap.className = "row";
-    var caption = document.createElement("b");
-    caption.textContent = row.p;
-    wrap.appendChild(caption);
-
-    if (row.k === "quad" || row.k === "pair") {
-      var grid = document.createElement("div");
-      grid.className = row.k === "quad" ? "quad" : "pair";
-      row.s.forEach(function (side) {
-        var input = field({ k: "text" }, side, "");
-        input.placeholder = side.split("-")[1].slice(0, 3);
-        grid.appendChild(input);
+  /**
+   * A segmented control: a row of small buttons instead of a select.
+   *
+   * A select hides its options behind a dropdown and spends a whole labelled row
+   * to say what it is. A segmented control shows the choices, costs one line, and
+   * the glyph is the label — which is why the schema carries symbols like ↔ and
+   * ↕ instead of "justify-content".
+   */
+  function segmented(row, prop) {
+    var group = document.createElement("div");
+    group.className = "seg";
+    group.title = prop;
+    var buttons = [];
+    row.o.forEach(function (pair) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = pair[1];
+      btn.title = pair[0];
+      btn.setAttribute("aria-label", prop + ": " + pair[0]);
+      btn.addEventListener("click", function () {
+        if (!selected) return;
+        apply(prop, pair[0]);
+        buttons.forEach(function (b) {
+          b.setAttribute("aria-checked", String(b === btn));
+        });
       });
-      wrap.appendChild(grid);
-      return wrap;
+      buttons.push(btn);
+      group.appendChild(btn);
+    });
+    // A way back to unset. Without it the choice is one-way and there is no way
+    // to hand the property back to the stylesheet — which every other control has.
+    var reset = document.createElement("button");
+    reset.type = "button";
+    reset.textContent = "×";
+    reset.title = "";
+    reset.setAttribute("aria-label", prop + ": unset");
+    reset.addEventListener("click", function () {
+      if (!selected) return;
+      apply(prop, "");
+      buttons.concat(reset).forEach(function (b) {
+        b.setAttribute("aria-checked", String(b === reset));
+      });
+    });
+    group.appendChild(reset);
+    group.reset = reset;
+    group.kind = "seg";
+    inputs[prop] = group;
+    return group;
+  }
+
+  /** A shorthand row: an icon and four boxes, in one compact line. */
+  function boxes(row) {
+    var group = document.createElement("div");
+    group.className = row.k === "quad" ? "quad" : "pair";
+    row.s.forEach(function (side) {
+      var input = document.createElement("input");
+      input.type = "text";
+      input.title = side;
+      input.placeholder = side.split("-")[1].slice(0, 3);
+      inputs[side] = input;
+      input.addEventListener("input", function () {
+        if (selected) apply(side, input.value);
+      });
+      group.appendChild(input);
+    });
+    return group;
+  }
+
+  /** An icon button that switches a group on. */
+  function plus(row) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "plus";
+    btn.textContent = row.icon || "+";
+    btn.title = "Add " + (row.name || row.p);
+    btn.setAttribute("aria-label", "Add " + (row.name || row.p));
+    btn.addEventListener("click", function () {
+      on[row.p] = true;
+      renderPanel();
+    });
+    return btn;
+  }
+
+  /** One control, in whichever form its schema row asks for. */
+  function control(row) {
+    if (row.k === "quad" || row.k === "pair") return boxes(row);
+    if (row.k === "textarea") {
+      var ta = document.createElement("textarea");
+      ta.rows = 2;
+      ta.spellcheck = false;
+      ta.title = "Content";
+      ta.kind = "text";
+      inputs["@text"] = ta;
+      ta.addEventListener("input", function () {
+        if (selected && selectedKind === "text") setText(selected, ta.value);
+      });
+      return ta;
     }
-
-    wrap.appendChild(field(row, row.p, row.ph));
-    return wrap;
+    if (row.seg) return segmented(row, row.p);
+    return field(row, row.p, row.ph);
   }
 
-  /** The whole inspector, from SCHEMA. Sections start closed. */
-  function buildPanel() {
-    var tabs = $("tabs");
-    SCHEMA.forEach(function (section, i) {
-      var tab = document.createElement("button");
-      tab.type = "button";
-      tab.textContent = section.label;
-      tab.setAttribute("aria-selected", String(i === 0));
-      tab.addEventListener("click", function () {
-        showSection(section.id);
+  /**
+   * The panel for the current selection, built fresh each time.
+   *
+   * Rebuilt rather than hidden and shown, because the sections themselves depend
+   * on the element: a flex group on something that is not flex should not exist
+   * in the tree at all.
+   */
+  function renderPanel() {
+    var host = $("pane");
+    host.textContent = "";
+    var sections = SCHEMAS[selectedKind] || SCHEMAS.container;
+    sections.forEach(function (section) {
+      // "must come only when needed": no control, no offer, no empty section.
+      if (section.only && !section.only()) return;
+      var rows = section.rows.filter(function (row) {
+        return !row.when || row.when();
       });
-      tabs.appendChild(tab);
+      if (!rows.length) return;
+      host.appendChild(sectionEl(section, rows));
     });
+    fillControls(selected);
+  }
 
-    $("pane-text").appendChild(document.createElement("hr"));
-    var grid = $("typeGrid");
-    // The first section's rows live on the always-visible text pane; the rest
-    // live in a details element per section, so an unopened one costs nothing.
-    SCHEMA.forEach(function (section) {
-      var host = section.id === "text" ? grid : sectionHost(section);
-      section.rows.forEach(function (row) {
-        host.appendChild(buildRow(row));
+  function sectionEl(section, rows) {
+    var el = document.createElement("section");
+    el.className = "sec";
+
+    var head = document.createElement("div");
+    head.className = "secHead";
+    var title = document.createElement("b");
+    title.textContent = section.label;
+    head.appendChild(title);
+
+    if (section.toggle) {
+      var t = document.createElement("button");
+      t.type = "button";
+      t.className = "tog";
+      t.textContent = section.toggle.name;
+      t.title = "Show " + section.toggle.name;
+      var paint = function () {
+        t.setAttribute("aria-pressed", String(!!on[section.toggle.id]));
+      };
+      paint();
+      t.addEventListener("click", function () {
+        on[section.toggle.id] = !on[section.toggle.id];
+        paint();
+        renderPanel();
       });
+      head.appendChild(t);
+    }
+    el.appendChild(head);
+
+    rows.forEach(function (row) {
+      // "must come only when added": a quiet + until the user asks for it.
+      if (row.add && !on[row.p]) {
+        var line = document.createElement("div");
+        line.className = "addLine";
+        line.appendChild(plus(row));
+        var nm = document.createElement("span");
+        nm.textContent = row.name || row.p;
+        line.appendChild(nm);
+        el.appendChild(line);
+        return;
+      }
+      var line = document.createElement("div");
+      line.className = "line";
+      if (row.icon) {
+        var ic = document.createElement("span");
+        ic.className = "ic";
+        ic.textContent = row.icon;
+        ic.title = row.name || row.p;
+        line.appendChild(ic);
+      }
+      if (row.name && row.icon) {
+        var nm2 = document.createElement("span");
+        nm2.className = "nm";
+        nm2.textContent = row.name;
+        line.appendChild(nm2);
+      }
+      line.appendChild(control(row));
+      el.appendChild(line);
     });
+    return el;
   }
 
-  function sectionHost(section) {
-    var details = document.createElement("details");
-    details.className = "sec";
-    details.setAttribute("data-section", section.id);
-    var summary = document.createElement("summary");
-    summary.textContent = section.label;
-    details.appendChild(summary);
-    $("pane-box").appendChild(details);
-    return details;
-  }
 
-  function showSection(id) {
-    Array.prototype.forEach.call($("tabs").children, function (tab, i) {
-      tab.setAttribute("aria-selected", String(SCHEMA[i].id === id));
-    });
-    $("pane-text").hidden = id !== "text";
-    $("pane-box").hidden = id === "text";
-    if (id === "text") return;
-    // Exactly one section open: the one being looked at. Closing it is what makes
-    // the panel stay small no matter how many properties it holds.
-    Array.prototype.forEach.call($("pane-box").children, function (details) {
-      details.open = details.getAttribute("data-section") === id;
-    });
-  }
-
-  buildPanel();
-  showSection("text"); // Text opens first; every other section stays collapsed
-
-  // Every control maps to one CSS longhand, so applying a value and recording
-  // what was there before are the same code path. Typed controls get their units
-  // from their schema row, not from a hardcoded list that would grow forever.
-  $("fText").addEventListener("input", function (e) {
-    // Guarded on the classification, not on the field being disabled: a
-    // container or a media element never gets its text rewritten, however the
-    // event arrived.
-    if (selected && selectedKind === "text") setText(selected, e.target.value);
-  });
   $("done").addEventListener("click", exit);
   $("revertAll").addEventListener("click", function () {
     changes.slice().forEach(revert);
@@ -542,31 +732,57 @@
 
   /** Show the selection's current values, so the panel reads as its state. */
   function fillControls(el) {
-    var cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
-    var computed = function (prop) {
-      return (cs ? cs.getPropertyValue(prop) : "") || el.style.getPropertyValue(prop);
-    };
-    // One pass over the table, not a hand-written line per control: the schema
-    // already knows which property each input belongs to.
+    // One pass over the registry, not a line per control: the schema already
+    // knows which property each input belongs to.
     Object.keys(inputs).forEach(function (prop) {
       var input = inputs[prop];
-      var raw = computed(prop);
-      // Colours arrive as rgb() or hsl() from getComputedStyle; the swatch only
-      // understands #rrggbb, so anything else leaves the swatch alone.
-      if (input.type === "color") {
-        var hex = toHex(raw);
-        if (hex) input.value = hex;
+      if (input.kind === "seg") {
+        var raw = computedOf(el, prop);
+        // The reset button represents "not set here", so it reads as checked when
+        // the property has no inline value to show.
+        var inline = el.style.getPropertyValue(prop);
+        Array.prototype.forEach.call(input.children, function (btn) {
+          btn.setAttribute("aria-checked", String(btn === input.reset ? !inline : !input.reset && btn.title === raw));
+        });
         return;
       }
-      input.value = raw === "none" && input.tagName === "SELECT" ? "" : raw;
+      if (prop === "@text") {
+        input.value = selectedKind === "media" ? "" : el.textContent;
+        // Only a text element can be rewritten, and only a leaf one: replacing
+        // the text of an element that holds markup would delete it. A container
+        // has no text of its own, and media has none at all.
+        input.disabled = selectedKind !== "text" || !isLeafText(el);
+        input.title =
+          selectedKind === "media"
+            ? "Media has no text to edit"
+            : selectedKind === "container"
+              ? "A container has no text of its own — click the words inside it"
+              : input.disabled
+                ? "This element holds markup — pick a plain text element"
+                : "";
+        return;
+      }
+      if (input.kind === "text") {
+        var val = computedOf(el, prop);
+        // Colours arrive as rgb() or hsl() from getComputedStyle; the swatch only
+        // understands #rrggbb, so anything else leaves the swatch alone.
+        if (input.type === "color") {
+          var hex = toHex(val);
+          if (hex) input.value = hex;
+          return;
+        }
+        input.value = val === "none" && input.tagName === "SELECT" ? "" : val;
+        return;
+      }
+      input.value = computedOf(el, prop); // a quad/pair side
     });
     // Font family is the one property the generic pass gets wrong: a resolved
     // stack never equals its source and `var()` never resolves, so the choice is
     // matched on the leading family name instead.
-    var family = computed("font-family").replace(/["\x27]/g, "").replace(/\s+/g, " ").trim();
+    var family = computedOf(el, "font-family").replace(/["\x27]/g, "").replace(/\s+/g, " ").trim();
     var first = family.split(",")[0].trim().toLowerCase();
     var font = inputs["font-family"];
-    if (font) {
+    if (font && font.kind === "text") {
       font.value = FONTS.filter(function (f) {
         return f[1].split(",").map(function (part) {
           return part.trim();
@@ -579,25 +795,17 @@
     // stylesheet stores it unitless or as a length.
     var lh = inputs["line-height"];
     if (lh) {
-      var size = parseFloat(computed("font-size"));
-      var line = parseFloat(computed("line-height"));
+      var size = parseFloat(computedOf(el, "font-size"));
+      var line = parseFloat(computedOf(el, "line-height"));
       if (line && size) lh.value = Math.round((line / size) * 100) / 100;
     }
-    var field = $("fText");
-    field.value = selectedKind === "media" ? "" : el.textContent;
-    // Only a text element can be rewritten, and only a leaf one: replacing the
-    // text of an element that holds markup would delete it. A container has no
-    // text of its own to replace, and media has none at all.
-    var writable = selectedKind === "text" && isLeafText(el);
-    field.disabled = !writable;
-    field.title =
-      selectedKind === "media"
-        ? "Media has no text to edit"
-        : selectedKind === "container"
-          ? "A container has no text of its own — click the words inside it"
-          : writable
-            ? ""
-            : "This element holds markup — pick a plain text element";
+  }
+
+  /** The selection's computed value for a property, falling back to its inline. */
+  function computedOf(el, prop) {
+    if (!el) return "";
+    var cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    return (cs ? cs.getPropertyValue(prop) : "") || el.style.getPropertyValue(prop) || "";
   }
 
   /** #rgb or #rrggbb as #rrggbb, or nothing when it is not a plain colour. */
@@ -695,7 +903,8 @@
     }
     selBox.style.display = "block";
     dragged = false; // a fresh selection parks beside itself again
-    fillControls(el);
+    on = {}; // switches are per selection: nothing carries over to the next element
+    renderPanel();
     positionPanel();
   }
 
