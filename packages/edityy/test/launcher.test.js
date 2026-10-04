@@ -224,8 +224,8 @@ function fakeDom() {
       /** One of a frame's bars, in the order the payload built them: run first
           for each edge, then the three accent bars over it. */
       bar: (edge, spot) => root.nodes.sel.children[edge * 4 + 1 + spot],
-      /** The middle piece of one edge of a frame — the one filling the gap. */
       line: (edge, frame = "sel") => root.nodes[frame].children[edge * 4],
+      placeholder: null,
       countDoc: (type) => bucket(doc, type, "capture").length,
       /** Grab the panel's header, then move and release it. */
       grab: (event) =>
@@ -398,7 +398,7 @@ test("the pointer travels home and grows back into the orb on exit", () => {
   assert.equal(app.countDoc("click"), 0, "the page is released");
 });
 
-test("the frame stands off the element and rounds with the ramp", () => {
+test("the hover frame stands off the element", () => {
   const { run, text } = fakeDom();
   const app = run();
   // The frame starts 4px clear of the element, so the box is Edityy's and
@@ -409,10 +409,11 @@ test("the frame stands off the element and rounds with the ramp", () => {
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
-  assert.equal(app.line(0, "hover").style.top, "46px");
-  assert.equal(app.line(0, "hover").style.left, "112px");
-  assert.equal(app.line(0, "hover").style.width, "96px");
-  assert.equal(app.line(1, "hover").style.left, "96px");
+  const hover = app.root.nodes.hover.style;
+  assert.equal(hover.left, "96px");
+  assert.equal(hover.top, "46px");
+  assert.equal(hover.width, "128px");
+  assert.equal(hover.height, "56px");
 });
 
 test("a text element wins over the container around it", () => {
@@ -448,11 +449,11 @@ test("an element with no text is still selectable", () => {
   assert.equal(app.root.nodes.sel.hidden, false);
 });
 
-test("the box is one violet, drawn on all four sides", () => {
+test("the box is one continuous violet border on all four sides", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by 46..102:
-  // 128 wide, 56 tall. Top-left bar at x=96 y=46, top-right at x=208.
+  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by
+  // 46..102: 128 wide, 56 tall.
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
@@ -461,54 +462,32 @@ test("the box is one violet, drawn on all four sides", () => {
   });
   const sel = app.root.nodes.sel;
   assert.equal(sel.hidden, false);
-  // Four edges, four pieces each: the one that fills the gap, and three marking
-  // the corners and the midpoint.
-  assert.equal(sel.children.length, 16);
-  for (let i = 0; i < 16; i++) assert.equal(sel.children[i].className, "bar");
-  // One colour for the whole box.
-  assert.match(app.root.innerHTML, /\.bar\{[^}]*background:#d79eac/);
-  assert.doesNotMatch(app.root.innerHTML, /#000/, "nothing black in the frame");
-  assert.equal(app.bar(0, 0).style.left, "96px", "flush with the left end of the top edge");
-  assert.equal(app.bar(0, 0).style.top, "46px");
-  assert.equal(app.bar(0, 2).style.left, "208px", "and 16px in from the right, so the cap lands on the corner");
-  assert.equal(app.bar(0, 1).style.left, "152px", "the middle bar, centred on a 128px edge");
-  assert.equal(app.bar(0, 1).style.width, "16px");
-  assert.equal(app.bar(0, 1).style.height, "2px", "the stroke, on both axes of every piece");
-  // Vertical edges are positioned the other way round, and get their width too:
-  // a vertical bar with no width renders 0px wide and the side disappears.
-  assert.equal(app.bar(1, 0).style.left, "96px");
-  assert.equal(app.bar(1, 0).style.top, "46px");
-  assert.equal(app.bar(1, 0).style.width, "2px");
-  assert.equal(app.bar(1, 2).style.top, "86px", "16px up from the bottom of a 56px edge");
-  assert.equal(app.bar(3, 1).style.left, "224px", "the right edge, at the far side of the box");
-  assert.equal(app.bar(3, 1).style.width, "2px");
-  // The middle piece fills exactly the gap between the two end bars.
-  assert.equal(app.line(0).style.left, "112px");
-  assert.equal(app.line(0).style.width, "96px");
-  assert.equal(app.line(0).style.height, "2px");
-  assert.equal(app.line(2).style.top, "102px", "the bottom edge, at the far side of the box");
-  assert.equal(app.line(3).style.left, "224px", "and the right edge at the far side of it");
-  assert.equal(app.line(3).style.height, "24px", "the right gap, 56 - 32");
-  assert.equal(app.line(3).style.width, "2px");
-  // A minimal radius: DESIGN.md's sm step, the smallest thing the ramp allows.
-  assert.match(app.root.innerHTML, /\.bar\{[^}]*border-radius:4px/);
+  assert.equal(sel.children.length, 0, "one border, not a stack of pieces");
+  assert.equal(sel.style.left, "96px");
+  assert.equal(sel.style.top, "46px");
+  assert.equal(sel.style.width, "128px");
+  assert.equal(sel.style.height, "56px");
+  // One colour, one unbroken stroke on every side, and a corner radius.
+  assert.match(app.root.innerHTML, /border:2px solid #d79eac/, "one violet border, all four sides");
+  assert.match(app.root.innerHTML, /border-radius:4px/, "the ramp sm radius");
+  assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
 });
 
-test("the pattern stays the same on a small element", () => {
+test("the box is the same on a small element", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // 20x12: the frame is 28x20 from -4, so the end bars meet and the middle piece
-  // has nothing to fill.
+  // 20x12: the frame is 28x20 from -4, and is still one border.
   const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
   quiet(() => {
     app.click();
     app.hover(line);
     app.clickPage();
   });
-  assert.equal(app.bar(0, 1).style.left, "2px", "the middle bar is still centred on the element");
-  assert.equal(app.line(0).style.width, "0px", "no gap means no middle piece, not a squashed one");
-  assert.equal(app.root.nodes.sel.children.length, 16, "and the same sixteen pieces either way");
+  assert.equal(app.root.nodes.sel.style.width, "28px");
+  assert.equal(app.root.nodes.sel.style.height, "20px");
+  assert.equal(app.root.nodes.sel.children.length, 0);
 });
+
 
 /** Select a node and report how it was classified. */
 const kindOf = (app, node) => {

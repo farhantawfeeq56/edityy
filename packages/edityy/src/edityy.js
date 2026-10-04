@@ -71,16 +71,12 @@
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
-    // A frame drawn around an element, fully transparent: only its bars and lines
-    // are painted, so the element underneath is never covered or tinted.
-    ".frame{position:fixed;pointer-events:none;z-index:1}",
-    "[hidden]{display:none!important}", // also for .frame: display:block would beat it
-    // Every piece of a frame is the same violet bar: `width` and `height` are both
-    // 2px so an edge can be placed by writing just the one it runs along, and
-    // place() overrides the other per edge. The 4px radius is DESIGN.md's sm step,
-    // the smallest the ramp allows — enough to soften the joins, not enough to
-    // turn the box into a lozenge the way the old rounded border did.
-    ".bar{position:absolute;width:2px;height:2px;border-radius:4px;background:#d79eac}",
+    // A frame drawn around an element: one violet border, transparent inside, so
+    // the element underneath is never covered or tinted. 4px is the ramp sm
+    // radius — the smallest the design allows, enough to soften the corners
+    // without turning the box into a lozenge.
+    ".frame{position:fixed;pointer-events:none;z-index:1;",
+    "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
@@ -256,90 +252,13 @@
 
   // The box drawn around an element. It stands off the element by 4px on every
   // side, so the frame is unmistakably Edityy's and not the page's own edge.
-  //
-  // It is a stack of small divs rather than one styled border, because the whole
-  // look is in how each edge is split: a violet bar at each end and the middle,
-  // and another filling the gap between them, with clear space either side. One
-  // colour, sixteen divs; a border-image would be more code for the same
-  // picture.
   var GAP = 4;
-  // Bars are 16px, which is what turns a bar at a corner into an L, and what
-  // leaves the gap its space. An element narrower than that has no gap to fill
-  // and keeps one short bar per edge — the right answer, not a degenerate one —
-  // so the pattern never depends on the size of what it is drawn around.
-  var BAR = 16;
-  // Where each accent bar sits along its edge, as a fraction of its own length
-  // between the two end bars: flush left, centred, flush right.
-  var SPOTS = [0, 0.5, 1];
-  // The four edges, and which way each one runs. Their children are built in this
-  // order — the gap bar first, the three bars over it — so they land on top.
-  var SIDES = [["top", true], ["left", false], ["bottom", true], ["right", false]];
-
-  /** Build the bars of one frame. Two frames, one shape — they cannot drift. */
-  function build(frame) {
-    SIDES.forEach(function () {
-      // Four per edge: the one that fills the gap, then the three that mark the
-      // corners and the midpoint.
-      for (var i = 0; i < 4; i++) {
-        var bar = document.createElement("i");
-        bar.className = "bar";
-        frame.appendChild(bar);
-      }
-    });
-  }
-
-  /** Pin one frame to a target's rectangle. */
+  /** Pin a frame to a target rectangle. One border, four numbers. */
   function place(frame, rect) {
-    var box = {
-      left: rect.left - GAP,
-      top: rect.top - GAP,
-      width: rect.width + GAP * 2,
-      height: rect.height + GAP * 2,
-    };
-    SIDES.forEach(function (side, s) {
-      var horizontal = side[1];
-      // How far along the box this edge runs, and where across it sits: the top
-      // and left edges start at the box origin, the bottom and right ones at the
-      // far end of it.
-      var across = horizontal ? box.width : box.height;
-      var depth = horizontal ? box.height : box.width;
-      var origin = horizontal ? box.left : box.top;
-      var cross =
-        (horizontal ? box.top : box.left) + (side[0] === "top" || side[0] === "left" ? 0 : depth);
-      var line = frame.children[s * 4];
-      // Only the gap between the two end bars: it stops short of each one, and
-      // that space is what keeps the ends and the middle from reading as one
-      // line. Zero when the edge is too short to have a gap at all.
-      var gap = Math.max(0, across - BAR * 2);
-      // Both dimensions are written every time: a vertical bar that never gets
-      // a width renders 0px wide and the box loses its left and right sides.
-      if (horizontal) {
-        line.style.left = origin + BAR + "px";
-        line.style.top = cross + "px";
-        line.style.width = gap + "px";
-        line.style.height = "2px";
-      } else {
-        line.style.left = cross + "px";
-        line.style.top = origin + BAR + "px";
-        line.style.width = "2px";
-        line.style.height = gap + "px";
-      }
-      SPOTS.forEach(function (spot, i) {
-        var bar = frame.children[s * 4 + 1 + i];
-        var offset = origin + (across - BAR) * spot;
-        if (horizontal) {
-          bar.style.left = offset + "px";
-          bar.style.top = cross + "px";
-          bar.style.width = BAR + "px";
-          bar.style.height = "2px";
-        } else {
-          bar.style.left = cross + "px";
-          bar.style.top = offset + "px";
-          bar.style.width = "2px";
-          bar.style.height = BAR + "px";
-        }
-      });
-    });
+    frame.style.left = rect.left - GAP + "px";
+    frame.style.top = rect.top - GAP + "px";
+    frame.style.width = rect.width + GAP * 2 + "px";
+    frame.style.height = rect.height + GAP * 2 + "px";
   }
 
   /** Draw the selection frame. There is no panel to place, so this is all a
@@ -467,11 +386,6 @@
     if (active) exit();
     else enter();
   });
-
-  // Both frames are built the same way, once, at mount — a gap line and three
-  // accent bars per edge. Last, because it needs everything above defined.
-  build(hoverBox);
-  build(selBox);
 
   (document.body || document.documentElement).appendChild(host);
 })();
