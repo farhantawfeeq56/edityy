@@ -8,14 +8,17 @@
  *    dispatches `edityy:launcher-click` on window — the seam a host app can
  *    listen to — and toggles the editing mode below.
  *
- * 2. A temporary editing mode. Hover outlines any element that has text of its
- *    own, click selects it, and a panel next to the selection edits its text and
- *    its typography. Every change is applied inline to the live element and
- *    recorded as a proposal: the panel lists them, each can be reverted, and
- *    leaving the mode reverts everything.
+ * 2. A temporary editing mode: the orb steps aside for a cursor, hovering any
+ *    element outlines it, and clicking selects it. That is the whole interface
+ *    for now — selection with no panel attached. `kind()` classifies what was
+ *    picked as text, container or media before anything else happens, and
+ *    `root.selection()` reports it.
  *
- * Nothing is written anywhere. The codebase is the source of truth; this file
- * only changes the page in memory, until a reload.
+ * The machinery for changing an element is still here and still correct —
+ * apply() writes an inline style, remembers what was there, and revert() puts
+ * it back — but no UI calls it yet. Nothing is written anywhere: the codebase is
+ * the source of truth, and this file only ever changes the page in memory, until
+ * a reload.
  *
  * Browser IIFE on purpose: this file is served to the page as-is, so it cannot
  * be a module.
@@ -23,13 +26,18 @@
 (function () {
   "use strict";
 
+  // The change backend — apply, setText, isLeafText, label, selectedKind — is
+  // deliberately parked, not dead: there is no panel to call it right now, and
+  // deleting it would throw away working code that the next UI needs as-is.
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+
   if (window.__edityy) return; // a shared layout can render the tag more than once
   window.__edityy = true;
 
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
-  // A full-viewport host that ignores pointer events: the panel and the boxes can
-  // grow over the site without ever coming between the user and the page.
+  // A full-viewport host that ignores pointer events: the cursor and the frames
+  // can grow over the site without ever coming between the user and the page.
   host.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
 
   var root = host.attachShadow({ mode: "open" });
@@ -43,8 +51,7 @@
     ":host{all:initial}",
     // `all:initial` severs inheritance, so the payload names the site's own font
     // itself. --font-sans is the app's stack (Plus Jakarta Sans first); the bare
-    // family name covers a host that has the font without the token, and the
-    // rest keeps the panel readable anywhere.
+    // family name covers a host that has the font without the token.
     "*{box-sizing:border-box;font-family:var(--font-sans,\"Plus Jakarta Sans\",ui-sans-serif,system-ui,sans-serif);color:#3a283c}",
     "[hidden]{display:none}", // a shadow root has no UA stylesheet, so `hidden` is ours to honour
     // Or `#launch` while the mode is off. Hidden once it is on: a custom cursor
@@ -65,115 +72,12 @@
     // frame around the element, not a traced outline.
     "#hover{border:1px dashed #3a283c59;background:#d79eac2e}",
     "#sel{border:2px solid #3a283c;background:transparent}",
-    "#panel{position:fixed;pointer-events:auto;z-index:5;width:270px;max-height:calc(100vh - 24px);",
-    "overflow:auto;padding:12px;border:1px solid #3a283c1a;border-radius:16px;background:#f9f2eecc;",
-    "backdrop-filter:blur(8px);box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;font-size:14px;",
-    // The scale-and-fade DESIGN.md's interaction model asks for on entry.
-    "animation:rise .16s cubic-bezier(.2,.8,.3,1)}",
-    "@keyframes rise{from{opacity:0;transform:scale(.96) translateY(4px)}to{opacity:1;transform:none}}",
-    "@media (prefers-reduced-motion:reduce){#panel{animation:none}#cursor{transition:none}}",
-    ".head{display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:grab;touch-action:none}",
-    ".head:active{cursor:grabbing}",
-    "#target{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}",
-    "#done{border:1px solid #3a283c;border-radius:8px;background:#3a283c;color:#f9f2ee;padding:4px 8px;cursor:pointer}",
-    "label{display:block;margin-top:8px;font-weight:500;color:#86546b}",
-    "textarea,input,select{display:block;width:100%;margin-top:4px;padding:5px 6px;font:inherit;",
-    "color:#3a283c;border:1px solid #3a283c26;border-radius:8px;background:#f9f2ee}",
-    "textarea{resize:vertical}",
-    "input[type=range]{padding:0}",
-    "input[type=color]{height:26px;padding:2px}",
-    ".grid{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}",
-    /* Tabs: one visible surface at a time, so a section that isn't open costs
-       nothing. This is DESIGN.md's "unrevealed controls have no footprint". */
-    /* The inspector: dense, icon-led, one compact line per control. A labelled
-       row per property ("Width: [ ]") spends a whole line on what a single glyph
-       already says, and forty of them become a scroll. Here the glyph IS the
-       label, the control sits beside it, and related controls share a line. */
-    "#panel{width:236px}",
-    ".sec{margin-top:8px}",
-    ".sec:first-child{margin-top:0}",
-    ".secHead{display:flex;align-items:center;gap:6px;margin-bottom:5px}",
-    ".secHead>b{font:600 14px/1.1 inherit;letter-spacing:.04em;text-transform:uppercase;color:#86546b}",
-    ".tog{margin-left:auto;border:1px solid #3a283c26;border-radius:8px;background:transparent;",
-    "color:#86546b;padding:4px 8px;font:500 14px/1.2 inherit;cursor:pointer}",
-    ".tog[aria-pressed=true]{background:#d79eac33;color:#3a283c}",
-    ".line{display:flex;align-items:center;gap:8px;margin-bottom:2px}",
-    /* The glyph carries the meaning, so the caption is a tooltip not a label. */
-    ".ic{flex:0 0 16px;text-align:center;font:600 14px/1.1 inherit;color:#86546b}",
-    ".nm{flex:0 0 auto;font:500 14px/1.1 inherit;color:#86546b}",
-    ".line>input,.line>select{flex:1;min-width:0;margin:0;padding:4px 6px;font-size:14px;border-radius:8px}",
-    ".line>input[type=color]{flex:0 0 36px;height:26px;padding:2px}",
-    "input.big{font:600 14px/1.1 inherit}",
-    ".quad,.pair{display:grid;gap:4px;flex:1;min-width:0}",
-    ".quad{grid-template-columns:repeat(4,1fr)}",
-    ".pair{grid-template-columns:1fr 1fr}",
-    ".quad>input,.pair>input{margin:0;padding:4px;font-size:14px;border-radius:8px;text-align:center}",
-    /* Segmented control: the choices are visible rather than behind a dropdown,
-       and the glyph is the label. */
-    ".seg{display:flex;flex:1;min-width:0;gap:2px;border:1px solid #3a283c1a;border-radius:8px;padding:2px;background:#f9f2ee}",
-    ".seg>button{flex:1;min-width:0;border:0;border-radius:4px;background:transparent;color:#3a283c;",
-    "padding:4px 0;font:500 14px/1.1 inherit;cursor:pointer;overflow:hidden;text-overflow:clip;white-space:nowrap}",
-    ".seg>button:hover{background:#3a283c0f}",
-    ".seg>button[aria-checked=true]{background:#3a283c;color:#f9f2ee}",
-    /* Additive appearance: quiet until asked for. Having the capability does not
-       mean it has to occupy attention all the time. */
-    /* Appearance row: name left, quiet + right. No glyph — the name is the
-       label and an icon beside it only competes. */
-    ".addLine{display:flex;align-items:center;gap:8px;margin-bottom:2px}",
-    ".addLine>span{flex:1;font:500 14px/1.1 inherit;color:#86546b}",
-    ".plus{flex:0 0 20px;width:20px;height:20px;border:1px solid #3a283c26;border-radius:8px;",
-    "background:transparent;color:#86546b;font:600 14px/1 inherit;cursor:pointer;padding:0}",
-    ".plus:hover{background:#d79eac33;color:#3a283c}",
-
-    /* Composite controls: several properties in one line. */
-    ".comp{display:flex;align-items:center;gap:4px;flex:1;min-width:0}",
-    ".comp>input,.comp>select{flex:1;min-width:0;margin:0;padding:4px;font-size:14px;border-radius:8px}",
-    ".comp>input[type=color]{flex:0 0 28px;height:24px;padding:2px}",
-
-    /* A cycle button: one value, click to advance. */
-    ".cycle{flex:0 0 auto;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee;",
-    "color:#3a283c;padding:4px 8px;font:500 14px/1.1 inherit;cursor:pointer;white-space:nowrap}",
-
-    /* Flex: axis and wrap to the left of a 3x3 alignment matrix. */
-    ".flexWrap{display:flex;align-items:flex-start;gap:8px}",
-    ".flexSide{display:flex;flex-direction:column;gap:4px;flex:0 0 66px}",
-    ".flexSide>select{margin:0;padding:4px;font-size:14px;border-radius:8px}",
-    ".matrix{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);",
-    "gap:2px;flex:1;min-width:0;aspect-ratio:1;border:1px solid #3a283c1a;border-radius:8px;padding:3px;",
-    "background:#3a283c08}",
-    ".matrix>button{border:0;border-radius:4px;background:transparent;cursor:pointer;min-height:18px}",
-    ".matrix>button:hover{background:#d79eac66}",
-    ".matrix>button[aria-checked=true]{background:#3a283c}",
-
-    /* Padding drawn as the box it is: four bars around an empty centre. */
-    ".pad{display:grid;grid-template-columns:1fr 1fr;gap:2px;flex:1;min-width:0;padding:4px;",
-    "border:1px solid #3a283c1a;border-radius:8px;background:#3a283c08;",
-    "grid-template-areas:'. t' 'l c' '. b' 'r .'}",
-    ".pad>input{margin:0;padding:2px;font-size:14px;border-radius:4px;text-align:center;min-width:0}",
-    ".pad>input[data-side=top]{grid-area:t}",
-    ".pad>input[data-side=right]{grid-area:r}",
-    ".pad>input[data-side=bottom]{grid-area:b}",
-    ".pad>input[data-side=left]{grid-area:l}",
-    ".padCentre{grid-area:c;border:1px dashed #3a283c26;border-radius:4px;",
-    "background:#f9f2ee;min-height:16px}",
-    "#pane>textarea{width:100%;margin:0 0 4px;font-size:14px;resize:vertical}",
-    "#changes{margin-top:12px;border-top:1px solid #3a283c1a;padding-top:8px}",
-    "#changes summary{cursor:pointer;font-weight:600}",
-    "#list{margin:8px 0 0;padding:0;list-style:none}",
-    "#list li{display:flex;align-items:center;gap:6px;padding:3px 0}",
-    "#list span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#86546b}",
-    "#list button{border:1px solid #3a283c26;border-radius:8px;background:#f9f2ee;padding:2px 6px;cursor:pointer}",
-    "#revertAll{width:100%;margin-top:8px;border:1px solid #3a283c;border-radius:8px;background:#ecc5c9;padding:5px;cursor:pointer}",
+    "@media (prefers-reduced-motion:reduce){#cursor{transition:none}}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy">Edityy</button>',
     '<div id="cursor" hidden></div>',
     '<div class="box" id="hover"></div>',
     '<div class="box" id="sel"></div>',
-    '<div id="panel" hidden>',
-    '<div class="head" id="grip" title="Drag to move"><span id="target"></span><button type="button" id="done" title="Exit edit mode (Esc)">Done</button></div>',
-    '<div id="pane"></div>',
-    '<details id="changes"><summary>Changes (<span id="count">0</span>)</summary>',
-    '<ul id="list"></ul><button type="button" id="revertAll">Revert all changes</button></details>',
     "</div>",
   ].join("");
 
@@ -184,768 +88,14 @@
   var cursor = $("cursor");
   var hoverBox = $("hover");
   var selBox = $("sel");
-  var panel = $("panel");
 
   // The font stacks a machine already has. No webfonts: the editor must not
   // change what the page loads, only what it looks like. The first entry is the
   // site's own face, taken from the app's own token wherever it sets one.
-  var FONTS = [
-    ["Plus Jakarta Sans", "var(--font-sans), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif"],
-    ["System UI", "system-ui, sans-serif"],
-    ["Arial", "Arial, Helvetica, sans-serif"],
-    ["Georgia", "Georgia, 'Times New Roman', serif"],
-    ["Monospace", "ui-monospace, SFMono-Regular, Menlo, monospace"],
-    ["Trebuchet MS", "'Trebuchet MS', Tahoma, sans-serif"],
-    ["Quicksand", "ui-rounded, 'Hiragino Maru Gothic ProN', Quicksand, sans-serif"],
-    ["Baskerville", "Baskerville, Garamond, serif"],
-    ["Impact", "Impact, Haettenschweiler, sans-serif"],
-  ];
-
-  /** Fill a select from [value, label] pairs, with a blank first option. */
-  function fill(select, pairs) {
-    select.innerHTML = '<option value=""></option>';
-    pairs.forEach(function (pair) {
-      var option = document.createElement("option");
-      option.value = pair[0];
-      option.textContent = pair[1];
-      select.appendChild(option);
-    });
-  }
-
-  /* ------------------------------------------------------------- the panel */
-
-  // Every control in the panel, in one table. A row is a CSS property and the
-  // widgets to drive it; building the UI from this is what keeps a 40-property
-  // inspector from becoming 40 hand-written inputs. `apply()` already handles
-  // every one of them, so a new property is one line here and nothing else.
-  //
-  // kind: text | number | color | select | check | shadow | gradient
-  // sides: for shorthands, which longhands the boxes map to, in order.
-  var ENUMS = {
-    display: ["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "flow-root", "contents", "none"],
-    position: ["static", "relative", "absolute", "fixed", "sticky"],
-    overflow: ["visible", "hidden", "scroll", "auto", "clip"],
-    direction: ["ltr", "rtl"],
-    wrap: ["nowrap", "wrap", "wrap-reverse"],
-    justify: ["flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly", "stretch", "start", "end", "normal", "baseline"],
-    align: ["flex-start", "center", "flex-end", "stretch", "baseline", "start", "end", "normal", "self-start", "self-end"],
-    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-    blend: ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion"],
-    timing: ["ease", "ease-in", "ease-out", "ease-in-out", "linear", "step-start", "step-end"],
-  };
-
-  // A control is one of:
-  //   { p, k, o?, s?, px?, min?, max?, step?, ph?, icon?, name?, only?, when?, add?, seg?, big? }
-  //
-  //   k      text | number | color | select | quad | pair | textarea
-  //   s      the longhands a quad/pair maps to, in order
-  //   only   the section appears only when this holds for the selection. No
-  //          control at all is offered when it does not.
-  //   when   the control hides unless this holds
-  //   add    additive: behind a + until switched on
-  //   seg    render as a segmented control rather than a select
-  //
-  // Three kinds, three schemas. An element is classified before the panel is
-  // built, so an <img> is never offered padding, gap or flex direction.
-  var SIZE = [
-    { p: "width", k: "text", icon: "W" },
-    { p: "height", k: "text", icon: "H" },
-  ];
-  // Appearance rows carry no icon on purpose: the name plus a right-hand + is the
-  // whole affordance, and a glyph beside it only competes with the name.
-  var APPEARANCE = [
-    { p: "@fill", k: "colour", add: 1, name: "Fill" },
-    { p: "@outline", k: "outline", add: 1, name: "Outline" },
-    { p: "@shadow", k: "shadow", add: 1, name: "Shadow" },
-    { p: "@image", k: "text", add: 1, name: "Image", ph: "url(...) / gradient(...)" },
-    { p: "@blur", k: "text", add: 1, name: "Blur", ph: "blur(8px)" },
-    { p: "opacity", k: "number", add: 1, min: 0, max: 1, step: 0.01, name: "Opacity" },
-    {
-      p: "border-radius",
-      k: "quad",
-      s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"],
-      add: 1,
-      name: "Radius",
-    },
-  ];
-  var CLAMPS = [
-    { p: "min-width", k: "text", icon: "W⇒", when: clamps },
-    { p: "max-width", k: "text", icon: "W⇐", when: clamps },
-    { p: "min-height", k: "text", icon: "H⇓", when: clamps },
-    { p: "max-height", k: "text", icon: "H⇑", when: clamps },
-  ];
-
-  var SCHEMAS = {
-    text: [
-      {
-        label: "Typography",
-        rows: [
-          { p: "font-family", k: "select", o: FONTS },
-          // One line: size, leading, tracking. Three numbers that are only ever
-          // read together, so they are never stacked into three rows.
-          { p: "font-size", k: "number", px: 1, icon: "Aa", big: 1 },
-          { p: "line-height", k: "number", icon: "↕" },
-          { p: "letter-spacing", k: "number", px: 1, icon: "↔" },
-          { p: "font-weight", k: "select", o: ENUMS.weight },
-          // One line: case, alignment, colour. All three cycle or hold one value.
-          { p: "text-transform", k: "cycle", o: [["none", "As typed"], ["uppercase", "UPPERCASE"], ["lowercase", "lowercase"], ["capitalize", "Capitalize"]], icon: "Aa" },
-          { p: "text-align", k: "cycle", o: [["left", "Left"], ["center", "Center"], ["right", "Right"], ["justify", "Justify"]], icon: "≡" },
-          { p: "text-decoration", k: "cycle", o: [["none", "None"], ["underline", "Underline"], ["line-through", "Strikethrough"], ["overline", "Overline"]], icon: "U" },
-          { p: "color", k: "colour", icon: "A" },
-        ],
-      },
-      { label: "Content", rows: [{ p: "@text", k: "textarea" }] },
-      { label: "Appearance", additive: true, rows: APPEARANCE },
-    ],
-    container: [
-      {
-        label: "Size",
-        rows: SIZE.concat(CLAMPS),
-        // Clamps are off by default: four boxes nobody needs is noise, and no
-        // switch to turn them on would make them unreachable on a plain div.
-        toggle: { id: "clamps", name: "Min / max", props: ["min-width", "max-width", "min-height", "max-height"] },
-      },
-      {
-        label: "Flex",
-        only: isFlex,
-        rows: [
-          // The alignment matrix carries justify and align together; the axis and
-          // the wrap toggle sit to its left, where the eye expects the frame.
-          { p: "@flex", k: "flex" },
-        ],
-      },
-      {
-        label: "Grid",
-        only: isGrid,
-        rows: [
-          { p: "grid-template-columns", k: "text", icon: "⇉" },
-          { p: "grid-template-rows", k: "text", icon: "⇊" },
-          { p: "grid-auto-flow", k: "cycle", o: [["row", "Row"], ["column", "Column"]], icon: "⇉" },
-          { p: "grid-column", k: "text", icon: "⊞" },
-          { p: "grid-row", k: "text", icon: "⊟" },
-        ],
-      },
-      {
-        label: "Spacing",
-        rows: [
-          // Padding drawn as the box it actually is: four bars around a centre.
-          { p: "padding", k: "box", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"] },
-          { p: "gap", k: "pair", s: ["row-gap", "column-gap"], icon: "⇸" },
-        ],
-      },
-      { label: "Appearance", additive: true, rows: APPEARANCE },
-    ],
-    media: [
-      { label: "Size", rows: SIZE },
-      {
-        label: "Media",
-        rows: [
-          { p: "object-fit", k: "cycle", o: [["cover", "Cover"], ["contain", "Contain"], ["fill", "Fill"], ["none", "None"], ["scale-down", "Scale down"]], icon: "◱" },
-          { p: "object-position", k: "cycle", o: [["center", "Centre"], ["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]], icon: "⊙" },
-        ],
-      },
-      { label: "Appearance", additive: true, rows: APPEARANCE },
-    ],
-  };
-
-  // Predicates the schema leans on. Each reads the selection's own computed
-  // style, so they answer "is this element actually a flex container" rather
-  // than "did someone set a flex property on it".
-  function mode() {
-    return computedOf(selected, "display") || "";
-  }
-  function isFlex() {
-    return /flex/.test(mode());
-  }
-  function isGrid() {
-    return /grid/.test(mode());
-  }
-  function clamps() {
-    return !!on["clamps"];
-  }
-
-  /** Every input, by the property it drives. fillControls reads from this. */
-  var inputs = {};
-  root.inputs = inputs; // the panel's own registry, readable for debugging
-  // What the current selection is, for whatever consumes it next. The UI does
-  // not branch on this yet; it is here so the classification is inspectable
-  // rather than locked inside the click handler.
-  root.selection = function () {
-    return selected ? { el: selected, kind: selectedKind } : null;
-  };
-
-  // Switch state for the panel's toggles, reset per selection so a section never
-  // opens on one element and stays open on the next.
-  var on = {};
-
-  /** One input, wired to apply(). Registered by property for fillControls. */
-  function field(row, prop, placeholder) {
-    var input;
-    if (row.k === "select") {
-      input = document.createElement("select");
-      fill(input, typeof row.o[0] === "string" ? row.o.map(function (v) { return [v, v]; }) : row.o);
-    } else {
-      input = document.createElement("input");
-      input.type = row.k === "color" ? "color" : row.k === "number" ? "number" : "text";
-      if (row.k === "number") {
-        if (row.min !== undefined) input.min = row.min;
-        if (row.max !== undefined) input.max = row.max;
-        input.step = row.step ?? 1;
-      }
-    }
-    if (placeholder) input.placeholder = placeholder;
-    if (row.big) input.className = "big";
-    input.title = prop;
-    input.kind = "text";
-    inputs[prop] = input;
-    input.addEventListener("input", function () {
-      if (selected) apply(prop, input.value ? units(row, prop, input.value) : "");
-    });
-    return input;
-  }
-
-  /** Bare numbers are pixels for lengths; ratios are unitless. */
-  function units(row, prop, value) {
-    if (row.k !== "number") return value;
-    // Line height is the one number that is a ratio, and the panel shows it that
-    // way whatever the stylesheet stores.
-    if (prop === "line-height") return String(value);
-    return row.px ? value + "px" : value;
-  }
-
-  /**
-   * A segmented control: a row of small buttons instead of a select.
-   *
-   * A select hides its options behind a dropdown and spends a whole labelled row
-   * to say what it is. A segmented control shows the choices, costs one line, and
-   * the glyph is the label — which is why the schema carries symbols like ↔ and
-   * ↕ instead of "justify-content".
-   */
-  function segmented(row, prop) {
-    var group = document.createElement("div");
-    group.className = "seg";
-    group.title = prop;
-    var buttons = [];
-    row.o.forEach(function (pair) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = pair[1];
-      btn.title = pair[0];
-      btn.setAttribute("aria-label", prop + ": " + pair[0]);
-      btn.addEventListener("click", function () {
-        if (!selected) return;
-        apply(prop, pair[0]);
-        buttons.forEach(function (b) {
-          b.setAttribute("aria-checked", String(b === btn));
-        });
-      });
-      buttons.push(btn);
-      group.appendChild(btn);
-    });
-    // A way back to unset. Without it the choice is one-way and there is no way
-    // to hand the property back to the stylesheet — which every other control has.
-    var reset = document.createElement("button");
-    reset.type = "button";
-    reset.textContent = "×";
-    reset.title = "";
-    reset.setAttribute("aria-label", prop + ": unset");
-    reset.addEventListener("click", function () {
-      if (!selected) return;
-      apply(prop, "");
-      buttons.concat(reset).forEach(function (b) {
-        b.setAttribute("aria-checked", String(b === reset));
-      });
-    });
-    group.appendChild(reset);
-    group.reset = reset;
-    group.kind = "seg";
-    inputs[prop] = group;
-    return group;
-  }
-
-  /** A shorthand row: an icon and four boxes, in one compact line. */
-  function boxes(row) {
-    var group = document.createElement("div");
-    group.className = row.k === "quad" ? "quad" : "pair";
-    row.s.forEach(function (side) {
-      var input = document.createElement("input");
-      input.type = "text";
-      input.title = side;
-      input.placeholder = side.split("-")[1].slice(0, 3);
-      inputs[side] = input;
-      input.addEventListener("input", function () {
-        if (selected) apply(side, input.value);
-      });
-      group.appendChild(input);
-    });
-    return group;
-  }
-
-  /** An icon button that switches a group on. */
-  function plus(row) {
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "plus";
-    btn.textContent = "+";
-    btn.title = "Add " + (row.name || row.p);
-    btn.setAttribute("aria-label", "Add " + (row.name || row.p));
-    btn.addEventListener("click", function () {
-      on[row.p] = true;
-      renderPanel();
-    });
-    return btn;
-  }
-
-
-  /* --------------------------------------------------------- composites ----
-     A few controls are more than one CSS property, so they get a widget rather
-     than a row. Each reads and writes through apply() like every other control,
-     so a composite is still just recorded inline styles. */
-
-  /** #rrggbb + a separate alpha, the way a designer reads a colour. */
-  function colourControl(prop, extra) {
-    var wrap = document.createElement("div");
-    wrap.className = "comp";
-    var swatch = document.createElement("input");
-    swatch.type = "color";
-    swatch.title = "Colour";
-    var hex = document.createElement("input");
-    hex.type = "text";
-    hex.title = "Hex";
-    hex.placeholder = "#3a283c";
-    var alpha = document.createElement("input");
-    alpha.type = "number";
-    alpha.min = 0;
-    alpha.max = 1;
-    alpha.step = 0.01;
-    alpha.title = "Opacity";
-    alpha.value = "1";
-
-    // The colour and its alpha live in one CSS value, so the two boxes are kept
-    // in step on the way in and joined on the way out.
-    var alphaOf = function (v) {
-      var m = /rgba?\([^)]*?[\/\s]([\d.]+)\s*\)/.exec(v) || /,\s*([\d.]+)\s*\)$/.exec(v);
-      return m ? m[1] : "1";
-    };
-    var rgbOf = function (v) {
-      var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(v);
-      return m ? "#" + [m[1], m[2], m[3]].map(function (n) { return (+n).toString(16).padStart(2, "0"); }).join("") : "";
-    };
-    var write = function () {
-      var a = parseFloat(alpha.value);
-      var rgb = hex.value || "#000000";
-      var value = a >= 1 ? rgb : withAlpha(rgb, a);
-      if (selected) apply(prop, value);
-      if (extra) extra(value);
-    };
-    hex.addEventListener("input", function () {
-      swatch.value = toHex(hex.value) || swatch.value;
-      write();
-    });
-    swatch.addEventListener("input", function () {
-      hex.value = swatch.value;
-      write();
-    });
-    alpha.addEventListener("input", write);
-
-    wrap.appendChild(swatch);
-    wrap.appendChild(hex);
-    wrap.appendChild(alpha);
-    inputs[prop] = {
-      kind: "comp",
-      wrap: wrap,
-      read: function (el) {
-        var v = computedOf(el, prop);
-        var h = rgbOf(v) || toHex(v);
-        if (h) {
-          hex.value = h;
-          swatch.value = h;
-        }
-        alpha.value = alphaOf(v);
-      },
-    };
-    return wrap;
-  }
-
-  /** #rrggbb + alpha as one CSS colour. */
-  function withAlpha(hex, alpha) {
-    var n = parseInt(hex.replace("#", ""), 16);
-    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
-  }
-
-  /** A border: colour, thickness and style, plus underline weight for text. */
-  function outlineControl(prop) {
-    var wrap = document.createElement("div");
-    wrap.className = "comp";
-    var width = document.createElement("input");
-    width.type = "number";
-    width.min = 0;
-    width.step = 1;
-    width.title = "Weight";
-    width.value = "1";
-    var style = document.createElement("select");
-    fill(style, [["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"], ["none", "None"]]);
-    var colour = colourControl("", null);
-    // The colour box is nested: an outline is a weight, a style and a colour.
-    var parts = colour.children;
-
-    var write = function () {
-      if (!selected) return;
-      var c = withAlpha(hexOf(parts[1].value), parseFloat(parts[2].value) || 1);
-      apply(prop, [width.value || "0", style.value, c].join(" "));
-    };
-    [width, style].forEach(function (n) {
-      n.addEventListener("input", write);
-      n.addEventListener("change", write);
-    });
-    parts[0].addEventListener("input", write);
-    parts[1].addEventListener("input", write);
-    parts[2].addEventListener("input", write);
-
-    wrap.appendChild(width);
-    wrap.appendChild(style);
-    wrap.appendChild(parts[0]);
-    wrap.appendChild(parts[1]);
-    wrap.appendChild(parts[2]);
-    inputs[prop] = {
-      kind: "comp",
-      read: function (el) {
-        var v = computedOf(el, prop);
-        var m = /^(\S+)(?:\s+(\S+))?\s+(.+)$/.exec(v);
-        if (m) {
-          width.value = parseFloat(m[1]) || 0;
-          style.value = m[2] || "solid";
-          var h = rgbOf(v) || "";
-          if (h) {
-            parts[1].value = h;
-            parts[0].value = h;
-          }
-        }
-      },
-    };
-    return wrap;
-  }
-
-  function hexOf(v) {
-    return /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000";
-  }
-
-  function rgbOf(v) {
-    var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(v);
-    return m ? "#" + [m[1], m[2], m[3]].map(function (n) { return (+n).toString(16).padStart(2, "0"); }).join("") : "";
-  }
-
-  /** X, Y, blur, spread and colour — the four numbers a shadow actually has. */
-  function shadowControl(prop) {
-    var wrap = document.createElement("div");
-    wrap.className = "comp";
-    var nums = ["x", "y", "blur", "spread"].map(function (name, i) {
-      var n = document.createElement("input");
-      n.type = "number";
-      n.step = i < 2 ? 1 : 0;
-      n.title = name;
-      n.placeholder = name;
-      n.value = i === 2 || i === 3 ? "0" : "0";
-      return n;
-    });
-    var colour = colourControl("", null);
-    var parts = colour.children;
-
-    var write = function () {
-      if (!selected) return;
-      var c = withAlpha(hexOf(parts[1].value), parseFloat(parts[2].value) || 1);
-      apply(prop, nums.map(function (n) { return n.value || "0"; }).join("px ") + "px " + c);
-    };
-    nums.forEach(function (n) { n.addEventListener("input", write); });
-    parts.forEach(function (n) { n.addEventListener("input", write); });
-
-    wrap.appendChild(nums[0]);
-    wrap.appendChild(nums[1]);
-    wrap.appendChild(nums[2]);
-    wrap.appendChild(nums[3]);
-    wrap.appendChild(parts[0]);
-    wrap.appendChild(parts[1]);
-    wrap.appendChild(parts[2]);
-    inputs[prop] = {
-      kind: "comp",
-      read: function (el) {
-        var v = computedOf(el, prop);
-        var m = /(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(.+)$/.exec(v);
-        if (!m) return;
-        [nums[0], nums[1], nums[2], nums[3]].forEach(function (n, i) { n.value = m[i + 1]; });
-        var h = rgbOf(v);
-        if (h) {
-          parts[1].value = h;
-          parts[0].value = h;
-        }
-      },
-    };
-    return wrap;
-  }
-
-  /** A cycle button: one control, click to advance to the next value. */
-  function cycleControl(row, prop) {
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "cycle";
-    btn.title = prop;
-    var index = 0;
-    var paint = function () {
-      btn.textContent = row.o[index][1];
-      btn.setAttribute("aria-label", prop + ": " + row.o[index][0]);
-    };
-    paint();
-    btn.addEventListener("click", function () {
-      if (!selected) return;
-      index = (index + 1) % row.o.length;
-      paint();
-      apply(prop, row.o[index][0]);
-    });
-    inputs[prop] = {
-      kind: "cycle",
-      row: row,
-      node: btn,
-      read: function (el) {
-        var v = computedOf(el, prop);
-        var hit = row.o.findIndex(function (o) { return o[0] === v; });
-        if (hit >= 0) {
-          index = hit;
-          paint();
-        }
-      },
-    };
-    return btn;
-  }
-
-  /**
-   * Flex alignment as a 3x3 matrix.
-   *
-   * The nine cells are the real combination of justify-content and align-items,
-   * so one click sets both and the relationship is visible instead of hidden in
-   * two separate dropdowns. The axis and the wrap toggle sit to its left.
-   */
-  function flexControl() {
-    var wrap = document.createElement("div");
-    wrap.className = "flexWrap";
-
-    var side = document.createElement("div");
-    side.className = "flexSide";
-    var axis = document.createElement("select");
-    axis.title = "Direction";
-    // No reverse: it is not a thing anyone reaches for, and it doubles the grid.
-    fill(axis, [["row", "Row"], ["column", "Column"]]);
-    var wrapToggle = document.createElement("button");
-    wrapToggle.type = "button";
-    wrapToggle.className = "cycle";
-    wrapToggle.title = "Wrap";
-    wrapToggle.addEventListener("click", function () {
-      if (!selected) return;
-      apply("flex-wrap", computedOf(selected, "flex-wrap") === "wrap" ? "nowrap" : "wrap");
-    });
-    side.appendChild(axis);
-    side.appendChild(wrapToggle);
-    wrap.appendChild(side);
-
-    var matrix = document.createElement("div");
-    matrix.className = "matrix";
-    var CELLS = [
-      ["flex-start", "flex-start"], ["center", "flex-start"], ["flex-end", "flex-start"],
-      ["flex-start", "center"], ["center", "center"], ["flex-end", "center"],
-      ["flex-start", "flex-end"], ["center", "flex-end"], ["flex-end", "flex-end"],
-    ];
-    CELLS.forEach(function (cell) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.title = cell.join(" / ");
-      b.setAttribute("aria-label", "Justify " + cell[0] + ", align " + cell[1]);
-      b.addEventListener("click", function () {
-        if (!selected) return;
-        apply("justify-content", cell[0]);
-        apply("align-items", cell[1]);
-      });
-      matrix.appendChild(b);
-    });
-    wrap.appendChild(matrix);
-
-    inputs["justify-content"] = { kind: "flex", read: function (el) { paintFlex(el); } };
-    inputs["align-items"] = inputs["justify-content"];
-    inputs["flex-direction"] = {
-      kind: "text",
-      read: function (el) { axis.value = computedOf(el, "flex-direction") || "row"; },
-    };
-    inputs["flex-wrap"] = {
-      kind: "cycle",
-      read: function (el) { wrapToggle.textContent = computedOf(el, "flex-wrap") === "wrap" ? "Wrap" : "No wrap"; },
-    };
-
-    function paintFlex(el) {
-      var j = computedOf(el, "justify-content");
-      var a = computedOf(el, "align-items");
-      Array.prototype.forEach.call(matrix.children, function (b, i) {
-        b.setAttribute("aria-checked", String(CELLS[i][0] === j && CELLS[i][1] === a));
-      });
-    }
-    return wrap;
-  }
-
-  /**
-   * Padding drawn as the box it is: four bars around an empty centre, each one
-   * a number. Reading the padding off the shape is faster than reading four
-   * labelled boxes, and it shows which side is which.
-   */
-  function boxControl(row) {
-    var wrap = document.createElement("div");
-    wrap.className = "pad";
-    var sides = ["top", "right", "bottom", "left"];
-    var inputsBy = {};
-    sides.forEach(function (side) {
-      var n = document.createElement("input");
-      n.type = "number";
-      n.step = 1;
-      n.title = side;
-      n.placeholder = side[0];
-      n.setAttribute("data-side", side);
-      inputsBy[row.s[sides.indexOf(side)]] = n;
-      n.addEventListener("input", function () {
-        if (selected) apply(row.s[sides.indexOf(side)], n.value ? n.value + "px" : "");
-      });
-    });
-    var centre = document.createElement("div");
-    centre.className = "padCentre";
-    wrap.appendChild(centre);
-    // Top, right, bottom, left in that order: the DOM order is the visual order.
-    [0, 1, 2, 3].forEach(function (i) { wrap.appendChild(inputsBy[row.s[i]]); });
-    inputs["@pad"] = {
-      kind: "comp",
-      wrap: wrap,
-      read: function (el) {
-        sides.forEach(function (side, i) {
-          inputsBy[row.s[i]].value = parseFloat(computedOf(el, row.s[i])) || "";
-        });
-      },
-    };
-    return wrap;
-  }
-
-  /** One control, in whichever form its schema row asks for. */
-  function control(row) {
-    if (row.k === "quad" || row.k === "pair") return boxes(row);
-    if (row.k === "colour") return colourControl(row.p);
-    if (row.k === "outline") return outlineControl(row.p);
-    if (row.k === "shadow") return shadowControl(row.p);
-    if (row.k === "cycle") return cycleControl(row, row.p);
-    if (row.k === "flex") return flexControl();
-    if (row.k === "box") return boxControl(row);
-    if (row.k === "textarea") {
-      var ta = document.createElement("textarea");
-      ta.rows = 2;
-      ta.spellcheck = false;
-      ta.title = "Content";
-      ta.kind = "text";
-      inputs["@text"] = ta;
-      ta.addEventListener("input", function () {
-        if (selected && selectedKind === "text") setText(selected, ta.value);
-      });
-      return ta;
-    }
-    if (row.seg) return segmented(row, row.p);
-    return field(row, row.p, row.ph);
-  }
-
-  /**
-   * The panel for the current selection, built fresh each time.
-   *
-   * Rebuilt rather than hidden and shown, because the sections themselves depend
-   * on the element: a flex group on something that is not flex should not exist
-   * in the tree at all.
-   */
-  function renderPanel() {
-    var host = $("pane");
-    host.textContent = "";
-    var sections = SCHEMAS[selectedKind] || SCHEMAS.container;
-    sections.forEach(function (section) {
-      // "must come only when needed": no control, no offer, no empty section.
-      if (section.only && !section.only()) return;
-      var rows = section.rows.filter(function (row) {
-        return !row.when || row.when();
-      });
-      if (!rows.length) return;
-      host.appendChild(sectionEl(section, rows));
-    });
-    fillControls(selected);
-  }
-
-  function sectionEl(section, rows) {
-    var el = document.createElement("section");
-    el.className = "sec";
-
-    var head = document.createElement("div");
-    head.className = "secHead";
-    var title = document.createElement("b");
-    title.textContent = section.label;
-    head.appendChild(title);
-
-    if (section.toggle) {
-      var t = document.createElement("button");
-      t.type = "button";
-      t.className = "tog";
-      t.textContent = section.toggle.name;
-      t.title = "Show " + section.toggle.name;
-      var paint = function () {
-        t.setAttribute("aria-pressed", String(!!on[section.toggle.id]));
-      };
-      paint();
-      t.addEventListener("click", function () {
-        on[section.toggle.id] = !on[section.toggle.id];
-        paint();
-        renderPanel();
-      });
-      head.appendChild(t);
-    }
-    el.appendChild(head);
-
-    rows.forEach(function (row) {
-      // "must come only when added": name on the left, a quiet + on the right.
-      if (row.add && !on[row.p]) {
-        var line = document.createElement("div");
-        line.className = "addLine";
-        var nm = document.createElement("span");
-        nm.textContent = row.name || row.p;
-        line.appendChild(nm);
-        line.appendChild(plus(row));
-        el.appendChild(line);
-        return;
-      }
-      var line = document.createElement("div");
-      line.className = "line";
-      if (row.icon) {
-        var ic = document.createElement("span");
-        ic.className = "ic";
-        ic.textContent = row.icon;
-        ic.title = row.name || row.p;
-        line.appendChild(ic);
-      }
-      if (row.name && row.icon) {
-        var nm2 = document.createElement("span");
-        nm2.className = "nm";
-        nm2.textContent = row.name;
-        line.appendChild(nm2);
-      }
-      line.appendChild(control(row));
-      el.appendChild(line);
-    });
-    return el;
-  }
-
-
-  $("done").addEventListener("click", exit);
-  $("revertAll").addEventListener("click", function () {
-    changes.slice().forEach(revert);
-  });
-
   var active = false;
   var selected = null;
+  // The kind of the current selection. Nothing reads it yet — there is no panel —
+  // but root.selection() reports it and it is the first thing any UI will want.
   var selectedKind = null; // "text" | "container" | "media"
   var changes = []; // { el, props: {longhand: value-before}, text: value-before, textEdited: bool }
 
@@ -1032,7 +182,11 @@
     return hit ? hit.el : null;
   }
 
-  /** A short, human way to name an element in the changes list. */
+  /**
+   * A short, human way to name an element: "h1 “Edityy”".
+   *
+   * Kept for the changes list a future panel will render. Nothing calls it yet.
+   */
   function label(el) {
     var snippet = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28);
     return el.tagName.toLowerCase() + " " + (snippet ? "“" + snippet + "”" : "");
@@ -1050,21 +204,29 @@
     return rec;
   }
 
+  /**
+   * The backend for a change: note what was there, then set the new value.
+   *
+   * Nothing calls this yet — the UI that would is gone for now — but the record
+   * it keeps is what a future panel needs, and it is the whole point of the
+   * layer: an inline style, remembered so it can be put back.
+   */
   function apply(prop, value) {
     var rec = record(selected);
     if (!(prop in rec.props)) rec.props[prop] = selected.style.getPropertyValue(prop);
     if (value) selected.style.setProperty(prop, value);
     else selected.style.removeProperty(prop); // back to the stylesheet's value
-    render();
+    return rec;
   }
 
   function setText(el, value) {
     var rec = record(el);
     if (rec.text === null) rec.text = el.textContent;
     el.textContent = value;
-    render();
+    return rec;
   }
 
+  /** Undo every property and the text of one element. */
   function revert(rec) {
     Object.keys(rec.props).forEach(function (prop) {
       var before = rec.props[prop];
@@ -1075,124 +237,6 @@
     changes = changes.filter(function (other) {
       return other !== rec;
     });
-    if (selected === rec.el) fillControls(selected);
-    render();
-  }
-
-  /* ---------------------------------------------------------------- panel */
-
-  function render() {
-    $("count").textContent = changes.length;
-    var list = $("list");
-    list.textContent = "";
-    changes.forEach(function (rec) {
-      var item = document.createElement("li");
-      var name = document.createElement("span");
-      name.textContent = label(rec.el);
-      name.title = name.textContent;
-      var undo = document.createElement("button");
-      undo.type = "button";
-      undo.textContent = "Revert";
-      undo.addEventListener("click", function () {
-        revert(rec);
-      });
-      item.appendChild(name);
-      item.appendChild(undo);
-      list.appendChild(item);
-    });
-    positionPanel(); // the list just changed the panel's height
-  }
-
-  /** Show the selection's current values, so the panel reads as its state. */
-  function fillControls(el) {
-    // One pass over the registry, not a line per control: the schema already
-    // knows which property each input belongs to.
-    Object.keys(inputs).forEach(function (prop) {
-      var input = inputs[prop];
-      // A composite is several properties in one widget, so it reads itself.
-      if (typeof input.read === "function") {
-        input.read(el);
-        return;
-      }
-      if (input.kind === "seg") {
-        var raw = computedOf(el, prop);
-        // The reset button represents "not set here", so it reads as checked when
-        // the property has no inline value to show.
-        var inline = el.style.getPropertyValue(prop);
-        Array.prototype.forEach.call(input.children, function (btn) {
-          btn.setAttribute("aria-checked", String(btn === input.reset ? !inline : !input.reset && btn.title === raw));
-        });
-        return;
-      }
-      if (prop === "@text") {
-        input.value = selectedKind === "media" ? "" : el.textContent;
-        // Only a text element can be rewritten, and only a leaf one: replacing
-        // the text of an element that holds markup would delete it. A container
-        // has no text of its own, and media has none at all.
-        input.disabled = selectedKind !== "text" || !isLeafText(el);
-        input.title =
-          selectedKind === "media"
-            ? "Media has no text to edit"
-            : selectedKind === "container"
-              ? "A container has no text of its own — click the words inside it"
-              : input.disabled
-                ? "This element holds markup — pick a plain text element"
-                : "";
-        return;
-      }
-      if (input.kind === "text") {
-        var val = computedOf(el, prop);
-        // Colours arrive as rgb() or hsl() from getComputedStyle; the swatch only
-        // understands #rrggbb, so anything else leaves the swatch alone.
-        if (input.type === "color") {
-          var hex = toHex(val);
-          if (hex) input.value = hex;
-          return;
-        }
-        input.value = val === "none" && input.tagName === "SELECT" ? "" : val;
-        return;
-      }
-      input.value = computedOf(el, prop); // a quad/pair side
-    });
-    // Font family is the one property the generic pass gets wrong: a resolved
-    // stack never equals its source and `var()` never resolves, so the choice is
-    // matched on the leading family name instead.
-    var family = computedOf(el, "font-family").replace(/["\x27]/g, "").replace(/\s+/g, " ").trim();
-    var first = family.split(",")[0].trim().toLowerCase();
-    var font = inputs["font-family"];
-    if (font && font.kind === "text") {
-      font.value = FONTS.filter(function (f) {
-        return f[1].split(",").map(function (part) {
-          return part.trim();
-        }).filter(function (part) {
-          return !part.startsWith("var(");
-        })[0].replace(/["\x27]/g, "").toLowerCase() === first;
-      })[0]?.[0] ?? "";
-    }
-    // Line height reads as a number because that is how anyone thinks of it; the
-    // stylesheet stores it unitless or as a length.
-    var lh = inputs["line-height"];
-    if (lh) {
-      var size = parseFloat(computedOf(el, "font-size"));
-      var line = parseFloat(computedOf(el, "line-height"));
-      if (line && size) lh.value = Math.round((line / size) * 100) / 100;
-    }
-  }
-
-  /** The selection's computed value for a property, falling back to its inline. */
-  function computedOf(el, prop) {
-    if (!el) return "";
-    var cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
-    return (cs ? cs.getPropertyValue(prop) : "") || el.style.getPropertyValue(prop) || "";
-  }
-
-  /** #rgb or #rrggbb as #rrggbb, or nothing when it is not a plain colour. */
-  function toHex(color) {
-    var rgb = color.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
-    if (rgb) return "#" + [rgb[1], rgb[2], rgb[3]].map(function (n) {
-      return (+n).toString(16).padStart(2, "0");
-    }).join("");
-    return /^#[0-9a-f]{6}$/i.test(color) ? color : "";
   }
 
   // A frame drawn around an element, deliberately not hugging it: 3px of air on
@@ -1223,68 +267,26 @@
     return RADII[RADII.length - 1];
   }
 
-  var dragged = false; // the panel has been moved by hand; stop re-parking it
-
-  /** Park the panel beside the selection, inside the viewport. */
-  function positionPanel() {
-    if (!selected) return;
-    var rect = selected.getBoundingClientRect();
-    place(selBox, rect, selected);
-    if (dragged) return;
-    var w = panel.offsetWidth || 270;
-    var h = panel.offsetHeight || 300;
-    var left = rect.right + 12;
-    if (left + w > window.innerWidth - 12) left = rect.left - w - 12;
-    if (left < 12) left = 12;
-    var top = rect.top;
-    if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - 12 - h);
-    panel.style.left = left + "px";
-    panel.style.top = top + "px";
-  }
-
-  /* ------------------------------------------------------------------ drag */
-
-  /** The panel travels wherever it is dropped, clamped to stay on screen. */
-  var grip = $("grip");
-  var drag = null;
-
-  grip.addEventListener("pointerdown", function (e) {
-    if (e.target === $("done")) return; // the button keeps its own click
-    e.preventDefault();
-    dragged = true;
-    drag = { dx: e.clientX - panel.offsetLeft, dy: e.clientY - panel.offsetTop };
-    grip.setPointerCapture(e.pointerId);
-  });
-
-  root.addEventListener("pointermove", function (e) {
-    if (!drag) return;
-    var w = panel.offsetWidth;
-    var h = panel.offsetHeight;
-    panel.style.left = Math.min(Math.max(12, e.clientX - drag.dx), Math.max(12, window.innerWidth - w - 12)) + "px";
-    panel.style.top = Math.min(Math.max(12, e.clientY - drag.dy), Math.max(12, window.innerHeight - h - 12)) + "px";
-  });
-
-  root.addEventListener("pointerup", function () {
-    drag = null;
-  });
-
+  /** Draw the selection frame. There is no panel to place, so this is all a
+      selection does for now: the frame is the whole visible result. */
   function select(el, hit) {
     selected = el;
     // The kind comes from the pick, because a form control is text by way of the
     // walk rather than by way of `kind()`: it has no text node of its own.
     selectedKind = el && hit ? hit.kind : null;
-    $("target").textContent = el ? label(el) : "";
-    panel.hidden = !el;
     if (!el) {
       selBox.style.display = "none";
       return;
     }
     selBox.style.display = "block";
-    dragged = false; // a fresh selection parks beside itself again
-    on = {}; // switches are per selection: nothing carries over to the next element
-    renderPanel();
-    positionPanel();
+    place(selBox, el.getBoundingClientRect(), el);
   }
+
+  // What is selected, and what it was classified as. Nothing reads this yet —
+  // there is no panel — but it is the seam any UI starts from, so it stays.
+  root.selection = function () {
+    return selected ? { el: selected, kind: selectedKind } : null;
+  };
 
   /* ----------------------------------------------------------------- mode */
 
@@ -1300,7 +302,7 @@
     // The selection frame is viewport-fixed like everything else, so a scroll
     // moves the element out from under it and the frame must go with it.
     window.addEventListener("scroll", hideHover, true);
-    window.addEventListener("resize", positionPanel, true);
+    window.addEventListener("resize", onResize, true);
   }
 
   function exit() {
@@ -1311,7 +313,9 @@
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("scroll", hideHover, true);
-    window.removeEventListener("resize", positionPanel, true);
+    window.removeEventListener("resize", onResize, true);
+    // Nothing to revert today — no UI writes styles yet — but the backend is
+    // here and exiting must always put the page back exactly as it was.
     changes.slice().forEach(revert);
     select(null);
     hideHover();
@@ -1320,6 +324,11 @@
   /** The hover frame is only meaningful while the pointer is still on it. */
   function hideHover() {
     hoverBox.style.display = "none";
+  }
+
+  /** A resize can reflow the selection out from under its frame. */
+  function onResize() {
+    if (selected) place(selBox, selected.getBoundingClientRect(), selected);
   }
 
   function onMove(e) {
@@ -1334,7 +343,7 @@
   }
 
   function onClick(e) {
-    // Our own panel is part of the editing UI: it keeps its clicks.
+    // Edityy's own chrome keeps its clicks.
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     // Everything else is swallowed: a link must not navigate, and the page's own
     // handlers must not run against an element that is mid-edit.
