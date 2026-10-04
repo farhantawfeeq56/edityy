@@ -409,7 +409,8 @@ test("the frame stands off the element and rounds with the ramp", () => {
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
   assert.equal(app.dash(0, "hover").style.top, "46px");
-  assert.equal(app.dash(0, "hover").style.left, "112px");
+  assert.equal(app.dash(0, "hover").style.left, "96px");
+  assert.equal(app.dash(0, "hover").style.width, "128px");
   assert.equal(app.dash(1, "hover").style.left, "96px");
 });
 
@@ -446,7 +447,7 @@ test("an element with no text is still selectable", () => {
   assert.equal(app.root.nodes.sel.hidden, false);
 });
 
-test("the box is accent bars at the corners and midpoints, paper dashes between", () => {
+test("the box is a black dash line with accent bars at the corners and midpoints", () => {
   const { run, text } = fakeDom();
   const app = run();
   // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by 46..102:
@@ -474,15 +475,15 @@ test("the box is accent bars at the corners and midpoints, paper dashes between"
   assert.equal(app.bar(1, 0).style.left, "96px");
   assert.equal(app.bar(1, 0).style.top, "46px");
   assert.equal(app.bar(1, 2).style.top, "86px", "16px up from the bottom of a 56px edge");
-  // The run fills exactly the gap between the two end bars.
-  assert.equal(app.dash(0).style.left, "112px");
-  assert.equal(app.dash(0).style.width, "96px");
+  // The dash line runs the whole edge, ends included, under the accent bars.
+  assert.equal(app.dash(0).style.left, "96px");
+  assert.equal(app.dash(0).style.width, "128px");
   assert.equal(app.dash(2).style.top, "102px", "the bottom edge, at the far side of the box");
   assert.equal(app.dash(3).style.left, "224px", "and the right edge at the far side of it");
-  // Paper dashes with rounded caps, on the accent.
+  // Black dashes with rounded caps; the accent bars carry the design on top.
   assert.match(app.dash(0).style.backgroundImage, /data:image\/svg\+xml/);
   assert.match(app.dash(0).style.backgroundImage, /stroke-linecap='round'/, "rounded caps");
-  assert.match(app.dash(0).style.backgroundImage, /%23f9f2ee/, "paper, not white");
+  assert.match(app.dash(0).style.backgroundImage, /%23000'/, "black, so it reads on any surface");
   assert.match(app.root.innerHTML, /\.bar\{[^}]*background:#d79eac/, "the accent is the dominant layer");
   assert.match(app.root.innerHTML, /\.dash\{[^}]*height:2px/, "and thicker than the dashes' stroke");
 });
@@ -490,7 +491,8 @@ test("the box is accent bars at the corners and midpoints, paper dashes between"
 test("the pattern stays the same on a small element", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // 20x12: the frame is 28x20 from -4, so the end bars meet with no gap to dash.
+  // 20x12: the frame is 28x20 from -4, so the end bars meet and the dash line is
+  // still there underneath them.
   const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
   quiet(() => {
     app.click();
@@ -498,7 +500,8 @@ test("the pattern stays the same on a small element", () => {
     app.clickPage();
   });
   assert.equal(app.bar(0, 1).style.left, "2px", "the middle bar is still centred on the element");
-  assert.equal(app.dash(0).style.width, "0px", "no gap means no dashes, not a squashed one");
+  assert.equal(app.dash(0).style.left, "-4px");
+  assert.equal(app.dash(0).style.width, "28px", "the dash line is never shortened to fit the bars");
   assert.equal(app.root.nodes.sel.children.length, 16, "and the same sixteen pieces either way");
 });
 

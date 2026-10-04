@@ -256,35 +256,37 @@
   // side, so the frame is unmistakably Edityy's and not the page's own edge.
   //
   // It is a stack of small divs rather than one styled border, because the whole
-  // look is in how each edge is split: an accent bar at each end and the middle,
-  // paper dashes filling the gaps between them. Sixteen divs do that in a dozen
-  // lines; a border-image or a redrawn SVG per frame would be a lot more code for
-  // the same picture.
+  // look is in how each edge is split: a black dash line running its full length,
+// with accent bars laid over it at each end and the middle. Sixteen divs do that
+  // in a dozen lines; a border-image or a redrawn SVG per frame would be a lot
+  // more code for the same picture.
   var GAP = 4;
   // Accent bars are 16px, which is what turns a bar at a corner into an L. An
-  // element narrower than that simply has no gap to dash and keeps one short bar
-  // per edge — the right answer, not a degenerate one — so the pattern never
-  // depends on the size of what it is drawn around.
+  // element narrower than that simply has its end bars meet and still gets one
+  // centred bar per edge — the right answer, not a degenerate one — so the
+  // pattern never depends on the size of what it is drawn around.
   var BAR = 16;
   // Where each accent bar sits along its edge, as a fraction of its own length
   // between the two end bars: flush left, centred, flush right.
   var SPOTS = [0, 0.5, 1];
   // The four edges, and which way each one runs. Their children are built in this
-  // order — the dash run first, the three bars over it — so the bars land on top.
+  // order — the dash line first, the three bars over it — so the bars land on top.
   var SIDES = [["top", true], ["left", false], ["bottom", true], ["right", false]];
 
   /**
-   * The dash run, as a tiling SVG rather than a gradient.
+   * The dash line, as a tiling SVG rather than a gradient.
    *
    * A gradient's dashes are square-ended, and rounded caps are the whole
    * difference between a dashed line and the tool outline this is imitating. One
-   * 12x2 tile repeated along an edge: 8px of paper, 4px of gap, identical on
-   * every edge of every element, so there is no rhythm to keep in sync.
+   * 12x2 tile repeated along an edge: 8px of ink, 4px of gap, identical on every
+   * edge of every element, so there is no rhythm to keep in sync. Black, because
+   * this line has to read on any surface the host page puts behind it; the accent
+   * bars on top of it are what carry the design.
    */
   function dashes(w, h, d) {
     return 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'' + w +
       '\' height=\'' + h + '\'%3E%3Cpath d=\'' + d +
-      '\' stroke=\'%23f9f2ee\' stroke-width=\'2\' stroke-linecap=\'round\'/%3E%3C/svg%3E")';
+      '\' stroke=\'%23000\' stroke-width=\'2\' stroke-linecap=\'round\'/%3E%3C/svg%3E")';
   }
   var DASH = [dashes(12, 2, "M3 1h6"), dashes(2, 12, "M1 3v6")];
 
@@ -294,8 +296,8 @@
       var horizontal = side[1];
       var run = document.createElement("i");
       run.className = "dash";
-      // The run spans the whole edge and the centre bar is drawn over it, so one
-      // element fills both gaps instead of two per side.
+      // One element per edge, running its whole length with the accent bars over
+      // it — nothing to keep in step per side.
       run.style.backgroundImage = DASH[horizontal ? 0 : 1];
       frame.appendChild(run);
       SPOTS.forEach(function () {
@@ -325,15 +327,16 @@
       var cross =
         (horizontal ? box.top : box.left) + (side[0] === "top" || side[0] === "left" ? 0 : depth);
       var run = frame.children[s * 4];
-      var start = Math.max(0, across - BAR * 2);
       if (horizontal) {
-        run.style.left = origin + BAR + "px";
+        // The full length of the edge, ends included: the accent bars are drawn
+        // over it, so the dashes run unbroken underneath them.
+        run.style.left = origin + "px";
         run.style.top = cross + "px";
-        run.style.width = start + "px";
+        run.style.width = across + "px";
       } else {
         run.style.left = cross + "px";
-        run.style.top = origin + BAR + "px";
-        run.style.height = start + "px";
+        run.style.top = origin + "px";
+        run.style.height = across + "px";
       }
       SPOTS.forEach(function (spot, i) {
         var bar = frame.children[s * 4 + 1 + i];
