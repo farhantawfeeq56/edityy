@@ -1,7 +1,6 @@
-// Regression check for the launcher payload this package ships
-// (src/edityy.js). Run: npm test
+// Checks for the payload this package ships (src/edityy.js). Run: npm test
 //
-// The script is plain browser JS with no imports, so it can be run against a
+// The script is plain browser JS with no imports, so it is run against a
 // hand-rolled DOM stub instead of pulling in a browser or a DOM library.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,35 +8,210 @@ import { test } from "node:test";
 
 const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
 
-/** Just enough DOM for the launcher: elements, one shadow root, one event. */
+/**
+ * Just enough DOM for the payload: elements with attributes, classes, styles and
+ * children, one shadow root keyed by id, document-level events and viewport
+ * hit-testing. `hover(x, y)` is what the user pointing at the page does.
+ */
 function fakeDom() {
-  const listeners = {};
-  const button = {
-    style: {},
-    textContent: "",
-    title: "",
-    type: "",
-    addEventListener: (type, fn) => ((listeners[type] ??= []).push(fn)),
+  const created = [];
+  let hovered = null;
+
+  /** What the browser would report: inline style wins, else the inherited map. */
+  const computed = (el) => {
+    const view = {
+      getPropertyValue: (prop) => el.style.getPropertyValue(prop) || el.computed?.[prop] || "",
+    };
+    // The payload reads .fontFamily directly when it looks at the page own
+    // typography, so it has to be there and not only behind getPropertyValue.
+    Object.defineProperty(view, "fontFamily", {
+      get: () => view.getPropertyValue("font-family"),
+    });
+    return view;
   };
-  const root = {
-    innerHTML: "",
-    querySelector: () => button,
-  };
-  let shadowRootAttached = false;
-  const host = {
-    attributes: {},
-    style: { cssText: "" },
-    setAttribute: (k, v) => (host.attributes[k] = v),
-    attachShadow: () => {
-      shadowRootAttached = true;
-      return root;
+  /** Listener buckets, keyed by phase: capture runs before bubble. */
+  const bucket = (node, type, phase) => ((node.bubbles ??= {})[type] ??= {})[phase] ??= [];
+  const bubble = (node, type) => bucket(node, type, "bubble");
+
+  const el = (tag, attrs = {}, style = {}) => {
+    const node = {
+    tagName: tag.toUpperCase(),
+    style: {
+      cssText: "",
+      display: "",
+      left: "",
+      top: "",
+      width: "",
+      height: "",
+      _props: style,
+      setProperty(k, v) {
+        this._props[k] = v;
+      },
+      getPropertyValue(k) {
+        return this._props[k] ?? "";
+      },
+      removeProperty(k) {
+        delete this._props[k];
+      },
     },
+    attributes: attrs,
+    dataset: {},
+    innerHTML: "",
+    textContent: attrs.text ?? "",
+    value: attrs.value ?? "",
+    title: "",
+    hidden: false,
+    // Form fields coerce what they are given, as the DOM does, so a test sees the
+    // string the browser would show rather than the number the payload passed.
+    set type(v) {
+      this._type = v;
+    },
+    get type() {
+      return this._type;
+    },
+    set min(v) {
+      this._min = String(v);
+    },
+    get min() {
+      return this._min;
+    },
+    set max(v) {
+      this._max = String(v);
+    },
+    get max() {
+      return this._max;
+    },
+    set step(v) {
+      this._step = String(v);
+    },
+    get step() {
+      return this._step;
+    },
+    offsetWidth: 270,
+    offsetHeight: 300,
+    offsetLeft: 0,
+    offsetTop: 0,
+    setPointerCapture() {},
+    releasePointerCapture() {},
+    childNodes: [],
+    children: [],
+    disabled: false,
+    className: "",
+    setAttribute: (k, v) => (attrs[k] = v),
+    getAttribute: (k) => attrs[k],
+    appendChild: (child) => {
+      // A child has one parent. Without this the popover keeps every control ever
+      // built, because the payload clears it with innerHTML and then appends.
+      const before = child.parentElement;
+      if (before) before.children.splice(before.children.indexOf(child), 1);
+      child.parentElement = node;
+      created.push(child);
+      node.children.push(child);
+      return child;
+    },
+    removeChild: (child) => {
+      node.children.splice(node.children.indexOf(child), 1);
+      child.parentElement = null;
+      return child;
+    },
+    remove: function () {
+      return node.parentElement && node.parentElement.removeChild(node);
+    },
+    // A live HTMLCollection, not an array: the payload must not assume slice().
+    get firstChild() {
+      return node.children[0] ?? null;
+    },
+    addEventListener: (type, fn) => (bubble(node, type).push(fn)),
+    removeEventListener: (type, fn) => {
+      const bucket = bubble(node, type);
+      bucket.splice(bucket.indexOf(fn), 1);
+    },
+    getBoundingClientRect: () => attrs.rect ?? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 },
+    composedPath: () => attrs.path ?? [],
+    };
+    node.bubbles = {};
+    return node;
   };
-  const body = { children: [], appendChild: (el) => body.children.push(el) };
-  const dispatched = [];
+
+  /** A text element in the page: a real node with a text child. */
+  const text = (tag, text, style = {}, rect = { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 }) => {
+    const node = el(tag, { text, rect });
+    node.childNodes = [{ nodeType: 3, nodeValue: text }];
+    node.style._props = style;
+    return node;
+  };
+
+  /** Find the + button that reveals an optional control, by its display name.
+      The row is name then +, so the button is the last child. */
+  const plusFor = (name) => {
+    for (const sec of root.nodes.pane?.children ?? []) {
+      for (const line of sec.children.slice(1)) {
+        if (line.className !== "addLine") continue;
+        const btn = line.children[line.children.length - 1];
+        if (btn?.className === "plus" && btn.title === "Add " + name) return btn;
+      }
+    }
+    return null;
+  };
+
+  const root = {
+    // The payload assigns innerHTML; a browser parses it. The stub does the
+    // minimum of that: it registers an element for every id in the markup, so an
+    // id that is never written fails loudly instead of being invented on demand.
+    _html: "",
+    set innerHTML(value) {
+      root._html = value;
+      root.declare(...[...String(value).matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+      // `hidden` in the markup, as a browser would honour it. Without this every
+      // element claims to be visible and the payload believes its own popover is
+      // already open. The tag is a throwaway: `nodeName` keeps this from matching
+      // `nodeType`, whose 1 would make every node look hidden.
+      for (const match of String(value).matchAll(/<(\w+)([^>]*)>/g)) {
+        var attrs = match[2];
+        var id = attrs.match(/\bid="([^"]+)"/);
+        if (id && /\shidden(\s|$|=)/.test(attrs)) root.nodes[id[1]].hidden = true;
+      }
+    },
+    get innerHTML() {
+      return root._html;
+    },
+    nodes: {},
+    bubbles: {},
+    // Every input the payload builds, keyed by the CSS property it drives.
+    inputs: {},
+    addEventListener: (type, fn) => (root.bubbles[type] ??= []).push(fn),
+    removeEventListener: (type, fn) => {
+      root.bubbles[type] = (root.bubbles[type] ?? []).filter((f) => f !== fn);
+    },
+    // Real ids only: the panel's markup is parsed from innerHTML in a browser,
+    // but the stub never parses it. Handing back a node for an id that was never
+    // declared would hide exactly the bug where the payload reaches for a control
+    // the panel no longer has.
+    getElementById: (id) => {
+      if (root.nodes[id]) return root.nodes[id];
+      throw new Error(`no element with id "${id}" — the payload asks for something the panel does not have`);
+    },
+    /** Declare an id the innerHTML would have created. */
+    declare: (...ids) => ids.forEach((id) => (root.nodes[id] ??= el("div", { id }))),
+  };
+  // Every created element can host a shadow root and it is always this one: the
+  // payload only ever attaches one, and tests need the nodes it finds by id.
+  const withShadow = (node) => ((node.attachShadow = () => root), node);
+
+  const appended = [];
+  const body = { appendChild: (node) => appended.push(node), childNodes: [] };
+
   const win = {
-    dispatched,
-    dispatchEvent: (event) => dispatched.push(event.type),
+    innerWidth: 1200,
+    innerHeight: 800,
+    dispatched: [],
+    dispatchEvent: (event) => win.dispatched.push(event.type),
+    addEventListener: (type, fn) => bucket(win, type, "bubble").push(fn),
+    removeEventListener: (type, fn) => {
+      const list = bucket(win, type, "bubble");
+      list.splice(list.indexOf(fn), 1);
+    },
+    getComputedStyle: (el) => computed(el),
     CustomEvent: class {
       constructor(type) {
         this.type = type;
@@ -45,59 +219,786 @@ function fakeDom() {
     },
     console: { log: () => {} },
   };
-  const document = { body, createElement: () => host };
-  return { win, document, button, root, host, dispatched, attached: () => shadowRootAttached };
+
+
+  const doc = {
+    body,
+    documentElement: el("html"),
+    createElement: (tag) => withShadow(el(tag)),
+    // Text nodes, which the payload builds labels out of. They hold a value and
+    // nothing else: a label is a label.
+    createTextNode: (value) => ({ nodeType: 3, nodeValue: String(value) }),
+    // The page's own stylesheets, so the font list can be read the way a browser
+    // would expose them. Empty by default: a test that cares sets its own.
+    styleSheets: [],
+    querySelectorAll: () => [],
+    fonts: [],
+    elementFromPoint: () => hovered,
+    addEventListener: (type, fn, capture) => bucket(doc, type, capture ? "capture" : "bubble").push(fn),
+    removeEventListener: (type, fn, capture) => {
+      const list = bucket(doc, type, capture ? "capture" : "bubble");
+      list.splice(list.indexOf(fn), 1);
+    },
+  };
+
+  /** A click, as the user produces it. `path` is the composed path it travels. */
+  function click(path) {
+    let stopped = false;
+    let prevented = false;
+    const event = {
+      clientX: 1,
+      clientY: 1,
+      composedPath: () => path,
+      stopPropagation: () => (stopped = true),
+      stopImmediatePropagation: () => {},
+      preventDefault: () => (prevented = true),
+    };
+    const handlers = (node) => {
+      const b = node.bubbles?.click;
+      return [...(b?.capture ?? []), ...(b?.bubble ?? [])];
+    };
+    // Capture from the window down, then bubble back up: the order a real event
+    // has. Only nodes on the path see it, and the launcher stopping propagation
+    // is what keeps the document handler from ever seeing a click on the button.
+    const chain = [win, ...created, ...Object.values(root.nodes), doc];
+    outer: for (const node of chain) {
+      if (!path.includes(node)) continue;
+      for (const fn of handlers(node)) {
+        fn(event);
+        if (stopped) break outer;
+      }
+    }
+    return { stopped, prevented };
+  }
+
+  function run() {
+    // Re-running the payload with the same window is the "loaded twice" case:
+    // it guards on `window.__edityy` and must mount nothing the second time.
+    new Function("window", "document", "CustomEvent", source)(win, doc, win.CustomEvent);
+    return {
+      win,
+      doc,
+      root,
+      host: appended[0],
+      appended,
+      launch: () => root.nodes.launch,
+      click: () => click([root.nodes.launch, appended[0], doc]),
+      /** Click the page, not the shadow host. */
+      clickPage: () => click([hovered ?? doc, doc]),
+      /** Click inside the editing panel, whose path runs through the host. */
+      clickPanel: () => click([root.nodes.panel, appended[0], doc]),
+      /** Fire a document event, as the browser would. */
+      fire: (type, event = {}) => {
+        for (const fn of [...bucket(doc, type, "capture"), ...bucket(doc, type, "bubble")]) fn(event);
+      },
+      /** One of a frame's bars, in the order the payload built them: run first
+          for each edge, then the three accent bars over it. */
+      bar: (edge, spot) => root.nodes.sel.children[edge * 4 + 1 + spot],
+      line: (edge, frame = "sel") => root.nodes[frame].children[edge * 4],
+      placeholder: null,
+      countDoc: (type) => bucket(doc, type, "capture").length,
+      /** Grab the panel's header, then move and release it. */
+      grab: (event) =>
+        quiet(() => {
+          for (const fn of root.nodes.grip.bubbles.pointerdown.bubble) fn({ ...event, target: root.nodes.target, preventDefault() {} });
+        }),
+      dragTo: (clientX, clientY) => {
+        for (const fn of root.bubbles.pointermove ?? []) fn({ clientX, clientY });
+        for (const fn of root.bubbles.pointerup ?? []) fn({ clientX, clientY });
+      },
+      hover: (node) => {
+        hovered = node;
+      },
+      /** A page element with text in it, as the pointer would find one. */
+      el: (tag, attrs) => text(tag, attrs?.text ?? "", attrs?.style ?? {}, attrs?.rect),
+      /** Drive a plain input by the CSS property it owns, as a user would. */
+      type: (prop, value) => {
+        const input = root.inputs[prop];
+        input.value = value;
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** Remove a property entirely, as clearing its box would. */
+      clear: (prop) => {
+        const input = root.inputs[prop];
+        if (input.kind === "cycle") {
+          for (const fn of input.node.bubbles.click.bubble) fn({});
+          return;
+        }
+        input.value = "";
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** Click a segment of a segmented control. */
+      segment: (prop, value) => {
+        const group = root.inputs[prop];
+        const btn = (group.children ?? []).find((b) => b.title === value);
+        for (const fn of btn.bubbles.click.bubble) fn({});
+      },
+      /** Click a cycle button until it reads a value, however many steps that is.
+          A cycle starts wherever the element already was, so counting clicks from
+          zero would overshoot. */
+      cycle: (prop, value) => {
+        const slot = root.inputs[prop];
+        const btn = slot.node;
+        const want = slot.row.o.find((o) => o[0] === value)?.[1];
+        for (let i = 0; i <= slot.row.o.length; i++) {
+          if (btn.textContent === want) break;
+          for (const fn of btn.bubbles.click.bubble) fn({});
+        }
+      },
+      /** Type into one side of the padding box. */
+      pad: (side, value) => {
+        const wrap = root.inputs["@pad"].wrap;
+        const input = wrap.children.find((n) => n.getAttribute?.("data-side") === side);
+        input.value = value;
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** Type a hex into the hex box of a colour composite. */
+      setHex: (prop, value) => {
+        const wrap = root.inputs[prop].wrap;
+        const hex = wrap.children[1];
+        hex.value = value;
+        for (const fn of hex.bubbles.input.bubble) fn({});
+      },
+      /** Press the + that reveals an optional control, then return it. */
+      add: (prop, name) => {
+        const plus = plusFor(name);
+        for (const fn of plus.bubbles.click.bubble) fn({});
+        return root.inputs[prop];
+      },
+      /** The control that owns a property, for asserting what it read. */
+      control: (prop) => root.inputs[prop],
+      /** The + button that would add an optional property, by its name. */
+      querySelectorPlus: (name) => plusFor(name),
+    };
+  }
+
+  return { run, el, text, doc, win, appended };
 }
 
-function run() {
-  const dom = fakeDom();
-  new Function("window", "document", "CustomEvent", source)(dom.win, dom.document, dom.win.CustomEvent);
-  return dom;
-}
-
-/** Keeps the launcher's own console.log out of the test output. */
-function quiet() {
+/** Keeps the payload's own console output out of the test output. */
+function quiet(fn) {
   const log = console.log;
   console.log = () => {};
-  return () => (console.log = log);
+  try {
+    return fn();
+  } finally {
+    console.log = log;
+  }
 }
 
 test("mounts a launcher that ignores pointer events outside the button", () => {
-  const { host, root, attached } = run();
+  const { run } = fakeDom();
+  const { host, root } = run();
   assert.equal(host.attributes["data-edityy"], "");
   assert.match(host.style.cssText, /position:fixed/);
   assert.match(host.style.cssText, /z-index:2147483647/);
   assert.match(host.style.cssText, /pointer-events:none/);
-  assert.equal(attached(), true, "styles must be isolated in a shadow root");
   assert.match(root.innerHTML, /right:24px;bottom:24px/);
   assert.match(root.innerHTML, /border-radius:50%/);
   assert.match(root.innerHTML, /pointer-events:auto/); // only the button takes clicks
 });
 
 test("the button is a real button with an accessible name", () => {
+  const { run } = fakeDom();
   const { root } = run();
-  assert.match(root.innerHTML, /<button type="button"/);
+  assert.match(root.innerHTML, /<button type="button" id="launch"/);
   assert.match(root.innerHTML, /aria-label="Open Edityy"/);
-  assert.match(root.innerHTML, />Edityy<\/button>/);
+  assert.match(root.innerHTML, /<span id="label">Edityy<\/span><\/button>/);
 });
 
-test("clicking dispatches the seam event", () => {
-  const dom = fakeDom();
-  const clicks = [];
-  dom.button.addEventListener = (type, fn) => type === "click" && clicks.push(fn);
-  new Function("window", "document", "CustomEvent", source)(dom.win, dom.document, dom.win.CustomEvent);
-  const restore = quiet();
-  clicks[0]();
-  restore();
-  assert.deepEqual(dom.dispatched, ["edityy:launcher-click"]);
+test("the chrome wears its own face, not the host page's", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // The package runs on other codebases, so it must not carry a font stack that
+  // would only be right on one of them. The machine's own UI face is the safe one:
+  // it exists everywhere, and the host page's typography belongs to the page.
+  assert.match(css, /font-family:system-ui,-apple-system,/, "the machine's UI face");
+  assert.doesNotMatch(css, /Plus Jakarta Sans/, "nothing named after one site");
+  assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
+  assert.match(css, /font:600 14px\/1\.1 inherit/, "the orb's own weight and size");
 });
 
 test("loading twice mounts only one launcher", () => {
-  const dom = fakeDom();
-  const load = new Function("window", "document", "CustomEvent", source);
-  load(dom.win, dom.document, dom.win.CustomEvent);
-  const restore = quiet();
-  load(dom.win, dom.document, dom.win.CustomEvent);
-  restore();
-  assert.equal(dom.document.body.children.length, 1);
+  const { run } = fakeDom();
+  const app = run();
+  run();
+  assert.equal(app.appended.length, 1);
 });
+
+test("clicking the launcher dispatches the seam event and enters edit mode", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
+  assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
+});
+
+test("the orb itself becomes the pointer, shrinking into a point", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // A 56px orb centred at (1180, 748): right 24 from a 1200 wide viewport, and
+  // 24 up from the bottom of 800.
+  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
+  quiet(() => {
+    app.click();
+    // One step in, still at the orb: scale only, no travel.
+    assert.match(app.launch().style.transform, /translate\(0px,0px\) scale\(0\.16\)$/, "the shrink starts where the orb is");
+    app.hover(text("p", "body"));
+    app.fire("mousemove", { clientX: 40, clientY: 90 });
+  });
+  // Then it tracks the pointer, translated from the orb's own centre.
+  assert.equal(
+    app.launch().style.transform,
+    "translate(-1140px,-658px) scale(0.16)",
+  );
+  assert.equal(app.launch().style.pointerEvents, "none", "the dot is not a button any more");
+  assert.equal(app.root.nodes.label.style.opacity, "0", "the word fades on the way down");
+});
+
+test("the pointer travels home and grows back into the orb on exit", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
+  quiet(() => {
+    app.click();
+    app.hover(text("p", "body"));
+    app.fire("mousemove", { clientX: 40, clientY: 90 });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(app.launch().style.transform, "translate(0px,0px) scale(1)");
+  assert.equal(app.launch().style.pointerEvents, "", "the orb takes clicks again");
+  assert.equal(app.root.nodes.label.style.opacity, "");
+  assert.equal(app.countDoc("click"), 0, "the page is released");
+});
+
+test("the hover frame stands off the element", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // The frame starts 4px clear of the element, so the box is Edityy's and
+  // not the page's own edge.
+  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.fire("mousemove", { clientX: 10, clientY: 10 });
+  });
+  const hover = app.root.nodes.hover.style;
+  assert.equal(hover.left, "96px");
+  assert.equal(hover.top, "46px");
+  assert.equal(hover.width, "128px");
+  assert.equal(hover.height, "56px");
+});
+
+test("a text element wins over the container around it", () => {
+  const { run, text, el } = fakeDom();
+  const app = run();
+  const card = el("section");
+  const heading = text("h1", "Edityy");
+  card.childNodes = [heading];
+  card.parentElement = null;
+  heading.parentElement = card;
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+  });
+  // Clicking the words selects the words, not the box they sit in.
+  assert.equal(app.root.selection().el, heading);
+  assert.equal(app.root.selection().kind, "text");
+});
+
+test("an element with no text is still selectable", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const wrapper = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(wrapper);
+    app.clickPage();
+  });
+  // A container is a legal target: the frame goes on it and it is classified.
+  assert.equal(app.root.selection().el, wrapper);
+  assert.equal(app.root.selection().kind, "container");
+  assert.equal(app.root.nodes.sel.hidden, false);
+});
+
+test("the box is one continuous violet border on all four sides", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by
+  // 46..102: 128 wide, 56 tall.
+  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+  });
+  const sel = app.root.nodes.sel;
+  assert.equal(sel.hidden, false);
+  assert.equal(sel.children.length, 0, "one border, not a stack of pieces");
+  assert.equal(sel.style.left, "96px");
+  assert.equal(sel.style.top, "46px");
+  assert.equal(sel.style.width, "128px");
+  assert.equal(sel.style.height, "56px");
+  // One colour, one unbroken stroke on every side, and a corner radius.
+  assert.match(app.root.innerHTML, /border:2px solid #d79eac/, "one violet border, all four sides");
+  assert.match(app.root.innerHTML, /border-radius:4px/, "the ramp sm radius");
+  assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
+});
+
+test("the box is the same on a small element", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 20x12: the frame is 28x20 from -4, and is still one border.
+  const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
+  quiet(() => {
+    app.click();
+    app.hover(line);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.sel.style.width, "28px");
+  assert.equal(app.root.nodes.sel.style.height, "20px");
+  assert.equal(app.root.nodes.sel.children.length, 0);
+});
+
+
+/** Select a node and report how it was classified. */
+const kindOf = (app, node) => {
+  app.hover(node);
+  app.clickPage();
+  return app.root.selection().kind;
+};
+
+/** Select some text and open the dock, as picking words does. Enters the mode
+    first if it is not already in it, since some callers are already inside. */
+const selectText = (app) => {
+  if (!app.countDoc("click")) quiet(() => app.click());
+  const p = app.el("p", { text: "hello" });
+  app.hover(p);
+  app.clickPage();
+  return p;
+};
+
+/** Press a dock icon by its key. */
+const press = (app, key) => {
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === key);
+  for (const fn of icon.bubbles.click.bubble) fn({});
+  return icon;
+};
+/** The text of a container, which the stub does not accumulate for us. */
+const shown = (el) =>
+  [el.tagName === undefined ? (el.nodeValue ?? "") : el.innerHTML,
+   ...(el.children ?? []).flatMap((c) => [c.nodeValue ?? "", shown(c)])]
+    .filter(Boolean)
+    .join("");
+
+/** Every input a container holds, however deep. A text node has no tag, so it is
+    skipped rather than treated as a field. */
+const fields = (el) =>
+  [el, ...(el.children ?? []).flatMap(fields)].filter((n) => n.tagName === "INPUT");
+
+
+
+test("an element with no text is still selectable", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const wrapper = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(wrapper);
+    app.clickPage();
+  });
+  // A container is a legal target: the frame goes on it and it is classified.
+  assert.equal(app.root.selection().el, wrapper);
+  assert.equal(app.root.selection().kind, "container");
+  assert.equal(app.root.nodes.sel.hidden, false);
+});
+
+test("the box is one continuous violet border on all four sides", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by
+  // 46..102: 128 wide, 56 tall.
+  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+  });
+  const sel = app.root.nodes.sel;
+  assert.equal(sel.hidden, false);
+  assert.equal(sel.children.length, 0, "one border, not a stack of pieces");
+  assert.equal(sel.style.left, "96px");
+  assert.equal(sel.style.top, "46px");
+  assert.equal(sel.style.width, "128px");
+  assert.equal(sel.style.height, "56px");
+  // One colour, one unbroken stroke on every side, and a corner radius.
+  assert.match(app.root.innerHTML, /border:2px solid #d79eac/, "one violet border, all four sides");
+  assert.match(app.root.innerHTML, /border-radius:4px/, "the ramp sm radius");
+  assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
+});
+
+test("the box is the same on a small element", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 20x12: the frame is 28x20 from -4, and is still one border.
+  const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
+  quiet(() => {
+    app.click();
+    app.hover(line);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.sel.style.width, "28px");
+  assert.equal(app.root.nodes.sel.style.height, "20px");
+  assert.equal(app.root.nodes.sel.children.length, 0);
+});
+
+
+
+test("the open icon stays visible on its own dark background", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
+  // colour never reaches it: without an explicit inherit the Aa is plum on plum
+  // and disappears. Both glyph kinds need it, one by letterform one by svg.
+  assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
+  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the drawn ones");
+});
+
+test("each control is as wide as it needs to be, not a shared width", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // A min-width is what made a row of four icons as wide as a list of face
+  // names, with dead paper either side of the icons.
+  assert.doesNotMatch(css, /\.pop\{[^}]*min-width/, "no floor on the popover");
+  assert.doesNotMatch(css, /\.pop\{[^}]*width:/, "and no width either");
+  // Rows shrink to their label rather than filling the list.
+  assert.match(css, /\.opt\{[^}]*width:max-content/, "a row is as wide as its own text");
+});
+
+test("the scrolling list brings its own scrollbar", () => {
+  const { run } = fakeDom();
+  const css = run().root.innerHTML;
+  // The list scrolls, and inside a shadow root it would otherwise show whatever
+  // the host page styles its scrollbars with.
+  assert.match(css, /\.list\{[^}]*overflow-y:auto/, "it scrolls");
+  assert.match(css, /\.list\{[^}]*scrollbar-width:thin/, "a hairline, not the UA default");
+  assert.match(css, /\.list\{[^}]*scrollbar-color:#3a283c40 transparent/, "on the ramp");
+  assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
+});
+
+test("the dock opens on text and stays shut on anything else", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("div"));
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.dock.hidden, true, "a container is not this dock's business");
+  quiet(() => selectText(app));
+  assert.equal(app.root.nodes.dock.hidden, false, "words are");
+  // Seven icons, one per type control, each with a name for a tooltip.
+  const row = app.root.nodes.row;
+  assert.equal(row.children.length, 7);
+  assert.deepEqual(
+    row.children.map((b) => b.dataset.key),
+    ["family", "weight", "size", "line", "tracking", "align", "decorate"]
+  );
+  for (const icon of row.children) assert.match(icon.attributes["aria-label"], /\w/);
+  // Six drawn as SVG and one as a letterform: Aa is the face panel's own mark.
+  // The stub does not parse markup, so this reads what the payload handed over —
+  // enough to catch a glyph that ships empty, which is how the icons went missing.
+  const glyphs = row.children.map((b) => b.innerHTML);
+  assert.equal(glyphs.filter((g) => g.includes("<svg")).length, 6);
+  assert.deepEqual(
+    glyphs.filter((g) => g.startsWith("<i")).map((g) => g.replace(/<[^>]+>/g, "")),
+    ["Aa"]
+  );
+  assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it does not scroll away");
+  assert.match(app.root.innerHTML, /#dock\{[^}]*bottom:24px/, "and it sits at the bottom of the viewport");
+  // The control opens above the icon row, or the viewport eats it.
+  const markup = app.root.innerHTML;
+  assert.ok(markup.indexOf('id="pop"') < markup.indexOf('id="row"'), "the control is above the dock");
+  assert.match(app.root.innerHTML, /#dock\{[^}]*flex-direction:column/, "stacked by the dock itself");
+});
+
+test("one control opens at a time, under the dock, and Escape closes it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => selectText(app));
+  const pop = app.root.nodes.pop;
+  assert.equal(pop.hidden, true, "nothing is open to begin with");
+  quiet(() => press(app, "align"));
+  assert.equal(pop.hidden, false);
+  assert.equal(app.root.nodes.row.children[5].attributes["aria-expanded"], "true");
+  assert.equal(app.root.nodes.row.children[0].attributes["aria-expanded"], "false");
+  // Four alignments, each drawn as its own lines rather than a word.
+  assert.equal(pop.children[0].children.length, 4);
+  assert.match(shown(pop), /<path d="M3 5h12M3 9h8M3 13h12"/, "each alignment drawn as its own lines");
+  // Opening another one replaces it rather than stacking.
+  quiet(() => press(app, "size"));
+  assert.equal(
+    pop.children.flatMap((c) => c.children).some((b) => b.getAttribute?.("aria-label") === "center"),
+    false,
+    "the old control is gone"
+  );
+  // Escape backs out one level: the control first, then the mode.
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(pop.hidden, true, "the control closes");
+  assert.equal(app.root.nodes.dock.hidden, false, "but the dock stays");
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(app.root.nodes.dock.hidden, true, "and the next Escape leaves the mode");
+});
+
+
+test("each control opens the shape it needs", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => selectText(app));
+  const pop = app.root.nodes.pop;
+  // Family is a list read off the page itself, and each option wears the face it
+  // offers. The stub's probe measures nothing, so what is left is the floor the
+  // payload keeps for a page that names no fonts — which is the point: no list of
+  // fonts is baked in, and the one on screen here is not the one in the source.
+  quiet(() => press(app, "family"));
+  assert.ok(
+    pop.children[0].children.every((b) => b.style.cssText.startsWith("font-family:")),
+    "each option wears the face it offers"
+  );
+  assert.deepEqual(
+    pop.children[0].children.map((b) => b.getAttribute("aria-label")),
+    ["System UI", "Helvetica", "Georgia", "Times New Roman", "Courier New"],
+    "the machine's own faces, and nothing invented"
+  );
+  // Weight is a slider from the lightest to the heaviest.
+  quiet(() => press(app, "weight"));
+  const range = fields(pop)[0];
+  assert.equal(range.type, "range");
+  assert.equal(range.min, "100", "the lightest weight");
+  assert.equal(range.max, "900", "to the heaviest");
+  // Size is a number, because 44 is typed rather than dragged for.
+  quiet(() => press(app, "size"));
+  const number = fields(pop)[0];
+  assert.equal(number.type, "number");
+  // Tracking is a slider too: it is judged by eye, and a drag beats typing.
+  quiet(() => press(app, "tracking"));
+  const track = fields(pop)[0];
+  assert.equal(track.type, "range");
+  assert.equal(track.min, "-4", "tight, as large type needs");
+  assert.equal(track.max, "16", "to wide, as small caps need");
+  // Decoration is a row of icons, named rather than spelled as CSS values.
+  quiet(() => press(app, "decorate"));
+  const marks = pop.children[0].children;
+  assert.deepEqual(
+    marks.map((b) => b.getAttribute("aria-label")),
+    ["Underline", "Strikethrough", "Italic"]
+  );
+  assert.deepEqual(
+    marks.map((b) => b.dataset.key),
+    ["underline", "line-through", "italic"],
+    "each one writes the property it draws"
+  );
+  assert.ok(marks.every((b) => b.innerHTML.includes("<svg")), "each one drawn, not written");
+});
+
+
+test("a change is applied to the element and remembered for exit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "size"));
+  const input = app.root.nodes.pop.children[0].children[0];
+  input.value = "42";
+  for (const fn of input.bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("font-size"), "42px");
+  assert.equal(app.root.selection().el, p, "and it is still the same element");
+  // Escape closes the control, then leaves the mode, which puts the page back.
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(p.style.getPropertyValue("font-size"), "", "exit reverts everything it wrote");
+  assert.equal(app.root.nodes.dock.hidden, true);
+});
+
+test("picking an option keeps the control open, and moves the tick", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const pop = app.root.nodes.pop;
+  quiet(() => press(app, "align"));
+  const opts = pop.children[0].children;
+  // Pick the second alignment. The control stays: comparing two values means
+  // looking at the page with the choices still there.
+  for (const fn of opts[1].bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, false, "still open after a choice");
+  assert.equal(p.style.getPropertyValue("text-align"), "center");
+  assert.equal(opts[1].getAttribute("aria-pressed"), "true", "the tick moved");
+  assert.equal(opts[0].getAttribute("aria-pressed"), "false");
+  // It closes on another primary icon, or on the same one again.
+  quiet(() => press(app, "align"));
+  assert.equal(pop.hidden, true, "the same icon again closes it");
+  quiet(() => press(app, "size"));
+  assert.equal(pop.hidden, false);
+  quiet(() => press(app, "weight"));
+  assert.equal(pop.hidden, false, "another icon replaces it rather than stacking");
+  assert.equal(fields(pop)[0].type, "range", "and it is the new control that is showing");
+});
+
+test("picking a face writes the whole stack to the element", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "family"));
+  const opts = app.root.nodes.pop.children[0].children;
+  for (const fn of opts[1].bubbles.click.bubble) fn({});
+  // The stack, not the bare name: "Helvetica" alone resolves to whatever the
+  // machine substitutes, while "Helvetica,Arial,sans-serif" is a real choice.
+  assert.equal(p.style.getPropertyValue("font-family"), "Helvetica,Arial,sans-serif");
+  assert.equal(app.root.nodes.pop.hidden, false, "and the list stays open");
+});
+
+test("decorations stack, because CSS lets them", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "decorate"));
+  const marks = app.root.nodes.pop.children[0].children;
+  const pick = (i) => {
+    for (const fn of marks[i].bubbles.click.bubble) fn({});
+  };
+  // Underline, then strikethrough on the same words: both are legal at once.
+  quiet(() => pick(0));
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "underline");
+  quiet(() => pick(1));
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "underline line-through");
+  assert.equal(marks[0].getAttribute("aria-pressed"), "true", "the first is still on");
+  assert.equal(marks[1].getAttribute("aria-pressed"), "true", "and so is the second");
+  // Picking one again takes only that one off.
+  quiet(() => pick(0));
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "line-through");
+  assert.equal(marks[1].getAttribute("aria-pressed"), "true");
+  // Emptying the list leaves the property unset, not set to "none".
+  quiet(() => pick(1));
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "");
+  assert.equal(app.root.nodes.pop.hidden, false, "the control is still open throughout");
+});
+
+test("an open control survives a click back on the same words", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "weight"));
+  assert.equal(app.root.nodes.pop.hidden, false);
+  // Clicking the same element again is the click that would start a drag, so the
+  // dock must not close under the pointer.
+  quiet(() => app.clickPage());
+  assert.equal(app.root.nodes.pop.hidden, false, "still open");
+  assert.equal(app.root.selection().el, p);
+});
+
+test("an element is classified before it is selected, as one of three", () => {
+  const { run, text, el } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  assert.equal(kindOf(app, text("h1", "Edityy")), "text");
+  assert.equal(kindOf(app, el("div")), "container");
+  assert.equal(kindOf(app, el("img")), "media");
+  assert.equal(kindOf(app, el("svg")), "media");
+  assert.equal(kindOf(app, el("video")), "media");
+  assert.equal(kindOf(app, el("canvas")), "media");
+});
+
+test("media beats the words around it", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  // alt text is a description of the image, not copy anyone can edit
+  img.childNodes = [{ nodeType: 3, nodeValue: "Logo" }];
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, img), "media");
+  });
+});
+
+test("text beats the container it sits in", () => {
+  const { run, text, el } = fakeDom();
+  const app = run();
+  const card = el("section");
+  const heading = text("h1", "Edityy");
+  heading.parentElement = card;
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, heading), "text");
+  });
+});
+
+test("every structural tag is a container", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  // The container bucket is deliberately not a list in the source; these are the
+  // tags the design calls out, checked so the "everything else" fallback keeps
+  // meaning what it says as the page grows new wrappers.
+  const CONTAINERS = [
+    "div", "section", "main", "header", "footer", "nav", "article", "aside",
+    "form", "fieldset", "details", "summary", "dialog",
+    "figure", "figcaption", "label",
+    "blockquote", "pre", "hr",
+    "table", "thead", "tbody", "tfoot", "tr", "td", "th",
+    "ol", "ul", "li",
+    "input", "textarea", "select", "option",
+  ];
+  quiet(() => {
+    app.click();
+    for (const tag of CONTAINERS) {
+      assert.equal(kindOf(app, el(tag)), "container", tag);
+    }
+  });
+});
+
+test("a control holding words is text, because that is the copy being read", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const save = text("button", "Save");
+  const link = text("a", "Read more");
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, save), "text");
+    assert.equal(kindOf(app, link), "text");
+  });
+});
+
+test("whitespace alone is not text", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const spacer = el("div");
+  spacer.childNodes = [{ nodeType: 3, nodeValue: "   \n " }];
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, spacer), "container");
+  });
+});
+
+test("svg <text> is text, because that is the only place it can be edited", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const node = el("text");
+  node.childNodes = [{ nodeType: 3, nodeValue: "Chart" }];
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, node), "text");
+  });
+});
+
+test("deselecting reports no kind at all", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    kindOf(app, text("p", "hi"));
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(app.root.selection(), null);
+});
+
