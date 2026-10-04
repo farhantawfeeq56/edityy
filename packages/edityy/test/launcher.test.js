@@ -695,14 +695,38 @@ test("text beats the container it sits in", () => {
   });
 });
 
-test("a form control is text: its value is the words the user sees", () => {
+test("every structural tag is a container", () => {
   const { run, el } = fakeDom();
   const app = run();
+  // The container bucket is deliberately not a list in the source; these are the
+  // tags the design calls out, checked so the "everything else" fallback keeps
+  // meaning what it says as the page grows new wrappers.
+  const CONTAINERS = [
+    "div", "section", "main", "header", "footer", "nav", "article", "aside",
+    "form", "fieldset", "details", "summary", "dialog",
+    "figure", "figcaption", "label",
+    "blockquote", "pre", "hr",
+    "table", "thead", "tbody", "tfoot", "tr", "td", "th",
+    "ol", "ul", "li",
+    "input", "textarea", "select", "option",
+  ];
   quiet(() => {
     app.click();
-    for (const tag of ["input", "textarea", "select"]) {
-      assert.equal(kindOf(app, el(tag)), "text", tag);
+    for (const tag of CONTAINERS) {
+      assert.equal(kindOf(app, el(tag)), "container", tag);
     }
+  });
+});
+
+test("a control holding words is text, because that is the copy being read", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const save = text("button", "Save");
+  const link = text("a", "Read more");
+  quiet(() => {
+    app.click();
+    assert.equal(kindOf(app, save), "text");
+    assert.equal(kindOf(app, link), "text");
   });
 });
 

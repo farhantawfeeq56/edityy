@@ -406,10 +406,6 @@
     return hasOwnText(el);
   }
 
-  // Form controls hold their text in an attribute, not in a text node, so the
-  // upward walk can never find them.
-  var CONTROL_TAGS = ["input", "textarea", "select", "option"];
-
   /**
  * What kind of thing is this element? Three buckets, nothing else.
  *
@@ -418,10 +414,18 @@
  *
  *   media     — it *is* the media: img, svg, video, canvas, and the host it loads
  *   text      — it holds words of its own
- *   container — everything else: structure, layout, components
+ *   container — everything else, and it is the largest bucket on purpose
  *
- * Order matters. An <img alt="..."> is media, not text: the alt is a
- * description of the media, not copy anyone can edit.
+ * The order is the whole rule, and it is deliberately short: media, then text,
+ * then everything else falls into container. Naming the containers explicitly
+ * would be a list that is wrong the moment the page uses a tag nobody thought of,
+ * so nothing is named — a <div> holding no words is a container because there is
+ * no text in it, not because div is on a list.
+ *
+ * A control with words in it — <button>Save</button>, <a>Read more</a> — is text,
+ * because that is the copy the reader sees and the copy anyone means to change.
+ * Its bare shell is a container. Both readings are defensible; this is the one
+ * that keeps Save editable.
  */
   function kind(el) {
     if (!el) return null;
@@ -454,12 +458,6 @@
       if (k === "media") return { el: el, kind: k };
       if (k === "text") return { el: el, kind: k };
       el = el.parentElement;
-    }
-    // Nothing in the walk was text or media, but a form control still is: the
-    // text the user sees is its value, and it is exactly what they would want to
-    // change.
-    if (fallback && CONTROL_TAGS.indexOf(fallback.tagName.toLowerCase()) !== -1) {
-      return { el: fallback, kind: "text" };
     }
     return fallback && fallback !== document.body && fallback !== document.documentElement
       ? { el: fallback, kind: kind(fallback) }
@@ -499,12 +497,8 @@
 
   function setText(el, value) {
     var rec = record(el);
-    var control = CONTROL_TAGS.indexOf(el.tagName.toLowerCase()) !== -1;
-    if (rec.text === null) rec.text = control ? el.value : el.textContent;
-    // A form control keeps its text in `value`; rewriting textContent on one
-    // would do nothing at all.
-    if (control) el.value = value;
-    else el.textContent = value;
+    if (rec.text === null) rec.text = el.textContent;
+    el.textContent = value;
     render();
   }
 
@@ -514,10 +508,7 @@
       if (before) rec.el.style.setProperty(prop, before);
       else rec.el.style.removeProperty(prop);
     });
-    if (rec.text !== null) {
-      if (CONTROL_TAGS.indexOf(rec.el.tagName.toLowerCase()) !== -1) rec.el.value = rec.text;
-      else rec.el.textContent = rec.text;
-    }
+    if (rec.text !== null) rec.el.textContent = rec.text;
     changes = changes.filter(function (other) {
       return other !== rec;
     });
@@ -593,14 +584,11 @@
       if (line && size) lh.value = Math.round((line / size) * 100) / 100;
     }
     var field = $("fText");
-    // A form control's text is its value, not a child node.
-    var control = CONTROL_TAGS.indexOf(el.tagName.toLowerCase()) !== -1;
-    var body = control ? el.value ?? "" : el.textContent;
-    field.value = selectedKind === "media" ? "" : body;
+    field.value = selectedKind === "media" ? "" : el.textContent;
     // Only a text element can be rewritten, and only a leaf one: replacing the
     // text of an element that holds markup would delete it. A container has no
     // text of its own to replace, and media has none at all.
-    var writable = selectedKind === "text" && (control || isLeafText(el));
+    var writable = selectedKind === "text" && isLeafText(el);
     field.disabled = !writable;
     field.title =
       selectedKind === "media"
