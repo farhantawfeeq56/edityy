@@ -51,7 +51,7 @@
   // takes over, and DESIGN.md wants controls to have no footprint until needed.
   "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:3;",
-    "display:grid;place-items:center;font:600 15px/1 inherit;color:#f9f2ee;",
+    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#f9f2ee;",
     "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
     "#launch:hover{background:#86546b}",
     "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
@@ -93,17 +93,17 @@
     ".sec{margin-top:8px}",
     ".sec:first-child{margin-top:0}",
     ".secHead{display:flex;align-items:center;gap:6px;margin-bottom:5px}",
-    ".secHead>b{font:600 14px/1 inherit;letter-spacing:.04em;text-transform:uppercase;color:#86546b}",
+    ".secHead>b{font:600 14px/1.1 inherit;letter-spacing:.04em;text-transform:uppercase;color:#86546b}",
     ".tog{margin-left:auto;border:1px solid #3a283c26;border-radius:8px;background:transparent;",
     "color:#86546b;padding:4px 8px;font:500 14px/1.2 inherit;cursor:pointer}",
     ".tog[aria-pressed=true]{background:#d79eac33;color:#3a283c}",
     ".line{display:flex;align-items:center;gap:8px;margin-bottom:2px}",
     /* The glyph carries the meaning, so the caption is a tooltip not a label. */
-    ".ic{flex:0 0 16px;text-align:center;font:600 14px/1 inherit;color:#86546b}",
-    ".nm{flex:0 0 auto;font:500 14px/1 inherit;color:#86546b}",
+    ".ic{flex:0 0 16px;text-align:center;font:600 14px/1.1 inherit;color:#86546b}",
+    ".nm{flex:0 0 auto;font:500 14px/1.1 inherit;color:#86546b}",
     ".line>input,.line>select{flex:1;min-width:0;margin:0;padding:4px 6px;font-size:14px;border-radius:8px}",
     ".line>input[type=color]{flex:0 0 36px;height:26px;padding:2px}",
-    "input.big{font:600 14px/1 inherit}",
+    "input.big{font:600 14px/1.1 inherit}",
     ".quad,.pair{display:grid;gap:4px;flex:1;min-width:0}",
     ".quad{grid-template-columns:repeat(4,1fr)}",
     ".pair{grid-template-columns:1fr 1fr}",
@@ -112,16 +112,50 @@
        and the glyph is the label. */
     ".seg{display:flex;flex:1;min-width:0;gap:2px;border:1px solid #3a283c1a;border-radius:8px;padding:2px;background:#f9f2ee}",
     ".seg>button{flex:1;min-width:0;border:0;border-radius:4px;background:transparent;color:#3a283c;",
-    "padding:4px 0;font:500 14px/1 inherit;cursor:pointer;overflow:hidden;text-overflow:clip;white-space:nowrap}",
+    "padding:4px 0;font:500 14px/1.1 inherit;cursor:pointer;overflow:hidden;text-overflow:clip;white-space:nowrap}",
     ".seg>button:hover{background:#3a283c0f}",
     ".seg>button[aria-checked=true]{background:#3a283c;color:#f9f2ee}",
     /* Additive appearance: quiet until asked for. Having the capability does not
        mean it has to occupy attention all the time. */
+    /* Appearance row: name left, quiet + right. No glyph — the name is the
+       label and an icon beside it only competes. */
     ".addLine{display:flex;align-items:center;gap:8px;margin-bottom:2px}",
+    ".addLine>span{flex:1;font:500 14px/1.1 inherit;color:#86546b}",
     ".plus{flex:0 0 20px;width:20px;height:20px;border:1px solid #3a283c26;border-radius:8px;",
     "background:transparent;color:#86546b;font:600 14px/1 inherit;cursor:pointer;padding:0}",
     ".plus:hover{background:#d79eac33;color:#3a283c}",
-    ".addLine>span{font:500 14px/1 inherit;color:#86546b}",
+
+    /* Composite controls: several properties in one line. */
+    ".comp{display:flex;align-items:center;gap:4px;flex:1;min-width:0}",
+    ".comp>input,.comp>select{flex:1;min-width:0;margin:0;padding:4px;font-size:14px;border-radius:8px}",
+    ".comp>input[type=color]{flex:0 0 28px;height:24px;padding:2px}",
+
+    /* A cycle button: one value, click to advance. */
+    ".cycle{flex:0 0 auto;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee;",
+    "color:#3a283c;padding:4px 8px;font:500 14px/1.1 inherit;cursor:pointer;white-space:nowrap}",
+
+    /* Flex: axis and wrap to the left of a 3x3 alignment matrix. */
+    ".flexWrap{display:flex;align-items:flex-start;gap:8px}",
+    ".flexSide{display:flex;flex-direction:column;gap:4px;flex:0 0 66px}",
+    ".flexSide>select{margin:0;padding:4px;font-size:14px;border-radius:8px}",
+    ".matrix{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);",
+    "gap:2px;flex:1;min-width:0;aspect-ratio:1;border:1px solid #3a283c1a;border-radius:8px;padding:3px;",
+    "background:#3a283c08}",
+    ".matrix>button{border:0;border-radius:4px;background:transparent;cursor:pointer;min-height:18px}",
+    ".matrix>button:hover{background:#d79eac66}",
+    ".matrix>button[aria-checked=true]{background:#3a283c}",
+
+    /* Padding drawn as the box it is: four bars around an empty centre. */
+    ".pad{display:grid;grid-template-columns:1fr 1fr;gap:2px;flex:1;min-width:0;padding:4px;",
+    "border:1px solid #3a283c1a;border-radius:8px;background:#3a283c08;",
+    "grid-template-areas:'. t' 'l c' '. b' 'r .'}",
+    ".pad>input{margin:0;padding:2px;font-size:14px;border-radius:4px;text-align:center;min-width:0}",
+    ".pad>input[data-side=top]{grid-area:t}",
+    ".pad>input[data-side=right]{grid-area:r}",
+    ".pad>input[data-side=bottom]{grid-area:b}",
+    ".pad>input[data-side=left]{grid-area:l}",
+    ".padCentre{grid-area:c;border:1px dashed #3a283c26;border-radius:4px;",
+    "background:#f9f2ee;min-height:16px}",
     "#pane>textarea{width:100%;margin:0 0 4px;font-size:14px;resize:vertical}",
     "#changes{margin-top:12px;border-top:1px solid #3a283c1a;padding-top:8px}",
     "#changes summary{cursor:pointer;font-weight:600}",
@@ -217,22 +251,23 @@
     { p: "width", k: "text", icon: "W" },
     { p: "height", k: "text", icon: "H" },
   ];
+  // Appearance rows carry no icon on purpose: the name plus a right-hand + is the
+  // whole affordance, and a glyph beside it only competes with the name.
   var APPEARANCE = [
-    { p: "background", k: "color", add: 1, icon: "□", name: "Fill" },
-    { p: "background-image", k: "text", add: 1, icon: "▧", name: "Image", when: always, ph: "url(...) / gradient(...)" },
-    { p: "border", k: "text", add: 1, icon: "▬", name: "Outline", ph: "1px solid #3a283c" },
-    { p: "box-shadow", k: "text", add: 1, icon: "◑", name: "Shadow", ph: "0 1px 2px #3a283c1f" },
-    { p: "backdrop-filter", k: "text", add: 1, icon: "▒", name: "Blur", ph: "blur(8px)" },
-    { p: "opacity", k: "number", add: 1, min: 0, max: 1, step: 0.01, icon: "◐", name: "Opacity" },
+    { p: "@fill", k: "colour", add: 1, name: "Fill" },
+    { p: "@outline", k: "outline", add: 1, name: "Outline" },
+    { p: "@shadow", k: "shadow", add: 1, name: "Shadow" },
+    { p: "@image", k: "text", add: 1, name: "Image", ph: "url(...) / gradient(...)" },
+    { p: "@blur", k: "text", add: 1, name: "Blur", ph: "blur(8px)" },
+    { p: "opacity", k: "number", add: 1, min: 0, max: 1, step: 0.01, name: "Opacity" },
+    {
+      p: "border-radius",
+      k: "quad",
+      s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"],
+      add: 1,
+      name: "Radius",
+    },
   ];
-  var RADIUS = {
-    p: "border-radius",
-    k: "quad",
-    s: ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"],
-    add: 1,
-    icon: "◜",
-    name: "Radius",
-  };
   var CLAMPS = [
     { p: "min-width", k: "text", icon: "W⇒", when: clamps },
     { p: "max-width", k: "text", icon: "W⇐", when: clamps },
@@ -246,17 +281,21 @@
         label: "Typography",
         rows: [
           { p: "font-family", k: "select", o: FONTS },
+          // One line: size, leading, tracking. Three numbers that are only ever
+          // read together, so they are never stacked into three rows.
           { p: "font-size", k: "number", px: 1, icon: "Aa", big: 1 },
-          { p: "font-weight", k: "select", o: ENUMS.weight, seg: 1 },
           { p: "line-height", k: "number", icon: "↕" },
           { p: "letter-spacing", k: "number", px: 1, icon: "↔" },
-          { p: "text-align", k: "select", o: [["left", "⇤"], ["center", "↔"], ["right", "⇥"], ["justify", "☰"]], seg: 1 },
-          { p: "text-transform", k: "select", o: [["none", "aa"], ["uppercase", "AA"], ["lowercase", "aa"], ["capitalize", "Aa"]], seg: 1 },
-          { p: "text-decoration", k: "select", o: [["none", "—"], ["underline", "U̲"], ["line-through", "S̶"], ["overline", "̅"]], seg: 1 },
+          { p: "font-weight", k: "select", o: ENUMS.weight },
+          // One line: case, alignment, colour. All three cycle or hold one value.
+          { p: "text-transform", k: "cycle", o: [["none", "As typed"], ["uppercase", "UPPERCASE"], ["lowercase", "lowercase"], ["capitalize", "Capitalize"]], icon: "Aa" },
+          { p: "text-align", k: "cycle", o: [["left", "Left"], ["center", "Center"], ["right", "Right"], ["justify", "Justify"]], icon: "≡" },
+          { p: "text-decoration", k: "cycle", o: [["none", "None"], ["underline", "Underline"], ["line-through", "Strikethrough"], ["overline", "Overline"]], icon: "U" },
+          { p: "color", k: "colour", icon: "A" },
         ],
       },
       { label: "Content", rows: [{ p: "@text", k: "textarea" }] },
-      { label: "Appearance", additive: true, rows: [{ p: "color", k: "color", add: 1, icon: "A", name: "Colour" }].concat(APPEARANCE, [RADIUS]) },
+      { label: "Appearance", additive: true, rows: APPEARANCE },
     ],
     container: [
       {
@@ -266,15 +305,13 @@
         // switch to turn them on would make them unreachable on a plain div.
         toggle: { id: "clamps", name: "Min / max", props: ["min-width", "max-width", "min-height", "max-height"] },
       },
-      { label: "Layout", rows: [{ p: "display", k: "select", o: ENUMS.display, seg: 1 }] },
       {
         label: "Flex",
         only: isFlex,
         rows: [
-          { p: "flex-direction", k: "select", o: [["row", "↔"], ["row-reverse", "↖"], ["column", "↕"], ["column-reverse", "↗"]], seg: 1 },
-          { p: "flex-wrap", k: "select", o: [["nowrap", "⇅"], ["wrap", "↩"]], seg: 1 },
-          { p: "justify-content", k: "select", o: [["flex-start", "◤"], ["center", "◆"], ["flex-end", "◥"], ["space-between", "⇹"], ["space-around", "⇔"]], seg: 1 },
-          { p: "align-items", k: "select", o: [["flex-start", "↑"], ["center", "↕"], ["flex-end", "↓"], ["stretch", "⤢"]], seg: 1 },
+          // The alignment matrix carries justify and align together; the axis and
+          // the wrap toggle sit to its left, where the eye expects the frame.
+          { p: "@flex", k: "flex" },
         ],
       },
       {
@@ -283,7 +320,7 @@
         rows: [
           { p: "grid-template-columns", k: "text", icon: "⇉" },
           { p: "grid-template-rows", k: "text", icon: "⇊" },
-          { p: "grid-auto-flow", k: "select", o: [["row", "↔"], ["column", "↕"], ["row dense", "↔+"], ["column dense", "↕+"]], seg: 1 },
+          { p: "grid-auto-flow", k: "cycle", o: [["row", "Row"], ["column", "Column"]], icon: "⇉" },
           { p: "grid-column", k: "text", icon: "⊞" },
           { p: "grid-row", k: "text", icon: "⊟" },
         ],
@@ -291,22 +328,23 @@
       {
         label: "Spacing",
         rows: [
-          { p: "padding", k: "quad", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"], icon: "▣" },
+          // Padding drawn as the box it actually is: four bars around a centre.
+          { p: "padding", k: "box", s: ["padding-top", "padding-right", "padding-bottom", "padding-left"] },
           { p: "gap", k: "pair", s: ["row-gap", "column-gap"], icon: "⇸" },
         ],
       },
-      { label: "Appearance", additive: true, rows: APPEARANCE.concat([RADIUS]) },
+      { label: "Appearance", additive: true, rows: APPEARANCE },
     ],
     media: [
       { label: "Size", rows: SIZE },
       {
         label: "Media",
         rows: [
-          { p: "object-fit", k: "select", o: [["cover", "■"], ["contain", "▫"], ["fill", "□"], ["none", "▭"], ["scale-down", "▬"]], seg: 1 },
-          { p: "object-position", k: "select", o: [["center", "⊙"], ["top", "↑"], ["bottom", "↓"], ["left", "←"], ["right", "→"]], seg: 1 },
+          { p: "object-fit", k: "cycle", o: [["cover", "Cover"], ["contain", "Contain"], ["fill", "Fill"], ["none", "None"], ["scale-down", "Scale down"]], icon: "◱" },
+          { p: "object-position", k: "cycle", o: [["center", "Centre"], ["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]], icon: "⊙" },
         ],
       },
-      { label: "Appearance", additive: true, rows: APPEARANCE.concat([RADIUS]) },
+      { label: "Appearance", additive: true, rows: APPEARANCE },
     ],
   };
 
@@ -321,9 +359,6 @@
   }
   function isGrid() {
     return /grid/.test(mode());
-  }
-  function always() {
-    return true; // an additive control is offered, but stays behind its +
   }
   function clamps() {
     return !!on["clamps"];
@@ -451,7 +486,7 @@
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "plus";
-    btn.textContent = row.icon || "+";
+    btn.textContent = "+";
     btn.title = "Add " + (row.name || row.p);
     btn.setAttribute("aria-label", "Add " + (row.name || row.p));
     btn.addEventListener("click", function () {
@@ -461,9 +496,347 @@
     return btn;
   }
 
+
+  /* --------------------------------------------------------- composites ----
+     A few controls are more than one CSS property, so they get a widget rather
+     than a row. Each reads and writes through apply() like every other control,
+     so a composite is still just recorded inline styles. */
+
+  /** #rrggbb + a separate alpha, the way a designer reads a colour. */
+  function colourControl(prop, extra) {
+    var wrap = document.createElement("div");
+    wrap.className = "comp";
+    var swatch = document.createElement("input");
+    swatch.type = "color";
+    swatch.title = "Colour";
+    var hex = document.createElement("input");
+    hex.type = "text";
+    hex.title = "Hex";
+    hex.placeholder = "#3a283c";
+    var alpha = document.createElement("input");
+    alpha.type = "number";
+    alpha.min = 0;
+    alpha.max = 1;
+    alpha.step = 0.01;
+    alpha.title = "Opacity";
+    alpha.value = "1";
+
+    // The colour and its alpha live in one CSS value, so the two boxes are kept
+    // in step on the way in and joined on the way out.
+    var alphaOf = function (v) {
+      var m = /rgba?\([^)]*?[\/\s]([\d.]+)\s*\)/.exec(v) || /,\s*([\d.]+)\s*\)$/.exec(v);
+      return m ? m[1] : "1";
+    };
+    var rgbOf = function (v) {
+      var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(v);
+      return m ? "#" + [m[1], m[2], m[3]].map(function (n) { return (+n).toString(16).padStart(2, "0"); }).join("") : "";
+    };
+    var write = function () {
+      var a = parseFloat(alpha.value);
+      var rgb = hex.value || "#000000";
+      var value = a >= 1 ? rgb : withAlpha(rgb, a);
+      if (selected) apply(prop, value);
+      if (extra) extra(value);
+    };
+    hex.addEventListener("input", function () {
+      swatch.value = toHex(hex.value) || swatch.value;
+      write();
+    });
+    swatch.addEventListener("input", function () {
+      hex.value = swatch.value;
+      write();
+    });
+    alpha.addEventListener("input", write);
+
+    wrap.appendChild(swatch);
+    wrap.appendChild(hex);
+    wrap.appendChild(alpha);
+    inputs[prop] = {
+      kind: "comp",
+      wrap: wrap,
+      read: function (el) {
+        var v = computedOf(el, prop);
+        var h = rgbOf(v) || toHex(v);
+        if (h) {
+          hex.value = h;
+          swatch.value = h;
+        }
+        alpha.value = alphaOf(v);
+      },
+    };
+    return wrap;
+  }
+
+  /** #rrggbb + alpha as one CSS colour. */
+  function withAlpha(hex, alpha) {
+    var n = parseInt(hex.replace("#", ""), 16);
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+  }
+
+  /** A border: colour, thickness and style, plus underline weight for text. */
+  function outlineControl(prop) {
+    var wrap = document.createElement("div");
+    wrap.className = "comp";
+    var width = document.createElement("input");
+    width.type = "number";
+    width.min = 0;
+    width.step = 1;
+    width.title = "Weight";
+    width.value = "1";
+    var style = document.createElement("select");
+    fill(style, [["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"], ["none", "None"]]);
+    var colour = colourControl("", null);
+    // The colour box is nested: an outline is a weight, a style and a colour.
+    var parts = colour.children;
+
+    var write = function () {
+      if (!selected) return;
+      var c = withAlpha(hexOf(parts[1].value), parseFloat(parts[2].value) || 1);
+      apply(prop, [width.value || "0", style.value, c].join(" "));
+    };
+    [width, style].forEach(function (n) {
+      n.addEventListener("input", write);
+      n.addEventListener("change", write);
+    });
+    parts[0].addEventListener("input", write);
+    parts[1].addEventListener("input", write);
+    parts[2].addEventListener("input", write);
+
+    wrap.appendChild(width);
+    wrap.appendChild(style);
+    wrap.appendChild(parts[0]);
+    wrap.appendChild(parts[1]);
+    wrap.appendChild(parts[2]);
+    inputs[prop] = {
+      kind: "comp",
+      read: function (el) {
+        var v = computedOf(el, prop);
+        var m = /^(\S+)(?:\s+(\S+))?\s+(.+)$/.exec(v);
+        if (m) {
+          width.value = parseFloat(m[1]) || 0;
+          style.value = m[2] || "solid";
+          var h = rgbOf(v) || "";
+          if (h) {
+            parts[1].value = h;
+            parts[0].value = h;
+          }
+        }
+      },
+    };
+    return wrap;
+  }
+
+  function hexOf(v) {
+    return /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000";
+  }
+
+  function rgbOf(v) {
+    var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(v);
+    return m ? "#" + [m[1], m[2], m[3]].map(function (n) { return (+n).toString(16).padStart(2, "0"); }).join("") : "";
+  }
+
+  /** X, Y, blur, spread and colour — the four numbers a shadow actually has. */
+  function shadowControl(prop) {
+    var wrap = document.createElement("div");
+    wrap.className = "comp";
+    var nums = ["x", "y", "blur", "spread"].map(function (name, i) {
+      var n = document.createElement("input");
+      n.type = "number";
+      n.step = i < 2 ? 1 : 0;
+      n.title = name;
+      n.placeholder = name;
+      n.value = i === 2 || i === 3 ? "0" : "0";
+      return n;
+    });
+    var colour = colourControl("", null);
+    var parts = colour.children;
+
+    var write = function () {
+      if (!selected) return;
+      var c = withAlpha(hexOf(parts[1].value), parseFloat(parts[2].value) || 1);
+      apply(prop, nums.map(function (n) { return n.value || "0"; }).join("px ") + "px " + c);
+    };
+    nums.forEach(function (n) { n.addEventListener("input", write); });
+    parts.forEach(function (n) { n.addEventListener("input", write); });
+
+    wrap.appendChild(nums[0]);
+    wrap.appendChild(nums[1]);
+    wrap.appendChild(nums[2]);
+    wrap.appendChild(nums[3]);
+    wrap.appendChild(parts[0]);
+    wrap.appendChild(parts[1]);
+    wrap.appendChild(parts[2]);
+    inputs[prop] = {
+      kind: "comp",
+      read: function (el) {
+        var v = computedOf(el, prop);
+        var m = /(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(.+)$/.exec(v);
+        if (!m) return;
+        [nums[0], nums[1], nums[2], nums[3]].forEach(function (n, i) { n.value = m[i + 1]; });
+        var h = rgbOf(v);
+        if (h) {
+          parts[1].value = h;
+          parts[0].value = h;
+        }
+      },
+    };
+    return wrap;
+  }
+
+  /** A cycle button: one control, click to advance to the next value. */
+  function cycleControl(row, prop) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cycle";
+    btn.title = prop;
+    var index = 0;
+    var paint = function () {
+      btn.textContent = row.o[index][1];
+      btn.setAttribute("aria-label", prop + ": " + row.o[index][0]);
+    };
+    paint();
+    btn.addEventListener("click", function () {
+      if (!selected) return;
+      index = (index + 1) % row.o.length;
+      paint();
+      apply(prop, row.o[index][0]);
+    });
+    inputs[prop] = {
+      kind: "cycle",
+      row: row,
+      node: btn,
+      read: function (el) {
+        var v = computedOf(el, prop);
+        var hit = row.o.findIndex(function (o) { return o[0] === v; });
+        if (hit >= 0) {
+          index = hit;
+          paint();
+        }
+      },
+    };
+    return btn;
+  }
+
+  /**
+   * Flex alignment as a 3x3 matrix.
+   *
+   * The nine cells are the real combination of justify-content and align-items,
+   * so one click sets both and the relationship is visible instead of hidden in
+   * two separate dropdowns. The axis and the wrap toggle sit to its left.
+   */
+  function flexControl() {
+    var wrap = document.createElement("div");
+    wrap.className = "flexWrap";
+
+    var side = document.createElement("div");
+    side.className = "flexSide";
+    var axis = document.createElement("select");
+    axis.title = "Direction";
+    // No reverse: it is not a thing anyone reaches for, and it doubles the grid.
+    fill(axis, [["row", "Row"], ["column", "Column"]]);
+    var wrapToggle = document.createElement("button");
+    wrapToggle.type = "button";
+    wrapToggle.className = "cycle";
+    wrapToggle.title = "Wrap";
+    wrapToggle.addEventListener("click", function () {
+      if (!selected) return;
+      apply("flex-wrap", computedOf(selected, "flex-wrap") === "wrap" ? "nowrap" : "wrap");
+    });
+    side.appendChild(axis);
+    side.appendChild(wrapToggle);
+    wrap.appendChild(side);
+
+    var matrix = document.createElement("div");
+    matrix.className = "matrix";
+    var CELLS = [
+      ["flex-start", "flex-start"], ["center", "flex-start"], ["flex-end", "flex-start"],
+      ["flex-start", "center"], ["center", "center"], ["flex-end", "center"],
+      ["flex-start", "flex-end"], ["center", "flex-end"], ["flex-end", "flex-end"],
+    ];
+    CELLS.forEach(function (cell) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.title = cell.join(" / ");
+      b.setAttribute("aria-label", "Justify " + cell[0] + ", align " + cell[1]);
+      b.addEventListener("click", function () {
+        if (!selected) return;
+        apply("justify-content", cell[0]);
+        apply("align-items", cell[1]);
+      });
+      matrix.appendChild(b);
+    });
+    wrap.appendChild(matrix);
+
+    inputs["justify-content"] = { kind: "flex", read: function (el) { paintFlex(el); } };
+    inputs["align-items"] = inputs["justify-content"];
+    inputs["flex-direction"] = {
+      kind: "text",
+      read: function (el) { axis.value = computedOf(el, "flex-direction") || "row"; },
+    };
+    inputs["flex-wrap"] = {
+      kind: "cycle",
+      read: function (el) { wrapToggle.textContent = computedOf(el, "flex-wrap") === "wrap" ? "Wrap" : "No wrap"; },
+    };
+
+    function paintFlex(el) {
+      var j = computedOf(el, "justify-content");
+      var a = computedOf(el, "align-items");
+      Array.prototype.forEach.call(matrix.children, function (b, i) {
+        b.setAttribute("aria-checked", String(CELLS[i][0] === j && CELLS[i][1] === a));
+      });
+    }
+    return wrap;
+  }
+
+  /**
+   * Padding drawn as the box it is: four bars around an empty centre, each one
+   * a number. Reading the padding off the shape is faster than reading four
+   * labelled boxes, and it shows which side is which.
+   */
+  function boxControl(row) {
+    var wrap = document.createElement("div");
+    wrap.className = "pad";
+    var sides = ["top", "right", "bottom", "left"];
+    var inputsBy = {};
+    sides.forEach(function (side) {
+      var n = document.createElement("input");
+      n.type = "number";
+      n.step = 1;
+      n.title = side;
+      n.placeholder = side[0];
+      n.setAttribute("data-side", side);
+      inputsBy[row.s[sides.indexOf(side)]] = n;
+      n.addEventListener("input", function () {
+        if (selected) apply(row.s[sides.indexOf(side)], n.value ? n.value + "px" : "");
+      });
+    });
+    var centre = document.createElement("div");
+    centre.className = "padCentre";
+    wrap.appendChild(centre);
+    // Top, right, bottom, left in that order: the DOM order is the visual order.
+    [0, 1, 2, 3].forEach(function (i) { wrap.appendChild(inputsBy[row.s[i]]); });
+    inputs["@pad"] = {
+      kind: "comp",
+      wrap: wrap,
+      read: function (el) {
+        sides.forEach(function (side, i) {
+          inputsBy[row.s[i]].value = parseFloat(computedOf(el, row.s[i])) || "";
+        });
+      },
+    };
+    return wrap;
+  }
+
   /** One control, in whichever form its schema row asks for. */
   function control(row) {
     if (row.k === "quad" || row.k === "pair") return boxes(row);
+    if (row.k === "colour") return colourControl(row.p);
+    if (row.k === "outline") return outlineControl(row.p);
+    if (row.k === "shadow") return shadowControl(row.p);
+    if (row.k === "cycle") return cycleControl(row, row.p);
+    if (row.k === "flex") return flexControl();
+    if (row.k === "box") return boxControl(row);
     if (row.k === "textarea") {
       var ta = document.createElement("textarea");
       ta.rows = 2;
@@ -533,14 +906,14 @@
     el.appendChild(head);
 
     rows.forEach(function (row) {
-      // "must come only when added": a quiet + until the user asks for it.
+      // "must come only when added": name on the left, a quiet + on the right.
       if (row.add && !on[row.p]) {
         var line = document.createElement("div");
         line.className = "addLine";
-        line.appendChild(plus(row));
         var nm = document.createElement("span");
         nm.textContent = row.name || row.p;
         line.appendChild(nm);
+        line.appendChild(plus(row));
         el.appendChild(line);
         return;
       }
@@ -736,6 +1109,11 @@
     // knows which property each input belongs to.
     Object.keys(inputs).forEach(function (prop) {
       var input = inputs[prop];
+      // A composite is several properties in one widget, so it reads itself.
+      if (typeof input.read === "function") {
+        input.read(el);
+        return;
+      }
       if (input.kind === "seg") {
         var raw = computedOf(el, prop);
         // The reset button represents "not set here", so it reads as checked when

@@ -88,12 +88,14 @@ function fakeDom() {
     return node;
   };
 
-  /** Find the + button that reveals an optional control, by its display name. */
+  /** Find the + button that reveals an optional control, by its display name.
+      The row is name then +, so the button is the last child. */
   const plusFor = (name) => {
     for (const sec of root.nodes.pane?.children ?? []) {
       for (const line of sec.children.slice(1)) {
         if (line.className !== "addLine") continue;
-        if (line.children[0]?.title === "Add " + name) return line.children[0];
+        const btn = line.children[line.children.length - 1];
+        if (btn?.className === "plus" && btn.title === "Add " + name) return btn;
       }
     }
     return null;
@@ -241,8 +243,8 @@ function fakeDom() {
       /** Remove a property entirely, as clearing its box would. */
       clear: (prop) => {
         const input = root.inputs[prop];
-        if (input.kind === "seg") {
-          for (const fn of input.reset.bubbles.click.bubble) fn({});
+        if (input.kind === "cycle") {
+          for (const fn of input.node.bubbles.click.bubble) fn({});
           return;
         }
         input.value = "";
@@ -253,6 +255,32 @@ function fakeDom() {
         const group = root.inputs[prop];
         const btn = (group.children ?? []).find((b) => b.title === value);
         for (const fn of btn.bubbles.click.bubble) fn({});
+      },
+      /** Click a cycle button until it reads a value, however many steps that is.
+          A cycle starts wherever the element already was, so counting clicks from
+          zero would overshoot. */
+      cycle: (prop, value) => {
+        const slot = root.inputs[prop];
+        const btn = slot.node;
+        const want = slot.row.o.find((o) => o[0] === value)?.[1];
+        for (let i = 0; i <= slot.row.o.length; i++) {
+          if (btn.textContent === want) break;
+          for (const fn of btn.bubbles.click.bubble) fn({});
+        }
+      },
+      /** Type into one side of the padding box. */
+      pad: (side, value) => {
+        const wrap = root.inputs["@pad"].wrap;
+        const input = wrap.children.find((n) => n.getAttribute?.("data-side") === side);
+        input.value = value;
+        for (const fn of input.bubbles.input.bubble) fn({});
+      },
+      /** Type a hex into the hex box of a colour composite. */
+      setHex: (prop, value) => {
+        const wrap = root.inputs[prop].wrap;
+        const hex = wrap.children[1];
+        hex.value = value;
+        for (const fn of hex.bubbles.input.bubble) fn({});
       },
       /** Press the + that reveals an optional control, then return it. */
       add: (prop, name) => {
@@ -325,7 +353,7 @@ test("the launcher wears the site's own font", () => {
   // first so the app's loaded face wins, and the bare family as the fallback.
   assert.match(css, /font-family:var\(--font-sans,\\?"?\+?Plus Jakarta Sans/, "Jakarta via the app token");
   assert.doesNotMatch(css, /font-family:system-ui/, "not a bare system-ui stack");
-  assert.match(css, /font:600 15px\/1 inherit/, "the orb inherits that face");
+  assert.match(css, /font:600 14px\/1\.1 inherit/, "the orb inherits that face, on the ramp");
 });
 
 test("loading twice mounts only one launcher", () => {
@@ -464,9 +492,8 @@ test("a keyword control applies the keyword, not a length", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.segment("text-align", "center");
-    app.add("color", "Colour");
-    app.type("color", "#ff0000");
+    app.cycle("text-align", "center");
+    app.setHex("color", "#ff0000");
   });
   assert.equal(p.style.getPropertyValue("text-align"), "center");
   assert.equal(p.style.getPropertyValue("color"), "#ff0000");
@@ -486,7 +513,7 @@ test("the text field rewrites the element's text", () => {
   assert.equal(p.textContent, "after");
 });
 
-test("clearing a control puts the stylesheet's value back", () => {
+test("a cycle button walks through its values and wraps", () => {
   const { run, text } = fakeDom();
   const app = run();
   const p = text("p", "body");
@@ -494,10 +521,29 @@ test("clearing a control puts the stylesheet's value back", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.segment("text-align", "center");
-    app.clear("text-align");
+    app.cycle("text-align", "justify");
   });
-  assert.equal(p.style.getPropertyValue("text-align"), "");
+  assert.equal(p.style.getPropertyValue("text-align"), "justify");
+  // Four values; a fifth click is back to the first, so the control never strands
+  // the user on a value they cannot leave.
+  quiet(() => {
+    for (let i = 0; i < 1; i++) app.cycle("text-align", "left");
+  });
+  assert.equal(p.style.getPropertyValue("text-align"), "left");
+});
+
+test("a plain box that is emptied puts the stylesheet's value back", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const p = text("p", "body");
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+    app.type("font-size", "40");
+    app.clear("font-size");
+  });
+  assert.equal(p.style.getPropertyValue("font-size"), "");
 });
 
 test("a revert restores the value that was there before the change", () => {
@@ -508,7 +554,7 @@ test("a revert restores the value that was there before the change", () => {
     app.click();
     app.hover(p);
     app.clickPage();
-    app.segment("text-align", "center");
+    app.cycle("text-align", "center");
     app.root.inputs["@text"].value = "after";
     app.root.inputs["@text"].bubbles.input.bubble.forEach((fn) => fn({ target: { value: "after" } }));
     app.root.nodes.revertAll.bubbles.click.bubble.forEach((fn) => fn({}));
@@ -595,8 +641,9 @@ test("every property of a text element is offered", () => {
   ]) {
     assert.ok(app.control(prop), `${prop} has a control`);
   }
-  // Appearance is additive, so those controls do not exist until the + is used.
-  for (const prop of ["color", "background", "border", "box-shadow"]) {
+  // Text colour rides the always-visible line; the rest wait behind a +.
+  assert.ok(app.control("color"), "colour is always there for text");
+  for (const prop of ["background", "border", "box-shadow"]) {
     assert.equal(app.control(prop), undefined, `${prop} waits behind +`);
   }
   // A paragraph is not a flex container, so it is never offered one.
@@ -681,13 +728,13 @@ test("optional appearance stays behind + until it is added", () => {
     app.clickPage();
   });
   const before = Object.keys(app.root.inputs);
-  for (const prop of ["background", "border", "box-shadow", "opacity", "border-top-left-radius"]) {
+  for (const prop of ["@fill", "@outline", "@shadow", "opacity", "border-top-left-radius"]) {
     assert.equal(before.includes(prop), false, `${prop} is not in the tree yet`);
   }
   // Press the + on the Fill row.
-  app.add("background", "Fill");
-  assert.ok(app.control("background"), "adding it brings only its own control");
-  assert.equal(app.control("border"), undefined, "the others stay quiet");
+  app.add("@fill", "Fill");
+  assert.ok(app.control("@fill"), "adding it brings only its own control");
+  assert.equal(app.control("@outline"), undefined, "the others stay quiet");
 });
 
 test("media is offered object fit, and never padding or gap", () => {
@@ -715,11 +762,11 @@ test("any schema property applies and records like a typography one", () => {
     app.click();
     app.hover(card);
     app.clickPage();
-    app.type("padding-left", "24");
+    app.pad("left", "24");
     app.add("border-radius", "Radius");
     app.type("border-top-left-radius", "12");
   });
-  assert.equal(card.style.getPropertyValue("padding-left"), "24");
+  assert.equal(card.style.getPropertyValue("padding-left"), "24px");
   assert.equal(card.style.getPropertyValue("border-top-left-radius"), "12");
   assert.equal(String(app.root.nodes.count.textContent), "1", "one element, one entry");
 });
@@ -732,13 +779,13 @@ test("a shorthand side is recorded under its own longhand", () => {
     app.click();
     app.hover(box);
     app.clickPage();
-    app.type("padding-top", "8");
-    app.type("padding-bottom", "8");
+    app.pad("top", "8");
+    app.pad("bottom", "8");
   });
   // Two longhands, two entries: nothing is written as the `padding` shorthand,
   // so reverting one side cannot disturb the other.
-  assert.equal(box.style.getPropertyValue("padding-top"), "8");
-  assert.equal(box.style.getPropertyValue("padding-bottom"), "8");
+  assert.equal(box.style.getPropertyValue("padding-top"), "8px");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8px");
   assert.equal(box.style.getPropertyValue("padding"), "");
 });
 
