@@ -221,6 +221,10 @@ function fakeDom() {
       fire: (type, event = {}) => {
         for (const fn of [...bucket(doc, type, "capture"), ...bucket(doc, type, "bubble")]) fn(event);
       },
+      /** One of a frame's bars, in the order the payload built them: run first
+          for each edge, then the three accent bars over it. */
+      bar: (edge, spot) => root.nodes.sel.children[edge * 4 + 1 + spot],
+      dash: (edge, frame = "sel") => root.nodes[frame].children[edge * 4],
       countDoc: (type) => bucket(doc, type, "capture").length,
       /** Grab the panel's header, then move and release it. */
       grab: (event) =>
@@ -393,37 +397,20 @@ test("the pointer travels home and grows back into the orb on exit", () => {
   assert.equal(app.countDoc("click"), 0, "the page is released");
 });
 
-test("the hover frame stands off the element and rounds with the ramp", () => {
+test("the frame stands off the element and rounds with the ramp", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // A 120x48 heading: shorter side 48, so 16px is the largest ramp radius that
-  // does not turn the frame into a lozenge. Inset 3px on every side.
+  // The dash run starts 4px clear of the element, so the frame is Edityy's and
+  // not the page's own edge.
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
-  const hover = app.root.nodes.hover.style;
-  assert.equal(hover.left, "97px");
-  assert.equal(hover.top, "47px");
-  assert.equal(hover.width, "126px");
-  assert.equal(hover.height, "54px");
-  assert.equal(hover.borderRadius, "16px");
-});
-
-test("the frame never rounds sharper than a short element can carry", () => {
-  const { run, text } = fakeDom();
-  const app = run();
-  // 100x20: half the short side is 10, so 16px would be a lozenge and 8 is the
-  // largest ramp radius that actually fits.
-  const line = text("p", "body", {}, { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 });
-  quiet(() => {
-    app.click();
-    app.hover(line);
-    app.fire("mousemove", { clientX: 10, clientY: 10 });
-  });
-  assert.equal(app.root.nodes.hover.style.borderRadius, "8px");
+  assert.equal(app.dash(0, "hover").style.top, "46px");
+  assert.equal(app.dash(0, "hover").style.left, "112px");
+  assert.equal(app.dash(1, "hover").style.left, "96px");
 });
 
 test("a text element wins over the container around it", () => {
@@ -456,7 +443,63 @@ test("an element with no text is still selectable", () => {
   // A container is a legal target: the frame goes on it and it is classified.
   assert.equal(app.root.selection().el, wrapper);
   assert.equal(app.root.selection().kind, "container");
-  assert.equal(app.root.nodes.sel.style.display, "block");
+  assert.equal(app.root.nodes.sel.hidden, false);
+});
+
+test("the box is accent bars at the corners and midpoints, paper dashes between", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by 46..102:
+  // 128 wide, 56 tall. Top-left bar at x=96 y=46, top-right at x=208.
+  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+  });
+  const sel = app.root.nodes.sel;
+  assert.equal(sel.hidden, false);
+  // Four edges, each a dash run plus three 16px accent bars.
+  assert.equal(sel.children.length, 16);
+  for (const edge of [0, 1, 2, 3]) {
+    assert.equal(app.dash(edge).className, "dash");
+    for (const spot of [0, 1, 2]) assert.equal(app.bar(edge, spot).className, "bar");
+  }
+  assert.equal(app.bar(0, 0).style.left, "96px", "flush with the left end of the top edge");
+  assert.equal(app.bar(0, 0).style.top, "46px");
+  assert.equal(app.bar(0, 2).style.left, "208px", "and 16px in from the right, so the cap lands on the corner");
+  assert.equal(app.bar(0, 1).style.left, "152px", "the middle bar, centred on a 128px edge");
+  assert.equal(app.bar(0, 1).style.width, "16px");
+  // Vertical edges are positioned the other way round.
+  assert.equal(app.bar(1, 0).style.left, "96px");
+  assert.equal(app.bar(1, 0).style.top, "46px");
+  assert.equal(app.bar(1, 2).style.top, "86px", "16px up from the bottom of a 56px edge");
+  // The run fills exactly the gap between the two end bars.
+  assert.equal(app.dash(0).style.left, "112px");
+  assert.equal(app.dash(0).style.width, "96px");
+  assert.equal(app.dash(2).style.top, "102px", "the bottom edge, at the far side of the box");
+  assert.equal(app.dash(3).style.left, "224px", "and the right edge at the far side of it");
+  // Paper dashes with rounded caps, on the accent.
+  assert.match(app.dash(0).style.backgroundImage, /data:image\/svg\+xml/);
+  assert.match(app.dash(0).style.backgroundImage, /stroke-linecap='round'/, "rounded caps");
+  assert.match(app.dash(0).style.backgroundImage, /%23f9f2ee/, "paper, not white");
+  assert.match(app.root.innerHTML, /\.bar\{[^}]*background:#d79eac/, "the accent is the dominant layer");
+  assert.match(app.root.innerHTML, /\.dash\{[^}]*height:2px/, "and thicker than the dashes' stroke");
+});
+
+test("the pattern stays the same on a small element", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 20x12: the frame is 28x20 from -4, so the end bars meet with no gap to dash.
+  const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
+  quiet(() => {
+    app.click();
+    app.hover(line);
+    app.clickPage();
+  });
+  assert.equal(app.bar(0, 1).style.left, "2px", "the middle bar is still centred on the element");
+  assert.equal(app.dash(0).style.width, "0px", "no gap means no dashes, not a squashed one");
+  assert.equal(app.root.nodes.sel.children.length, 16, "and the same sixteen pieces either way");
 });
 
 /** Select a node and report how it was classified. */

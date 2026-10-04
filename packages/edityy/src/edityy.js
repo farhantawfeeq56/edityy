@@ -71,16 +71,19 @@
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
-    ".box{position:fixed;pointer-events:none;display:none;z-index:1}",
-    // Inflated by 3px and rounded per DESIGN.md: an approximate, clearly separate
-    // frame around the element, not a traced outline.
-    "#hover{border:1px dashed #3a283c59;background:#d79eac2e}",
-    "#sel{border:2px solid #3a283c;background:transparent}",
+    // A frame drawn around an element, fully transparent: only its bars and dashes
+    // are painted, so the element underneath is never covered or tinted.
+    ".frame{position:fixed;pointer-events:none;z-index:1}",
+    "[hidden]{display:none!important}", // also for .frame: display:block would beat it
+    // Stroke weight and the gap between paper dashes: 2px, so the accent bars
+    // read as the dominant layer exactly as a design tool's outline does.
+    ".dash{position:absolute;height:2px;background-repeat:repeat}",
+    ".bar{position:absolute;height:2px;border-radius:2px;background:#d79eac}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
-    '<div class="box" id="hover"></div>',
-    '<div class="box" id="sel"></div>',
+    '<div class="frame" id="hover" hidden></div>',
+    '<div class="frame" id="sel" hidden></div>',
     "</div>",
   ].join("");
 
@@ -249,32 +252,103 @@
     });
   }
 
-  // A frame drawn around an element, deliberately not hugging it: 3px of air on
-  // every side, so the box is unmistakably Edityy's and not the page's own edge.
-  var GAP = 3;
-  // The ramp's own radii (8 UI / 12 / 16 / pill), used inside out — whatever the
-  // element rounds to, the frame is never sharper than the design allows.
-  var RADII = [28, 16, 12, 8, 4];
+  // The box drawn around an element. It stands off the element by 4px on every
+  // side, so the frame is unmistakably Edityy's and not the page's own edge.
+  //
+  // It is a stack of small divs rather than one styled border, because the whole
+  // look is in how each edge is split: an accent bar at each end and the middle,
+  // paper dashes filling the gaps between them. Sixteen divs do that in a dozen
+  // lines; a border-image or a redrawn SVG per frame would be a lot more code for
+  // the same picture.
+  var GAP = 4;
+  // Accent bars are 16px, which is what turns a bar at a corner into an L. An
+  // element narrower than that simply has no gap to dash and keeps one short bar
+  // per edge — the right answer, not a degenerate one — so the pattern never
+  // depends on the size of what it is drawn around.
+  var BAR = 16;
+  // Where each accent bar sits along its edge, as a fraction of its own length
+  // between the two end bars: flush left, centred, flush right.
+  var SPOTS = [0, 0.5, 1];
+  // The four edges, and which way each one runs. Their children are built in this
+  // order — the dash run first, the three bars over it — so the bars land on top.
+  var SIDES = [["top", true], ["left", false], ["bottom", true], ["right", false]];
 
-  function place(el, rect, target) {
-    el.style.left = rect.left - GAP + "px";
-    el.style.top = rect.top - GAP + "px";
-    el.style.width = rect.width + GAP * 2 + "px";
-    el.style.height = rect.height + GAP * 2 + "px";
-    el.style.borderRadius = pickRadius(rect, target) + "px";
+  /**
+   * The dash run, as a tiling SVG rather than a gradient.
+   *
+   * A gradient's dashes are square-ended, and rounded caps are the whole
+   * difference between a dashed line and the tool outline this is imitating. One
+   * 12x2 tile repeated along an edge: 8px of paper, 4px of gap, identical on
+   * every edge of every element, so there is no rhythm to keep in sync.
+   */
+  function dashes(w, h, d) {
+    return 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'' + w +
+      '\' height=\'' + h + '\'%3E%3Cpath d=\'' + d +
+      '\' stroke=\'%23f9f2ee\' stroke-width=\'2\' stroke-linecap=\'round\'/%3E%3C/svg%3E")';
+  }
+  var DASH = [dashes(12, 2, "M3 1h6"), dashes(2, 12, "M1 3v6")];
+
+  /** Build the bars of one frame. Two frames, one shape — they cannot drift. */
+  function build(frame) {
+    SIDES.forEach(function (side) {
+      var horizontal = side[1];
+      var run = document.createElement("i");
+      run.className = "dash";
+      // The run spans the whole edge and the centre bar is drawn over it, so one
+      // element fills both gaps instead of two per side.
+      run.style.backgroundImage = DASH[horizontal ? 0 : 1];
+      frame.appendChild(run);
+      SPOTS.forEach(function () {
+        var bar = document.createElement("i");
+        bar.className = "bar";
+        frame.appendChild(bar);
+      });
+    });
   }
 
-  /** The first ramp radius that fits inside the element's own corner radius. */
-  function pickRadius(rect, target) {
-    var el = target || document.documentElement;
-    var own = parseFloat((window.getComputedStyle ? window.getComputedStyle(el) : { getPropertyValue: function () { return ""; } }).getPropertyValue("border-top-left-radius")) || 0;
-    // Shorter side first: a radius larger than half the smaller dimension becomes
-    // a lozenge, which is not what the design means.
-    var fit = Math.min(rect.width, rect.height) / 2;
-    for (var i = 0; i < RADII.length; i++) {
-      if (RADII[i] <= Math.max(own, fit)) return RADII[i];
-    }
-    return RADII[RADII.length - 1];
+  /** Pin one frame to a target's rectangle. */
+  function place(frame, rect) {
+    var box = {
+      left: rect.left - GAP,
+      top: rect.top - GAP,
+      width: rect.width + GAP * 2,
+      height: rect.height + GAP * 2,
+    };
+    SIDES.forEach(function (side, s) {
+      var horizontal = side[1];
+      // How far along the box this edge runs, and where across it sits: the top
+      // and left edges start at the box origin, the bottom and right ones at the
+      // far end of it.
+      var across = horizontal ? box.width : box.height;
+      var depth = horizontal ? box.height : box.width;
+      var origin = horizontal ? box.left : box.top;
+      var cross =
+        (horizontal ? box.top : box.left) + (side[0] === "top" || side[0] === "left" ? 0 : depth);
+      var run = frame.children[s * 4];
+      var start = Math.max(0, across - BAR * 2);
+      if (horizontal) {
+        run.style.left = origin + BAR + "px";
+        run.style.top = cross + "px";
+        run.style.width = start + "px";
+      } else {
+        run.style.left = cross + "px";
+        run.style.top = origin + BAR + "px";
+        run.style.height = start + "px";
+      }
+      SPOTS.forEach(function (spot, i) {
+        var bar = frame.children[s * 4 + 1 + i];
+        var offset = origin + (across - BAR) * spot;
+        if (horizontal) {
+          bar.style.left = offset + "px";
+          bar.style.top = cross + "px";
+          bar.style.width = BAR + "px";
+        } else {
+          bar.style.left = cross + "px";
+          bar.style.top = offset + "px";
+          bar.style.height = BAR + "px";
+        }
+      });
+    });
   }
 
   /** Draw the selection frame. There is no panel to place, so this is all a
@@ -285,10 +359,10 @@
     // walk rather than by way of `kind()`: it has no text node of its own.
     selectedKind = el && hit ? hit.kind : null;
     if (!el) {
-      selBox.style.display = "none";
+      selBox.hidden = true;
       return;
     }
-    selBox.style.display = "block";
+    selBox.hidden = false;
     place(selBox, el.getBoundingClientRect(), el);
   }
 
@@ -358,12 +432,12 @@
 
   /** The hover frame is only meaningful while the pointer is still on it. */
   function hideHover() {
-    hoverBox.style.display = "none";
+    hoverBox.hidden = true;
   }
 
   /** A resize can reflow the selection out from under its frame. */
   function onResize() {
-    if (selected) place(selBox, selected.getBoundingClientRect(), selected);
+    if (selected) place(selBox, selected.getBoundingClientRect());
   }
 
   function onMove(e) {
@@ -374,11 +448,11 @@
       "translate(" + (e.clientX - anchorX) + "px," + (e.clientY - anchorY) + "px) scale(" + POINT + ")";
     var el = textAt(e.clientX, e.clientY);
     if (!el) {
-      hoverBox.style.display = "none";
+      hideHover();
       return;
     }
-    place(hoverBox, el.getBoundingClientRect(), el);
-    hoverBox.style.display = "block";
+    place(hoverBox, el.getBoundingClientRect());
+    hoverBox.hidden = false;
   }
 
   function onClick(e) {
@@ -402,6 +476,11 @@
     if (active) exit();
     else enter();
   });
+
+  // Both frames are built the same way, once, at mount — a dash run and three
+  // accent bars per edge. Last, because it needs everything above defined.
+  build(hoverBox);
+  build(selBox);
 
   (document.body || document.documentElement).appendChild(host);
 })();
