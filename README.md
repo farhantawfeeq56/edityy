@@ -121,10 +121,13 @@ and every version gets a provenance attestation.
    A version with a prerelease suffix (`1.0.0-beta.1`) goes to the `next` dist-tag and a prerelease, never `latest`.
    A push that does not change the version publishes nothing.
 
+npm can take a few minutes to process a new version before you can install it. The **publish** job waits up to 10
+minutes for it, then the **release** job runs.
+
 If a run fails, fix the cause and **re-run all jobs**. Each job skips what is already done (version on npm, release
-exists), so a re-run never publishes twice. If npm stages the version instead of publishing it, the run fails and
-says so. A maintainer approves it on npmjs.com (**Staged Packages**) with 2FA, then re-runs the workflow to create the
-release.
+exists), so a re-run never publishes twice. If the version is still not installable after 10 minutes, npm has probably
+staged it instead of publishing it, and the run fails and says so. A maintainer approves it on npmjs.com (**Staged
+Packages**) with 2FA, then re-runs the workflow to create the release.
 
 To rehearse without publishing: **Actions → Release → Run workflow** on `main` with `dry-run` ticked.
 
