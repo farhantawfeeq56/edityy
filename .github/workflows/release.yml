@@ -117,6 +117,30 @@ jobs:
             exit 0
           fi
 
+          on_npm() {
+            npm view "edityy@$VERSION" version --prefer-online >/dev/null 2>&1
+          }
+          # npm answers 202 and exits 0 while it processes a new version, and it
+          # can take minutes before the version is installable. Only a version
+          # you can install counts as published.
+          wait_for_npm() {
+            for _ in $(seq 60); do
+              if on_npm; then
+                echo "edityy@$VERSION is on npm."
+                return 0
+              fi
+              sleep 10
+            done
+            return 1
+          }
+
+          # A re-run of only the failed jobs keeps the old outputs of `check`,
+          # so look again before publishing.
+          if on_npm; then
+            echo "edityy@$VERSION is on npm already. Nothing to publish."
+            exit 0
+          fi
+
           # A failed trusted-publishing exchange is only logged at verbose level,
           # so keep the oidc lines and the registry's answer in the job log.
           log="$RUNNER_TEMP/publish.log"
@@ -125,27 +149,26 @@ jobs:
           grep -v '^npm verbose' "$log" || true
           grep -i 'oidc' "$log" || echo "npm logged no oidc lines"
           hint="the trusted publisher on npmjs.com must be user farhantawfeeq56, repo edityy, workflow release.yml, environment npm, with 'npm publish' allowed (README.md, Releasing)."
+          staged="edityy@$VERSION is not installable after 10 minutes. It is probably staged: a maintainer approves it on npmjs.com (Staged Packages) with 2FA, then re-run this workflow to create the release."
           if [ "$status" -ne 0 ]; then
+            # npm has the version already: an earlier attempt uploaded it and npm
+            # is still processing it, or it is staged. Wait for it.
+            if grep -qE 'previously (published|staged) version' "$log"; then
+              echo "npm has edityy@$VERSION already. Waiting until it is installable."
+              wait_for_npm && exit 0
+              echo "::error::$staged"
+              exit 1
+            fi
             if grep -q 'E404' "$log"; then
               echo "::error::npm rejected the publish. If the oidc lines above show a failed token exchange, $hint"
             elif grep -q 'OIDC permission denied' "$log"; then
               echo "::error::npm accepted the login but refused the publish: $hint"
-            elif grep -q 'previously staged version' "$log"; then
-              echo "::error::edityy@$VERSION is staged on npm. A maintainer approves it on npmjs.com (Staged Packages) with 2FA, then re-run this workflow to create the release."
             fi
             exit "$status"
           fi
 
-          # npm answers 202 and exits 0 when it stages a version instead of
-          # publishing it. Only a version you can install counts as published.
-          for _ in 1 2 3 4 5 6; do
-            if npm view "edityy@$VERSION" version >/dev/null 2>&1; then
-              echo "edityy@$VERSION is on npm."
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::npm accepted edityy@$VERSION but it is not installable. It is probably staged: approve it on npmjs.com (Staged Packages) with 2FA, then re-run this workflow to create the release. To publish without staging, $hint"
+          wait_for_npm && exit 0
+          echo "::error::$staged To publish without staging, $hint"
           exit 1
 
   release:
