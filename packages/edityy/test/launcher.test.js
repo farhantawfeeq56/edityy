@@ -20,7 +20,13 @@ function fakeDom() {
   /** What the browser would report: inline style wins, else the inherited map. */
   const computed = (el) => {
     const view = {
-      getPropertyValue: (prop) => el.style.getPropertyValue(prop) || el.computed?.[prop] || "",
+      getPropertyValue: (prop) => {
+        const v = el.style.getPropertyValue(prop) || el.computed?.[prop] || "";
+        // A browser hands back the initial value of anything unset, and the
+        // payload reads filters and shadows back: `filter: none` is what tells it
+        // no filter is on, where "" says nothing at all.
+        return v || (prop === "filter" || prop.startsWith("box-shadow") ? "none" : "");
+      },
     };
     // The payload reads .fontFamily directly when it looks at the page own
     // typography, so it has to be there and not only behind getPropertyValue.
@@ -93,11 +99,14 @@ function fakeDom() {
     offsetTop: 0,
     setPointerCapture() {},
     releasePointerCapture() {},
+    focus() {},
+    blur() {},
     childNodes: [],
     children: [],
     disabled: false,
     className: "",
     setAttribute: (k, v) => (attrs[k] = v),
+    removeAttribute: (k) => delete attrs[k],
     getAttribute: (k) => attrs[k],
     appendChild: (child) => {
       // A child has one parent. Without this the popover keeps every control ever
@@ -112,6 +121,15 @@ function fakeDom() {
     removeChild: (child) => {
       node.children.splice(node.children.indexOf(child), 1);
       child.parentElement = null;
+      return child;
+    },
+    insertBefore: (child, before) => {
+      const at = node.children.indexOf(before);
+      const was = child.parentElement;
+      if (was) was.children.splice(was.children.indexOf(child), 1);
+      child.parentElement = node;
+      node.children.splice(at === -1 ? node.children.length : at, 0, child);
+      created.push(child);
       return child;
     },
     remove: function () {
@@ -308,6 +326,10 @@ function fakeDom() {
       },
       hover: (node) => {
         hovered = node;
+      },
+      /** Scroll the page, as the wheel or the scrollbar would. */
+      scroll: () => {
+        for (const fn of bucket(win, "scroll", "bubble")) fn({});
       },
       /** A page element with text in it, as the pointer would find one. */
       el: (tag, attrs) => text(tag, attrs?.text ?? "", attrs?.style ?? {}, attrs?.rect),
@@ -585,6 +607,31 @@ const press = (app, key) => {
   for (const fn of icon.bubbles.click.bubble) fn({});
   return icon;
 };
+
+/** Pick a named row out of the open control. */
+const pickOption = (pop, title) => {
+  const row = pop.children.flatMap((c) => c.children).find((b) => b.title === title);
+  assert.ok(row, `no option "${title}" in the open control`);
+  for (const fn of row.bubbles.click.bubble) fn({});
+  return row;
+};
+
+/** Move the popover's nth slider to a value, as a user would drag it. */
+const drag = (open, index, value) => {
+  const input = open.children[index].children[0];
+  assert.ok(input, `no slider at ${index}`);
+  input.value = value;
+  for (const fn of input.bubbles.input.bubble) fn({});
+  return input;
+};
+
+/** The open control, as the dock holds it. */
+const pop = (app) => app.root.nodes.pop;
+
+/** Every node a container holds, however deep. */
+const all = (el) => [el, ...(el.children ?? []).flatMap(all)];
+/** The first input of a type in an open control. */
+const inputOf = (open, type) => all(open).find((n) => n.type === type);
 /** The text of a container, which the stub does not accumulate for us. */
 const shown = (el) =>
   [el.tagName === undefined ? (el.nodeValue ?? "") : el.innerHTML,
@@ -698,22 +745,23 @@ test("the dock opens on text and stays shut on anything else", () => {
   assert.equal(app.root.nodes.dock.hidden, true, "a container is not this dock's business");
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
-  // Seven icons, one per type control, each with a name for a tooltip.
+  // Seven type icons and the `+`, each with a name for a tooltip.
   const row = app.root.nodes.row;
-  assert.equal(row.children.length, 7);
+  assert.equal(row.children.length, 9);
   assert.deepEqual(
     row.children.map((b) => b.dataset.key),
-    ["family", "weight", "size", "line", "tracking", "align", "decorate"]
+    ["family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"]
   );
   for (const icon of row.children) assert.match(icon.attributes["aria-label"], /\w/);
-  // Six drawn as SVG and one as a letterform: Aa is the face panel's own mark.
+  // Six drawn as SVG and two as letterforms: Aa is the face panel's own mark.
   // The stub does not parse markup, so this reads what the payload handed over —
-  // enough to catch a glyph that ships empty, which is how the icons went missing.
+  // and the A with a swatch under it is the colour of the words. Enough to catch a
+  // glyph that ships empty, which is how the icons went missing.
   const glyphs = row.children.map((b) => b.innerHTML);
-  assert.equal(glyphs.filter((g) => g.includes("<svg")).length, 6);
+  assert.equal(glyphs.filter((g) => g.includes("<svg")).length, 7, "six type icons and the +");
   assert.deepEqual(
     glyphs.filter((g) => g.startsWith("<i")).map((g) => g.replace(/<[^>]+>/g, "")),
-    ["Aa"]
+    ["Aa", "A"]
   );
   assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it does not scroll away");
   assert.match(app.root.innerHTML, /#dock\{[^}]*bottom:24px/, "and it sits at the bottom of the viewport");
@@ -1001,4 +1049,491 @@ test("deselecting reports no kind at all", () => {
   });
   assert.equal(app.root.selection(), null);
 });
+
+test("selecting text makes the words editable where they sit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
+  // plaintext-only, not true: pasting must not paste markup into the page.
+  assert.notEqual(p.getAttribute("contenteditable"), "true");
+});
+
+test("the words are typed into, not replaced by a panel input", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  // The element itself is the field: typing lands in it and there is nothing to
+  // commit, because a browser editing contenteditable mutates the node directly.
+  assert.equal(p.textContent, "hello");
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
+});
+
+test("selecting something else takes the caret off the old words", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const first = selectText(app);
+  const second = app.el("h1", { text: "Edityy" });
+  app.hover(second);
+  app.clickPage();
+  assert.equal(first.getAttribute("contenteditable"), undefined, "the old element is handed back");
+  assert.equal(second.getAttribute("contenteditable"), "plaintext-only");
+});
+
+test("exiting the mode gives the words back to the page", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(p.getAttribute("contenteditable"), undefined);
+});
+
+test("a container gets no caret, because its children are not text to rewrite", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const card = el("section");
+  quiet(() => {
+    app.click();
+    app.hover(card);
+    app.clickPage();
+  });
+  assert.equal(card.getAttribute("contenteditable"), undefined);
+});
+
+test("an element with child elements takes no caret, because typing would take them", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  // A heading holding an <em>: text to the dock, but its words are not leaf text
+  // and setText() would rewrite textContent and lose the emphasis.
+  const heading = el("h1");
+  const em = el("em");
+  em.childNodes = [{ nodeType: 3, nodeValue: "there" }];
+  // childNodes is what a real DOM keeps element children in too.
+  heading.childNodes = [{ nodeType: 3, nodeValue: "Be " }, em];
+  heading.children = [em];
+  em.parentElement = heading;
+  heading.textContent = "Be there";
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.clickPage();
+  });
+  assert.equal(app.root.selection().kind, "text", "still text, so the dock opens");
+  assert.equal(heading.getAttribute("contenteditable"), undefined, "but the words are not rewritten");
+});
+
+test("the words being edited get no second ring on top of Edityy's own frame", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  // The browser draws a focus ring on any focused element. Edityy already draws
+  // a selection frame, so the words ended up with two outlines, one of them not
+  // ours. The frame is the ring.
+  assert.equal(p.style.getPropertyValue("outline"), "none");
+});
+
+test("an element that had an outline of its own gets it back on exit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  // Reverted through the same record as every other change, so nothing is left.
+  assert.equal(p.style.getPropertyValue("outline"), "", "no leftover outline style");
+});
+
+test("typing edits in place, where the caret was put", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  // The payload must not rewrite textContent to make an element editable: that
+  // destroys the text node and the browser drops the caret at the start, so
+  // clicking the middle of a line always typed at the beginning.
+  assert.equal(p.textContent, "hello", "the words were not rewritten");
+  assert.equal(p.childNodes.length, 1, "and the node the caret sits in still exists");
+});
+
+test("the selection frame follows the element as it grows and shrinks", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 60, width: 100, height: 40 });
+  quiet(() => {
+    press(app, "size");
+    // The dock writes a style, which reflows the element.
+  });
+  const frame = app.root.nodes.sel;
+  assert.equal(frame.style.width, "108px", "measured after the change");
+  // Now it changes height — words wrapping onto another line, say.
+  p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 140, width: 100, height: 120 });
+  // input, not keydown: keydown fires before the browser has changed the
+  // words, so measuring there would catch the element as it was.
+  quiet(() => app.fire("input", { target: p }));
+  return new Promise((done) =>
+    setTimeout(() => {
+      assert.equal(frame.style.height, "128px", "the box grew with the text");
+      assert.equal(frame.style.top, "16px");
+      done();
+    }, 5),
+  );
+});
+
+test("the selection frame follows the page when it scrolls", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 60, width: 100, height: 40 });
+  quiet(() => app.hover(p), app.clickPage());
+  assert.equal(app.root.nodes.sel.style.top, "16px", "4px standoff");
+  // Scrolling moves the element up the viewport; the frame is viewport-fixed and
+  // has to move with it or it is left behind, pointing at nothing.
+  p.getBoundingClientRect = () => ({ left: 10, top: -180, right: 110, bottom: -140, width: 100, height: 40 });
+  quiet(() => app.scroll());
+  assert.equal(app.root.nodes.sel.style.top, "-184px", "the frame moved with the page");
+});
+
+test("scrolling drops the hover frame, whose element has nothing to do with the pointer now", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const heading = text("h1", "Edityy");
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    app.fire("mousemove", { clientX: 10, clientY: 10 });
+  });
+  assert.equal(app.root.nodes.hover.hidden, false);
+  quiet(() => app.scroll());
+  assert.equal(app.root.nodes.hover.hidden, true);
+});
+
+test("text colour writes color, which is the colour of the words", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "color"));
+  const swatch = inputOf(pop(app), "color");
+  assert.ok(swatch, "a colour control");
+  swatch.value = "#86546b";
+  for (const fn of swatch.bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("color"), "#86546b");
+  // The text fill IS the text colour; fill is the box behind it.
+  assert.equal(p.style.getPropertyValue("background-color"), "", "the background is not touched");
+});
+
+test("fill and border are the box, and are behind the + rather than in the dock", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
+  assert.ok(!keys().includes("fill"), "not in the primary dock");
+  assert.ok(!keys().includes("border"), "nor border");
+
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Fill");
+  });
+  let swatch = inputOf(pop(app), "color");
+  swatch.value = "#d79eac";
+  for (const fn of swatch.bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("background-color"), "#d79eac");
+  assert.equal(p.style.getPropertyValue("color"), "", "fill is not the text colour");
+
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Border");
+  });
+  swatch = inputOf(pop(app), "color");
+  swatch.value = "#3a283c";
+  for (const fn of swatch.bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("border-color"), "#3a283c");
+});
+
+test("a border colour comes with a width, or it is a colour nobody sees", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Border");
+  });
+  // A colour on a zero-width border paints nothing at all.
+  // The width slider is the second row: the colour bar is the first.
+  drag(pop(app), 1, 2);
+  assert.equal(p.style.getPropertyValue("border-width"), "2px");
+  assert.equal(p.style.getPropertyValue("border-style"), "solid", "a width with no style is still nothing");
+
+  drag(pop(app), 1, 0);
+  assert.equal(p.style.getPropertyValue("border-width"), "0px");
+  assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
+});
+
+test("no colour of ours is offered, because a site has never heard of our palette", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  quiet(() => press(app, "color"));
+  const open = pop(app);
+  // The native picker and nothing else. Offering our own ramp put one click
+  // between a teal brand and a plum that belongs to us.
+  assert.equal(all(open).filter((n) => n.className === "ic swatch").length, 0, "no swatches of ours");
+  assert.equal(all(open).filter((n) => n.type === "color").length, 1, "just the browser picker");
+  const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
+  // Nothing invents a colour to fall back on: an element whose colour is a name
+  // or an rgb() leaves the UA default alone rather than showing a colour of ours.
+  assert.doesNotMatch(source, /swatch\.value = .*#3a283c/, "no plum standing in for an unknown colour");
+});
+
+test("the text-colour glyph wears the element own colour, not one of ours", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  p.style.setProperty("color", "rgb(0, 105, 92)");
+  app.hover(p);
+  app.clickPage();
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
+  // The bar under the A is a readout of this site. Painting it plum on every
+  // site claims the site is that colour.
+  assert.doesNotMatch(icon.innerHTML, /background:#3a283c/, "no colour baked into the glyph");
+  // There is nowhere left to read a hex: style.color and getComputedStyle both
+  // answer rgb(), so the only route back to a hex is converting what the page
+  // wrote — which is arithmetic, not invention.
+  p.style.setProperty("color", "rgb(0, 105, 92)");
+  assert.match(icon.innerHTML, /id="swatch-color"/, "a bar that shows the element own colour");
+});
+
+
+test("a control added to one element is not on the dock of another", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const first = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  assert.ok(
+    app.root.nodes.row.children.some((b) => b.dataset.key === "blur"),
+    "the element it was added to has it",
+  );
+
+  // A different element, same session.
+  const second = app.el("h1", { text: "Another heading" });
+  app.hover(second);
+  app.clickPage();
+  const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
+  assert.deepEqual(
+    keys(),
+    ["family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"],
+    "and the next one does not",
+  );
+
+  // Back to the first, and it is still there.
+  app.hover(first);
+  app.clickPage();
+  assert.ok(keys().includes("blur"), "the control belongs to its own element");
+});
+
+test("each element keeps its own additions", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const first = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  const second = app.el("h1", { text: "Second" });
+  app.hover(second);
+  app.clickPage();
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Contrast");
+  });
+  const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
+  assert.deepEqual(keys(), ["contrast", "family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"]);
+
+  app.hover(first);
+  app.clickPage();
+  assert.deepEqual(
+    keys(),
+    ["blur", "family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"],
+    "the first element keeps only its own",
+  );
+});
+
+test("an icon's stroke follows the button, so an open control's icon stays visible", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const css = app.root.innerHTML;
+  // `*{color:...}` reaches the <path> as well as the <svg>, and a path stroked
+  // with currentColor resolves against its OWN colour — so a universal colour
+  // painted every icon the same plum, and an open control is that plum: an icon
+  // the exact colour of its own background. The colour goes on :host instead.
+  assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
+  assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
+  assert.match(css, /\.ic svg\{[^}]*stroke:currentColor/, "and the paths are stroked from it");
+});
+
+test("the dock ends in a + that adds a control to the row", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const row = app.root.nodes.row;
+  const plus = row.children[row.children.length - 1];
+  assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
+  assert.match(plus.innerHTML, /<path d="M9 3\.5v11M3\.5 9h11"/, "a plus sign, drawn");
+  const before = row.children.length;
+  quiet(() => press(app, "+"));
+  // What it offers is the five additions, as a list under the dock.
+  const pop = app.root.nodes.pop;
+  assert.deepEqual(
+    pop.children[0].children.map((b) => b.title),
+    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border"],
+  );
+  // Picking one puts it in the row, and opens the control that was just picked.
+  quiet(() => pickOption(pop, "Blur"));
+  assert.equal(row.children.length, before + 1);
+  const added = row.children.find((b) => b.dataset.key === "blur");
+  assert.ok(added, "the new icon is in the row");
+  assert.equal(added.getAttribute("aria-expanded"), "true", "and its control is open");
+  assert.ok(added.innerHTML.startsWith("<svg"), "drawn like every other icon");
+});
+
+test("a control can only be added once", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+    press(app, "+");
+  });
+  const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
+  // Blur is gone because this element has it; the two new box controls are still
+  // on offer, since only Blur was ever added.
+  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border"]);
+});
+
+test("a filter slider writes the filter, and leaves the others alone", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Brightness");
+  });
+  drag(pop(app), 0, 180);
+  assert.match(p.style.getPropertyValue("filter"), /brightness\(180%\)/);
+  assert.doesNotMatch(p.style.getPropertyValue("filter"), /blur\(/, "nothing else invented");
+});
+
+test("a decimal filter survives being read back, because half a pixel is a step", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  drag(pop(app), 0, 4);
+  drag(pop(app), 0, 0.5);
+  assert.equal(p.style.getPropertyValue("filter"), "blur(0.5px)", "an integer-only read loses this");
+});
+
+test("a filter back at its default leaves no filter behind", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Greyscale");
+  });
+  drag(pop(app), 0, 100);
+  assert.match(p.style.getPropertyValue("filter"), /grayscale\(100%\)/);
+  drag(pop(app), 0, 0);
+  assert.equal(p.style.getPropertyValue("filter"), "", "the filter is gone, not zero");
+});
+
+test("a range input hands over a string, and a filter at its default must still count", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  // What the DOM actually does: input.value is a string, so "0" !== 0 and a
+  // filter dragged home would be written as blur(0px) and never leave.
+  const input = pop(app).children[0].children[0];
+  input.value = "0";
+  for (const fn of input.bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("filter"), "", 'the string "0" is still zero');
+});
+
+test("a shadow is written as one shorthand, because the offsets have no longhand", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Shadow");
+  });
+  const bars = app.root.nodes.pop.children;
+  assert.equal(bars.length, 5, "four lengths and a colour");
+  // Strings, as a range input reports them: "0" is truthy, so a shadow that
+  // casts nothing would be written as 0px 0px 0px 0px and never clear.
+  drag(pop(app), 1, "10"); // y offset
+  drag(pop(app), 2, "24"); // blur
+  // Five invented properties would draw nothing at all: CSS has no
+  // box-shadow-offset-x outside an @property registration.
+  assert.match(p.style.getPropertyValue("box-shadow"), /10px 24px/, "x, y, blur, spread, colour");
+  assert.equal(p.style.getPropertyValue("box-shadow-offset-x"), "", "and no invented longhand");
+  // Back to nothing: four zeroes and a colour cast nothing, so nothing is written.
+  for (const i of [0, 1, 2, 3]) drag(pop(app), i, "0");
+  assert.equal(p.style.getPropertyValue("box-shadow"), "", "no shadow left behind");
+});
+
+test("two filters coexist, because one drag must not throw the other away", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+    drag(pop(app), 0, 8);
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Greyscale");
+    drag(pop(app), 0, 100);
+  });
+  // The stub hands back the inline value verbatim, where a browser would hand
+  // back "none" for the filter that is not there yet — which is the case this
+  // has to survive.
+  assert.match(p.style.getPropertyValue("filter"), /blur\(8px\)/);
+  // Spelled "grayscale", not "greyscale": Chrome never implemented the standard
+  // name, and one unknown function invalidates the whole list — asking for it
+  // would take the blur down with it.
+  assert.match(p.style.getPropertyValue("filter"), /grayscale\(100%\)/);
+});
+
+test("every change is still undone on exit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+    drag(pop(app), 0, 12);
+  });
+  assert.match(p.style.getPropertyValue("filter"), /blur\(12px\)/);
+  quiet(() => app.fire("keydown", { key: "Escape" })); // the control
+  quiet(() => app.fire("keydown", { key: "Escape" })); // then the mode
+  assert.equal(p.style.getPropertyValue("filter"), "", "the page is back as it was");
+});
+
+
+
+
+
+
+
 

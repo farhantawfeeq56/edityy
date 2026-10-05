@@ -11,26 +11,23 @@
  * 2. A temporary editing mode. There is no second control: the orb itself
  *    shrinks into the pointer, so the thing the user clicked is the thing that
  *    follows them. Hovering any element outlines it and clicking selects it.
- *    That is the whole interface for now — selection with no panel attached.
  *    `kind()` classifies what was picked as text, container or media before
  *    anything else happens, and `root.selection()` reports it.
  *
- * The machinery for changing an element is still here and still correct —
- * apply() writes an inline style, remembers what was there, and revert() puts
- * it back — but no UI calls it yet. Nothing is written anywhere: the codebase is
- * the source of truth, and this file only ever changes the page in memory, until
- * a reload.
+ * Selecting text puts the caret in it, so the words are editable where they
+ * sit; selecting anything opens a dock that changes it. The dock starts as the
+ * seven type controls and one `+`, and picking from the `+` adds a control —
+ * shadow, blur, brightness, greyscale, contrast — as another icon in the row.
+ *
+ * Everything here is still in memory only: apply() writes an inline style,
+ * remembers what was there, and revert() puts it back on exit. Nothing is
+ * written to the codebase, which stays the source of truth.
  *
  * Browser IIFE on purpose: this file is served to the page as-is, so it cannot
  * be a module.
  */
 (function () {
   "use strict";
-
-  // The change backend — apply, setText, isLeafText, label, selectedKind — is
-  // deliberately parked, not dead: there is no panel to call it right now, and
-  // deleting it would throw away working code that the next UI needs as-is.
-  /* eslint-disable @typescript-eslint/no-unused-vars */
 
   if (window.__edityy) return; // a shared layout can render the tag more than once
   window.__edityy = true;
@@ -49,12 +46,22 @@
   // nothing pure black or pure white.
   root.innerHTML = [
     "<style>",
-    ":host{all:initial}",
+    // all:initial and the colour on ONE rule: a second :host{color} later in the
+    // sheet would win, but `all:initial` resets colour itself, so a :host{color}
+    // written before it is wiped and every icon goes back to its own plum.
+    ":host{all:initial;color:#3a283c}",
     // `all:initial` severs inheritance, so the payload names a font itself. It must
     // not name the host's: this package runs on other people's codebases, and a
     // face invented here would not match the site being edited. The machine own
     // UI face dresses the chrome instead — the controls are Edityy's, not the page's.
-    "*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;color:#3a283c}",
+    //
+    // The colour goes on :host, not on *. A universal colour reaches the <path>
+    // inside an icon as well as its <svg>, and since those paths are stroked with
+    // currentColor they resolve against their OWN colour — which is this plum on
+    // every button. An open control paints itself #3a283c, so its icon was the
+    // same colour as its own background: invisible. On :host it is inherited
+    // down to the button and stops there.
+    "*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
     // The text dock: seven icons in a row and, above them, the one control that is
     // open. Fixed, so it holds still while the page scrolls under it, and below
@@ -74,7 +81,8 @@
     ".ic:hover{background:#3a283c0f}",
     ".ic:active{transform:scale(.92)}",
     ".ic[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
-    ".ic svg{width:18px;height:18px;display:block;color:inherit}",
+    ".ic.add{color:#86546b}",
+    ".ic svg{width:18px;height:18px;display:block;color:inherit;stroke:currentColor}",
     // Type controls are their own glyphs: a letterform says "this is about type"
     // faster than any abstract mark could. color:inherit is not optional: the
     // universal * rule above sets a colour on every element, so a glyph would
@@ -83,6 +91,12 @@
     ".g.serif{font-family:Georgia,\"Times New Roman\",serif;font-weight:400;font-size:16px}",
     ".g.heavy{font-weight:800}",
     ".g.thin{font-size:13px}",
+    // The swatch is a real control, so it takes focus and shows focus: an inline
+    // <i> would be invisible to the keyboard and unreachable by the pointer.
+    // The bar wears the element own colour once one is selected, and is a bare
+    // outline until then: an empty swatch is honest about knowing nothing, where
+    // a swatch painted in our plum would claim the site is that colour.
+    ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons.
@@ -127,6 +141,12 @@
     "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:#3a283c59}",
     "input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;",
     "background:#3a283c;cursor:grab}",
+    // The swatch that picks a shadow's colour. The UA renders it as a rounded
+    // rectangle with a border, which would not sit in the ramp next to the rest.
+    "input[type=color]{width:44px;height:30px;padding:0;border:1px solid #3a283c26;border-radius:8px;",
+    "background:#f9f2ee;cursor:pointer}",
+    "input[type=color]::-webkit-color-swatch-wrapper{padding:3px}",
+    "input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}",
     "input[type=number]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
     // paints them in its own light grey, which is invisible on paper.
@@ -187,6 +207,9 @@
   var dock = $("dock");
   var row = $("row");
   var pop = $("pop");
+  // The `+` sits at the end of the row and a revealed control goes in before it,
+  // so adding one grows the row leftwards from the button that added it.
+  var addBtn = null;
 
   // The font stacks a machine already has. No webfonts: the editor must not
   // change what the page loads, only what it looks like. The first entry is the
@@ -196,6 +219,9 @@
   // The kind of the current selection. Nothing reads it yet — there is no panel —
   // but root.selection() reports it and it is the first thing any UI will want.
   var selectedKind = null; // "text" | "container" | "media"
+  // The element whose words are being typed into, if any. One at a time: a new
+  // selection closes the last, or two elements would both take the caret.
+  var editing = null;
   var changes = []; // { el, props: {longhand: value-before}, text: value-before, textEdited: bool }
 
   /* ------------------------------------------------------------ selection */
@@ -211,11 +237,10 @@
 
   /** Text we can rewrite as a single string: no child elements to destroy. */
   function isLeafText(el) {
-    var nodes = el.childNodes;
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].nodeType === 1) return false;
-    }
-    return hasOwnText(el);
+    // children, not childNodes: an element child is in both, a text node only in
+    // childNodes. A container is a container either way, so the one list that
+    // holds every element is the one to read.
+    return !el.children.length && hasOwnText(el);
   }
 
   /**
@@ -318,16 +343,67 @@
       rec.props[prop] = selected.style.getPropertyValue(prop);
       rec.set[prop] = new RegExp("(?:^|;)\\s*" + prop + "\\s*:").test(selected.style.cssText);
     }
+    // `value` is a string, and "" means "not set": removeProperty empties it
+    // without leaving a declaration behind, while setProperty("") would write one
+    // that overrides the stylesheet with nothing — the bug a control that writes
+    // "" to mean "off" would otherwise cause, and silently break the revert too,
+    // since an empty value records nothing to put back.
     if (value) selected.style.setProperty(prop, value);
     else selected.style.removeProperty(prop); // back to the stylesheet's value
     return rec;
   }
 
-  function setText(el, value) {
+  /* ---------------------------------------------------------- text editing */
+
+  /**
+   * Put the caret in an element's own words.
+   *
+   * Only leaf text — an element with child elements is left alone, because
+   * a textContent rewrite would destroy them. The before value is
+   * The before value is recorded so revert() still knows what the page said
+   * before this session touched it.
+   *
+   * `plaintext-only` and not `true`: pasting a word must not paste a <span> with
+   * a style on it. A browser that does not know the value still types, because
+   * it reads an unknown value as editable.
+   *
+   * Only leaf text gets a caret. An element that holds child elements as well as
+   * words is still text as far as the dock is concerned — a heading with an <em>
+   * in it takes a font size — but rewriting its text would take the <em> too.
+   */
+  function editText(el) {
+    if (editing && editing !== el) stopEditing();
+    if (!el || !isLeafText(el)) return;
+    // The before value is taken WITHOUT writing it back. Assigning textContent
+    // destroys the text node and builds a new one, so the browser loses the caret
+    // position and puts it at the start — which is why clicking the middle of a
+    // line always typed at the beginning. Nothing is written here; the browser
+    // mutates the node itself once it is editable. The record is told the before
+    // value so revert() can put it back, but the text is only READ: assigning it
+    // would throw the caret away.
     var rec = record(el);
     if (rec.text === null) rec.text = el.textContent;
-    el.textContent = value;
-    return rec;
+    el.setAttribute("contenteditable", "plaintext-only");
+    // No focus ring. The browser draws one on any focused element, and on the
+    // words being edited it lands as a second outline right on top of the frame
+    // Edityy already draws — so the element gets two rings, one of them not
+    // ours. Set inline because this element is the page's, not ours: a rule in
+    // the shadow root cannot reach it, and a class would change the page.
+    // outline: none rather than a custom ring, because the frame is the ring.
+    el.style.setProperty("outline", "none");
+    editing = el;
+    if (el.focus) el.focus();
+  }
+
+  /** Give the words back to the page: no longer editable, and no caret. */
+  function stopEditing() {
+    if (!editing) return;
+    editing.removeAttribute("contenteditable");
+    // The outline goes with it, through the same record that reverts everything
+    // else: an element that had an outline of its own gets it back.
+    apply("outline", "");
+    if (editing.blur) editing.blur();
+    editing = null;
   }
 
   /** Undo every property and the text of one element. */
@@ -355,9 +431,56 @@
     frame.style.height = rect.height + GAP * 2 + "px";
   }
 
-  /** Draw the selection frame. There is no panel to place, so this is all a
-      selection does for now: the frame is the whole visible result. */
+  /**
+   * Paint the text-colour glyph with the colour the element actually has.
+   *
+   * Read from the element rather than painted in: the bar under the A is a
+   * readout of this site, and a fixed colour on it would be a lie about every
+   * site that is not ours. Left transparent when the element has no hex colour
+   * of its own — a name or an rgb() is a real colour, and the bar is honest
+   * about not being able to show it rather than guessing.
+   */
+  function paintSwatch() {
+    if (!selected) return;
+    // Found by walking the row rather than by id: the bar is markup inside the
+    // icon's own innerHTML, not an element of its own.
+    var icon = slot("color");
+    var bar = icon && icon.querySelector ? icon.querySelector("#swatch-color") : null;
+    if (!bar) return;
+    var current = hex();
+    // Left transparent when the colour is a name or an rgb() we cannot express
+    // as a hex: the bar is a readout, and a readout that guesses is a lie.
+    bar.style.background = current;
+  }
+
+  /**
+   * The element's own colour as a hex, or "" when it cannot be one.
+   *
+   * There is nowhere left to read a hex from. `style.color` is normalised to
+   * `rgb(0, 105, 92)` the moment it is set, and getComputedStyle only ever
+   * answers in the same form — so the only way back to a hex is to convert, and
+   * that is arithmetic on a value the page wrote, not a value we invented.
+   *
+   * Anything that is not a plain rgb/rgba is refused rather than guessed at: a
+   * named colour, an hsl() or an oklch() would need a colour space this file
+   * has no business implementing, and a swatch that lies about a site is worse
+   * than a swatch that shows nothing.
+   */
+  function hex() {
+    if (!selected) return "";
+    var v = get("color").trim();
+    var m = v.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+    if (!m) return "";
+    return "#" + [m[1], m[2], m[3]].map(function (n) {
+      // Clamped and rounded: a computed channel can be 254.9999, and a hex needs
+      // a whole number or the browser will not take it.
+      return ("0" + Math.max(0, Math.min(255, Math.round(Number(n)))).toString(16)).slice(-2);
+    }).join("");
+  }
+
+  /** Draw the selection frame and reveal whatever the new selection can edit. */
   function select(el, hit) {
+    stopEditing(); // the caret belongs to the old selection, never to both
     selected = el;
     // The kind comes from the pick, because a form control is text by way of the
     // walk rather than by way of `kind()`: it has no text node of its own.
@@ -365,15 +488,23 @@
     if (!el) {
       selBox.hidden = true;
       syncDock();
+      paintSwatch();
       return;
     }
     selBox.hidden = false;
     place(selBox, el.getBoundingClientRect(), el);
+    // Words become editable where they sit; nothing else gets a caret, because
+    // textContent over a container would destroy the child elements in it.
+    if (selectedKind === "text") editText(el);
     syncDock();
+    // After syncDock, not before: the dock is what builds the row, so on the
+    // first selection there is no colour icon to paint yet and the bar stayed
+    // empty on the element that matters most — the first one you click.
+    paintSwatch();
   }
 
-  // What is selected, and what it was classified as. Nothing reads this yet —
-  // there is no panel — but it is the seam any UI starts from, so it stays.
+  // What is selected, and what it was classified as. The seam any UI starts
+  // from, so it stays.
   root.selection = function () {
     return selected ? { el: selected, kind: selectedKind } : null;
   };
@@ -503,6 +634,33 @@ function faces() {
     { v: "italic", label: "Italic", icon: '<path d="M12 4H7M9 14h5M10.5 4l-3 10"/>' },
   ];
 
+  // The filters, as data. Blur is the only one that takes a length; the other
+  // four are percentages, and no webkit prefix: every engine that matters has
+  // supported the unprefixed name for years and a second declaration per filter
+  // is one more thing to keep in step.
+  //
+  // `write` is the CSS that gets set, `find` is how the current value is read
+  // back. They cannot be the same string: `blur(Npx)` is a filter function when
+  // written, but as a pattern its parentheses are a capture group, so it matches
+  // `blur8px` and never `blur(8px)` — the value then reads as "off" and the next
+  // filter's drag throws this one away. So the parens are escaped for reading.
+  //
+  // The shipped values are the CSS defaults, so "off" is the absence of a filter
+  // rather than a set of zeroes. Adding one of these controls must not change
+  // how the element looks before the user has touched the slider.
+  // ponytail: greyscale is spelled "grayscale" here on purpose. Chrome has never
+  // implemented `greyscale()`, and one unknown function does not merely drop
+  // itself — it invalidates the whole `filter` list, so asking for greyscale
+  // silently took the blur and the brightness with it. The alias works
+  // everywhere the standard name does.
+  var FILTERS = [
+    { key: "shadow", label: "Shadow" },
+    { key: "blur", label: "Blur", prop: "filter", min: 0, max: 40, step: 0.5, unit: "px", fallback: 0, write: "blur", find: "blur\\((\\d*\\.?\\d+)px\\)" },
+    { key: "brightness", label: "Brightness", prop: "filter", min: 0, max: 300, step: 1, unit: "%", fallback: 100, write: "brightness", find: "brightness\\((\\d*\\.?\\d+)%\\)" },
+    { key: "greyscale", label: "Greyscale", prop: "filter", min: 0, max: 100, step: 1, unit: "%", fallback: 0, write: "grayscale", find: "grayscale\\((\\d*\\.?\\d+)%\\)" },
+    { key: "contrast", label: "Contrast", prop: "filter", min: 0, max: 300, step: 1, unit: "%", fallback: 100, write: "contrast", find: "contrast\\((\\d*\\.?\\d+)%\\)" },
+  ];
+
   // Hairline icons: two strokes, round caps, 1.5 on an 18px grid. Enough that the
   // dock reads as one family without shipping an icon font for seven glyphs.
   var svg = function (body) {
@@ -552,6 +710,28 @@ function faces() {
       label: "Text decoration",
       glyph: svg('<path d="M4.5 11 7.5 4 10.5 11M5.5 8.5h4M4 14h7"/>'),
     },
+    // A letterform painted in: the colour the words themselves are.
+    // An A over a bar that shows the element own colour once one is selected.
+    // It starts empty rather than wearing a colour of ours: a swatch that does
+    // not match the site reads as the site being that colour.
+    { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
+  ];
+
+  // The `+`, and the one control it opens: the five things that are not type.
+  // Shown as options rather than five more icons in the dock, because the dock is
+  // the controls you have and the `+` is the ones you might want.
+  var ADD = [
+    { key: "shadow", label: "Shadow", glyph: svg('<rect x="3" y="6" width="9" height="9" rx="1.5"/><path d="M6 13.5h9"/>') },
+    { key: "blur", label: "Blur", glyph: svg('<circle cx="9" cy="9" r="5.5"/><path d="M6.5 4.5 4 2M11.5 4.5 14 2M3 9H.5M15 9h2.5"/>') },
+    { key: "brightness", label: "Brightness", glyph: svg('<circle cx="9" cy="9" r="3.5"/><path d="M9 2v1.5M9 14.5V16M2 9h1.5M14.5 9H16M4 4l1 1M14 4l-1 1M4 14l1-1M14 14l-1-1"/>') },
+    { key: "greyscale", label: "Greyscale", glyph: svg('<circle cx="9" cy="9" r="6"/><path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>') },
+    { key: "contrast", label: "Contrast", glyph: svg('<circle cx="9" cy="9" r="6"/><path d="M9 3v12" /><path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>') },
+
+    // Fill and border are about the box, not the words: an element has a
+    // background and a border, and its text has neither — a text fill is the
+    // text colour, which is in the primary dock, and text has no border at all.
+    { key: "fill", label: "Fill", glyph: svg('<path d="M3.5 8.5 9 3l5.5 5.5v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M7 15.5v-4h4v4"/>') },
+    { key: "border", label: "Border", glyph: svg('<rect x="3.5" y="3.5" width="11" height="11" rx="1.5"/><path d="M3.5 7h11"/>') },
   ];
 
   /** A button in the dock, or an option inside one control. */
@@ -585,20 +765,25 @@ function faces() {
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
-    ICONS.forEach(function (icon) {
-      var b = row.children[ICONS.indexOf(icon)];
-      b.setAttribute("aria-expanded", icon.key === key ? "true" : "false");
-    });
+    // Dressed by data-key, not by position: the row is rebuilt per selection and
+    // the added controls sit in front of the seven, so index i is not icon i.
+    for (var i = 0; i < row.children.length; i++) {
+      row.children[i].setAttribute("aria-expanded", row.children[i].dataset.key === key ? "true" : "false");
+    }
     if (!key) {
       pop.hidden = true;
       return;
     }
     pop.hidden = false;
-    CONTROLS[key]();
+    // `+` is not a control and is not in ICONS, so it needs its own way in. Every
+    // other key is either one of the seven or one that the `+` just added, and
+    // both are in CONTROLS by the time the row shows them.
+    if (key === "+") addOne();
+    else CONTROLS[key]();
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
-  function options(items, current, onPick, label) {
+  function options(items, current, onPick, font) {
     var list = document.createElement("div");
     list.className = "list";
     items.forEach(function (item) {
@@ -616,7 +801,7 @@ function faces() {
       }, value);
       // The label is added rather than passed in, because a face name is text and
       // text is a node — there is no markup to parse it out of.
-      b.appendChild(text(label(item)));
+      b.appendChild(text(font ? font(item) : item.label));
       // cssText rather than the property: a face stack is commas and quotes, and
       // the shorthand carries them through without the DOM re-parsing anything.
       b.style.cssText = "font-family:" + item.stack;
@@ -631,7 +816,9 @@ function faces() {
     for (var i = 0; i < pop.children.length; i++) {
       var rows = pop.children[i].children;
       for (var j = 0; rows && j < rows.length; j++) {
-        if (rows[j].getAttribute("aria-pressed") !== null) {
+        // A control can hold anything, not only buttons — a label is a text node
+        // and has no aria-pressed to move. Only an option carries one.
+        if (rows[j].getAttribute && rows[j].getAttribute("aria-pressed") !== null) {
           rows[j].setAttribute("aria-pressed", rows[j].dataset.key === value ? "true" : "false");
         }
       }
@@ -717,11 +904,122 @@ function icons(items, current, onPick) {
     pop.appendChild(row);
   }
 
+  /**
+   * A shadow, written out as the shorthand.
+   *
+   * ponytail: CSS has no box-shadow-offset-x. The longhands that look like one
+   * (box-shadow-blur and box-shadow-color) exist only inside an @property
+   * registration, and the offsets and spread have none at all — the browser
+   * drops an unknown property on the floor, so writing five invented ones draws
+   * no shadow at all. One shorthand is the honest way.
+   *
+   * [x, y, blur, spread, colour], with x/y/blur/spread absent meaning 0 — the
+   * same defaults getComputedStyle hands back for a "none" shadow.
+   */
+  function shadow(values) {
+    // Nothing to cast: four zero lengths and a colour draw nothing, so the
+    // property is emptied instead and the element is left as the page had it.
+    var flat = !values[0] && !values[1] && !values[2] && !values[3];
+    set("box-shadow", flat ? "" : values[0] + "px " + values[1] + "px " + values[2] + "px " + values[3] + "px " + values[4]);
+  }
+
+  /** One value off a computed `box-shadow`, read the way the browser wrote it. */
+  function shadowOf(prop, fallback) {
+    var v = get("box-shadow-" + prop).trim();
+    if (!v) return fallback;
+    var n = parseFloat(v);
+    // A colour, or anything the shorthand spelled: handed back as it stands.
+    return isNaN(n) ? v : n;
+  }
+
+  /**
+   * The four filters as one `filter` value, each at its own default unless the
+   * element already uses it.
+   *
+   * A filter list is not additive the way a shadow's lengths are not: writing
+   * `filter: brightness(120%)` would throw away a blur the user set earlier, so
+   * every filter is rebuilt from the four the editor owns. Only those are kept —
+   * a filter the page brought along is dropped the first time a slider moves,
+   * which is a real limitation and only visible on a page that filters itself.
+   */
+  function filters() {
+    var out = {};
+    FILTERS.forEach(function (f) {
+      if (!f.prop) return;
+      // What this session wrote, read off the inline style, not off the cascade.
+      // getComputedStyle mid-drag is a snapshot: re-reading it while a slider is
+      // moving is how a blur gets thrown away by the next filter's drag. The
+      // inline value is exactly what we wrote, and the record keeps it revertable.
+      // A filter the page brought along lives in the cascade, so it is the
+      // fallback rather than the source.
+      var inline = selected.style.getPropertyValue(f.prop);
+      // The filter's own parentheses have to be escaped here (see FILTERS.find):
+      // unescaped they are a capture group and the pattern matches nothing.
+      var found = String(inline || get(f.prop) || "none").match(new RegExp(f.find));
+      out[f.key] = found ? Number(found[1]) : f.fallback;
+    });
+    return out;
+  }
+
+  function setFilter(key, value) {
+    var f = FILTERS.filter(function (x) { return x.key === key; })[0];
+    var all = filters();
+    // A number, not the string a range input hands over: the "is it at its
+    // default" test below is a strict compare, and "0" !== 0 is true, so a
+    // filter dragged back to its default would be written out as blur(0px) and
+    // never leave the element.
+    all[key] = Number(value);
+    // A filter sitting at its default is left out of the list, so dragging one
+    // back to where it started leaves no filter behind at all.
+    var list = FILTERS.filter(function (x) { return x.prop && all[x.key] !== x.fallback; })
+      .map(function (x) { return x.write + "(" + all[x.key] + x.unit + ")"; });
+    set(f.prop, list.length ? list.join(" ") : "");
+  }
+
+  /**
+   * A colour control: the native picker, and nothing else.
+   *
+   * No palette of our own. A colour that is not in the design system of the
+   * site being edited is a colour that appears nowhere in it, and offering four
+   * of ours on every site is worse than offering none — one click from a teal
+   * brand to a plum that belongs to us. So the only colour offered is the one
+   * the element already has, and anything new is the browser own picker, which
+   * is where the OS eyedropper lives.
+   */
+  function colour(prop, current, onPick) {
+    var bar = document.createElement("div");
+    bar.className = "bar2";
+    var swatch = document.createElement("input");
+    swatch.type = "color";
+    // The UA hands a swatch #000 when the value it is given is not a hex, and
+    // a black box for an element whose colour is a name or an rgb() reads as a
+    // bug rather than as a value. Left as the UA default on purpose: a guess
+    // would be a colour we invented, which is the thing this control removed.
+    if (/^#[0-9a-f]{6}$/i.test(current)) swatch.value = current;
+    swatch.title = "Pick a colour";
+    swatch.setAttribute("aria-label", "Pick a colour");
+    swatch.addEventListener("input", function () {
+      onPick(swatch.value);
+    });
+    bar.appendChild(swatch);
+    pop.appendChild(bar);
+  }
+
   /** Everything the payload writes goes through here, so nothing is ever lost. */
   function set(prop, value) {
     if (!selected) return;
     apply(prop, value);
     place(selBox, selected.getBoundingClientRect());
+  }
+
+  /**
+   * A slider for one of the four filters, from the row above: the range, the step
+   * and the unit all live with the filter they belong to, so adding a filter is
+   * one entry in FILTERS and one control that calls this.
+   */
+  function filterSlider(key) {
+    var f = FILTERS.filter(function (x) { return x.key === key; })[0];
+    slider(f.min, f.max, f.step, filters()[key], f.unit, function (v) { setFilter(key, Number(v)); });
   }
 
   var CONTROLS = {
@@ -756,6 +1054,74 @@ function icons(items, current, onPick) {
         return decorate(v);
       });
     },
+    color: function () {
+      // paintSwatch too, so the bar on the icon keeps up with what was just
+      // picked instead of waiting for the next selection to change it.
+      colour("color", hex(), function (v) { set("color", v); paintSwatch(); });
+    },
+    fill: function () {
+      colour("background-color", get("background-color"), function (v) {
+        set("background-color", v);
+      });
+    },
+    border: function () {
+      colour("border-color", get("border-color"), function (v) {
+        set("border-color", v);
+      });
+      // A colour on a border that has no width is a colour nobody sees, so the
+      // width is offered too. A hairline, in the ramp: thick enough to read,
+      // thin enough not to shout.
+      slider(0, 12, 1, num("border-width", 0), "px", function (v) {
+        set("border-width", v + "px");
+        set("border-style", v ? "solid" : "");
+      });
+    },
+    shadow: function () {
+      var read = function () {
+        return [
+          shadowOf("offset-x", 0),
+          shadowOf("offset-y", 0),
+          shadowOf("blur", 0),
+          shadowOf("spread", 0),
+          // No colour of our own to fall back on: the page own shadow colour, or
+        ];
+      };
+      var values = read();
+      // Four sliders, one per length, laid out as a list rather than one row of
+      // four: a row of four drags is four narrow targets for a control judged by
+      // eye, and a shadow is read down a column anyway.
+      [
+        { i: 0, label: "X", min: -40, max: 40 },
+        { i: 1, label: "Y", min: -40, max: 40 },
+        { i: 2, label: "Blur", min: 0, max: 80 },
+        { i: 3, label: "Spread", min: -40, max: 40 },
+      ].forEach(function (field) {
+        slider(field.min, field.max, 1, values[field.i], "px", function (v) {
+          // A number, not the string the input hands over: "0" is truthy, so the
+          // check for a shadow worth writing would never fire.
+          values[field.i] = Number(v);
+          shadow(values);
+        });
+      });
+      var swatch = document.createElement("input");
+      swatch.type = "color";
+      if (/^#[0-9a-f]{6}$/i.test(values[4])) swatch.value = values[4];
+      swatch.title = "Shadow colour";
+      swatch.addEventListener("input", function () {
+        values[4] = swatch.value;
+        shadow(values);
+      });
+      var bar = document.createElement("div");
+      bar.className = "bar2";
+      var name = text("Colour");
+      bar.appendChild(name);
+      bar.appendChild(swatch);
+      pop.appendChild(bar);
+    },
+    blur: function () { filterSlider("blur"); },
+    brightness: function () { filterSlider("brightness"); },
+    greyscale: function () { filterSlider("greyscale"); },
+    contrast: function () { filterSlider("contrast"); },
   };
 
   /** What an element currently has, from the cascade or from a change we made. */
@@ -799,23 +1165,107 @@ function decorate(el) {
   return current;
 }
 
-/** The dock itself: seven icons, and only one control open at a time. */
-  ICONS.forEach(function (icon) {
-    row.appendChild(
-      button("ic", icon.glyph, icon.label, function () {
-        // One open control at a time. Clicking the icon of the control that is
-        // already open closes it; clicking any other replaces what was open.
-        var open = pop.children[0] && row.children[ICONS.indexOf(icon)].getAttribute("aria-expanded") === "true";
-        show(open ? "" : icon.key);
-      }, icon.key)
+/** The dock itself: seven icons, a `+`, and only one control open at a time. */
+  /** Is this control on show for the selected element? The row itself is the
+      only list that matters now that it is rebuilt per element. */
+  function icon(key) {
+    return slot(key);
+  }
+
+  /** The dock's button for a key: icons in the row, plus the `+` at the end. */
+  function slot(key) {
+    for (var i = 0; i < row.children.length; i++) {
+      if (row.children[i].dataset.key === key) return row.children[i];
+    }
+    return null;
+  }
+
+  /** Open this control, or close it if it is the one already open. */
+  function toggle(key) {
+    var open = pop.children[0] && slot(key).getAttribute("aria-expanded") === "true";
+    show(open ? "" : key);
+  }
+
+  var BASE_ICONS = ICONS.slice(); // the seven type controls, the ones always there
+  // The element the row was last built for, so a re-click on the same words keeps it.
+  var rowFor = null;
+
+  /** The controls on show: the seven, plus whatever was added to this element. */
+  function buildRow() {
+    while (row.firstChild) row.removeChild(row.firstChild);
+    // The element's own additions, in the order they were added to it. Read off
+    // the change record rather than a global: the whole point of the `+` is that
+    // the dock does not clutter, and a control added to one element has no
+    // business sitting on every other one.
+    (selected ? addedTo(selected) : []).forEach(function (key) {
+      var item = ADD.filter(function (a) { return a.key === key; })[0];
+      if (item) row.appendChild(button("ic", item.glyph, item.label, function () { toggle(key); }, key));
+    });
+    BASE_ICONS.forEach(function (definition) {
+      row.appendChild(
+        button("ic", definition.glyph, definition.label, function () { toggle(definition.key); }, definition.key)
+      );
+    });
+    addBtn = button("ic add", svg('<path d="M9 3.5v11M3.5 9h11"/>'), "Add a control", function () {
+      toggle("+");
+    }, "+");
+    row.appendChild(addBtn);
+  }
+
+  /** Which optional controls this element has been given, in the order added. */
+  function addedTo(el) {
+    var rec = record(el);
+    return rec.added || [];
+  }
+
+  /** The row starts empty: buildRow() fills it for whichever element is selected. */
+  buildRow();
+
+  /**
+   * The `+` at the end of the row: pick a control and it joins this element's
+   * row, where it looks like it was always there.
+   *
+   * Appended last, and a control picked from it goes in before it, so adding one
+   * grows the row leftwards from the button that added it — the icons already
+   * there do not move under the pointer that just clicked.
+   */
+  function addOne() {
+    // The list of what can be added, with the ones this element already has
+    // gone: an icon that is there cannot be added twice.
+    options(
+      ADD.filter(function (item) { return !icon(item.key); })
+          .map(function (item) { return { v: item.key, label: item.label, stack: "system-ui,sans-serif" }; }),
+      "",
+      function (key) {
+        var item = ADD.filter(function (a) { return a.key === key; })[0];
+        if (!item || !selected || icon(key)) return;
+        // Recorded on the element, so this control belongs to this element and
+        // comes back only for it.
+        var rec = record(selected);
+        rec.added = (rec.added || []).concat(key);
+        buildRow();
+        toggle(key); // straight into the control that was just picked
+      }
     );
-  });
+  }
 
   /** Show the dock only for a text selection, and keep its control open across a
       re-click on the same words, which is the click that starts a drag. */
   function syncDock() {
-    var on = selectedKind === "text";
+    var on = selectedKind === "text" && !!selected;
     dock.hidden = !on;
+    // Rebuilt on every selection, because the row is the selected element's own
+    // dock: the seven type controls, the `+`, and only what this element has been
+    // given. Built here rather than in select() so a re-click on the same words,
+    // which keeps the control open, does not throw the row away mid-drag.
+    // Rebuilt whenever the selection moves to a different element, because the
+    // row belongs to the element: its seven type controls, the `+`, and only
+    // what this element has been given. Tracked by which element the row was
+    // built for, so a re-click on the same words keeps the control that is open.
+    if (on && rowFor !== selected) {
+      buildRow();
+      rowFor = selected;
+    }
     if (!on) show("");
   }
 
@@ -853,10 +1303,14 @@ function decorate(el) {
     document.addEventListener("mousemove", onMove, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKey, true);
+    // input, not keydown: keydown fires before the browser has changed the
+    // words, so measuring there catches the element as it was. This one fires
+    // after, which is when the frame has to be re-measured.
+    document.addEventListener("input", onEdit, true);
     // The frames are viewport-fixed like everything else, so a scroll moves the
     // element out from under them and they must go with it.
-    window.addEventListener("scroll", hideHover, true);
-    window.addEventListener("resize", onResize, true);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", refit, true);
   }
 
   function exit() {
@@ -868,10 +1322,12 @@ function decorate(el) {
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKey, true);
-    window.removeEventListener("scroll", hideHover, true);
-    window.removeEventListener("resize", onResize, true);
+    document.removeEventListener("input", onEdit, true);
+    window.removeEventListener("scroll", onScroll, true);
+    window.removeEventListener("resize", refit, true);
     // Nothing to revert today — no UI writes styles yet — but the backend is
     // here and exiting must always put the page back exactly as it was.
+    stopEditing();
     changes.slice().forEach(revert);
     select(null);
     hideHover();
@@ -882,11 +1338,39 @@ function decorate(el) {
     hoverBox.hidden = true;
   }
 
-  /** A resize can reflow the selection out from under its frame. */
-  function onResize() {
-    if (selected) place(selBox, selected.getBoundingClientRect());
+  /**
+   * The page scrolled: the frames are fixed to the viewport, so the element has
+   * moved and the selection frame has to move with it. The hover frame is
+   * dropped instead, because where the pointer now is has nothing to do with
+   * what it was over a moment ago.
+   */
+  /**
+   * The words changed while they were being edited — typed, pasted, deleted.
+   *
+   * The frame is a fixed box drawn at the last measured size, so a line added
+   * leaves the box a line too short and a deletion leaves it too tall. Measured
+   * on the next tick, because the browser reflows the element after this event.
+   */
+  function onEdit() {
+    if (editing) setTimeout(refit, 0);
   }
 
+  function onScroll() {
+    refit();
+    hideHover();
+  }
+  /**
+   * Put the selection frame back where the element now is.
+   *
+   * One place, called from everything that can move the element: a scroll (the
+   * frame is viewport-fixed, so the element slides out from under it), a resize,
+   * a change this session made, and a keystroke. Typing is the case that is easy
+   * to miss — the text grows or shrinks, the box does not, and the frame ends up
+   * around words that are no longer there.
+   */
+  function refit() {
+    if (selected) place(selBox, selected.getBoundingClientRect());
+  }
   function onMove(e) {
     // The orb follows the pointer with no lag: a dot that trails is a dot the
     // user aims past. The one place the shadow root takes a real listener, since
@@ -918,6 +1402,7 @@ function decorate(el) {
     if (e.key === "Escape") {
       if (!pop.hidden) show("");
       else exit();
+      return;
     }
   }
 
