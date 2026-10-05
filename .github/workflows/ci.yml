@@ -68,6 +68,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: node --test scripts/*.test.mjs
       - run: npm run build
       # The same command Workers Builds runs on main, minus the upload: fails if
       # the build output isn't something Cloudflare can deploy.

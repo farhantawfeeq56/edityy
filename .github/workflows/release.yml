@@ -1,13 +1,20 @@
 name: Release
 
-# Publishes packages/edityy to npm when a GitHub Release is published.
+# Publishes packages/edityy to npm when a push to main carries a version that is
+# not on npm yet, then tags it and creates its GitHub Release. The reviewed PR
+# that bumps the version (`npm run bump`) is the approval; nothing else is done
+# by hand. Re-running a failed run is safe: each job skips what is already done.
+#
 # Auth is npm trusted publishing (OIDC): no npm token is stored anywhere, and
-# every version gets a provenance attestation. One-time setup is in README.md
-# under "Releasing".
+# every version gets a provenance attestation. The trusted publisher on npm is
+# bound to this filename and the `npm` environment. Setup is in README.md under
+# "Releasing".
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - packages/edityy/package.json
   workflow_dispatch:
     inputs:
       dry-run:
@@ -23,11 +30,62 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      dist-tag: ${{ steps.version.outputs.dist-tag }}
+      on-npm: ${{ steps.version.outputs.on-npm }}
+      released: ${{ steps.version.outputs.released }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Check the version
+        id: version
+        working-directory: packages/edityy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "package.json: $version"
+
+          # A prerelease (1.0.0-beta.1) must never become `latest`.
+          case "$version" in
+            *-*) echo "dist-tag=next" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "dist-tag=latest" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+          if npm view "edityy@$version" version >/dev/null 2>&1; then
+            echo "edityy@$version is on npm."
+            echo "on-npm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "on-npm=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v$version exists."
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if ! awk -v v="$version" 'index($0, "## " v " ") == 1 { found = 1 } END { exit !found }' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $version' section. Run 'npm run bump' to release, not a hand edit of the version."
+            exit 1
+          fi
+
   publish:
     name: publish
+    needs: check
+    if: needs.check.outputs.on-npm == 'false'
     runs-on: ubuntu-latest
-    # Must match the environment in the npm trusted publisher config. The owner
-    # can add a required reviewer to it, so no publish runs unapproved.
+    # Must match the environment in the npm trusted publisher config.
     environment: npm
     permissions:
       contents: read
@@ -45,36 +103,12 @@ jobs:
           # No cache in a job that holds an OIDC token: a poisoned cache could read it.
           package-manager-cache: false
 
-      - name: Check the version
-        id: version
-        env:
-          EVENT: ${{ github.event_name }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          version=$(node -p 'require("./package.json").version')
-          echo "package.json: $version"
-
-          if [ "$EVENT" = "release" ] && [ "$TAG" != "v$version" ]; then
-            echo "::error::Release tag '$TAG' does not match package.json version 'v$version'."
-            exit 1
-          fi
-
-          if npm view "edityy@$version" version >/dev/null 2>&1; then
-            echo "::error::edityy@$version is already on npm. Bump the version first."
-            exit 1
-          fi
-
-          # A prerelease (1.0.0-beta.1) must never become `latest`.
-          case "$version" in
-            *-*) echo "dist-tag=next" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "dist-tag=latest" >> "$GITHUB_OUTPUT" ;;
-          esac
-
       - run: npm test
 
       - name: Publish
         env:
-          DIST_TAG: ${{ steps.version.outputs.dist-tag }}
+          VERSION: ${{ needs.check.outputs.version }}
+          DIST_TAG: ${{ needs.check.outputs.dist-tag }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
         run: |
           npm --version
@@ -84,14 +118,67 @@ jobs:
           fi
 
           # A failed trusted-publishing exchange is only logged at verbose level,
-          # after which npm publishes unauthenticated and gets a bare E404. Keep
-          # the oidc lines so the registry's reason is in the job log.
+          # so keep the oidc lines and the registry's answer in the job log.
           log="$RUNNER_TEMP/publish.log"
           status=0
           npm publish --tag "$DIST_TAG" --loglevel verbose > "$log" 2>&1 || status=$?
           grep -v '^npm verbose' "$log" || true
           grep -i 'oidc' "$log" || echo "npm logged no oidc lines"
-          if [ "$status" -ne 0 ] && grep -q 'E404' "$RUNNER_TEMP/publish.log"; then
-            echo "::error::npm rejected the publish. If the oidc lines above show a failed token exchange, the trusted publisher on npmjs.com must be user farhantawfeeq56, repo edityy, workflow release.yml, environment npm (README.md, Releasing)."
+          hint="the trusted publisher on npmjs.com must be user farhantawfeeq56, repo edityy, workflow release.yml, environment npm, with 'npm publish' allowed (README.md, Releasing)."
+          if [ "$status" -ne 0 ]; then
+            if grep -q 'E404' "$log"; then
+              echo "::error::npm rejected the publish. If the oidc lines above show a failed token exchange, $hint"
+            elif grep -q 'OIDC permission denied' "$log"; then
+              echo "::error::npm accepted the login but refused the publish: $hint"
+            elif grep -q 'previously staged version' "$log"; then
+              echo "::error::edityy@$VERSION is staged on npm. A maintainer approves it on npmjs.com (Staged Packages) with 2FA, then re-run this workflow to create the release."
+            fi
+            exit "$status"
           fi
-          exit "$status"
+
+          # npm answers 202 and exits 0 when it stages a version instead of
+          # publishing it. Only a version you can install counts as published.
+          for _ in 1 2 3 4 5 6; do
+            if npm view "edityy@$VERSION" version >/dev/null 2>&1; then
+              echo "edityy@$VERSION is on npm."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::npm accepted edityy@$VERSION but it is not installable. It is probably staged: approve it on npmjs.com (Staged Packages) with 2FA, then re-run this workflow to create the release. To publish without staging, $hint"
+          exit 1
+
+  release:
+    name: release
+    needs: [check, publish]
+    # Also runs when publish was skipped because the version was already on npm,
+    # so a re-run after a failed release step finishes the job.
+    if: >-
+      always() && needs.check.result == 'success'
+      && needs.check.outputs.released == 'false'
+      && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+      && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Tag and create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+          DIST_TAG: ${{ needs.check.outputs.dist-tag }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+          awk -v v="$VERSION" '
+            index($0, "## " v " ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' packages/edityy/CHANGELOG.md > "$notes"
+          printf '\nnpm: https://www.npmjs.com/package/edityy/v/%s\n' "$VERSION" >> "$notes"
+
+          prerelease=()
+          if [ "$DIST_TAG" != "latest" ]; then prerelease=(--prerelease); fi
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" \
+            --notes-file "$notes" "${prerelease[@]}"

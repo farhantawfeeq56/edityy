@@ -100,33 +100,46 @@ Workers runtime. To check a deploy without deploying: `npm run build && npx wran
 
 ## Releasing
 
-`packages/edityy` is published to npm by `.github/workflows/release.yml` when a GitHub Release is published. There is
-no npm token anywhere: the workflow authenticates with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers)
-(OIDC), and every version gets a provenance attestation.
+`packages/edityy` is published to npm by `.github/workflows/release.yml`. A version bump that merges to `main` is the
+release: the reviewed PR is the only approval, and nothing is done by hand after the merge. There is no npm token
+anywhere: the workflow authenticates with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC),
+and every version gets a provenance attestation.
 
-1. In a normal PR, bump `version` in `packages/edityy/package.json` (semver) and move the `Unreleased` notes in
-   `packages/edityy/CHANGELOG.md` under the new version with today's date. Merge it the usual way.
-2. Publish a GitHub Release from `main` whose tag is `v` plus that version:
+1. While you work, add notes under `## Unreleased` in `packages/edityy/CHANGELOG.md`.
+2. To release, in a PR:
    ```bash
-   gh release create v0.1.1 --target main --title v0.1.1 --notes-file <notes.md>
+   npm run bump -- patch      # or minor, major, or an exact version like 1.0.0-beta.1
    ```
-3. The `Release` workflow checks the tag matches `package.json`, checks the version is not already on npm, runs the
-   tests, and publishes. A version with a prerelease suffix (`1.0.0-beta.1`) goes to the `next` dist-tag, never
-   `latest`.
+   This sets the version in `packages/edityy/package.json` and `package-lock.json`, renames `## Unreleased` to the new
+   version with today's date, and moves the root `edityy` range when it would no longer cover the new version (#45).
+   It refuses to run if `## Unreleased` is missing or empty.
+3. Merge the PR the usual way. On the push to `main`, the `Release` workflow:
+   - **check**: reads the version, and stops if CHANGELOG.md has no section for it;
+   - **publish**: runs the tests and publishes, if that version is not on npm yet;
+   - **release**: creates the `v<version>` tag and GitHub Release with that version's CHANGELOG notes.
 
-To rehearse without publishing: **Actions → Release → Run workflow** with `dry-run` ticked.
+   A version with a prerelease suffix (`1.0.0-beta.1`) goes to the `next` dist-tag and a prerelease, never `latest`.
+   A push that does not change the version publishes nothing.
+
+If a run fails, fix the cause and **re-run all jobs**. Each job skips what is already done (version on npm, release
+exists), so a re-run never publishes twice. If npm stages the version instead of publishing it, the run fails and
+says so. A maintainer approves it on npmjs.com (**Staged Packages**) with 2FA, then re-runs the workflow to create the
+release.
+
+To rehearse without publishing: **Actions → Release → Run workflow** on `main` with `dry-run` ticked.
 
 ### One-time setup (owner)
 
-Both steps need the owner's accounts; the workflow cannot publish until they are done.
+Both need the owner's accounts.
 
 1. **npm trusted publisher.** On npmjs.com, `edityy` → **Settings** → **Trusted publishing** → GitHub Actions:
-   organization or user `farhantawfeeq56`, repository `edityy`, workflow filename `release.yml`, environment `npm`. Then
-   set **Publishing access** to *require two-factor authentication and disallow tokens*, so trusted publishing is the
+   organization or user `farhantawfeeq56`, repository `edityy`, workflow filename `release.yml`, environment `npm`, and
+   under **Allowed actions** tick *Allow `npm publish`*. Without it, npm refuses the publish (`403 OIDC permission
+   denied`) or only stages it. An existing connection cannot be edited: delete it and add it again. Then set
+   **Publishing access** to *require two-factor authentication and disallow tokens*, so trusted publishing is the
    only way in.
-2. **GitHub `npm` environment.** Repo **Settings** → **Environments** → **New environment** `npm`. Add the other
-   both developers as required reviewers, tick *Prevent self-review*, and limit deployment branches and tags to `main`
-   and `v*`. Whoever publishes the release then needs the other developer to approve the publish job.
+2. **GitHub `npm` environment.** Repo **Settings** → **Environments** → `npm`. Limit deployment branches and tags to
+   `main`, and add **no** required reviewers: the PR approval on `main` (AGENTS.md rule 12) is the release approval.
 
 ## License
 
