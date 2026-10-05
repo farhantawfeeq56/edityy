@@ -4,6 +4,58 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.1.3 — 2026-10-05
+
+### Added
+
+- The selected text becomes editable where it stands. `contenteditable` is
+  `plaintext-only`, so a paste cannot inject markup, and the element itself is
+  the field — there is no panel input and nothing to commit. Only leaf text
+  takes a caret: an element holding child elements is still text as far as the
+  dock is concerned, but rewriting its text would destroy them. (#55)
+- A `+` at the end of the dock, which adds a control to the row for the element
+  that is selected. Picking one puts it in the row before the `+` as another
+  icon, drawn like the ones that were always there, and it can only be added once.
+- Five controls behind the `+`: shadow (four lengths and a colour), blur,
+  brightness, greyscale and contrast. A filter back at its default is left out of
+  the list entirely, so dragging one home leaves no filter behind. (#55)
+- Text colour in the primary dock, and fill and border behind the `+` — those two
+  are about the box rather than the words, since the fill of a text is its colour
+  and text has no border. Border comes with a width slider, because a colour on a
+  zero-width border is a colour nobody sees. (#55)
+- An element keeps the controls that were added to it. Adding blur to one heading
+  no longer puts blur on every heading, which is the whole reason for the `+`.
+
+### Fixed
+
+- An open control's icon was invisible. The universal `*{color:...}` reached the
+  `<path>` inside each icon as well as its `<svg>`, and a path stroked with
+  `currentColor` resolves against its own colour — so every icon was the plum an
+  open control is painted, at 1:1 against its own background. The colour is on
+  `:host` now, and the contrast measures 12.24:1. (#55)
+- The caret jumped to the beginning on every click: making an element editable
+  rewrote its `textContent`, which destroys the text node and loses the caret
+  position. The value is only read now. (#55)
+- The selection frame did not resize as the text grew or shrank, because it was
+  re-measured on `keydown` — which fires before the browser has changed the
+  words. It listens on `input`. (#55)
+- The selection frame did not follow the page when it scrolled; the scroll
+  listener only ever hid the hover frame. (#55)
+- The element being edited carried two outlines: the browser's focus ring on top
+  of Edityy's own frame. (#55)
+- A shadow drew nothing at all. `box-shadow-offset-x` and its siblings are not
+  CSS properties — those longhands exist only inside an `@property` registration,
+  so the browser dropped every one of them. It is written as the shorthand now.
+- Greyscale silently took every other filter with it: Chrome has never
+  implemented `greyscale()`, and one unknown function invalidates the whole
+  `filter` list. It is written as `grayscale()`.
+- Every filter read back as "off", because its value was used as both CSS and a
+  regular expression and the parentheses became a capture group.
+- A filter dragged back to its default stayed on the element as `blur(0px)`,
+  because `input.value` hands over a string and `"0" !== 0`.
+- Writing a property an empty value left an empty declaration behind rather
+  than removing it, and recorded nothing to revert.
+
 ## 0.1.2 — 2026-10-04
 
 ### Added
