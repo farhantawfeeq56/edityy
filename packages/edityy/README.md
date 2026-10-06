@@ -97,10 +97,12 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ## API
 
 ```js
-edityy({ tag }) // returns a (req, res, next) middleware
+edityy({ tag, nonce }) // returns a (req, res, next) middleware
 ```
 
-`tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
+- `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
+- `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
+  function `(req, res) => string` when your app makes a new nonce for each response.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
 for injecting into an HTML string yourself, and `edityy/client` — the browser
@@ -110,7 +112,7 @@ bootstrap that mounts the launcher, for frameworks that inject client modules.
 
 - **Dev-only.** This is not a proxy and not a production server plugin. Install it as a dev dependency and keep it out of your production build.
 - **A chunked HTML response is left alone.** The tag is not injected into streamed HTML, and the launcher script is not served by this middleware on a chunked server. Vite and Next dev both buffer, so this does not affect them.
-- **A strict `script-src` CSP blocks the tag.** Nothing at the Edityy side changes that.
+- **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 
 ## What comes next
