@@ -77,7 +77,11 @@ The launcher script is bundled into the page rather than served from
 serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
-`launcher` from `edityy/inject`.
+`launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
+private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`.
+
+To save edits to the project from Next.js, add the route in
+[Save edits to the project](#save-edits-to-the-project).
 
 ## Save edits to the project
 
@@ -156,9 +160,18 @@ In the page, the launcher:
 - creates a host element fixed to the viewport at `z-index: 2147483647` with `pointer-events: none`, so it never comes between you and your site;
 - attaches an **open shadow root**, so your CSS (button resets, fonts, `!important` wars) cannot restyle the launcher and the launcher cannot leak styles back into your page;
 - renders one 56px circular button, 24px from the right and bottom edges;
-- dispatches an `edityy:launcher-click` event on `window` when clicked, and logs to the console.
+- dispatches an `edityy:launcher-click` event on `window` when clicked, and toggles the editing mode.
 
 The script is idempotent, so a page that renders the tag more than once still mounts one launcher.
+
+### The editing mode
+
+- The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run.
+- Words are typed into where they stand (`contenteditable="plaintext-only"`, leaf text only, so no child element is lost).
+- The dock at the bottom changes the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour; a container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
+- The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
+- Keys: Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons.
+- Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
 ## API
 
@@ -185,10 +198,10 @@ mounts the launcher, for frameworks that inject client modules.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 
-## What comes next
+## Events
 
-Clicking the launcher opens the editor panel. `edityy:launcher-click` is the seam
-the editor uses to talk to your page.
+`edityy:launcher-click` is dispatched on `window` each time the launcher is
+clicked, for a host app that wants to know.
 
 ## License
 
