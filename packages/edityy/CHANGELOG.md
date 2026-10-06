@@ -47,6 +47,9 @@ All notable changes to the `edityy` package. The format follows
   serve `POST /__edityy/changes` themselves; Next.js gets `changesRoute()` for a
   one-line route file. Only JSON from the page's own origin is accepted, up to
   1 MB, and the folder gets a `.gitignore` of its own. (#71)
+- `npx edityy mcp`: a stdio MCP server for coding agents, with
+  `get_visual_changes` and `clear_visual_changes` over the saved edits. Written
+  without an SDK, so the package still has no dependencies. (#72)
 
 ### Changed
 
