@@ -42,6 +42,11 @@ All notable changes to the `edityy` package. The format follows
   side, written as longhands so the edits list names the side. (#69)
 - The dock's icon row is a toolbar with one tab stop: ← → move along it, Home and
   End go to its ends. Escape on an open control puts focus back on its icon. (#70)
+- "Save to project" in the edits list writes the edits to `.edityy/changes.json`
+  in the project, for a coding agent to read. The middleware and the Vite plugin
+  serve `POST /__edityy/changes` themselves; Next.js gets `changesRoute()` for a
+  one-line route file. Only JSON from the page's own origin is accepted, up to
+  1 MB, and the folder gets a `.gitignore` of its own. (#71)
 
 ### Changed
 
