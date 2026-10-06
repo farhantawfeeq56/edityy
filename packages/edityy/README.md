@@ -118,6 +118,29 @@ import { changesRoute } from "edityy";
 export const POST = changesRoute();
 ```
 
+## MCP
+
+`npx edityy mcp` is a stdio [MCP](https://modelcontextprotocol.io) server that
+hands the saved edits to a coding agent. It has two tools:
+
+- `get_visual_changes` returns the edits in `.edityy/changes.json`, as the same
+  Markdown that "Copy for an agent" copies;
+- `clear_visual_changes` deletes them once they are in the code.
+
+Claude Code:
+
+```bash
+claude mcp add edityy -- npx edityy mcp
+```
+
+Cursor, or any client configured with JSON:
+
+```json
+{ "mcpServers": { "edityy": { "command": "npx", "args": ["edityy", "mcp"] } } }
+```
+
+It reads from the directory it is started in. Pass `--root <dir>` to read from another one.
+
 ## What it does
 
 The middleware does two things:

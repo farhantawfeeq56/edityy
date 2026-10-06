@@ -9,9 +9,11 @@ const want = [
   "LICENSE",
   "README.md",
   "package.json",
+  "src/cli.js",
   "src/client.js",
   "src/edityy.js",
   "src/index.js",
+  "src/mcp.js",
   "src/vite.js",
 ];
 
