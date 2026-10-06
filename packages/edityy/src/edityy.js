@@ -179,13 +179,37 @@
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
+    // The row and the edits button, side by side under the open control.
+    ".bar{display:flex;align-items:center;gap:6px}",
+    ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
+    "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    ".ic.solo[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
+    ".count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;",
+    "border-radius:9px;background:#86546b;color:#f9f2ee;font:600 11px/18px inherit;text-align:center}",
+    // One edited element per line: its name selects it, the arrow reverts it.
+    ".chg{display:flex;align-items:center;gap:2px}",
+    ".chg .opt{flex:1}",
+    ".chg .ic{width:30px;height:30px;flex:none}",
+    ".note{margin:6px 10px;max-width:240px;font:500 13px/1.4 inherit;color:#86546b}",
+    ".cta{flex:1;border:0;border-radius:8px;padding:9px 12px;background:#3a283c;color:#f9f2ee;white-space:nowrap;",
+    "font:600 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
+    ".cta:hover{background:#86546b}",
+    ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
     '<div class="frame" id="sel" hidden></div>',
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
+    '<div class="bar">',
     '<div class="row" id="row"></div>',
+    // The edits so far, apart from the row: the row is this element's controls,
+    // and the list is every element's changes.
+    '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
+    '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">',
+    '<path d="M6.5 5h8M6.5 9h8M6.5 13h8M3.5 5h0M3.5 9h0M3.5 13h0"/></svg>',
+    '<span class="count" id="count" hidden></span></button>',
+    "</div>",
     "</div>",
     "</div>",
   ].join("");
@@ -207,6 +231,8 @@
   var dock = $("dock");
   var row = $("row");
   var pop = $("pop");
+  var review = $("review");
+  var countBadge = $("count");
   // The `+` sits at the end of the row and a revealed control goes in before it,
   // so adding one grows the row leftwards from the button that added it.
   var addBtn = null;
@@ -307,11 +333,10 @@
   }
 
   /**
-   * A short, human way to name an element: "h1 “Edityy”".
-   *
-   * Kept for the changes list a future panel will render. Nothing calls it yet.
+   * A short, human way to name an element: "h1 “Edityy”". What the edits list
+   * shows. Not called `label`: that name is the orb's own text, further up.
    */
-  function label(el) {
+  function nameOf(el) {
     var snippet = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28);
     return el.tagName.toLowerCase() + " " + (snippet ? "“" + snippet + "”" : "");
   }
@@ -323,7 +348,7 @@
     for (var i = 0; i < changes.length; i++) {
       if (changes[i].el === el) return changes[i];
     }
-    var rec = { el: el, props: {}, set: {}, text: null };
+    var rec = { el: el, props: {}, set: {}, was: {}, text: null };
     changes.push(rec);
     return rec;
   }
@@ -413,6 +438,10 @@
    */
   function remember(rec, prop) {
     if (prop in rec.props) return;
+    // The computed value as well, for the edits list: the inline value before is
+    // usually nothing at all, and "nothing → 40px" tells a reader very little.
+    var view = window.getComputedStyle(rec.el);
+    rec.was[prop] = view ? view.getPropertyValue(prop) : "";
     rec.props[prop] = rec.el.style.getPropertyValue(prop);
     rec.set[prop] = new RegExp("(?:^|;)\\s*" + prop + "\\s*:").test(rec.el.style.cssText);
   }
@@ -429,10 +458,11 @@
     Object.keys(rec.props).forEach(function (prop) {
       restore(rec, prop);
     });
-    if (rec.text !== null) rec.el.textContent = rec.text;
+    if (rec.text !== null && rec.el.textContent !== rec.text) rec.el.textContent = rec.text;
     changes = changes.filter(function (other) {
       return other !== rec;
     });
+    tally();
   }
 
   // The box drawn around an element. It stands off the element by 4px on every
@@ -785,6 +815,7 @@ function faces() {
     for (var i = 0; i < row.children.length; i++) {
       row.children[i].setAttribute("aria-expanded", row.children[i].dataset.key === key ? "true" : "false");
     }
+    review.setAttribute("aria-expanded", key === "changes" ? "true" : "false");
     if (!key) {
       pop.hidden = true;
       return;
@@ -794,6 +825,7 @@ function faces() {
     // other key is either one of the seven or one that the `+` just added, and
     // both are in CONTROLS by the time the row shows them.
     if (key === "+") addOne();
+    else if (key === "changes") listChanges();
     else CONTROLS[key]();
   }
 
@@ -1025,6 +1057,7 @@ function icons(items, current, onPick) {
     if (!selected) return;
     apply(prop, value);
     place(selBox, selected.getBoundingClientRect());
+    tally();
   }
 
   /**
@@ -1284,6 +1317,240 @@ function decorate(el) {
     if (!on) show("");
   }
 
+  /* --------------------------------------------------------------- review */
+
+  // Properties Edityy writes for its own sake, never as an edit: the focus ring
+  // it hides on the words being typed into.
+  var OWN = { outline: true };
+  var SOURCE_ATTR = "data-edityy-src";
+
+  /**
+   * What one record really changed, or null.
+   *
+   * Compared with what was there before, not with whether a control was touched:
+   * a slider dragged out and back is no edit, and listing it would send a coding
+   * agent after a change that is not there.
+   */
+  function diff(rec) {
+    var props = [];
+    Object.keys(rec.props).forEach(function (prop) {
+      if (OWN[prop]) return;
+      var before = rec.set[prop] ? rec.props[prop] : "";
+      var after = rec.el.style.getPropertyValue(prop);
+      if (after === before) return;
+      props.push({ prop: prop, before: rec.was[prop] || before, after: after });
+    });
+    var text = rec.text !== null && rec.el.textContent !== rec.text
+      ? { before: rec.text, after: rec.el.textContent }
+      : null;
+    return props.length || text ? { props: props, text: text } : null;
+  }
+
+  /**
+   * A CSS selector that finds this element again: its id, a test id, or the
+   * tag path down from the nearest one, with :nth-of-type only where a tag has
+   * siblings of the same name. Short on purpose — it is read by a person or an
+   * agent searching the code, not only by querySelector.
+   */
+  function selectorFor(el) {
+    var esc = window.CSS && window.CSS.escape
+      ? window.CSS.escape
+      : function (v) { return String(v).replace(/[^\w-]/g, "\\$&"); };
+    var parts = [];
+    var node = el;
+    while (node && node.tagName && node !== document.body && node !== document.documentElement && parts.length < 8) {
+      if (node.id) {
+        parts.unshift("#" + esc(node.id));
+        break;
+      }
+      var tag = node.tagName.toLowerCase();
+      var testId = node.getAttribute && node.getAttribute("data-testid");
+      if (testId) {
+        parts.unshift(tag + '[data-testid="' + String(testId).replace(/"/g, '\\"') + '"]');
+        break;
+      }
+      var parent = node.parentElement;
+      if (parent && parent.children) {
+        var same = 0;
+        var index = 0;
+        for (var i = 0; i < parent.children.length; i++) {
+          if (parent.children[i].tagName !== node.tagName) continue;
+          same++;
+          if (parent.children[i] === node) index = same;
+        }
+        if (same > 1) tag += ":nth-of-type(" + index + ")";
+      }
+      parts.unshift(tag);
+      node = parent;
+    }
+    return parts.join(" > ");
+  }
+
+  /**
+   * Where the element was written, when the Vite plugin stamped it: its own
+   * location, or the nearest ancestor's when it was made by a component.
+   */
+  function sourceOf(el) {
+    for (var node = el; node && node.getAttribute; node = node.parentElement) {
+      var at = node.getAttribute(SOURCE_ATTR);
+      if (at) return { at: at, own: node === el };
+    }
+    return null;
+  }
+
+  /** Every edit, as plain data: what a person, an agent or a file can use. */
+  function report() {
+    var out = [];
+    changes.forEach(function (rec) {
+      var d = diff(rec);
+      if (!d) return;
+      var src = sourceOf(rec.el);
+      out.push({
+        label: nameOf(rec.el).trim(),
+        selector: selectorFor(rec.el),
+        source: src ? src.at : null,
+        sourceIsOwn: src ? src.own : false,
+        props: d.props,
+        text: d.text,
+        rec: rec,
+      });
+    });
+    return out;
+  }
+
+  /** The same, as Markdown written for a coding agent to act on. */
+  function markdown(items) {
+    if (!items.length) return "";
+    var page = window.location && window.location.href;
+    var out = [
+      "# Visual edits from Edityy",
+      "",
+      "Apply these edits to the source code" + (page ? " of " + page : "") + ". " +
+        "Change the code that renders each element, in the styling approach the project already uses " +
+        "(CSS, CSS modules, Tailwind classes, styled components), not with inline styles.",
+      "",
+    ];
+    items.forEach(function (item, i) {
+      out.push("## " + (i + 1) + ". " + item.label);
+      out.push("");
+      out.push("- Selector: `" + item.selector + "`");
+      if (item.source) {
+        out.push("- Source: `" + item.source + "`" + (item.sourceIsOwn ? "" : " (the nearest element with a known location)"));
+      }
+      item.props.forEach(function (c) {
+        out.push("- `" + c.prop + "`: `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
+      });
+      if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  /** Keep the number on the edits button in step with the edits. */
+  function tally() {
+    var n = report().length;
+    countBadge.hidden = !n;
+    countBadge.textContent = n ? String(n) : "";
+    // An open list is a view of the edits, so it is redrawn with them. Not while
+    // typing, though: rebuilding the list on every key would cost a caret nothing
+    // but take a list scroll position away.
+    if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
+  }
+
+  /**
+   * The edits, one line per element: its name selects it, the arrow reverts it,
+   * and one button copies them all for a coding agent.
+   */
+  function listChanges() {
+    var items = report();
+    var list = document.createElement("div");
+    list.className = "list";
+    if (!items.length) {
+      var empty = document.createElement("p");
+      empty.className = "note";
+      empty.appendChild(text("No edits yet. Change something on the page and it is listed here."));
+      list.appendChild(empty);
+    }
+    items.forEach(function (item) {
+      var line = document.createElement("div");
+      line.className = "chg";
+      var n = item.props.length + (item.text ? 1 : 0);
+      var name = button("opt", "", "Select " + item.label, function () {
+        var el = item.rec.el;
+        select(el, { el: el, kind: kind(el) });
+        show("changes");
+      }, "");
+      name.appendChild(text(item.label + " · " + n + (n === 1 ? " edit" : " edits")));
+      var undo = button("ic", svg('<path d="M4 7h7a4 4 0 0 1 0 8H8M7 4 4 7l3 3"/>'), "Revert " + item.label, function () {
+        if (item.rec.el === editing) stopEditing();
+        revert(item.rec);
+        // The row is this element's, and what it was given went with the revert.
+        if (item.rec.el === selected) {
+          rowFor = null;
+          syncDock();
+          refit();
+        }
+        show("changes");
+      }, "");
+      line.appendChild(name);
+      line.appendChild(undo);
+      list.appendChild(line);
+    });
+    pop.appendChild(list);
+
+    var actions = document.createElement("div");
+    actions.className = "bar2";
+    var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
+      copyText(markdown(report()), function (ok) {
+        copy.textContent = ok ? "Copied" : "Copy failed";
+        setTimeout(function () { copy.textContent = "Copy for an agent"; }, 1600);
+      });
+    }, "copy");
+    copy.appendChild(text("Copy for an agent"));
+    copy.disabled = !items.length;
+    actions.appendChild(copy);
+    pop.appendChild(actions);
+  }
+
+  /** Put a string on the clipboard, by the API where there is one. */
+  function copyText(value, done) {
+    var nav = window.navigator;
+    if (nav && nav.clipboard && nav.clipboard.writeText) {
+      nav.clipboard.writeText(value).then(
+        function () { done(true); },
+        function () { done(copyByHand(value)); }
+      );
+      return;
+    }
+    done(copyByHand(value));
+  }
+
+  /** The old way, for a page without the clipboard API (plain http, older browsers). */
+  function copyByHand(value) {
+    try {
+      var area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;left:-9999px;top:0";
+      pop.appendChild(area);
+      area.select();
+      var ok = document.execCommand("copy");
+      pop.removeChild(area);
+      return !!ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  review.addEventListener("click", function () {
+    show(review.getAttribute("aria-expanded") === "true" ? "" : "changes");
+  });
+
+  /** The edits as Markdown, for scripts and for anything that wants them. */
+  window.__edityy_changes = function () {
+    return markdown(report());
+  };
+
   /* ----------------------------------------------------------------- mode */
 
   /** Park the orb's centre, the single origin every pointer transform is from. */
@@ -1368,6 +1635,7 @@ function decorate(el) {
    */
   function onEdit() {
     if (editing) setTimeout(refit, 0);
+    tally();
   }
 
   function onScroll() {
