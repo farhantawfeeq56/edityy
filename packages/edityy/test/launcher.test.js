@@ -2081,3 +2081,15 @@ test("with no save endpoint the button says so", async () => {
   await tick();
   assert.equal(save.textContent, "No save endpoint");
 });
+
+test("an edit drops the hover frame, which was measured at the old size", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  // The pointer is still over the words, so the hover frame is up.
+  for (const fn of app.doc.bubbles.mousemove.capture) fn({ clientX: 1, clientY: 1 });
+  assert.equal(app.root.nodes.hover.hidden, false);
+  setSize(app, 72);
+  assert.equal(app.root.nodes.hover.hidden, true, "no frame at the size the words used to be");
+  assert.equal(p.style.getPropertyValue("font-size"), "72px");
+});

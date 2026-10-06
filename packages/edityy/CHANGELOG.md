@@ -65,6 +65,9 @@ All notable changes to the `edityy` package. The format follows
 - Leaving the edit mode left `outline: none` on every element whose text was
   edited, and took away an outline the element had of its own. The outline is
   recorded before Edityy hides the focus ring, so exit puts back the page's. (#74)
+- An edit that resized the element under the pointer left the hover frame at
+  the old size, so one element had two frames. The hover frame is dropped on
+  every re-measure and comes back on the next pointer move. (#75)
 
 ## 0.1.3 — 2026-10-05
 

@@ -1182,7 +1182,7 @@ function icons(items, current, onPick) {
   function set(prop, value) {
     if (!selected) return;
     apply(prop, value);
-    place(selBox, selected.getBoundingClientRect());
+    refit();
     tally();
   }
 
@@ -2035,6 +2035,10 @@ function decorate(el) {
    */
   function refit() {
     if (selected) place(selBox, selected.getBoundingClientRect());
+    // The hover frame was measured when the pointer last moved. Whatever made
+    // this re-measure may have resized the element under it, so it is dropped
+    // until the next move draws it again where it belongs.
+    hideHover();
   }
   function onMove(e) {
     // The orb follows the pointer with no lag: a dot that trails is a dot the
