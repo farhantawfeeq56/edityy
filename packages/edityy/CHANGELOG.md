@@ -29,6 +29,10 @@ All notable changes to the `edityy` package. The format follows
   slider is one step, from the first input to letting go, and a border's width
   and style go back together. After typing into the words, ⌘Z stays the
   browser's own text undo. (#66)
+- Edits survive a reload or a hot update. While the mode is on, they are kept in
+  `sessionStorage` for the page's path and put back after the page loads, with
+  the mode on again. An edit whose element is gone is dropped. Storage that is
+  missing or throws only means the edits are not kept. (#67)
 
 ### Fixed
 
