@@ -95,15 +95,78 @@ test("survives a body-less response", () => {
   assert.equal(res.body, undefined);
 });
 
-test("skips a chunked HTML response instead of hijacking the stream", () => {
-  const res = fakeRes({
-    headers: { "content-type": "text/html", "transfer-encoding": "chunked" },
-  });
+/** A chunked response that records what reaches the wire, write by write. */
+function streamRes() {
+  const res = fakeRes({ headers: { "content-type": "text/html", "transfer-encoding": "chunked" } });
+  res.wire = [];
+  res.write = (chunk, cb) => {
+    res.wire.push(Buffer.from(chunk).toString());
+    if (typeof cb === "function") cb();
+    return true;
+  };
+  const end = res.end;
+  res.end = (chunk) => {
+    if (chunk !== undefined && typeof chunk !== "function") res.wire.push(Buffer.from(chunk).toString());
+    end(chunk);
+  };
+  return res;
+}
+
+test("a streamed page gets the tag in its head, and the rest streams through", () => {
+  const res = streamRes();
   const { passed } = handle("/", res);
   assert.equal(passed, true);
-  // res.end was left alone, so a streamed body still reaches the client intact.
-  res.end("<html><head></head><body>streamed</body></html>");
-  assert.equal(res.body.toString(), "<html><head></head><body>streamed</body></html>");
+  res.write("<!doctype html><html><he");
+  assert.deepEqual(res.wire, [], "held until </head> arrives");
+  res.write("ad><title>t</title></head><body>");
+  assert.equal(res.wire.length, 1, "the head goes out as soon as it is complete");
+  assert.match(res.wire[0], /<script src="\/__edityy\/edityy\.js" defer><\/script><\/head><body>$/);
+  res.write("<p>one</p>");
+  res.end("</body></html>");
+  assert.deepEqual(res.wire.slice(1), ["<p>one</p>", "</body></html>"], "after the head, nothing is held");
+  assert.equal(res.getHeader("content-length"), undefined, "a stream has no length to fix");
+});
+
+test("a streamed page whose head never closes is sent unchanged, or tagged at the start", () => {
+  const res = streamRes();
+  handle("/", res);
+  res.write("<p>no html at all</p>");
+  res.end();
+  assert.equal(res.wire.join(""), "<p>no html at all</p>");
+
+  const page = streamRes();
+  handle("/", page);
+  page.write("<html><body>no head");
+  page.end("</body></html>");
+  assert.match(page.wire.join(""), /^<script src=/, "a page with no head is prepended, as inject() does");
+});
+
+test("a streamed page that already has the tag is left alone", () => {
+  const res = streamRes();
+  handle("/", res);
+  res.write(`<html><head>${TAG}</head><body>`);
+  res.end("</body></html>");
+  assert.equal(res.wire.join(""), `<html><head>${TAG}</head><body></body></html>`);
+});
+
+test("a multi-byte character split across chunks survives the splice", () => {
+  const res = streamRes();
+  handle("/", res);
+  const bytes = Buffer.from("<html><head><title>café</title></head><body>✓</body></html>");
+  const cut = bytes.indexOf(Buffer.from("é")) + 1; // in the middle of é
+  res.write(bytes.subarray(0, cut));
+  res.end(bytes.subarray(cut));
+  const out = Buffer.concat(res.wire.map((s) => Buffer.from(s))).toString();
+  assert.match(out, /café/);
+  assert.match(out, /defer><\/script><\/head>/);
+});
+
+test("a stream that never reaches </head> stops being held at the limit", () => {
+  const res = streamRes();
+  handle("/", res);
+  res.write("<html><head>" + "x".repeat(300 * 1024));
+  assert.equal(res.wire.length, 1, "flushed unchanged rather than held forever");
+  assert.doesNotMatch(res.wire[0], /__edityy/);
 });
 
 test("a throwing setHeader still delivers the page, tag and all", () => {
