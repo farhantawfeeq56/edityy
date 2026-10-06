@@ -18,6 +18,13 @@ All notable changes to the `edityy` package. The format follows
 - The Vite plugin marks every DOM element in a `.jsx` / `.tsx` file with
   `data-edityy-src="path:line:col"`, using the parser Vite already has, so an
   edit can say which line to change. `edityy({ source: false })` turns it off. (#62)
+- An edits button beside the dock, with a count. It lists every element that
+  really changed (a slider dragged out and back is not an edit). Selecting a line
+  selects that element, and its arrow reverts that element alone. (#65)
+- "Copy for an agent" copies the edits as Markdown that a coding agent can act
+  on: a selector, the source location when the Vite plugin stamped one, each
+  property as `before → after` (the value the page showed, not the empty inline
+  one) and any text change. `window.__edityy_changes()` returns the same text. (#65)
 
 ### Fixed
 
