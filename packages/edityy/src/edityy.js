@@ -1750,6 +1750,49 @@ function decorate(el) {
     tally(); // the count on the edits button, for the edits just put back
   }
 
+  /* ----------------------------------------------------- keyboard selection */
+
+  // Never a target: not ours, and nothing anyone means to edit.
+  var SKIP = /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|LINK|META|HEAD|TITLE)$/;
+
+  function selectable(node) {
+    return !!node && !!node.tagName && node !== host && !SKIP.test(node.tagName) &&
+      node !== document.body && node !== document.documentElement;
+  }
+
+  /** The element an arrow moves to from this one, or null at an edge. */
+  function neighbour(el, arrow) {
+    if (arrow === "ArrowUp") return selectable(el.parentElement) ? el.parentElement : null;
+    if (arrow === "ArrowDown") {
+      for (var i = 0; i < el.children.length; i++) if (selectable(el.children[i])) return el.children[i];
+      return null;
+    }
+    var parent = el.parentElement;
+    if (!parent) return null;
+    var list = Array.prototype.filter.call(parent.children, selectable);
+    var at = list.indexOf(el) + (arrow === "ArrowRight" ? 1 : -1);
+    return list[at] || null;
+  }
+
+  /**
+   * ↑ the parent, ↓ the first child, ← → the siblings. A nested element is hard
+   * to hit with the pointer; one keystroke up from the words gets the box around
+   * them. While the caret is in words the arrows are the caret's, so there it
+   * takes Alt as well.
+   */
+  function walkSelection(e) {
+    if (!selected || !/^Arrow(Up|Down|Left|Right)$/.test(e.key)) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (editing && !e.altKey) return;
+    // A key aimed at our own controls (a focused slider) is theirs.
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    var next = neighbour(selected, e.key);
+    if (!next) return;
+    if (e.preventDefault) e.preventDefault();
+    select(next, { el: next, kind: kind(next) });
+    if (next.scrollIntoView) next.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   /* ----------------------------------------------------------------- mode */
 
   /** Park the orb's centre, the single origin every pointer transform is from. */
@@ -1896,7 +1939,10 @@ function decorate(el) {
     var k = String(e.key || "").toLowerCase();
     var isUndo = mod && k === "z" && !e.shiftKey;
     var isRedo = mod && ((k === "z" && e.shiftKey) || (k === "y" && e.ctrlKey && !e.metaKey));
-    if (!isUndo && !isRedo) return;
+    if (!isUndo && !isRedo) {
+      walkSelection(e);
+      return;
+    }
     // Typed words are the browser's to undo: it keeps the caret and the text
     // history, which a style undo knows nothing about. So while the caret is in
     // words typed into since the last drag, the key goes to the browser.

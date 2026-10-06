@@ -33,6 +33,9 @@ All notable changes to the `edityy` package. The format follows
   `sessionStorage` for the page's path and put back after the page loads, with
   the mode on again. An edit whose element is gone is dropped. Storage that is
   missing or throws only means the edits are not kept. (#67)
+- The arrow keys move the selection: ↑ to the parent, ↓ to the first child, ← →
+  to the siblings. While the caret is in words the arrows move the caret, so
+  there they take Alt as well. (#68)
 
 ### Fixed
 
