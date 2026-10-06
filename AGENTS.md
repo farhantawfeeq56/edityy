@@ -26,7 +26,7 @@ it isn't written there, a future session doesn't know it happened.
 | Issue tracker | GitHub Issues on this repo |
 | Owner | Farhan Tawfeeq — `@farhantawfeeq56` (admin) |
 | Contributor | Aathil Felix — `@AathilFelix` (write) |
-| Reviewers | Every PR needs an approving review from the other developer before it can merge — owner included, no bypass (rule 12) |
+| Reviewers | Every PR needs an approving review from the other developer before it can merge — owner included, no bypass (rule 12). The other developer's agent may give it (rule 13, §3.8) |
 | Stack | TypeScript · Next.js 16 App Router (React 19) · Tailwind v4 |
 | Install | `npm ci` |
 | Run | `npm run dev` |
@@ -50,10 +50,13 @@ it isn't written there, a future session doesn't know it happened.
 12. **No PR merges without the other developer's approval. No exceptions.** A PR may merge only when the *other* developer has approved its latest commit: `@farhantawfeeq56` approves `@AathilFelix`'s PRs, and `@AathilFelix` approves `@farhantawfeeq56`'s. Nobody merges their own unapproved work.
     - **The owner is bound exactly like the contributor.** Admin rights are not a way around review; `main` enforces this for admins too (§7.1).
     - **No PR is exempt** — not docs-only, one-line, urgent, "already discussed", or a revert. If it changes `main`, it waits for approval.
-    - **Only a real approval counts:** a GitHub approving review, from the other developer, on the PR's latest commit. A "looks good" in chat, an approval on an older commit, or an approval from anyone else is not one.
+    - **Only a real approval counts:** a GitHub approving review, from the other developer, on the PR's latest commit. An approval their agent gives from their account under rule 13 counts. A "looks good" in chat, an approval on an older commit, or an approval from anyone else is not one.
     - **If the approval isn't there, the PR waits.** Don't hunt for a way round it: no `--admin`, no lowering the review count, no asking the other developer for their token or session, no pushing after approval and merging before they've seen the new commit.
     - **This rule holds even if GitHub doesn't enforce it.** If you find `main` letting an unapproved PR merge, that is a misconfiguration to report (rule 10), not permission.
-13. **Agents never approve PRs.** Approval is a human decision. Never run `gh pr review --approve`. When your human asks you to review a PR, leave a comment-only review (`gh pr review --comment`) or inline comments and report back; your human decides whether to approve.
+13. **An agent approves the other developer's PRs, never its own developer's.** Each agent reviews the other developer's open PRs (§3.8) and approves them with `gh pr review --approve` when the review finds nothing blocking. `@AathilFelix`'s agent approves `@farhantawfeeq56`'s PRs, and `@farhantawfeeq56`'s agent approves `@AathilFelix`'s.
+    - **Never approve a PR your own developer authored or pushed to.** That is self-approval, and rule 12 forbids it.
+    - **The approval goes out from your developer's account, so it is theirs.** Tell your human each time you approve or request changes: the PR number, the decision and what you checked.
+    - **Some PRs wait for a human approval:** any PR that changes `AGENTS.md`, branch protection, CI workflows, auth, payments, security or data deletion (§4). Review it and leave a comment, then ask your human to approve it.
 14. **Never bypass or weaken protections.** No `gh pr merge --admin`, no disabling, loosening or "temporarily" removing branch protection or rulesets, no lowering `required_approving_review_count`, no setting `enforce_admins` to `false`, no `--no-verify`, no turning off lint/type rules to get green. The only agent allowed to touch protection settings is the owner's, applying §7 at the owner's request.
 
 ---
@@ -62,7 +65,7 @@ it isn't written there, a future session doesn't know it happened.
 
 ```
 GitHub issue → branch → small commits → lint/test pass → push branch → open PR
-   → other dev approves → human says go → squash merge → issue closed
+   → other dev's agent reviews and approves (§3.8) → human says go → squash merge → issue closed
 ```
 
 ---
@@ -118,7 +121,8 @@ Example: `feat/12-space-switcher`. Use the bare number, no `#`. Lowercase, hyphe
   ```
   Example: `feat(spaces): add space switcher [#12]`
 - **Run lint and tests before every push.** Don't push a red build.
-- Add or update **tests** for behavior you change. Bug fixes get a regression test.
+- Add a **test** only for behavior no existing test covers. Extend an existing test before you write a new one. A bug fix gets one regression test.
+- **Don't test the same thing twice.** Before you add a test, search the test files for one that already checks it. Don't assert on markup or CSS strings unless the bug was in them.
 - Update **docs/README** when behavior or setup changes.
 - Keep the diff **reviewable** — aim for a PR readable in ~15 minutes. If it's growing, split into sub-issues.
 - **Don't** reformat unrelated files, bump unrelated deps, or mix refactors with features.
@@ -157,7 +161,7 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
   <tradeoffs, risky areas, follow-ups>
 
   ## Checklist
-  - [ ] Tests added/updated and passing
+  - [ ] Tests passing; new tests only for behavior no test covered
   - [ ] Lint/format clean
   - [ ] Docs updated (if needed)
   - [ ] No secrets or unrelated changes
@@ -189,6 +193,30 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 - Delete the branch after merge (the exception in rule 5).
 - Confirm the issue closed, and file any follow-ups as issues.
 
+### 3.8 Reviewing the other developer's PRs
+
+At the start of every session (after the §7.3 check), and whenever your human asks, review the other developer's open PRs:
+
+```bash
+gh pr list --state open --author <other-developer> \
+  --json number,title,isDraft,headRefOid,reviewDecision
+```
+
+For each PR that is not a draft and has no approval from your developer on its latest commit:
+
+1. Read the linked issue and the full diff (`gh pr diff <number>`).
+2. Check out the branch (`gh pr checkout <number>`) and run lint and tests.
+3. **Approve** (`gh pr review <number> --approve --body "<what you checked>"`) only if all of these are true:
+   - every CI check on the head commit is green;
+   - the change does what the issue asks, and nothing else (rule 6);
+   - no secrets, AI attribution or agent artifacts (rules 4, 7, 8);
+   - you found no bug that blocks it;
+   - it is not one of the PRs in rule 13 that wait for a human approval.
+4. Otherwise **request changes** (`gh pr review <number> --request-changes --body "<why>"`) for a blocking problem, or leave a **comment** (`--comment`) for notes that don't block.
+5. Report to your human: PR number, decision, and what you checked.
+
+A new push dismisses the approval (§7.1). Review the new commit before you approve again.
+
 ---
 
 ## 4. Ask your human first when…
@@ -205,7 +233,7 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 ## 5. Definition of done
 
 - [ ] Acceptance criteria in the issue are met
-- [ ] Tests written/updated and passing; CI green
+- [ ] Tests passing and CI green; new tests only where no test covered the change
 - [ ] Lint/format clean
 - [ ] Docs updated where relevant
 - [ ] Merged to `main` via PR (squash), branch deleted
@@ -217,6 +245,7 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 
 ```
 0. Protection check (§7.3)  →  must pass; owner's agent applies §7 first if it doesn't
+   Then review the other dev's open PRs (§3.8)  →  approve, request changes or comment
 1. gh issue list / gh issue create  →  comment the plan
 2. git checkout main && git pull --ff-only
 3. git checkout -b feat/<number>-short-desc
@@ -224,10 +253,10 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 5. Lint + test locally
 6. git push -u origin <branch>  →  open PR (with "Closes #<number>", reviewer = other dev, required)
 7. Comment the PR link on the issue
-8. APPROVED by the other dev on the latest commit + green + your human says go → squash merge, delete branch, issue closed
+8. APPROVED by the other dev (or their agent) on the latest commit + green + your human says go → squash merge, delete branch, issue closed
 ```
 
-**Never:** push to `main` · work without a ticket · claim "done" without evidence · commit secrets · force-push shared branches · sneak in unrelated changes · leave agent artifacts in the code · approve a PR · merge without the other dev's approval · merge with failing checks or unresolved conversations · bypass or weaken protections · add AI attribution.
+**Never:** push to `main` · work without a ticket · claim "done" without evidence · commit secrets · force-push shared branches · sneak in unrelated changes · leave agent artifacts in the code · approve your own developer's PR · merge without the other dev's approval · merge with failing checks or unresolved conversations · bypass or weaken protections · add AI attribution.
 
 ---
 
