@@ -1827,6 +1827,7 @@ function decorate(el) {
 
   /** Keep the number on the edits button in step with the edits. */
   function tally() {
+    keep();
     var n = report().length;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
@@ -1930,6 +1931,101 @@ function decorate(el) {
     return markdown(report());
   };
 
+  /* -------------------------------------------------------------- session */
+
+  // A reload or a hot update throws the page away and every inline style with
+  // it. The edits are kept in sessionStorage, per path, while the mode is on,
+  // and put back when the payload mounts again. Storage can be missing or throw
+  // (a private window, blocked site data), so every touch is guarded and the
+  // editor works the same without it — it just forgets on reload.
+  function storeKey() {
+    var path = window.location && window.location.pathname;
+    return "edityy:" + (path || "/");
+  }
+
+  function storage() {
+    try {
+      return window.sessionStorage || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Save the mode and its edits, or forget them once the mode is off. */
+  function keep() {
+    var store = storage();
+    if (!store) return;
+    try {
+      if (!active) {
+        store.removeItem(storeKey());
+        return;
+      }
+      var edits = [];
+      changes.forEach(function (rec) {
+        var props = {};
+        var any = false;
+        Object.keys(rec.props).forEach(function (prop) {
+          if (OWN[prop]) return;
+          props[prop] = {
+            before: rec.props[prop],
+            set: rec.set[prop],
+            was: rec.was[prop],
+            now: rec.el.style.getPropertyValue(prop),
+          };
+          any = true;
+        });
+        var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
+        if (!any && !text && !(rec.added && rec.added.length)) return;
+        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [] });
+      });
+      store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
+    } catch (e) {
+      /* full or blocked: the edits still work, they just do not survive a reload */
+    }
+  }
+
+  /**
+   * Put a saved session back: the edits on the elements they were made to, and
+   * the mode on. An element that is no longer on the page takes its edits with it.
+   */
+  function resume() {
+    var store = storage();
+    var saved = null;
+    try {
+      saved = store && JSON.parse(store.getItem(storeKey()) || "null");
+    } catch (e) {
+      saved = null;
+    }
+    if (!saved || saved.v !== 1 || !Array.isArray(saved.edits)) return;
+    saved.edits.forEach(function (edit) {
+      var el = null;
+      try {
+        el = document.querySelector ? document.querySelector(edit.selector) : null;
+      } catch (e) {
+        el = null; // a selector the page no longer parses the same way
+      }
+      if (!el || host.contains && host.contains(el)) return;
+      var rec = record(el);
+      Object.keys(edit.props || {}).forEach(function (prop) {
+        var p = edit.props[prop];
+        rec.props[prop] = p.before;
+        rec.set[prop] = !!p.set;
+        rec.was[prop] = p.was;
+        if (p.now) el.style.setProperty(prop, p.now);
+        else el.style.removeProperty(prop);
+      });
+      // Text only where it is still one run of words: anything else would
+      // destroy elements a framework has rendered inside it since.
+      if (edit.text && isLeafText(el) && el.textContent === edit.text.before) {
+        rec.text = edit.text.before;
+        el.textContent = edit.text.after;
+      }
+      if (edit.added && edit.added.length) rec.added = edit.added.slice();
+    });
+    enter();
+    tally(); // the count on the edits button, for the edits just put back
+  }
+
   /* ----------------------------------------------------------------- mode */
 
   /** Park the orb's centre, the single origin every pointer transform is from. */
@@ -1953,6 +2049,7 @@ function decorate(el) {
 
   function enter() {
     active = true;
+    keep();
     anchor();
     // Scale from the orb before it travels, so the shrink reads as the beginning
     // of the morph rather than a jump.
@@ -1994,6 +2091,7 @@ function decorate(el) {
     future = [];
     select(null);
     hideHover();
+    keep(); // the mode is off: nothing to bring back on the next load
   }
 
   /** The hover frame is only meaningful while the pointer is still on it. */
@@ -2094,4 +2192,16 @@ function decorate(el) {
   });
 
   (document.body || document.documentElement).appendChild(host);
+
+  // Not now, and not at load either: a framework hydrating the page compares its
+  // own markup with the DOM, and an edit put back before it is done is a
+  // mismatch it reports (React does, and keeps going after load). An idle
+  // callback runs once the page's scheduled work has drained, which is after
+  // hydration; the timeout keeps a busy page from never getting its edits back.
+  var settle = function () {
+    if (window.requestIdleCallback) window.requestIdleCallback(resume, { timeout: 3000 });
+    else setTimeout(resume, 300);
+  };
+  if (document.readyState === "complete") setTimeout(settle, 0);
+  else if (window.addEventListener) window.addEventListener("load", function () { setTimeout(settle, 0); });
 })();

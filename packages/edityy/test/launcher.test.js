@@ -1732,3 +1732,92 @@ test("a reverted element has nothing left to undo", async () => {
   assert.equal(key(app, "z", { metaKey: true }), false);
   assert.equal(p.style.getPropertyValue("font-size"), "");
 });
+
+/** A sessionStorage that keeps strings, as a browser's does. */
+const memoryStorage = () => {
+  const map = new Map();
+  return {
+    map,
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  };
+};
+/** Fire the window's load event, as the browser does once the page is in. */
+const load = async (win) => {
+  // Idle as soon as asked: the page in a test has nothing left to hydrate.
+  win.requestIdleCallback ??= (fn) => setTimeout(fn, 0);
+  for (const fn of win.bubbles?.load?.bubble ?? []) fn({});
+  await tick();
+  await tick();
+};
+
+test("edits survive a reload, and the mode comes back on", async () => {
+  const store = memoryStorage();
+  const first = fakeDom();
+  first.win.sessionStorage = store;
+  const app = first.run();
+  const p = selectText(app);
+  p.id = "intro";
+  setSize(app, 40);
+  p.textContent = "hello again";
+  app.fire("input", {});
+  const saved = JSON.parse(store.getItem("edityy:/"));
+  assert.equal(saved.edits.length, 1);
+  assert.equal(saved.edits[0].selector, "#intro");
+  assert.equal(saved.edits[0].props["font-size"].now, "40px");
+  assert.equal(saved.edits[0].props.outline, undefined, "Edityy's own outline is not an edit to keep");
+
+  // The page reloads: a fresh DOM with the same element in it, as the server
+  // sent it, and the same session storage.
+  const second = fakeDom();
+  second.win.sessionStorage = store;
+  const fresh = second.text("p", "hello");
+  second.doc.querySelector = (sel) => (sel === "#intro" ? fresh : null);
+  const again = second.run();
+  await load(second.win);
+  assert.equal(fresh.style.getPropertyValue("font-size"), "40px");
+  assert.equal(fresh.textContent, "hello again");
+  assert.ok(again.countDoc("click") > 0, "the mode is on again");
+  assert.equal(again.root.nodes.count.textContent, "1", "and the edits button counts them");
+  assert.match(again.win.__edityy_changes(), /`font-size`: `[^`]*` → `40px`/);
+
+  // And leaving the mode reverts the restored edits like any others, and
+  // forgets them.
+  quiet(() => again.fire("keydown", { key: "Escape" }));
+  assert.equal(fresh.style.getPropertyValue("font-size"), "");
+  assert.equal(fresh.textContent, "hello");
+  assert.equal(store.getItem("edityy:/"), null);
+});
+
+test("an edit whose element is gone is dropped, not applied somewhere else", async () => {
+  const store = memoryStorage();
+  store.setItem("edityy:/", JSON.stringify({ v: 1, edits: [{ selector: "#gone", props: { color: { before: "", set: false, was: "red", now: "blue" } }, text: null, added: [] }] }));
+  const dom = fakeDom();
+  dom.win.sessionStorage = store;
+  dom.doc.querySelector = () => null;
+  const app = dom.run();
+  await load(dom.win);
+  assert.equal(app.win.__edityy_changes(), "");
+});
+
+test("storage that throws does not break the editor", async () => {
+  const dom = fakeDom();
+  Object.defineProperty(dom.win, "sessionStorage", { get() { throw new Error("SecurityError"); } });
+  const app = dom.run();
+  await load(dom.win);
+  const p = selectText(app);
+  setSize(app, 30);
+  assert.equal(p.style.getPropertyValue("font-size"), "30px");
+});
+
+test("leaving the mode with no edits does not bring it back on reload", () => {
+  const store = memoryStorage();
+  const dom = fakeDom();
+  dom.win.sessionStorage = store;
+  const app = dom.run();
+  quiet(() => app.click());
+  assert.notEqual(store.getItem("edityy:/"), null, "on while the mode is");
+  quiet(() => app.click());
+  assert.equal(store.getItem("edityy:/"), null);
+});
