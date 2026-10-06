@@ -359,9 +359,8 @@
    * Put the caret in an element's own words.
    *
    * Only leaf text — an element with child elements is left alone, because
-   * a textContent rewrite would destroy them. The before value is
-   * The before value is recorded so revert() still knows what the page said
-   * before this session touched it.
+   * a textContent rewrite would destroy them. The before value is recorded so
+   * revert() still knows what the page said before this session touched it.
    *
    * `plaintext-only` and not `true`: pasting a word must not paste a <span> with
    * a style on it. A browser that does not know the value still types, because
@@ -648,7 +647,7 @@ function faces() {
   // The shipped values are the CSS defaults, so "off" is the absence of a filter
   // rather than a set of zeroes. Adding one of these controls must not change
   // how the element looks before the user has touched the slider.
-  // ponytail: greyscale is spelled "grayscale" here on purpose. Chrome has never
+  // Greyscale is spelled "grayscale" here on purpose. Chrome has never
   // implemented `greyscale()`, and one unknown function does not merely drop
   // itself — it invalidates the whole `filter` list, so asking for greyscale
   // silently took the blur and the brightness with it. The alias works
@@ -907,7 +906,7 @@ function icons(items, current, onPick) {
   /**
    * A shadow, written out as the shorthand.
    *
-   * ponytail: CSS has no box-shadow-offset-x. The longhands that look like one
+   * CSS has no box-shadow-offset-x. The longhands that look like one
    * (box-shadow-blur and box-shadow-color) exist only inside an @property
    * registration, and the offsets and spread have none at all — the browser
    * drops an unknown property on the floor, so writing five invented ones draws
