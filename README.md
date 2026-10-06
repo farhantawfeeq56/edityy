@@ -32,9 +32,14 @@ The middleware serves `/__edityy/edityy.js` and injects a relative `<script>` ta
 returns. A relative URL means it follows whatever port you are on, so there is nothing to configure and no port to keep
 in sync.
 
-The launcher itself mounts a host element that is fixed to the viewport, ignores pointer events, and renders its button
-inside an **open shadow root** — so your page's CSS cannot restyle it and it cannot leak styles back out. Clicking
-dispatches an `edityy:launcher-click` event on `window`: the seam a later editor panel uses to talk to your page.
+The launcher itself mounts a host element that is fixed to the viewport, ignores pointer events, and renders inside an
+**open shadow root** — so your page's CSS cannot restyle it and it cannot leak styles back out.
+
+Click the launcher and the page becomes editable: point at any element, click it, and a dock at the bottom of the
+viewport changes it — type, colour, spacing, fill, border, shadow and filters — or type straight into its words. Every
+edit is an inline style on the live page, so nothing is written to your code until you say so. From the edits list you
+can copy the edits as a prompt for a coding agent, or save them to `.edityy/changes.json` for an agent to read over
+MCP (`npx edityy mcp`). Leaving the mode puts the page back exactly as it was.
 
 ## The idea
 
@@ -51,13 +56,14 @@ See [DESIGN.md](DESIGN.md) for the visual language.
 
 ## Status
 
-V1 is the launcher. It runs, it is tested, and it is packaged — the editor panel behind the click does not exist yet.
+The package ships the launcher, the editing mode and the hand-off to a coding agent (copy, save to the project, MCP).
+Edits are not written to your source by Edityy itself: the agent does that, which keeps the codebase the source of truth.
 
 ## Repository layout
 
 | Path | What |
 | --- | --- |
-| `packages/edityy` | The published npm package. The middleware and the launcher payload. |
+| `packages/edityy` | The published npm package: the middleware, the Vite plugin, the launcher and the MCP server. |
 | `app` | A one-page site for this repo. Not the product. |
 | `DESIGN.md` | Visual language. |
 
@@ -77,7 +83,8 @@ npm pack --dry-run   # what would ship
 ```
 
 CI (`.github/workflows/ci.yml`) runs on every PR and every push to `main`: the package tests on Node 18, 20, 22 and 24,
-a check that the tarball ships exactly `src/`, the README, LICENSE and CHANGELOG, and the site's lint and build. The
+a check that the tarball ships exactly the files in `src/`, the README, LICENSE and CHANGELOG, and the site's lint and
+build. The
 `ci` job passes only when all of them do; it is the check branch protection requires.
 
 ## Deploying the site
