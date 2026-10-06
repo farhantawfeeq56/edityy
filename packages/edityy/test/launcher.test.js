@@ -43,7 +43,15 @@ function fakeDom() {
     const node = {
     tagName: tag.toUpperCase(),
     style: {
-      cssText: "",
+      // What a browser's cssText holds: the inline declarations, as written.
+      // Set directly, it is that string; otherwise it follows setProperty(), so
+      // the payload's "was this set at all?" check sees what a browser shows.
+      get cssText() {
+        return this._css ?? Object.entries(this._props).map(([k, v]) => `${k}: ${v};`).join(" ");
+      },
+      set cssText(v) {
+        this._css = v;
+      },
       display: "",
       left: "",
       top: "",
@@ -1142,6 +1150,37 @@ test("an element that had an outline of its own gets it back on exit", () => {
   });
   // Reverted through the same record as every other change, so nothing is left.
   assert.equal(p.style.getPropertyValue("outline"), "", "no leftover outline style");
+});
+
+test("an element's own inline outline survives being edited", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  const p = app.el("p", { text: "hello", style: { outline: "2px solid red" } });
+  app.hover(p);
+  quiet(() => app.clickPage());
+  assert.equal(p.style.getPropertyValue("outline"), "none", "no focus ring while editing");
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(p.style.getPropertyValue("outline"), "2px solid red", "its own outline, not ours");
+});
+
+test("selecting other words and leaving leaves no outline on the first", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const q = app.el("p", { text: "other" });
+  app.hover(q);
+  quiet(() => app.clickPage());
+  assert.equal(p.style.getPropertyValue("outline"), "", "back to the stylesheet once the caret moves on");
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(p.style.getPropertyValue("outline"), "");
+  assert.equal(q.style.getPropertyValue("outline"), "");
 });
 
 test("typing edits in place, where the caret was put", () => {

@@ -339,10 +339,7 @@
    */
   function apply(prop, value) {
     var rec = record(selected);
-    if (!(prop in rec.props)) {
-      rec.props[prop] = selected.style.getPropertyValue(prop);
-      rec.set[prop] = new RegExp("(?:^|;)\\s*" + prop + "\\s*:").test(selected.style.cssText);
-    }
+    remember(rec, prop);
     // `value` is a string, and "" means "not set": removeProperty empties it
     // without leaving a declaration behind, while setProperty("") would write one
     // that overrides the stylesheet with nothing — the bug a control that writes
@@ -389,6 +386,11 @@
     // ours. Set inline because this element is the page's, not ours: a rule in
     // the shadow root cannot reach it, and a class would change the page.
     // outline: none rather than a custom ring, because the frame is the ring.
+    //
+    // The outline the element had is recorded first, before ours goes on: the
+    // record's "before" is what exit puts back, and it must be the page's, not
+    // the `none` this line is about to write.
+    remember(rec, "outline");
     el.style.setProperty("outline", "none");
     editing = el;
     if (el.focus) el.focus();
@@ -398,20 +400,34 @@
   function stopEditing() {
     if (!editing) return;
     editing.removeAttribute("contenteditable");
-    // The outline goes with it, through the same record that reverts everything
-    // else: an element that had an outline of its own gets it back.
-    apply("outline", "");
+    // The outline goes with it: back to exactly what the record says was there,
+    // so an element that had an outline of its own gets it back.
+    restore(record(editing), "outline");
     if (editing.blur) editing.blur();
     editing = null;
+  }
+
+  /**
+   * Note what a property was before this session first touched it. Only the
+   * first time: after that the inline value is ours, not the page's.
+   */
+  function remember(rec, prop) {
+    if (prop in rec.props) return;
+    rec.props[prop] = rec.el.style.getPropertyValue(prop);
+    rec.set[prop] = new RegExp("(?:^|;)\\s*" + prop + "\\s*:").test(rec.el.style.cssText);
+  }
+
+  /** Put one property back exactly as it was: its value, or not set at all. */
+  function restore(rec, prop) {
+    if (!(prop in rec.props)) return;
+    if (rec.set[prop] && rec.props[prop]) rec.el.style.setProperty(prop, rec.props[prop]);
+    else rec.el.style.removeProperty(prop);
   }
 
   /** Undo every property and the text of one element. */
   function revert(rec) {
     Object.keys(rec.props).forEach(function (prop) {
-      // Put back exactly what was there: the value, or nothing at all if the
-      // property had never been set on this element.
-      if (rec.set[prop] && rec.props[prop]) rec.el.style.setProperty(prop, rec.props[prop]);
-      else rec.el.style.removeProperty(prop);
+      restore(rec, prop);
     });
     if (rec.text !== null) rec.el.textContent = rec.text;
     changes = changes.filter(function (other) {
