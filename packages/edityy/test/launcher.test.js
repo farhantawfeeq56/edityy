@@ -745,27 +745,39 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
   assert.deepEqual(
     app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["layout", "+"],
-    "layout plus the +, no type controls"
+    ["mode", "direction", "gap", "alignment", "distribution", "padding", "+"],
+    "Stack controls match the table"
   );
-  quiet(() => press(app, "layout"));
-  const layout = app.root.nodes.pop;
-  assert.equal(layout.hidden, false, "the layout control opens");
-  // Five rows: display, direction, justify, align, gap.
-  assert.equal(layout.children.length, 5);
-  assert.equal(layout.children[0].children.length, 3, "stack, flex, grid");
-  assert.equal(layout.children[1].children.length, 2, "row, column");
-  assert.equal(layout.children[2].children.length, 4, "four justifies");
-  assert.equal(layout.children[3].children.length, 4, "four aligns");
-  // Flex then gap: the box is real and the gap lands on the same element.
   const box = app.root.selection().el;
-  for (const fn of layout.children[0].children[1].bubbles.click.bubble) fn({});
+
+  // Mode is the only cyclic control: Stack -> Flex -> Grid -> Absolute -> Stack.
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "wrap", "justify", "flexAlign", "gap", "padding", "advanced", "+"]);
   assert.equal(box.style.getPropertyValue("display"), "flex");
-  const gap = layout.children[4].children[0];
-  gap.value = 12;
-  for (const fn of gap.bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("gap"), "12px");
-  assert.equal(layout.hidden, false, "still open after both");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "columns", "rows", "columnGap", "rowGap", "alignment", "padding", "+"]);
+  assert.equal(box.style.getPropertyValue("display"), "grid");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "x", "y", "bounds", "width", "height", "zIndex", "+"]);
+  assert.equal(box.style.getPropertyValue("position"), "absolute");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "gap", "alignment", "distribution", "padding", "+"]);
+
+  quiet(() => press(app, "alignment"));
+  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "wrap"));
+  assert.equal(app.root.nodes.pop.children[0].children.length, 3, "flex wrap options");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "columns"));
+  assert.equal(app.root.nodes.pop.children[0].children[0].type, "number");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "bounds"));
+  assert.equal(app.root.nodes.pop.children.length, 4, "absolute edges");
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
   // Seven type icons and the `+`, each with a name for a tooltip.
