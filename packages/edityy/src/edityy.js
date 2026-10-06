@@ -128,6 +128,8 @@
     // The alignment control lays its row out as a real 3x3 grid instead.
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
     ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
+    ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+    ".field-label{white-space:nowrap}",
     ".val{min-width:36px;text-align:right;font:600 13px/1 inherit;color:#86546b;",
     "font-variant-numeric:tabular-nums}",
     // The weight slider: a hairline track in the ramp and a solid grab dot. The
@@ -655,12 +657,6 @@ function faces() {
     { v: "wrap", label: "Wrap", icon: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>' },
     { v: "wrap-reverse", label: "Wrap reverse", icon: '<path d="M3 12h8a4 4 0 0 0 0-8H8M3 6l3-2-3-2"/>' },
   ];
-  var DISTRIBUTIONS = [
-    { v: "flex-start", label: "Start", icon: '<path d="M3 5h4M3 9h3M3 13h4"/>' },
-    { v: "center", label: "Center", icon: '<path d="M6.5 5h5M7.5 9h3M6.5 13h5"/>' },
-    { v: "flex-end", label: "End", icon: '<path d="M11 5h4M12 9h3M11 13h4"/>' },
-    { v: "space-between", label: "Space between", icon: '<path d="M3 5h3M12 5h3M3 13h3M12 13h3"/>' },
-  ];
   // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
   // dot in a frame so the cell itself says where the children go.
   var ALIGN_CELLS = [
@@ -681,28 +677,18 @@ function faces() {
       icon: '<rect x="3" y="3.5" width="12" height="11" rx="1"/><circle cx="' + c.x + '" cy="' + c.y + '" r="1.6" fill="currentColor" stroke="none"/>',
     };
   });
-  var ALIGN_ITEMS = [
-    { v: "flex-start", label: "Start", icon: '<path d="M5 3v5M9 3v5M13 3v5"/>' },
-    { v: "center", label: "Center", icon: '<path d="M5 6.5v5M9 6.5v5M13 6.5v5"/>' },
-    { v: "flex-end", label: "End", icon: '<path d="M5 10v5M9 10v5M13 10v5"/>' },
-    { v: "stretch", label: "Stretch", icon: '<path d="M5 3v12M9 3v12M13 3v12"/>' },
-  ];
   var BOX_GLYPHS = {
     direction: '<path d="M3 9h12M11 5l4 4-4 4"/>',
     gap: '<path d="M3 6.5h12M3 11.5h12"/>',
     alignment: '<circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
-    distribution: '<path d="M3 5h4M3 9h3M3 13h4M11 5h4M12 9h3M11 13h4"/>',
-    padding: '<rect x="4" y="4" width="10" height="10" rx="1"/><path d="M2 6h2M2 9h2M2 12h2"/>',
     wrap: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>',
-    justify: '<path d="M3 5h4M3 9h3M3 13h4M11 5h4M12 9h3M11 13h4"/>',
     columns: '<path d="M4 3v12M9 3v12M14 3v12"/>',
     rows: '<path d="M3 4h12M3 9h12M3 14h12"/>',
     columnGap: '<path d="M4 4v10M14 4v10M7 9h4M9 7l2 2-2 2"/>',
     rowGap: '<path d="M4 4h10M4 14h10M9 7v4M7 9l2 2 2-2"/>',
     position: '<path d="M3 3h12v12H3zM9 6v6M6 9h6"/>',
-    size: '<path d="M3 6V3h3M12 3h3v3M15 12v3h-3M6 15H3v-3"/>',
-    zIndex: '<path d="M4 5h10M4 9h7M4 13h10"/>',
-    advanced: '<path d="M3 5h12M3 9h12M3 13h12M6 3v4M11 7v4M8 11v4"/>',
+    width: '<path d="M3 9h12M6 6l-3 3 3 3M12 6l3 3-3 3"/>',
+    height: '<path d="M9 3v12M6 6l3-3 3 3M6 12l3 3 3-3"/>',
   };
 
   // The filters, as data. Blur is the only one that takes a length; the other
@@ -951,9 +937,15 @@ function icons(items, current, onPick, cls) {
   }
 
   /** A number field, for size and tracking. */
-  function number(min, max, step, current, unit, onInput) {
+  function number(min, max, step, current, unit, onInput, label) {
     var row = document.createElement("div");
     row.className = "bar2";
+    if (label) {
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      caption.textContent = label;
+      row.appendChild(caption);
+    }
     var input = document.createElement("input");
     input.type = "number";
     input.min = min;
@@ -1102,10 +1094,11 @@ function icons(items, current, onPick, cls) {
       setMode("flex");
       return;
     }
-    var d = String(get("display") || "").trim();
-    if (d !== "flex" && d !== "grid") {
+    var display = String(get("display") || "").trim();
+    if (display !== "flex" && display !== "grid") {
       set("position", "");
       set("display", current === "stack" ? "flex" : current);
+      if (current === "stack") set("flex-direction", "column");
     }
   }
 
@@ -1114,11 +1107,14 @@ function icons(items, current, onPick, cls) {
     if (rec && rec.layoutMode) return rec.layoutMode;
     if (String(get("position") || "").trim() === "absolute") return "absolute";
     var display = String(get("display") || "").trim();
-    return display === "flex" || display === "grid" ? display : "stack";
+    if (display === "flex" || display === "inline-flex") return "flex";
+    if (display === "grid" || display === "inline-grid") return "grid";
+    return "stack";
   }
 
   function setMode(value) {
     var rec = record(selected);
+    var previous = mode();
     rec.layoutMode = value;
     if (value === "absolute") {
       set("display", "block");
@@ -1130,7 +1126,15 @@ function icons(items, current, onPick, cls) {
     } else {
       set("position", "");
       set("display", value);
+      if (value === "flex" && previous === "stack") set("flex-direction", "row");
     }
+  }
+
+  function alignValue(value, fallback) {
+    var v = String(value || "").trim();
+    if (v === "start") v = "flex-start";
+    if (v === "end") v = "flex-end";
+    return v === "flex-start" || v === "center" || v === "flex-end" ? v : fallback;
   }
 
   var CONTROLS = {
@@ -1238,54 +1242,54 @@ function icons(items, current, onPick, cls) {
     // Direction on its own: row or column. Flex-only, but a grid is left
     // alone — the property is harmless there and yanking the mode surprises.
     direction: function () {
+      // Establish the flex box first. Otherwise ensureBox() applies the stack's
+      // column default after the user's row/column choice and loses that choice.
+      ensureBox();
       icons(DIRECTIONS, String(get("flex-direction") || "row").trim(), function (v) {
         set("flex-direction", v);
-        ensureBox();
         return [v];
       });
     },
-    // Alignment on its own: the 3x3 grid, one cell per justify/align pair.
+    // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
-      // The cascade can answer normal, stretch or space-between from elsewhere;
-      // none of those is a cell, so they read as the corner cell, not as none.
-      var norm = function (v) {
-        return v === "center" || v === "flex-end" ? v : "flex-start";
-      };
-      var current = norm(String(get("justify-content") || "").trim()) + ":" +
-        norm(String(get("align-items") || "").trim());
+      var currentMode = mode();
+      // Stack is the editor's column layout even though a non-flex element's
+      // computed flex-direction is the CSS default, row.
+      var direction = currentMode === "stack"
+        ? "column"
+        : String(get("flex-direction") || "row").trim();
+      var current;
+      if (currentMode === "grid") {
+        current = alignValue(get("justify-items"), "start") + ":" + alignValue(get("align-items"), "start");
+      } else {
+        var main = alignValue(get("justify-content"), "flex-start");
+        var cross = alignValue(get("align-items"), "flex-start");
+        current = direction === "column" ? cross + ":" + main : main + ":" + cross;
+      }
       icons(ALIGN_GRID, current, function (v) {
         var parts = v.split(":");
-        set("justify-content", parts[0]);
-        set("align-items", parts[1]);
+        if (currentMode === "grid") {
+          set("justify-items", parts[0] === "flex-start" ? "start" : parts[0] === "flex-end" ? "end" : parts[0]);
+          set("align-items", parts[1]);
+        } else if (direction === "column") {
+          set("align-items", parts[0]);
+          set("justify-content", parts[1]);
+        } else {
+          set("justify-content", parts[0]);
+          set("align-items", parts[1]);
+        }
         ensureBox();
         return [v];
       }, "grid3");
     },
     wrap: function () {
+      // Keep this control usable for existing `inline-flex` elements too. The
+      // mode is normalized to flex, then the value is written after the box is
+      // established; setting it in the opposite order can be lost on mode change.
+      if (mode() !== "flex") setMode("flex");
       icons(WRAPS, String(get("flex-wrap") || "nowrap").trim(), function (v) {
+        setMode("flex");
         set("flex-wrap", v);
-        ensureBox();
-        return [v];
-      });
-    },
-    justify: function () {
-      icons(DISTRIBUTIONS, String(get("justify-content") || "flex-start").trim(), function (v) {
-        set("justify-content", v);
-        ensureBox();
-        return [v];
-      });
-    },
-    distribution: function () {
-      icons(DISTRIBUTIONS, String(get("justify-content") || "flex-start").trim(), function (v) {
-        set("justify-content", v);
-        ensureBox();
-        return [v];
-      });
-    },
-    flexAlign: function () {
-      icons(ALIGN_ITEMS, String(get("align-items") || "stretch").trim(), function (v) {
-        set("align-items", v);
-        ensureBox();
         return [v];
       });
     },
@@ -1295,46 +1299,39 @@ function icons(items, current, onPick, cls) {
         ensureBox();
       });
     },
-    padding: function () {
-      slider(0, 160, 1, num("padding", 0), "px", function (v) {
-        set("padding", v + "px");
-      });
-    },
     columns: function () {
       var current = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
-      number(1, 12, 1, current ? Number(current[1]) : 1, " columns", function (v) {
+      if (mode() !== "grid") setMode("grid");
+      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
         set("grid-template-columns", "repeat(" + v + ", minmax(0, 1fr))");
-      });
+      }, "Columns");
     },
     rows: function () {
       var current = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
-      number(1, 12, 1, current ? Number(current[1]) : 1, " rows", function (v) {
+      if (mode() !== "grid") setMode("grid");
+      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
         set("grid-template-rows", "repeat(" + v + ", minmax(0, 1fr))");
-      });
+      }, "Rows");
     },
     columnGap: function () {
-      slider(0, 48, 1, num("column-gap", 0), "px", function (v) { set("column-gap", v + "px"); });
-    },
-    rowGap: function () {
-      slider(0, 48, 1, num("row-gap", 0), "px", function (v) { set("row-gap", v + "px"); });
-    },
-    x: function () {
-      var current = String(get("translate") || "").match(/(-?\d*\.?\d+)px(?:\s+(-?\d*\.?\d+)px)?/);
-      slider(-1000, 1000, 1, current ? Number(current[1]) : 0, "px", function (v) {
-        set("translate", v + "px " + (current && current[2] ? current[2] : 0) + "px");
+      if (mode() !== "grid") setMode("grid");
+      slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
+        set("column-gap", v + "px");
       });
     },
-    y: function () {
-      var current = String(get("translate") || "").match(/(-?\d*\.?\d+)px(?:\s+(-?\d*\.?\d+)px)?/);
-      slider(-1000, 1000, 1, current && current[2] ? Number(current[2]) : 0, "px", function (v) {
-        set("translate", (current ? current[1] : 0) + "px " + v + "px");
+    rowGap: function () {
+      if (mode() !== "grid") setMode("grid");
+      slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
+        set("row-gap", v + "px");
       });
     },
     bounds: function () {
       ["top", "right", "bottom", "left"].forEach(function (prop) {
         var row = document.createElement("div");
         row.className = "bar2";
-        var label = text(prop.charAt(0).toUpperCase() + prop.slice(1));
+        var label = document.createElement("span");
+        label.className = "field-label";
+        label.textContent = prop.charAt(0).toUpperCase() + prop.slice(1);
         row.appendChild(label);
         var input = document.createElement("input");
         input.type = "number";
@@ -1352,18 +1349,10 @@ function icons(items, current, onPick, cls) {
       });
     },
     width: function () {
-      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); });
+      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width");
     },
     height: function () {
-      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); });
-    },
-    zIndex: function () {
-      number(-100, 100, 1, num("z-index", 0), "", function (v) { set("z-index", v); });
-    },
-    advanced: function () {
-      slider(0, 10, 0.1, num("flex-grow", 0), " grow", function (v) { set("flex-grow", v); });
-      slider(0, 10, 0.1, num("flex-shrink", 1), " shrink", function (v) { set("flex-shrink", v); });
-      number(0, 2000, 1, num("flex-basis", 0), "px basis", function (v) { set("flex-basis", v + "px"); });
+      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height");
     },
     blur: function () { filterSlider("blur"); },
     brightness: function () { filterSlider("brightness"); },
@@ -1441,17 +1430,12 @@ function decorate(el) {
       { key: "direction", label: "Direction", glyph: svg(BOX_GLYPHS.direction) },
       { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
       { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
-      { key: "distribution", label: "Distribution", glyph: svg(BOX_GLYPHS.distribution) },
-      { key: "padding", label: "Padding", glyph: svg(BOX_GLYPHS.padding) },
     ],
     flex: [
       { key: "direction", label: "Direction", glyph: svg(BOX_GLYPHS.direction) },
       { key: "wrap", label: "Wrap", glyph: svg(BOX_GLYPHS.wrap) },
-      { key: "justify", label: "Justify", glyph: svg(BOX_GLYPHS.justify) },
-      { key: "flexAlign", label: "Align", glyph: svg(BOX_GLYPHS.alignment) },
+      { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
       { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
-      { key: "padding", label: "Padding", glyph: svg(BOX_GLYPHS.padding) },
-      { key: "advanced", label: "Advanced flex", glyph: svg(BOX_GLYPHS.advanced) },
     ],
     grid: [
       { key: "columns", label: "Columns", glyph: svg(BOX_GLYPHS.columns) },
@@ -1459,15 +1443,11 @@ function decorate(el) {
       { key: "columnGap", label: "Column gap", glyph: svg(BOX_GLYPHS.columnGap) },
       { key: "rowGap", label: "Row gap", glyph: svg(BOX_GLYPHS.rowGap) },
       { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
-      { key: "padding", label: "Padding", glyph: svg(BOX_GLYPHS.padding) },
     ],
     absolute: [
-      { key: "x", label: "X", glyph: svg(BOX_GLYPHS.position) },
-      { key: "y", label: "Y", glyph: svg(BOX_GLYPHS.position) },
       { key: "bounds", label: "Top / Right / Bottom / Left", glyph: svg(BOX_GLYPHS.position) },
-      { key: "width", label: "Width", glyph: svg(BOX_GLYPHS.size) },
-      { key: "height", label: "Height", glyph: svg(BOX_GLYPHS.size) },
-      { key: "zIndex", label: "Z-index", glyph: svg(BOX_GLYPHS.zIndex) },
+      { key: "width", label: "Width", glyph: svg(BOX_GLYPHS.width) },
+      { key: "height", label: "Height", glyph: svg(BOX_GLYPHS.height) },
     ],
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
@@ -1486,7 +1466,7 @@ function decorate(el) {
     });
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
-    var definitions = selectedKind === "container" ? BOX_ICONS[mode()] : BASE_ICONS;
+    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
     if (selectedKind === "container") {
       var currentMode = mode();
       row.appendChild(button(
