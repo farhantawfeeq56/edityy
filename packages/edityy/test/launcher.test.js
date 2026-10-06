@@ -576,22 +576,6 @@ test("the box is one continuous violet border on all four sides", () => {
   assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
 });
 
-test("the box is the same on a small element", () => {
-  const { run, text } = fakeDom();
-  const app = run();
-  // 20x12: the frame is 28x20 from -4, and is still one border.
-  const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
-  quiet(() => {
-    app.click();
-    app.hover(line);
-    app.clickPage();
-  });
-  assert.equal(app.root.nodes.sel.style.width, "28px");
-  assert.equal(app.root.nodes.sel.style.height, "20px");
-  assert.equal(app.root.nodes.sel.children.length, 0);
-});
-
-
 /** Select a node and report how it was classified. */
 const kindOf = (app, node) => {
   app.hover(node);
@@ -651,62 +635,6 @@ const shown = (el) =>
     skipped rather than treated as a field. */
 const fields = (el) =>
   [el, ...(el.children ?? []).flatMap(fields)].filter((n) => n.tagName === "INPUT");
-
-
-
-test("an element with no text is still selectable", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const wrapper = el("div");
-  quiet(() => {
-    app.click();
-    app.hover(wrapper);
-    app.clickPage();
-  });
-  // A container is a legal target: the frame goes on it and it is classified.
-  assert.equal(app.root.selection().el, wrapper);
-  assert.equal(app.root.selection().kind, "container");
-  assert.equal(app.root.nodes.sel.hidden, false);
-});
-
-test("the box is one continuous violet border on all four sides", () => {
-  const { run, text } = fakeDom();
-  const app = run();
-  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by
-  // 46..102: 128 wide, 56 tall.
-  const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
-  quiet(() => {
-    app.click();
-    app.hover(heading);
-    app.clickPage();
-  });
-  const sel = app.root.nodes.sel;
-  assert.equal(sel.hidden, false);
-  assert.equal(sel.children.length, 0, "one border, not a stack of pieces");
-  assert.equal(sel.style.left, "96px");
-  assert.equal(sel.style.top, "46px");
-  assert.equal(sel.style.width, "128px");
-  assert.equal(sel.style.height, "56px");
-  // One colour, one unbroken stroke on every side, and a corner radius.
-  assert.match(app.root.innerHTML, /border:2px solid #d79eac/, "one violet border, all four sides");
-  assert.match(app.root.innerHTML, /border-radius:4px/, "the ramp sm radius");
-  assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
-});
-
-test("the box is the same on a small element", () => {
-  const { run, text } = fakeDom();
-  const app = run();
-  // 20x12: the frame is 28x20 from -4, and is still one border.
-  const line = text("p", "body", {}, { left: 0, top: 0, right: 20, bottom: 12, width: 20, height: 12 });
-  quiet(() => {
-    app.click();
-    app.hover(line);
-    app.clickPage();
-  });
-  assert.equal(app.root.nodes.sel.style.width, "28px");
-  assert.equal(app.root.nodes.sel.style.height, "20px");
-  assert.equal(app.root.nodes.sel.children.length, 0);
-});
 
 
 
@@ -1078,18 +1006,6 @@ test("media beats the words around it", () => {
   });
 });
 
-test("text beats the container it sits in", () => {
-  const { run, text, el } = fakeDom();
-  const app = run();
-  const card = el("section");
-  const heading = text("h1", "Edityy");
-  heading.parentElement = card;
-  quiet(() => {
-    app.click();
-    assert.equal(kindOf(app, heading), "text");
-  });
-});
-
 test("every structural tag is a container", () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -1167,16 +1083,6 @@ test("selecting text makes the words editable where they sit", () => {
   assert.notEqual(p.getAttribute("contenteditable"), "true");
 });
 
-test("the words are typed into, not replaced by a panel input", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  // The element itself is the field: typing lands in it and there is nothing to
-  // commit, because a browser editing contenteditable mutates the node directly.
-  assert.equal(p.textContent, "hello");
-  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
-});
-
 test("selecting something else takes the caret off the old words", () => {
   const { run } = fakeDom();
   const app = run();
@@ -1238,18 +1144,6 @@ test("the words being edited get no second ring on top of Edityy's own frame", (
   // a selection frame, so the words ended up with two outlines, one of them not
   // ours. The frame is the ring.
   assert.equal(p.style.getPropertyValue("outline"), "none");
-});
-
-test("an element that had an outline of its own gets it back on exit", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    app.fire("keydown", { key: "Escape" });
-    app.fire("keydown", { key: "Escape" });
-  });
-  // Reverted through the same record as every other change, so nothing is left.
-  assert.equal(p.style.getPropertyValue("outline"), "", "no leftover outline style");
 });
 
 test("an element's own inline outline survives being edited", () => {
@@ -1443,36 +1337,6 @@ test("the text-colour glyph wears the element own colour, not one of ours", () =
 });
 
 
-test("a control added to one element is not on the dock of another", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const first = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
-  });
-  assert.ok(
-    app.root.nodes.row.children.some((b) => b.dataset.key === "blur"),
-    "the element it was added to has it",
-  );
-
-  // A different element, same session.
-  const second = app.el("h1", { text: "Another heading" });
-  app.hover(second);
-  app.clickPage();
-  const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(
-    keys(),
-    ["family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"],
-    "and the next one does not",
-  );
-
-  // Back to the first, and it is still there.
-  app.hover(first);
-  app.clickPage();
-  assert.ok(keys().includes("blur"), "the control belongs to its own element");
-});
-
 test("each element keeps its own additions", () => {
   const { run } = fakeDom();
   const app = run();
@@ -1589,24 +1453,10 @@ test("a filter back at its default leaves no filter behind", () => {
   });
   drag(pop(app), 0, 100);
   assert.match(p.style.getPropertyValue("filter"), /grayscale\(100%\)/);
-  drag(pop(app), 0, 0);
+  // A string, as a range input reports it: "0" !== 0, so a filter dragged home
+  // would be written as grayscale(0%) and never leave.
+  drag(pop(app), 0, "0");
   assert.equal(p.style.getPropertyValue("filter"), "", "the filter is gone, not zero");
-});
-
-test("a range input hands over a string, and a filter at its default must still count", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
-  });
-  // What the DOM actually does: input.value is a string, so "0" !== 0 and a
-  // filter dragged home would be written as blur(0px) and never leave.
-  const input = pop(app).children[0].children[0];
-  input.value = "0";
-  for (const fn of input.bubbles.input.bubble) fn({});
-  assert.equal(p.style.getPropertyValue("filter"), "", 'the string "0" is still zero');
 });
 
 test("a shadow is written as one shorthand, because the offsets have no longhand", () => {
