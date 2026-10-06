@@ -11,6 +11,8 @@ All notable changes to the `edityy` package. The format follows
 - `edityy({ nonce })` puts a CSP nonce on the injected tag, so a page with a
   strict `script-src` runs the launcher. The nonce is a string or a function of
   the request, and it is attribute-escaped. (#63)
+- A streamed (chunked) HTML page gets the launcher too. Only the bytes up to
+  `</head>` are held; the rest of the page streams through as it is written. (#64)
 
 ## 0.1.3 — 2026-10-05
 

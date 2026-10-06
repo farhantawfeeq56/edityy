@@ -111,7 +111,7 @@ bootstrap that mounts the launcher, for frameworks that inject client modules.
 ## Known limits
 
 - **Dev-only.** This is not a proxy and not a production server plugin. Install it as a dev dependency and keep it out of your production build.
-- **A chunked HTML response is left alone.** The tag is not injected into streamed HTML, and the launcher script is not served by this middleware on a chunked server. Vite and Next dev both buffer, so this does not affect them.
+- **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 
