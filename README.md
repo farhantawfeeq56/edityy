@@ -12,10 +12,10 @@ npm install -D edityy
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { edityy } from "edityy";
+import { edityy } from "edityy/vite";
 
 export default defineConfig({
-  plugins: [{ name: "edityy", configureServer(server) { server.middlewares.use(edityy()); } }],
+  plugins: [edityy()],
 });
 ```
 
