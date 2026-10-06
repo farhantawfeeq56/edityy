@@ -1821,3 +1821,63 @@ test("leaving the mode with no edits does not bring it back on reload", () => {
   quiet(() => app.click());
   assert.equal(store.getItem("edityy:/"), null);
 });
+
+/** A small tree: section > (h2, p, img). */
+const tree = (dom) => {
+  const section = dom.el("section");
+  section.getAttribute = () => undefined;
+  const h2 = dom.text("h2", "Title");
+  const p = dom.text("p", "Body");
+  const img = dom.el("img");
+  for (const n of [h2, p, img]) section.appendChild(n);
+  const outer = dom.el("main");
+  outer.appendChild(section);
+  return { outer, section, h2, p, img };
+};
+const arrow = (app, k, mods = {}) => key(app, k, mods);
+
+test("arrows move the selection to the parent, a child or a sibling", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.img);
+  quiet(() => app.clickPage());
+  assert.equal(app.root.selection().el, t.img);
+  assert.equal(arrow(app, "ArrowLeft"), true, "the page does not scroll");
+  assert.equal(app.root.selection().el, t.p);
+  quiet(() => arrow(app, "ArrowLeft", { altKey: true })); // in words, Alt is needed
+  assert.equal(app.root.selection().el, t.h2);
+  quiet(() => arrow(app, "ArrowUp", { altKey: true }));
+  assert.equal(app.root.selection().el, t.section);
+  assert.equal(app.root.selection().kind, "container");
+  quiet(() => arrow(app, "ArrowUp"));
+  assert.equal(app.root.selection().el, t.outer);
+  assert.equal(arrow(app, "ArrowUp"), false, "nothing above: not the body");
+  quiet(() => arrow(app, "ArrowDown"));
+  assert.equal(app.root.selection().el, t.section);
+  quiet(() => arrow(app, "ArrowDown"));
+  assert.equal(app.root.selection().el, t.h2, "the first child");
+});
+
+test("in words being typed into, a bare arrow moves the caret, not the selection", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.p);
+  quiet(() => app.clickPage());
+  assert.equal(arrow(app, "ArrowUp"), false);
+  assert.equal(app.root.selection().el, t.p);
+});
+
+test("an arrow on one of our own controls is the control's", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.img);
+  quiet(() => app.clickPage());
+  assert.equal(arrow(app, "ArrowLeft", { composedPath: () => [app.host] }), false);
+  assert.equal(app.root.selection().el, t.img);
+});
