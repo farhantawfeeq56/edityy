@@ -25,6 +25,10 @@ All notable changes to the `edityy` package. The format follows
   on: a selector, the source location when the Vite plugin stamped one, each
   property as `before → after` (the value the page showed, not the empty inline
   one) and any text change. `window.__edityy_changes()` returns the same text. (#65)
+- Undo and redo: ⌘Z / Ctrl+Z, and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y. One drag of a
+  slider is one step, from the first input to letting go, and a border's width
+  and style go back together. After typing into the words, ⌘Z stays the
+  browser's own text undo. (#66)
 
 ### Fixed
 
