@@ -19,6 +19,12 @@ All notable changes to the `edityy` package. The format follows
   `data-edityy-src="path:line:col"`, using the parser Vite already has, so an
   edit can say which line to change. `edityy({ source: false })` turns it off. (#62)
 
+### Fixed
+
+- Leaving the edit mode left `outline: none` on every element whose text was
+  edited, and took away an outline the element had of its own. The outline is
+  recorded before Edityy hides the focus ring, so exit puts back the page's. (#74)
+
 ## 0.1.3 — 2026-10-05
 
 ### Added
