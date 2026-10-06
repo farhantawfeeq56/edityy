@@ -29,6 +29,12 @@ includes the launcher. It works for every framework that runs on Vite's dev
 server: React, Vue, Svelte and Solid templates, SvelteKit, Astro, Nuxt, Remix and
 React Router. It takes the same options as the middleware below.
 
+On Vite 8 or later it also marks where each element was written. Every DOM element
+in a `.jsx` or `.tsx` file gets `data-edityy-src="src/App.tsx:12:7"`, so an edit can
+name the exact line to change. Components (`<Card>`) are skipped, because a
+component can drop the attribute. Turn it off with `edityy({ source: false })`.
+An older Vite cannot parse TSX in a plugin, so there it does nothing.
+
 **Anything else** that takes `(req, res, next)` — Connect, Express, a plain
 `http` server:
 

@@ -15,6 +15,9 @@ All notable changes to the `edityy` package. The format follows
   `</head>` are held; the rest of the page streams through as it is written. (#64)
 - `edityy/vite`: a Vite plugin, so the setup is `plugins: [edityy()]`. It applies
   to the dev server only, so `vite build` never includes the launcher. (#61)
+- The Vite plugin marks every DOM element in a `.jsx` / `.tsx` file with
+  `data-edityy-src="path:line:col"`, using the parser Vite already has, so an
+  edit can say which line to change. `edityy({ source: false })` turns it off. (#62)
 
 ## 0.1.3 — 2026-10-05
 
