@@ -36,6 +36,10 @@ All notable changes to the `edityy` package. The format follows
 - The arrow keys move the selection: ↑ to the parent, ↓ to the first child, ← →
   to the siblings. While the caret is in words the arrows move the caret, so
   there they take Alt as well. (#68)
+- The dock opens on every selection, not only on text. A container or a media
+  element starts with padding and margin; text keeps its type controls and has
+  both behind the `+`. Each one is a slider for all four sides and a field per
+  side, written as longhands so the edits list names the side. (#69)
 
 ### Fixed
 

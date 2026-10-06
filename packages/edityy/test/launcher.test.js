@@ -742,15 +742,9 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
-test("the dock opens on text and stays shut on anything else", () => {
-  const { run, el } = fakeDom();
+test("the dock opens on text with the type controls", () => {
+  const { run } = fakeDom();
   const app = run();
-  quiet(() => {
-    app.click();
-    app.hover(el("div"));
-    app.clickPage();
-  });
-  assert.equal(app.root.nodes.dock.hidden, true, "a container is not this dock's business");
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
   // Seven type icons and the `+`, each with a name for a tooltip.
@@ -1427,7 +1421,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const pop = app.root.nodes.pop;
   assert.deepEqual(
     pop.children[0].children.map((b) => b.title),
-    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border"],
+    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"],
   );
   // Picking one puts it in the row, and opens the control that was just picked.
   quiet(() => pickOption(pop, "Blur"));
@@ -1450,7 +1444,7 @@ test("a control can only be added once", () => {
   const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
   // Blur is gone because this element has it; the two new box controls are still
   // on offer, since only Blur was ever added.
-  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border"]);
+  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"]);
 });
 
 test("a filter slider writes the filter, and leaves the others alone", () => {
@@ -1930,4 +1924,79 @@ test("an arrow on one of our own controls is the control's", () => {
   quiet(() => app.clickPage());
   assert.equal(arrow(app, "ArrowLeft", { composedPath: () => [app.host] }), false);
   assert.equal(app.root.selection().el, t.img);
+});
+
+test("a container opens the dock too, with its space as the controls", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.dock.hidden, false, "anything selected can be changed");
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key), ["padding", "margin", "+"]);
+  quiet(() => press(app, "+"));
+  const offered = app.root.nodes.pop.children[0].children.map((b) => b.title);
+  assert.ok(!offered.includes("Padding"), "what is already in the row is not offered again");
+  assert.ok(offered.includes("Fill"));
+});
+
+test("padding moves all four sides at once, or one side on its own", async () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "padding");
+  });
+  const all = fields(pop(app));
+  const range = all.find((n) => n.type === "range");
+  range.value = "24";
+  for (const fn of range.bubbles.input.bubble) fn({});
+  for (const fn of range.bubbles.change.bubble) fn({});
+  for (const side of ["top", "right", "bottom", "left"]) {
+    assert.equal(box.style.getPropertyValue("padding-" + side), "24px", side);
+  }
+  const numbers = all.filter((n) => n.type === "number");
+  assert.deepEqual(numbers.map((n) => n.value), ["24", "24", "24", "24"], "the fields follow the slider");
+  assert.equal(numbers[1].getAttribute("aria-label"), "Right padding");
+  await tick();
+
+  numbers[1].value = "8";
+  for (const fn of numbers[1].bubbles.input.bubble) fn({});
+  for (const fn of numbers[1].bubbles.change.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("padding-right"), "8px");
+  assert.equal(box.style.getPropertyValue("padding-left"), "24px");
+  await tick();
+
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-right"), "24px", "one side undoes alone");
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-top"), "", "and the four sides undo together");
+});
+
+test("margin can go negative, and is reverted on exit", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "margin");
+  });
+  const top = fields(pop(app)).filter((n) => n.type === "number")[0];
+  assert.equal(top.min, "-160");
+  top.value = "-12";
+  for (const fn of top.bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("margin-top"), "-12px");
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(box.style.getPropertyValue("margin-top"), "");
 });
