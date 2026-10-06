@@ -79,6 +79,45 @@ approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
 `launcher` from `edityy/inject`.
 
+## Save edits to the project
+
+"Save to project" in the edits list sends the edits to the dev server, which writes
+them to `.edityy/changes.json` in the project root. A coding agent working in the
+repo can read them from there (or through [MCP](#mcp)). The folder gets its own
+`.gitignore`, so pending edits never end up in a commit.
+
+```json
+{
+  "version": 1,
+  "savedAt": "2026-10-06T09:30:00.000Z",
+  "page": "http://localhost:5173/pricing",
+  "markdown": "# Visual edits from Edityy\n…",
+  "changes": [
+    {
+      "label": "h1 “Simple pricing”",
+      "selector": "#pricing > h1",
+      "source": "src/Pricing.tsx:12:7",
+      "props": [{ "prop": "font-size", "before": "32px", "after": "40px" }],
+      "text": { "before": "Simple pricing", "after": "Pricing" }
+    }
+  ]
+}
+```
+
+The Vite plugin and the middleware handle this themselves (`POST /__edityy/changes`).
+They write under `process.cwd()`, or under `root` if you pass one, and accept only
+JSON from the page's own origin. `save: false` turns the endpoint off.
+
+**Next.js** needs one route file. Next treats a folder that starts with `_` as
+private, so the folder name spells the underscores as `%5F`:
+
+```ts
+// app/%5F%5Fedityy/changes/route.ts
+import { changesRoute } from "edityy";
+
+export const POST = changesRoute();
+```
+
 ## What it does
 
 The middleware does two things:
@@ -101,16 +140,20 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ## API
 
 ```js
-edityy({ tag, nonce }) // returns a (req, res, next) middleware
+edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
 ```
 
 - `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
 - `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
   function `(req, res) => string` when your app makes a new nonce for each response.
+- `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
+- `save: false` turns off the save endpoint.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
-for injecting into an HTML string yourself, and `edityy/client` — the browser
-bootstrap that mounts the launcher, for frameworks that inject client modules.
+for injecting into an HTML string yourself, `changesRoute({ root })` (the save
+endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
+`CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
+mounts the launcher, for frameworks that inject client modules.
 
 ## Known limits
 

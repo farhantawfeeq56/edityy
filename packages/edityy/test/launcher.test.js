@@ -1983,3 +1983,42 @@ test("reduced motion stops the dock and control animations", () => {
   const app = run();
   assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}#dock,\.pop\{animation:none\}/);
 });
+
+test("Save to project posts the edits as JSON to the dev server", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const sent = [];
+  app.win.fetch = async (url, init) => {
+    sent.push({ url, init });
+    return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
+  };
+  selectText(app);
+  setSize(app, 40);
+  const open = openEdits(app);
+  const save = open.children[1].children[1];
+  assert.equal(save.dataset.key, "save");
+  for (const fn of save.bubbles.click.bubble) fn({});
+  await tick();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, "/__edityy/changes");
+  assert.equal(sent[0].init.method, "POST");
+  assert.equal(sent[0].init.headers["content-type"], "application/json");
+  const body = JSON.parse(sent[0].init.body);
+  assert.equal(body.changes.length, 1);
+  assert.equal(body.changes[0].props[0].prop, "font-size");
+  assert.equal(body.changes[0].rec, undefined, "no live element on the wire");
+  assert.match(body.markdown, /# Visual edits from Edityy/);
+  assert.equal(save.textContent, "Saved to .edityy/changes.json");
+});
+
+test("with no save endpoint the button says so", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  app.win.fetch = async () => ({ status: 404, json: async () => ({}) });
+  selectText(app);
+  setSize(app, 40);
+  const save = openEdits(app).children[1].children[1];
+  for (const fn of save.bubbles.click.bubble) fn({});
+  await tick();
+  assert.equal(save.textContent, "No save endpoint");
+});

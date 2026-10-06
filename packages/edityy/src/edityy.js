@@ -203,6 +203,9 @@
     "font:600 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
     ".cta:hover{background:#86546b}",
     ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
+    ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
+    ".cta.ghost:hover{background:#3a283c0f}",
+    ".cta.ghost:disabled{background:transparent}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
@@ -1966,7 +1969,55 @@ function decorate(el) {
     copy.appendChild(text("Copy for an agent"));
     copy.disabled = !items.length;
     actions.appendChild(copy);
+    var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
+      saveEdits(function (message) {
+        save.textContent = message;
+        setTimeout(function () { save.textContent = "Save to project"; }, 2400);
+      });
+    }, "save");
+    save.appendChild(text("Save to project"));
+    save.disabled = !items.length;
+    actions.appendChild(save);
     pop.appendChild(actions);
+  }
+
+  // The dev server's save endpoint (index.js) and the file it writes.
+  var CHANGES_URL = "/__edityy/changes";
+  var CHANGES_FILE = ".edityy/changes.json";
+
+  /** The edits without their live elements: what can go over the wire. */
+  function plain(items) {
+    return items.map(function (item) {
+      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text };
+    });
+  }
+
+  /**
+   * Send the edits to the dev server, which writes them into the project for a
+   * coding agent to read. A server without the endpoint — Next.js until its
+   * route is added — answers 404, and the button says so instead of failing.
+   */
+  function saveEdits(done) {
+    var items = report();
+    if (typeof window.fetch !== "function") return done("Cannot save here");
+    var body = JSON.stringify({
+      page: window.location ? window.location.href : null,
+      markdown: markdown(items),
+      changes: plain(items),
+    });
+    window.fetch(CHANGES_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: body,
+    }).then(function (r) {
+      if (r.status === 404) return done("No save endpoint");
+      return r.json().then(function (j) {
+        done(j && j.ok ? "Saved to " + j.path : "Save failed");
+      });
+    }).catch(function () {
+      done("Save failed");
+    });
   }
 
   /** Put a string on the clipboard, by the API where there is one. */
