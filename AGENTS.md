@@ -58,6 +58,12 @@ it isn't written there, a future session doesn't know it happened.
     - **The approval goes out from your developer's account, so it is theirs.** Tell your human each time you approve or request changes: the PR number, the decision and what you checked.
     - **Some PRs wait for a human approval:** any PR that changes `AGENTS.md`, branch protection, CI workflows, auth, payments, security or data deletion (§4). Review it and leave a comment, then ask your human to approve it.
 14. **Never bypass or weaken protections.** No `gh pr merge --admin`, no disabling, loosening or "temporarily" removing branch protection or rulesets, no lowering `required_approving_review_count`, no setting `enforce_admins` to `false`, no `--no-verify`, no turning off lint/type rules to get green. The only agent allowed to touch protection settings is the owner's, applying §7 at the owner's request.
+15. **Write in ASD-STE100 Simplified Technical English.** This applies to everything you write: issues, PR titles and bodies, commit messages, review comments, code comments and docs.
+    - One topic per sentence. Procedure sentences have 20 words or fewer; descriptive sentences have 25 or fewer.
+    - Use the active voice and the imperative for instructions: "Run the tests", not "The tests should be run".
+    - Use approved STE words in their approved meaning. Use one term for one thing, and do not change it between sentences.
+    - Write numbered steps for procedures, with one action in each step. Put a warning or caution before the step it applies to.
+    - Code, commands, file paths and names from the code stay as they are.
 
 ---
 
