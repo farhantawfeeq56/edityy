@@ -20,7 +20,8 @@
     "localhost",
     "ai",
     "codebase",
-    "vite-plugin"
+    "vite-plugin",
+    "mcp"
   ],
   "type": "module",
   "main": "./src/index.js",
@@ -29,6 +30,9 @@
     "./inject": "./src/index.js",
     "./client": "./src/client.js",
     "./vite": "./src/vite.js"
+  },
+  "bin": {
+    "edityy": "./src/cli.js"
   },
   "files": [
     "src",
