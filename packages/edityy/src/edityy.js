@@ -183,6 +183,10 @@
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
     "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
+    // Four sides in a row, each a small field under its name.
+    ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
+    ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
+    ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px}",
     ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
@@ -910,6 +914,8 @@ function faces() {
     { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
   ];
 
+  var PAD_GLYPH = svg('<rect x="2.5" y="2.5" width="13" height="13" rx="1.5"/><rect x="6" y="6" width="6" height="6" rx=".5" stroke-dasharray="1.5 1.5"/>');
+  var MARGIN_GLYPH = svg('<rect x="5.5" y="5.5" width="7" height="7" rx="1"/><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2"/>');
   // The `+`, and the one control it opens: the five things that are not type.
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
@@ -925,6 +931,10 @@ function faces() {
     // text colour, which is in the primary dock, and text has no border at all.
     { key: "fill", label: "Fill", glyph: svg('<path d="M3.5 8.5 9 3l5.5 5.5v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M7 15.5v-4h4v4"/>') },
     { key: "border", label: "Border", glyph: svg('<rect x="3.5" y="3.5" width="11" height="11" rx="1.5"/><path d="M3.5 7h11"/>') },
+    // Space, inside the box and around it. The base controls of anything that is
+    // not text, and behind the `+` for text, whose padding matters too.
+    { key: "padding", label: "Padding", glyph: PAD_GLYPH },
+    { key: "margin", label: "Margin", glyph: MARGIN_GLYPH },
   ];
 
   /** A button in the dock, or an option inside one control. */
@@ -1286,6 +1296,46 @@ function icons(items, current, onPick, cls) {
     return v === "flex-start" || v === "center" || v === "flex-end" ? v : fallback;
   }
 
+  /**
+   * Four sides of padding or margin: one slider for all four at once, and a
+   * field per side for one at a time. Written as the longhands, so the edits list
+   * says which side changed and an undo puts back exactly the four that moved.
+   */
+  function sides(prop, min, max) {
+    var names = [["top", "Top"], ["right", "Right"], ["bottom", "Bottom"], ["left", "Left"]];
+    var values = names.map(function (n) { return num(prop + "-" + n[0], 0); });
+    var inputs = [];
+    slider(min, max, 1, values[0], "px", function (v) {
+      names.forEach(function (n, i) {
+        set(prop + "-" + n[0], v + "px");
+        inputs[i].value = String(v);
+      });
+    });
+    var grid = document.createElement("div");
+    grid.className = "sides";
+    names.forEach(function (n, i) {
+      var cell = document.createElement("label");
+      cell.appendChild(text(n[1]));
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = min;
+      input.max = max;
+      input.step = 1;
+      input.value = values[i];
+      input.setAttribute("aria-label", n[1] + " " + prop);
+      input.addEventListener("input", function () {
+        if (input.value === "") return; // blank while typing is not a value
+        hold();
+        set(prop + "-" + n[0], Number(input.value) + "px");
+      });
+      input.addEventListener("change", release);
+      inputs.push(input);
+      cell.appendChild(input);
+      grid.appendChild(cell);
+    });
+    pop.appendChild(grid);
+  }
+
   var CONTROLS = {
     mode: function () {
       var at = MODES.indexOf(mode());
@@ -1505,6 +1555,8 @@ function icons(items, current, onPick, cls) {
     height: function () {
       number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height");
     },
+    padding: function () { sides("padding", 0, 160); },
+    margin: function () { sides("margin", -160, 160); },
     blur: function () { filterSlider("blur"); },
     brightness: function () { filterSlider("brightness"); },
     greyscale: function () { filterSlider("greyscale"); },
