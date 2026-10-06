@@ -182,7 +182,7 @@
     // without turning the box into a lozenge.
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}#dock,.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
     ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
@@ -210,7 +210,7 @@
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar">',
-    '<div class="row" id="row"></div>',
+    '<div class="row" id="row" role="toolbar" aria-label="Edit controls" aria-orientation="horizontal"></div>',
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
     '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
@@ -1689,7 +1689,32 @@ function decorate(el) {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
+    rove(row.children[0]);
   }
+
+  /**
+   * The row is one toolbar and one tab stop: Tab reaches it once, and the arrows
+   * move along it. The icon that has the stop is the one Tab comes back to.
+   */
+  function rove(target) {
+    for (var i = 0; i < row.children.length; i++) {
+      row.children[i].setAttribute("tabindex", row.children[i] === target ? "0" : "-1");
+    }
+  }
+
+  row.addEventListener("keydown", function (e) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
+    if (!(e.key in keys)) return;
+    var items = Array.prototype.slice.call(row.children);
+    var at = items.indexOf(e.target);
+    if (at === -1) return;
+    var move = keys[e.key];
+    var next = move === "first" ? 0 : move === "last" ? items.length - 1 : (at + move + items.length) % items.length;
+    rove(items[next]);
+    if (items[next].focus) items[next].focus();
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+  });
 
   /** Which optional controls this element has been given, in the order added. */
   function addedTo(el) {
@@ -2258,8 +2283,16 @@ function decorate(el) {
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
     if (e.key === "Escape") {
-      if (!pop.hidden) show("");
-      else exit();
+      if (!pop.hidden) {
+        // Focus goes back to the icon that opened the control, so a keyboard user
+        // is where they were rather than at the top of the page.
+        var opener = openKey === "changes" ? review : slot(openKey);
+        show("");
+        if (opener) {
+          if (opener !== review) rove(opener);
+          if (opener.focus) opener.focus();
+        }
+      } else exit();
       return;
     }
     // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redoes.
