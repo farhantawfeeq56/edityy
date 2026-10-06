@@ -127,7 +127,11 @@
     ".opt:hover{background:#3a283c0f}",
     ".opt[aria-pressed=true]{background:#3a283c;color:#f9f2ee}",
     ".opts{display:flex;gap:2px;padding:2px}",
+    // The alignment control lays its row out as a real 3x3 grid instead.
+    ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
     ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
+    ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+    ".field-label{white-space:nowrap}",
     ".val{min-width:36px;text-align:right;font:600 13px/1 inherit;color:#86546b;",
     "font-variant-numeric:tabular-nums}",
     // The weight slider: a hairline track in the ramp and a solid grab dot. The
@@ -362,7 +366,7 @@
     for (var i = 0; i < changes.length; i++) {
       if (changes[i].el === el) return changes[i];
     }
-    var rec = { el: el, props: {}, set: {}, was: {}, text: null };
+    var rec = { el: el, props: {}, set: {}, was: {}, text: null, layoutMode: null };
     changes.push(rec);
     return rec;
   }
@@ -782,6 +786,59 @@ function faces() {
     { v: "italic", label: "Italic", icon: '<path d="M12 4H7M9 14h5M10.5 4l-3 10"/>' },
   ];
 
+  // Container controls are mode-specific: the dock mirrors the layout table,
+  // rather than showing one mixed panel whose controls change meaning.
+  var MODES = ["stack", "flex", "grid", "absolute"];
+  var MODE_LABELS = { stack: "Stack", flex: "Flex", grid: "Grid", absolute: "Absolute" };
+  var MODE_GLYPHS = {
+    stack: '<path d="M3 5h12M3 9h12M3 13h12"/>',
+    flex: '<rect x="2.5" y="6" width="4" height="6" rx="1"/><rect x="7" y="6" width="4" height="6" rx="1"/><rect x="11.5" y="6" width="4" height="6" rx="1"/>',
+    grid: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>',
+    absolute: '<path d="M4 4h10v10H4zM7 7h4v4H7z"/>',
+  };
+  var DIRECTIONS = [
+    { v: "row", label: "Row", icon: '<path d="M3 9h12M11 5l4 4-4 4"/>' },
+    { v: "column", label: "Column", icon: '<path d="M9 3v12M5 11l4 4 4-4"/>' },
+  ];
+  var WRAPS = [
+    { v: "nowrap", label: "No wrap", icon: '<path d="M3 6h12M3 12h12"/>' },
+    { v: "wrap", label: "Wrap", icon: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>' },
+    { v: "wrap-reverse", label: "Wrap reverse", icon: '<path d="M3 12h8a4 4 0 0 0 0-8H8M3 6l3-2-3-2"/>' },
+  ];
+  // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
+  // dot in a frame so the cell itself says where the children go.
+  var ALIGN_CELLS = [
+    { j: "flex-start", a: "flex-start", x: 6, y: 6, label: "Top left" },
+    { j: "center", a: "flex-start", x: 9, y: 6, label: "Top center" },
+    { j: "flex-end", a: "flex-start", x: 12, y: 6, label: "Top right" },
+    { j: "flex-start", a: "center", x: 6, y: 9, label: "Middle left" },
+    { j: "center", a: "center", x: 9, y: 9, label: "Center" },
+    { j: "flex-end", a: "center", x: 12, y: 9, label: "Middle right" },
+    { j: "flex-start", a: "flex-end", x: 6, y: 12, label: "Bottom left" },
+    { j: "center", a: "flex-end", x: 9, y: 12, label: "Bottom center" },
+    { j: "flex-end", a: "flex-end", x: 12, y: 12, label: "Bottom right" },
+  ];
+  var ALIGN_GRID = ALIGN_CELLS.map(function (c) {
+    return {
+      v: c.j + ":" + c.a,
+      label: c.label,
+      icon: '<rect x="3" y="3.5" width="12" height="11" rx="1"/><circle cx="' + c.x + '" cy="' + c.y + '" r="1.6" fill="currentColor" stroke="none"/>',
+    };
+  });
+  var BOX_GLYPHS = {
+    direction: '<path d="M3 9h12M11 5l4 4-4 4"/>',
+    gap: '<path d="M3 6.5h12M3 11.5h12"/>',
+    alignment: '<circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    wrap: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>',
+    columns: '<path d="M4 3v12M9 3v12M14 3v12"/>',
+    rows: '<path d="M3 4h12M3 9h12M3 14h12"/>',
+    columnGap: '<path d="M4 4v10M14 4v10M7 9h4M9 7l2 2-2 2"/>',
+    rowGap: '<path d="M4 4h10M4 14h10M9 7v4M7 9l2 2 2-2"/>',
+    position: '<path d="M3 3h12v12H3zM9 6v6M6 9h6"/>',
+    width: '<path d="M3 9h12M6 6l-3 3 3 3M12 6l3 3-3 3"/>',
+    height: '<path d="M9 3v12M6 6l3-3 3 3M6 12l3 3 3-3"/>',
+  };
+
   // The filters, as data. Blur is the only one that takes a length; the other
   // four are percentages, and no webkit prefix: every engine that matters has
   // supported the unprefixed name for years and a second declaration per filter
@@ -867,13 +924,6 @@ function faces() {
 
   var PAD_GLYPH = svg('<rect x="2.5" y="2.5" width="13" height="13" rx="1.5"/><rect x="6" y="6" width="6" height="6" rx=".5" stroke-dasharray="1.5 1.5"/>');
   var MARGIN_GLYPH = svg('<rect x="5.5" y="5.5" width="7" height="7" rx="1"/><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2"/>');
-  // What the dock starts with for anything that is not text: its space. Type
-  // controls on a box with no words of its own would change nothing visible.
-  var BOX_ICONS = [
-    { key: "padding", label: "Padding", glyph: PAD_GLYPH },
-    { key: "margin", label: "Margin", glyph: MARGIN_GLYPH },
-  ];
-
   // The `+`, and the one control it opens: the five things that are not type.
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
@@ -999,9 +1049,9 @@ function faces() {
  * it: one item for a control that only allows one, several for decoration, which
  * CSS lets you stack.
  */
-function icons(items, current, onPick) {
+function icons(items, current, onPick, cls) {
     var list = document.createElement("div");
-    list.className = "opts";
+    list.className = cls ? "opts " + cls : "opts";
     var rows = items.map(function (item) {
       var b = button("ic", svg(item.icon), item.label || item.v, function () {
         // Stays open like every other control: these are things you try twice,
@@ -1049,9 +1099,15 @@ function icons(items, current, onPick) {
   }
 
   /** A number field, for size and tracking. */
-  function number(min, max, step, current, unit, onInput) {
+  function number(min, max, step, current, unit, onInput, label) {
     var row = document.createElement("div");
     row.className = "bar2";
+    if (label) {
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      caption.textContent = label;
+      row.appendChild(caption);
+    }
     var input = document.createElement("input");
     input.type = "number";
     input.min = min;
@@ -1236,7 +1292,65 @@ function icons(items, current, onPick) {
     pop.appendChild(grid);
   }
 
+  // A direction, align or gap without a box is nothing: flex, unless the
+  // element already is a box — read fresh each time, so an earlier pick in
+  // the same control still counts.
+  function ensureBox() {
+    var current = mode();
+    if (current === "absolute") {
+      setMode("flex");
+      return;
+    }
+    var display = String(get("display") || "").trim();
+    if (display !== "flex" && display !== "grid") {
+      set("position", "");
+      set("display", current === "stack" ? "flex" : current);
+      if (current === "stack") set("flex-direction", "column");
+    }
+  }
+
+  function mode() {
+    var rec = selected && record(selected);
+    if (rec && rec.layoutMode) return rec.layoutMode;
+    if (String(get("position") || "").trim() === "absolute") return "absolute";
+    var display = String(get("display") || "").trim();
+    if (display === "flex" || display === "inline-flex") return "flex";
+    if (display === "grid" || display === "inline-grid") return "grid";
+    return "stack";
+  }
+
+  function setMode(value) {
+    var rec = record(selected);
+    var previous = mode();
+    rec.layoutMode = value;
+    if (value === "absolute") {
+      set("display", "block");
+      set("position", "absolute");
+    } else if (value === "stack") {
+      set("position", "");
+      set("display", "flex");
+      set("flex-direction", "column");
+    } else {
+      set("position", "");
+      set("display", value);
+      if (value === "flex" && previous === "stack") set("flex-direction", "row");
+    }
+  }
+
+  function alignValue(value, fallback) {
+    var v = String(value || "").trim();
+    if (v === "start") v = "flex-start";
+    if (v === "end") v = "flex-end";
+    return v === "flex-start" || v === "center" || v === "flex-end" ? v : fallback;
+  }
+
   var CONTROLS = {
+    mode: function () {
+      var at = MODES.indexOf(mode());
+      setMode(MODES[(at + 1) % MODES.length]);
+      buildRow();
+      show("");
+    },
     family: function () {
       options(faces(), get("font-family"), function (v) { set("font-family", v); }, function (f) {
         return f.label;
@@ -1336,6 +1450,121 @@ function icons(items, current, onPick) {
     },
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
+    // Direction on its own: row or column. Flex-only, but a grid is left
+    // alone — the property is harmless there and yanking the mode surprises.
+    direction: function () {
+      // Establish the flex box first. Otherwise ensureBox() applies the stack's
+      // column default after the user's row/column choice and loses that choice.
+      ensureBox();
+      icons(DIRECTIONS, String(get("flex-direction") || "row").trim(), function (v) {
+        set("flex-direction", v);
+        return [v];
+      });
+    },
+    // The same 3x3 interaction maps to the right CSS axes for each layout.
+    alignment: function () {
+      var currentMode = mode();
+      // Stack is the editor's column layout even though a non-flex element's
+      // computed flex-direction is the CSS default, row.
+      var direction = currentMode === "stack"
+        ? "column"
+        : String(get("flex-direction") || "row").trim();
+      var current;
+      if (currentMode === "grid") {
+        current = alignValue(get("justify-items"), "start") + ":" + alignValue(get("align-items"), "start");
+      } else {
+        var main = alignValue(get("justify-content"), "flex-start");
+        var cross = alignValue(get("align-items"), "flex-start");
+        current = direction === "column" ? cross + ":" + main : main + ":" + cross;
+      }
+      icons(ALIGN_GRID, current, function (v) {
+        var parts = v.split(":");
+        if (currentMode === "grid") {
+          set("justify-items", parts[0] === "flex-start" ? "start" : parts[0] === "flex-end" ? "end" : parts[0]);
+          set("align-items", parts[1]);
+        } else if (direction === "column") {
+          set("align-items", parts[0]);
+          set("justify-content", parts[1]);
+        } else {
+          set("justify-content", parts[0]);
+          set("align-items", parts[1]);
+        }
+        ensureBox();
+        return [v];
+      }, "grid3");
+    },
+    wrap: function () {
+      // Keep this control usable for existing `inline-flex` elements too. The
+      // mode is normalized to flex, then the value is written after the box is
+      // established; setting it in the opposite order can be lost on mode change.
+      if (mode() !== "flex") setMode("flex");
+      icons(WRAPS, String(get("flex-wrap") || "nowrap").trim(), function (v) {
+        setMode("flex");
+        set("flex-wrap", v);
+        return [v];
+      });
+    },
+    gap: function () {
+      slider(0, 48, 1, num("gap", 0), "px", function (v) {
+        set("gap", v + "px");
+        ensureBox();
+      });
+    },
+    columns: function () {
+      var current = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
+      if (mode() !== "grid") setMode("grid");
+      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
+        set("grid-template-columns", "repeat(" + v + ", minmax(0, 1fr))");
+      }, "Columns");
+    },
+    rows: function () {
+      var current = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
+      if (mode() !== "grid") setMode("grid");
+      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
+        set("grid-template-rows", "repeat(" + v + ", minmax(0, 1fr))");
+      }, "Rows");
+    },
+    columnGap: function () {
+      if (mode() !== "grid") setMode("grid");
+      slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
+        set("column-gap", v + "px");
+      });
+    },
+    rowGap: function () {
+      if (mode() !== "grid") setMode("grid");
+      slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
+        set("row-gap", v + "px");
+      });
+    },
+    bounds: function () {
+      ["top", "right", "bottom", "left"].forEach(function (prop) {
+        var row = document.createElement("div");
+        row.className = "bar2";
+        var label = document.createElement("span");
+        label.className = "field-label";
+        label.textContent = prop.charAt(0).toUpperCase() + prop.slice(1);
+        row.appendChild(label);
+        var input = document.createElement("input");
+        input.type = "number";
+        input.min = -1000;
+        input.max = 1000;
+        input.step = 1;
+        input.value = num(prop, 0);
+        input.addEventListener("input", function () {
+          if (input.value !== "") set(prop, Number(input.value) + "px");
+        });
+        row.appendChild(input);
+        var unit = text("px");
+        row.appendChild(unit);
+        pop.appendChild(row);
+      });
+    },
+    width: function () {
+      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width");
+    },
+    height: function () {
+      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height");
+    },
     blur: function () { filterSlider("blur"); },
     brightness: function () { filterSlider("brightness"); },
     greyscale: function () { filterSlider("greyscale"); },
@@ -1404,11 +1633,38 @@ function decorate(el) {
     show(open ? "" : key);
   }
 
-  var BASE_ICONS = ICONS.slice(); // the seven type controls, the ones always there
+  var BASE_ICONS = ICONS.slice(); // the type controls, the ones always there on text
+  // The container dock mirrors the requested table. Mode is always present;
+  // every other button is rebuilt from the current mode.
+  var BOX_ICONS = {
+    stack: [
+      { key: "direction", label: "Direction", glyph: svg(BOX_GLYPHS.direction) },
+      { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
+      { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
+    ],
+    flex: [
+      { key: "direction", label: "Direction", glyph: svg(BOX_GLYPHS.direction) },
+      { key: "wrap", label: "Wrap", glyph: svg(BOX_GLYPHS.wrap) },
+      { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
+      { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
+    ],
+    grid: [
+      { key: "columns", label: "Columns", glyph: svg(BOX_GLYPHS.columns) },
+      { key: "rows", label: "Rows", glyph: svg(BOX_GLYPHS.rows) },
+      { key: "columnGap", label: "Column gap", glyph: svg(BOX_GLYPHS.columnGap) },
+      { key: "rowGap", label: "Row gap", glyph: svg(BOX_GLYPHS.rowGap) },
+      { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
+    ],
+    absolute: [
+      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: svg(BOX_GLYPHS.position) },
+      { key: "width", label: "Width", glyph: svg(BOX_GLYPHS.width) },
+      { key: "height", label: "Height", glyph: svg(BOX_GLYPHS.height) },
+    ],
+  };
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
 
-  /** The controls on show: the seven, plus whatever was added to this element. */
+  /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     while (row.firstChild) row.removeChild(row.firstChild);
     // The element's own additions, in the order they were added to it. Read off
@@ -1419,10 +1675,23 @@ function decorate(el) {
       var item = ADD.filter(function (a) { return a.key === key; })[0];
       if (item) row.appendChild(button("ic", item.glyph, item.label, function () { toggle(key); }, key));
     });
-    (selectedKind === "text" ? BASE_ICONS : BOX_ICONS).forEach(function (definition) {
-      row.appendChild(
-        button("ic", definition.glyph, definition.label, function () { toggle(definition.key); }, definition.key)
-      );
+    // Text keeps its type controls. Containers get the mode cycle followed by
+    // exactly the controls listed for that mode.
+    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
+    if (selectedKind === "container") {
+      var currentMode = mode();
+      row.appendChild(button(
+        "ic",
+        svg(MODE_GLYPHS[currentMode] || MODE_GLYPHS.stack),
+        "Layout mode: " + (MODE_LABELS[currentMode] || "Stack"),
+        function () { toggle("mode"); },
+        "mode"
+      ));
+    }
+    definitions.forEach(function (definition) {
+      row.appendChild(button("ic", definition.glyph, definition.label, function () {
+        toggle(definition.key);
+      }, definition.key));
     });
     addBtn = button("ic add", svg('<path d="M9 3.5v11M3.5 9h11"/>'), "Add a control", function () {
       toggle("+");
@@ -1492,10 +1761,10 @@ function decorate(el) {
     );
   }
 
-  /** Show the dock for any selection, and keep its control open across a
-      re-click on the same element, which is the click that starts a drag. */
+  /** Show the dock for a text or container selection, and keep its control open
+      across a re-click on the same element, which is the click that starts a drag. */
   function syncDock() {
-    var on = !!selected;
+    var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
     dock.hidden = !on;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this

@@ -742,9 +742,74 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
-test("the dock opens on text with the type controls", () => {
-  const { run } = fakeDom();
+test("the dock opens on text and container, stays shut on media", () => {
+  const { run, el } = fakeDom();
   const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("div"));
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
+  assert.deepEqual(
+    app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "gap", "alignment", "+"],
+    "Stack controls match the table"
+  );
+  const box = app.root.selection().el;
+
+  // Mode is the only cyclic control: Stack -> Flex -> Grid -> Absolute -> Stack.
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "wrap", "alignment", "gap", "+"]);
+  assert.equal(box.style.getPropertyValue("display"), "flex");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "columns", "rows", "columnGap", "rowGap", "alignment", "+"]);
+  assert.equal(box.style.getPropertyValue("display"), "grid");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "bounds", "width", "height", "+"]);
+  assert.equal(box.style.getPropertyValue("position"), "absolute");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "gap", "alignment", "+"]);
+
+  quiet(() => press(app, "alignment"));
+  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "wrap"));
+  assert.equal(app.root.nodes.pop.children[0].children.length, 3, "flex wrap options");
+  quiet(() => press(app, "alignment"));
+  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "flex alignment grid");
+  for (const fn of app.root.nodes.pop.children[0].children[2].bubbles.click.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
+  assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
+  quiet(() => press(app, "wrap"));
+  for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "columns"));
+  assert.equal(app.root.nodes.pop.children[0].children.find((n) => n.type === "number").type, "number");
+  const columnsInput = app.root.nodes.pop.children[0].children.find((n) => n.type === "number");
+  columnsInput.value = "3";
+  for (const fn of columnsInput.bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-columns"), "repeat(3, minmax(0, 1fr))");
+  quiet(() => press(app, "columnGap"));
+  const columnGapInput = app.root.nodes.pop.children[0].children.find((n) => n.type === "range");
+  columnGapInput.value = "16";
+  for (const fn of columnGapInput.bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("column-gap"), "16px");
+  quiet(() => press(app, "alignment"));
+  for (const fn of app.root.nodes.pop.children[0].children[8].bubbles.click.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("justify-items"), "end", "grid horizontal alignment");
+  assert.equal(box.style.getPropertyValue("align-items"), "flex-end", "grid vertical alignment");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "bounds"));
+  assert.equal(app.root.nodes.pop.children.length, 4, "absolute edges");
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "mode"));
+  quiet(() => press(app, "mode"));
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
   // Seven type icons and the `+`, each with a name for a tooltip.
@@ -771,6 +836,47 @@ test("the dock opens on text with the type controls", () => {
   const markup = app.root.innerHTML;
   assert.ok(markup.indexOf('id="pop"') < markup.indexOf('id="row"'), "the control is above the dock");
   assert.match(app.root.innerHTML, /#dock\{[^}]*flex-direction:column/, "stacked by the dock itself");
+});
+
+test("wrap and direction establish flex before applying the choice", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "mode");
+    press(app, "wrap");
+  });
+  assert.equal(box.style.getPropertyValue("display"), "flex");
+  assert.equal(box.style.getPropertyValue("flex-direction"), "row");
+  pickOption(app.root.nodes.pop, "Wrap");
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap");
+  quiet(() => {
+    press(app, "mode");
+    press(app, "mode");
+    press(app, "mode");
+    press(app, "direction");
+  });
+  pickOption(app.root.nodes.pop, "Column");
+  assert.equal(box.style.getPropertyValue("flex-direction"), "column");
+});
+
+test("inline-flex containers expose the wrap control", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div", {}, { display: "inline-flex" });
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+  });
+  assert.ok(app.root.nodes.row.children.find((button) => button.dataset.key === "wrap"));
+  press(app, "wrap");
+  pickOption(app.root.nodes.pop, "Wrap reverse");
+  assert.equal(box.style.getPropertyValue("display"), "flex");
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap-reverse");
 });
 
 test("one control opens at a time, under the dock, and Escape closes it", () => {
@@ -1926,23 +2032,6 @@ test("an arrow on one of our own controls is the control's", () => {
   assert.equal(app.root.selection().el, t.img);
 });
 
-test("a container opens the dock too, with its space as the controls", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const box = el("div");
-  quiet(() => {
-    app.click();
-    app.hover(box);
-    app.clickPage();
-  });
-  assert.equal(app.root.nodes.dock.hidden, false, "anything selected can be changed");
-  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key), ["padding", "margin", "+"]);
-  quiet(() => press(app, "+"));
-  const offered = app.root.nodes.pop.children[0].children.map((b) => b.title);
-  assert.ok(!offered.includes("Padding"), "what is already in the row is not offered again");
-  assert.ok(offered.includes("Fill"));
-});
-
 test("padding moves all four sides at once, or one side on its own", async () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -1951,7 +2040,8 @@ test("padding moves all four sides at once, or one side on its own", async () =>
     app.click();
     app.hover(box);
     app.clickPage();
-    press(app, "padding");
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Padding");
   });
   const all = fields(pop(app));
   const range = all.find((n) => n.type === "range");
@@ -1987,7 +2077,8 @@ test("margin can go negative, and is reverted on exit", () => {
     app.click();
     app.hover(box);
     app.clickPage();
-    press(app, "margin");
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Margin");
   });
   const top = fields(pop(app)).filter((n) => n.type === "number")[0];
   assert.equal(top.min, "-160");
