@@ -64,10 +64,20 @@ it isn't written there, a future session doesn't know it happened.
     - Use approved STE words in their approved meaning. Use one term for one thing, and do not change it between sentences.
     - Write numbered steps for procedures, with one action in each step. Put a warning or caution before the step it applies to.
     - Code, commands, file paths and names from the code stay as they are.
+16. **Review open PRs before you do anything else.** At the start of every session, do the session-start steps (§2) before you start your human's request. This applies to every session and every request, also a small or urgent one.
 
 ---
 
 ## 2. Workflow at a glance
+
+**Session start.** Do these steps in this sequence, before any other work and before your human's request:
+
+1. Do the protection check (§7.3).
+2. Review the other developer's open PRs (§3.8). Approve, request changes or comment on each one.
+3. Tell your human the results: the PR numbers, your decisions, and what you checked.
+4. Start your human's request.
+
+If there are no open PRs from the other developer, say so in one line and go to step 4.
 
 ```
 GitHub issue → branch → small commits → lint/test pass → push branch → open PR
@@ -203,7 +213,9 @@ gh pr create --base main --assignee @me --reviewer <other-developer> \
 
 ### 3.8 Reviewing the other developer's PRs
 
-At the start of every session (after the §7.3 check), and whenever your human asks, review the other developer's open PRs:
+> **This is step 2 of the session start (§2, rule 16).** Do it in every session, before you start your human's request. Do it again when your human asks.
+
+Find the other developer's open PRs:
 
 ```bash
 gh pr list --state open --author <other-developer> \
@@ -252,8 +264,10 @@ A new push dismisses the approval (§7.1). Review the new commit before you appr
 ## 6. Quick reference
 
 ```
-0. Protection check (§7.3)  →  must pass; owner's agent applies §7 first if it doesn't
-   Then review the other dev's open PRs (§3.8)  →  approve, request changes or comment
+0. Session start, before any request (§2, rule 16):
+   a. Protection check (§7.3)  →  must pass; owner's agent applies §7 first if it doesn't
+   b. Review the other dev's open PRs (§3.8)  →  approve, request changes or comment
+   c. Report the results to your human, then start the request
 1. gh issue list / gh issue create  →  comment the plan
 2. git checkout main && git pull --ff-only
 3. git checkout -b feat/<number>-short-desc
