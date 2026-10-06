@@ -13,6 +13,8 @@ All notable changes to the `edityy` package. The format follows
   the request, and it is attribute-escaped. (#63)
 - A streamed (chunked) HTML page gets the launcher too. Only the bytes up to
   `</head>` are held; the rest of the page streams through as it is written. (#64)
+- `edityy/vite`: a Vite plugin, so the setup is `plugins: [edityy()]`. It applies
+  to the dev server only, so `vite build` never includes the launcher. (#61)
 
 ## 0.1.3 — 2026-10-05
 
