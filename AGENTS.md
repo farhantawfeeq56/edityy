@@ -121,8 +121,10 @@ Example: `feat/12-space-switcher`. Use the bare number, no `#`. Lowercase, hyphe
   ```
   Example: `feat(spaces): add space switcher [#12]`
 - **Run lint and tests before every push.** Don't push a red build.
+- **Keep tests few.** Don't write a test for every change. Test behavior a user or caller depends on, and the bug you fixed. Skip tests for styling, copy, refactors and one-line config.
 - Add a **test** only for behavior no existing test covers. Extend an existing test before you write a new one. A bug fix gets one regression test.
 - **Don't test the same thing twice.** Before you add a test, search the test files for one that already checks it. Don't assert on markup or CSS strings unless the bug was in them.
+- **Leave the tests you touch smaller.** When you edit a test file, remove the tests in it that repeat another test, and merge tests that set up the same thing. Do it in a separate `test(...)` commit so the reviewer can see it.
 - Update **docs/README** when behavior or setup changes.
 - Keep the diff **reviewable** — aim for a PR readable in ~15 minutes. If it's growing, split into sub-issues.
 - **Don't** reformat unrelated files, bump unrelated deps, or mix refactors with features.
