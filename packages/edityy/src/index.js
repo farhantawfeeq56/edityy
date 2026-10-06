@@ -43,7 +43,8 @@ export function inject(body, tag = TAG) {
  * 500 on the user's page, which is worse than a missing launcher.
  */
 export function edityy(options = {}) {
-  const tag = options.tag ?? TAG;
+  const base = options.tag ?? TAG;
+  const nonce = options.nonce;
 
   return function edityyMiddleware(req, res, next) {
     const done = typeof next === "function" ? next : () => {};
@@ -61,12 +62,27 @@ export function edityy(options = {}) {
       // mean hijacking the stream. Skip the injection.
       if (res.getHeader?.("transfer-encoding") === "chunked") return done();
 
+      // Per request, because an app that makes a nonce per response hands one
+      // to each request; a fixed string is the same answer every time.
+      const tag = withNonce(base, typeof nonce === "function" ? nonce(req, res) : nonce);
       patch(res, tag, done);
     } catch {
       done();
     }
   };
 }/**
+ * The tag with a CSP nonce on it, or the tag as it was when there is none.
+ *
+ * Escaped, because the value lands inside an attribute: a nonce is base64 and
+ * needs nothing, but a caller's mistake must not be able to break out of it.
+ */
+function withNonce(tag, nonce) {
+  if (nonce === undefined || nonce === null || nonce === "") return tag;
+  const value = String(nonce).replace(/[&"<>]/g, (c) => ({ "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" })[c]);
+  return tag.replace(/^<script\b/i, `<script nonce="${value}"`);
+}
+
+/**
  * Wrap the response so an HTML body gets the tag on its way out.
  *
  * Headers are held back until end(). That is the whole trick: injecting a tag
