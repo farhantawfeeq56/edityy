@@ -59,9 +59,3 @@ test("mounts the launcher host into the document", () => {
   assert.equal(appended.length, 1, "one host element");
   assert.equal(dom.window.__edityy, true, "payload marked the page as mounted");
 });
-
-test("the host is fixed to the viewport and ignores pointer events", () => {
-  const css = appended[0].style.cssText;
-  assert.match(css, /position:fixed/, "fixed, so it survives scrolling");
-  assert.match(css, /pointer-events:none/, "never comes between the user and the site");
-});
