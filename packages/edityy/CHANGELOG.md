@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- `edityy({ nonce })` puts a CSP nonce on the injected tag, so a page with a
+  strict `script-src` runs the launcher. The nonce is a string or a function of
+  the request, and it is attribute-escaped. (#63)
+
 ## 0.1.3 — 2026-10-05
 
 ### Added

@@ -189,3 +189,40 @@ test("inject() accepts a Buffer", () => {
   const json = Buffer.from('{"a":1}');
   assert.equal(inject(json), json);
 });
+test("a nonce goes on the injected tag, so a strict CSP lets it run", () => {
+  const { res } = handle("/", fakeRes({ headers: { "content-type": "text/html" } }), { nonce: "abc123" });
+  res.end("<html><head></head><body></body></html>");
+  assert.match(res.body.toString(), /<script nonce="abc123" src="\/__edityy\/edityy\.js" defer><\/script>/);
+});
+
+test("a nonce can come from the request, for apps that make one per response", () => {
+  const seen = [];
+  const res = fakeRes({ headers: { "content-type": "text/html" } });
+  edityy({ nonce: (req) => (seen.push(req.url), "n-" + req.url.length) })({ url: "/page" }, res, () => {});
+  res.end("<html><head></head></html>");
+  assert.match(res.body.toString(), /nonce="n-5"/);
+  assert.deepEqual(seen, ["/page"]);
+});
+
+test("a nonce cannot break out of its attribute", () => {
+  const { res } = handle("/", fakeRes({ headers: { "content-type": "text/html" } }), { nonce: '"><img onerror=x>' });
+  res.end("<html><head></head></html>");
+  const out = res.body.toString();
+  assert.match(out, /nonce="&quot;&gt;&lt;img onerror=x&gt;"/);
+  assert.doesNotMatch(out, /<img/);
+});
+
+test("no nonce, no attribute", () => {
+  const { res } = handle("/", fakeRes({ headers: { "content-type": "text/html" } }), { nonce: "" });
+  res.end("<html><head></head></html>");
+  assert.match(res.body.toString(), new RegExp(TAG.replace(/[/.]/g, "\\$&")));
+});
+
+test("a nonce function that throws leaves the page alone", () => {
+  const res = fakeRes({ headers: { "content-type": "text/html" } });
+  const out = { passed: false };
+  edityy({ nonce: () => { throw new Error("boom"); } })({ url: "/" }, res, () => (out.passed = true));
+  assert.equal(out.passed, true);
+  res.end("<html><head></head></html>");
+  assert.equal(res.body, "<html><head></head></html>");
+});
