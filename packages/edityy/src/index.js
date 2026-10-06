@@ -10,7 +10,7 @@ export const TAG = `<script src="${ASSET_PATH}" defer></script>`;
 /** Headers this middleware sets. */
 const JS = { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" };
 
-// ponytail: two regexes, not a real HTML parser. They miss `src` in an HTML
+// Two regexes, not a real HTML parser. They miss `src` in an HTML
 // comment and in quoted attribute values; re-parse with a DOM when that matters.
 const HAS_SCRIPT = new RegExp(`<script[^>]*src=["']${ASSET_PATH}["']`, "i");
 const HEAD_CLOSE = /<\/head(\s*)>/i;
@@ -39,7 +39,7 @@ export function inject(body, tag = TAG) {
  * Dev-server middleware. One `connect`-style function, so it drops into Vite,
  * `connect`, Express or anything else that takes `(req, res, next)`.
  *
- * ponytail: fails open. Every path defers to next(): a throw here surfaces as a
+ * It fails open. Every path defers to next(): a throw here surfaces as a
  * 500 on the user's page, which is worse than a missing launcher.
  */
 export function edityy(options = {}) {
@@ -77,7 +77,7 @@ export function edityy(options = {}) {
  *
  * Non-HTML responses are never buffered: they go straight through.
  *
- * ponytail: writeHead is delayed for HTML only. A server that streams HTML
+ * writeHead is delayed for HTML only. A server that streams HTML
  * progressively (chunked) is skipped entirely rather than half-handled.
  */
 function patch(res, tag, next) {
