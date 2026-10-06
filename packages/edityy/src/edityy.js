@@ -19,9 +19,11 @@
  * seven type controls and one `+`, and picking from the `+` adds a control —
  * shadow, blur, brightness, greyscale, contrast — as another icon in the row.
  *
- * Everything here is still in memory only: apply() writes an inline style,
- * remembers what was there, and revert() puts it back on exit. Nothing is
- * written to the codebase, which stays the source of truth.
+ * Every edit is an inline style: apply() writes it, remembers what was there,
+ * and revert() puts it back on exit. The edits list hands them on — copied as a
+ * prompt, or posted to the dev server, which writes them into the project for
+ * a coding agent. Edityy itself never writes to the codebase, which stays the
+ * source of truth.
  *
  * Browser IIFE on purpose: this file is served to the page as-is, so it cannot
  * be a module.
@@ -251,13 +253,16 @@
   // site's own face, taken from the app's own token wherever it sets one.
   var active = false;
   var selected = null;
-  // The kind of the current selection. Nothing reads it yet — there is no panel —
-  // but root.selection() reports it and it is the first thing any UI will want.
+  // The kind of the current selection: it decides which controls the dock starts
+  // with, and root.selection() reports it.
   var selectedKind = null; // "text" | "container" | "media"
   // The element whose words are being typed into, if any. One at a time: a new
   // selection closes the last, or two elements would both take the caret.
   var editing = null;
-  var changes = []; // { el, props: {longhand: value-before}, text: value-before, textEdited: bool }
+  // One record per touched element:
+  //   { el, props: {prop: inline value before}, set: {prop: was it set at all},
+  //     was: {prop: computed value before}, text: words before | null, added: [keys] }
+  var changes = [];
 
   /* ------------------------------------------------------------ selection */
 
@@ -1492,14 +1497,10 @@ function decorate(el) {
   function syncDock() {
     var on = !!selected;
     dock.hidden = !on;
-    // Rebuilt on every selection, because the row is the selected element's own
-    // dock: the seven type controls, the `+`, and only what this element has been
-    // given. Built here rather than in select() so a re-click on the same words,
-    // which keeps the control open, does not throw the row away mid-drag.
     // Rebuilt whenever the selection moves to a different element, because the
-    // row belongs to the element: its seven type controls, the `+`, and only
-    // what this element has been given. Tracked by which element the row was
-    // built for, so a re-click on the same words keeps the control that is open.
+    // row belongs to the element: its base controls, the `+`, and only what this
+    // element has been given. Tracked by which element the row was built for,
+    // so a re-click on the same element keeps the control that is open.
     if (on && rowFor !== selected) {
       buildRow();
       rowFor = selected;
@@ -1985,8 +1986,7 @@ function decorate(el) {
     document.removeEventListener("input", onEdit, true);
     window.removeEventListener("scroll", onScroll, true);
     window.removeEventListener("resize", refit, true);
-    // Nothing to revert today — no UI writes styles yet — but the backend is
-    // here and exiting must always put the page back exactly as it was.
+    // Exiting always puts the page back exactly as it was.
     stopEditing();
     changes.slice().forEach(revert);
     history = [];
