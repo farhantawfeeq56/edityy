@@ -236,6 +236,8 @@
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
+  // The control that is open, "" for none.
+  var openKey = "";
   var countBadge = $("count");
   // The `+` sits at the end of the row and a revealed control goes in before it,
   // so adding one grows the row leftwards from the button that added it.
@@ -369,6 +371,7 @@
   function apply(prop, value) {
     var rec = record(selected);
     remember(rec, prop);
+    var was = selected.style.getPropertyValue(prop);
     // `value` is a string, and "" means "not set": removeProperty empties it
     // without leaving a declaration behind, while setProperty("") would write one
     // that overrides the stylesheet with nothing — the bug a control that writes
@@ -376,7 +379,93 @@
     // since an empty value records nothing to put back.
     if (value) selected.style.setProperty(prop, value);
     else selected.style.removeProperty(prop); // back to the stylesheet's value
+    step(rec, prop, was, selected.style.getPropertyValue(prop));
     return rec;
+  }
+
+  /* -------------------------------------------------------------- history */
+
+  // Undo and redo, as a stack of steps. A step is one element and the inline
+  // values of the properties it touched, before and after:
+  //   { rec, before: {prop: value}, after: {prop: value}, at }
+  var history = [];
+  var future = [];
+  // The step this task's writes go into. A control can write two properties
+  // for one input (a border's width and its style), and those are one step.
+  var current = null;
+  // When the words were last typed into: the browser owns the text's own undo,
+  // so ⌘Z after typing is the browser's and ⌘Z after a drag is ours.
+  var typedAt = 0;
+  // A drag fires an input per pixel, and typing "40" fires two. A slider, a
+  // number or a colour holds its step open from the first input to the
+  // `change` the browser fires when the drag lets go, so the whole gesture is
+  // one step. A click on an option is a gesture of its own.
+  var dragging = false;
+
+  /** A continuous control is moving: what it writes joins the open step. */
+  function hold() {
+    dragging = true;
+  }
+
+  /** The drag let go, or the user moved on: the next write is a new step. */
+  function release() {
+    dragging = false;
+    var top = history[history.length - 1];
+    if (top) top.open = false;
+  }
+
+  function step(rec, prop, before, after) {
+    var now = Date.now();
+    if (!current) {
+      var top = history[history.length - 1];
+      current = top && top.open && top.rec === rec && prop in top.before ? top : null;
+      if (!current) {
+        if (top) top.open = false;
+        current = { rec: rec, before: {}, after: {}, at: now, open: dragging };
+        history.push(current);
+      }
+      // Closed at the end of this task, so the next input starts fresh.
+      Promise.resolve().then(function () { current = null; });
+    }
+    if (!(prop in current.before)) current.before[prop] = before;
+    current.after[prop] = after;
+    current.at = now;
+    future = [];
+  }
+
+  /** Write a step's values back without recording anything. */
+  function replay(target, values) {
+    Object.keys(values).forEach(function (prop) {
+      if (values[prop]) target.rec.el.style.setProperty(prop, values[prop]);
+      else target.rec.el.style.removeProperty(prop);
+    });
+    refit();
+    tally();
+    // An open control shows the value it read when it opened, so it is redrawn.
+    if (openKey && openKey !== "+") show(openKey);
+  }
+
+  function undo() {
+    var last = history.pop();
+    if (!last) return false;
+    replay(last, last.before);
+    future.push(last);
+    return true;
+  }
+
+  function redo() {
+    var next = future.pop();
+    if (!next) return false;
+    replay(next, next.after);
+    history.push(next);
+    return true;
+  }
+
+  /** A reverted element takes its steps with it: there is nothing left to undo. */
+  function forget(rec) {
+    var keep = function (x) { return x.rec !== rec; };
+    history = history.filter(keep);
+    future = future.filter(keep);
   }
 
   /* ---------------------------------------------------------- text editing */
@@ -466,6 +555,7 @@
     changes = changes.filter(function (other) {
       return other !== rec;
     });
+    forget(rec);
     tally();
   }
 
@@ -530,6 +620,7 @@
   /** Draw the selection frame and reveal whatever the new selection can edit. */
   function select(el, hit) {
     stopEditing(); // the caret belongs to the old selection, never to both
+    if (el !== selected) release();
     selected = el;
     // The kind comes from the pick, because a form control is text by way of the
     // walk rather than by way of `kind()`: it has no text node of its own.
@@ -867,6 +958,8 @@ function faces() {
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
+    if (key !== openKey) release();
+    openKey = key;
     // Dressed by data-key, not by position: the row is rebuilt per selection and
     // the added controls sit in front of the seven, so index i is not icon i.
     for (var i = 0; i < row.children.length; i++) {
@@ -900,6 +993,7 @@ function faces() {
         // purpose: comparing two weights or two faces means looking at the page
         // with the choices still in view, and a click that dismisses the list is
         // a click you have to make again before trying the next value.
+        release();
         onPick(value);
         mark(value);
       }, value);
@@ -944,6 +1038,7 @@ function icons(items, current, onPick, cls) {
       var b = button("ic", svg(item.icon), item.label || item.v, function () {
         // Stays open like every other control: these are things you try twice,
         // and the tick moves so you can see which one is on.
+        release();
         mark(onPick(item.v));
       }, item.v);
       b.setAttribute("aria-pressed", item.v === current ? "true" : "false");
@@ -976,8 +1071,10 @@ function icons(items, current, onPick, cls) {
     // Live: the element changes under the pointer, so there is nothing to commit.
     input.addEventListener("input", function () {
       out.textContent = input.value + unit;
+      hold();
       onInput(input.value);
     });
+    input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
     pop.appendChild(row);
@@ -1007,8 +1104,10 @@ function icons(items, current, onPick, cls) {
       if (input.value === "") return;
       var v = Number(input.value);
       out.textContent = v + unit;
+      hold();
       onInput(v);
     });
+    input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
     pop.appendChild(row);
@@ -1109,8 +1208,10 @@ function icons(items, current, onPick, cls) {
     swatch.title = "Pick a colour";
     swatch.setAttribute("aria-label", "Pick a colour");
     swatch.addEventListener("input", function () {
+      hold();
       onPick(swatch.value);
     });
+    swatch.addEventListener("change", release);
     bar.appendChild(swatch);
     pop.appendChild(bar);
   }
@@ -1278,8 +1379,10 @@ function icons(items, current, onPick, cls) {
       swatch.title = "Shadow colour";
       swatch.addEventListener("input", function () {
         values[4] = swatch.value;
+        hold();
         shadow(values);
       });
+      swatch.addEventListener("change", release);
       var bar = document.createElement("div");
       bar.className = "bar2";
       var name = text("Colour");
@@ -1887,6 +1990,8 @@ function decorate(el) {
     // here and exiting must always put the page back exactly as it was.
     stopEditing();
     changes.slice().forEach(revert);
+    history = [];
+    future = [];
     select(null);
     hideHover();
   }
@@ -1910,6 +2015,7 @@ function decorate(el) {
    * on the next tick, because the browser reflows the element after this event.
    */
   function onEdit() {
+    typedAt = Date.now();
     if (editing) setTimeout(refit, 0);
     tally();
   }
@@ -1962,6 +2068,21 @@ function decorate(el) {
       if (!pop.hidden) show("");
       else exit();
       return;
+    }
+    // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redoes.
+    var mod = e.metaKey || e.ctrlKey;
+    var k = String(e.key || "").toLowerCase();
+    var isUndo = mod && k === "z" && !e.shiftKey;
+    var isRedo = mod && ((k === "z" && e.shiftKey) || (k === "y" && e.ctrlKey && !e.metaKey));
+    if (!isUndo && !isRedo) return;
+    // Typed words are the browser's to undo: it keeps the caret and the text
+    // history, which a style undo knows nothing about. So while the caret is in
+    // words typed into since the last drag, the key goes to the browser.
+    var top = isUndo ? history[history.length - 1] : future[future.length - 1];
+    if (editing && (!top || typedAt > top.at)) return;
+    if (isUndo ? undo() : redo()) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   }
 

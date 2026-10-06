@@ -1529,10 +1529,12 @@ test("every change is still undone on exit", () => {
 
 /** Type a size into the open size control, as a user would. */
 const setSize = (app, px) => {
-  quiet(() => press(app, "size"));
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  if (icon.getAttribute("aria-expanded") !== "true") quiet(() => press(app, "size"));
   const input = app.root.nodes.pop.children[0].children[0];
   input.value = String(px);
   for (const fn of input.bubbles.input.bubble) fn({});
+  for (const fn of input.bubbles.change?.bubble ?? []) fn({}); // the field is left
 };
 
 /** Open the edits list. */
@@ -1642,4 +1644,91 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   const open = openEdits(app);
   assert.match(shown(open.children[0]), /No edits yet/);
   assert.equal(open.children[1].children[0].disabled, true);
+});
+
+/** Press a key with modifiers; returns whether the payload took it. */
+const key = (app, k, mods = {}) => {
+  let prevented = false;
+  quiet(() => app.fire("keydown", { key: k, ...mods, preventDefault: () => (prevented = true), stopPropagation() {} }));
+  return prevented;
+};
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test("⌘Z undoes the last edit and ⇧⌘Z redoes it", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  setSize(app, 50);
+  await tick();
+  // Two edits to the same property, each committed, are two steps.
+  assert.equal(key(app, "z", { metaKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+  assert.equal(key(app, "z", { ctrlKey: true }), true, "Ctrl on other systems");
+  assert.equal(p.style.getPropertyValue("font-size"), "");
+  assert.equal(key(app, "z", { metaKey: true }), false, "nothing left: the browser gets the key");
+  assert.equal(key(app, "z", { metaKey: true, shiftKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+  assert.equal(key(app, "y", { ctrlKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "50px");
+});
+
+test("one drag is one step, however many inputs it fires", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  for (const v of [2, 4, 6, 8]) drag(pop(app), 0, v);
+  await tick();
+  assert.match(p.style.getPropertyValue("filter"), /blur\(8px\)/);
+  key(app, "z", { metaKey: true });
+  assert.equal(p.style.getPropertyValue("filter"), "", "straight back to no filter");
+});
+
+test("a border's width and style are undone together", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Border");
+  });
+  const width = fields(pop(app)).find((n) => n.type === "range");
+  width.value = "3";
+  for (const fn of width.bubbles.input.bubble) fn({});
+  await tick();
+  assert.equal(p.style.getPropertyValue("border-style"), "solid");
+  key(app, "z", { metaKey: true });
+  assert.equal(p.style.getPropertyValue("border-width"), "");
+  assert.equal(p.style.getPropertyValue("border-style"), "");
+});
+
+test("after typing, ⌘Z is the browser's text undo, not ours", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  await new Promise((r) => setTimeout(r, 2));
+  p.textContent = "hello!";
+  app.fire("input", {});
+  assert.equal(key(app, "z", { metaKey: true }), false, "left to the browser");
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+});
+
+test("a reverted element has nothing left to undo", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  const open = openEdits(app);
+  const undoBtn = open.children[0].children[0].children[1];
+  quiet(() => { for (const fn of undoBtn.bubbles.click.bubble) fn({}); });
+  assert.equal(key(app, "z", { metaKey: true }), false);
+  assert.equal(p.style.getPropertyValue("font-size"), "");
 });
