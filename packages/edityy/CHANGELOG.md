@@ -49,6 +49,10 @@ All notable changes to the `edityy` package. The format follows
 - `npx edityy mcp`: a stdio MCP server for coding agents, with
   `get_visual_changes` and `clear_visual_changes` over the saved edits. Written
   without an SDK, so the package still has no dependencies. (#72)
+- TypeScript declarations for every entry point (`edityy`, `edityy/inject`,
+  `edityy/client`, `edityy/vite`), so `strict` projects no longer fail with
+  "Could not find a declaration file". The Vite plugin's type is its own shape,
+  so the package still needs no `vite` types. (#60)
 
 ### Changed
 
