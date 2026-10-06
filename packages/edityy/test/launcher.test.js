@@ -1941,3 +1941,45 @@ test("margin can go negative, and is reverted on exit", () => {
   });
   assert.equal(box.style.getPropertyValue("margin-top"), "");
 });
+
+test("the row is one toolbar with one tab stop, and the arrows walk it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  assert.match(app.root.innerHTML, /id="row" role="toolbar" aria-label="Edit controls"/);
+  const row = app.root.nodes.row;
+  const stops = () => row.children.map((b) => b.getAttribute("tabindex"));
+  assert.deepEqual(stops().filter((t) => t === "0").length, 1, "one tab stop");
+  assert.equal(stops()[0], "0");
+  let focused = null;
+  for (const b of row.children) b.focus = () => (focused = b);
+  const send = (k, target) => {
+    for (const fn of row.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
+  };
+  send("ArrowLeft", row.children[0]);
+  assert.equal(focused, row.children[row.children.length - 1], "wraps to the end");
+  assert.equal(stops()[row.children.length - 1], "0");
+  send("Home", focused);
+  assert.equal(focused, row.children[0]);
+  send("ArrowRight", focused);
+  assert.equal(focused, row.children[1]);
+});
+
+test("Escape on an open control puts focus back on its icon", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "align");
+  let focused = null;
+  icon.focus = () => (focused = icon);
+  quiet(() => press(app, "align"));
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(focused, icon);
+  assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
+});
+
+test("reduced motion stops the dock and control animations", () => {
+  const { run } = fakeDom();
+  const app = run();
+  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}#dock,\.pop\{animation:none\}/);
+});

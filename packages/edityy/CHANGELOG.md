@@ -39,6 +39,13 @@ All notable changes to the `edityy` package. The format follows
 - Padding and margin are in the `+` list for every element. Each one is a
   slider for all four sides and a field for each side. Each side is written as a
   longhand, so the edits list names the side. (#69)
+- The dock's icon row is a toolbar with one tab stop: ← → move along it, Home and
+  End go to its ends. Escape on an open control puts focus back on its icon. (#70)
+
+### Changed
+
+- Under `prefers-reduced-motion: reduce`, the dock and its controls no longer
+  animate in. (#70)
 
 ### Fixed
 
