@@ -634,6 +634,32 @@ function faces() {
     { v: "italic", label: "Italic", icon: '<path d="M12 4H7M9 14h5M10.5 4l-3 10"/>' },
   ];
 
+  // The box controls: how a container arranges its children. One row per
+  // property, drawn as icons so each row reads without a heading. Separate rows
+  // (not one options list) because icons() ticks only its own row, while a
+  // shared list would light justify and align together on "center".
+  var DISPLAYS = [
+    { v: "block", label: "Stack", icon: '<path d="M3 5h12M3 9h12M3 13h12"/>' },
+    { v: "flex", label: "Flex", icon: '<rect x="2.5" y="6" width="4" height="6" rx="1"/><rect x="7" y="6" width="4" height="6" rx="1"/><rect x="11.5" y="6" width="4" height="6" rx="1"/>' },
+    { v: "grid", label: "Grid", icon: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>' },
+  ];
+  var DIRECTIONS = [
+    { v: "row", label: "Row", icon: '<path d="M3 9h12M11 5l4 4-4 4"/>' },
+    { v: "column", label: "Column", icon: '<path d="M9 3v12M5 11l4 4 4-4"/>' },
+  ];
+  var JUSTIFY = [
+    { v: "flex-start", label: "Justify start", icon: '<path d="M3 5h5M3 9h3M3 13h5"/>' },
+    { v: "center", label: "Justify center", icon: '<path d="M6.5 5h5M7.5 9h3M6.5 13h5"/>' },
+    { v: "flex-end", label: "Justify end", icon: '<path d="M10 5h5M12 9h3M10 13h5"/>' },
+    { v: "space-between", label: "Space between", icon: '<path d="M3 5h4M11 5h4M3 13h4M11 13h4"/>' },
+  ];
+  var ALIGN_ITEMS = [
+    { v: "flex-start", label: "Align start", icon: '<path d="M5 3v5M9 3v5M13 3v5"/>' },
+    { v: "center", label: "Align center", icon: '<path d="M5 6.5v5M9 6.5v5M13 6.5v5"/>' },
+    { v: "flex-end", label: "Align end", icon: '<path d="M5 10v5M9 10v5M13 10v5"/>' },
+    { v: "stretch", label: "Stretch", icon: '<path d="M5 3v12M9 3v12M13 3v12"/>' },
+  ];
+
   // The filters, as data. Blur is the only one that takes a length; the other
   // four are percentages, and no webkit prefix: every engine that matters has
   // supported the unprefixed name for years and a second declaration per filter
@@ -1118,6 +1144,41 @@ function icons(items, current, onPick) {
       bar.appendChild(swatch);
       pop.appendChild(bar);
     },
+    layout: function () {
+      // Which box the element is, read off the cascade: the display the page
+      // shipped wins, so the ticks show what is actually there.
+      var display = String(get("display") || "block").trim();
+      var current = display === "flex" || display === "grid" ? display : "block";
+      // A justify, align or gap without a box is nothing: read the display fresh
+      // (not captured above) so picking grid first still counts as a box after.
+      var ensureBox = function () {
+        var d = String(get("display") || "").trim();
+        if (d !== "flex" && d !== "grid") set("display", "flex");
+      };
+      icons(DISPLAYS, current, function (v) {
+        set("display", v);
+        return [v];
+      });
+      icons(DIRECTIONS, String(get("flex-direction") || "row").trim(), function (v) {
+        set("flex-direction", v);
+        set("display", "flex");
+        return [v];
+      });
+      icons(JUSTIFY, String(get("justify-content") || "flex-start").trim(), function (v) {
+        set("justify-content", v);
+        ensureBox();
+        return [v];
+      });
+      icons(ALIGN_ITEMS, String(get("align-items") || "flex-start").trim(), function (v) {
+        set("align-items", v);
+        ensureBox();
+        return [v];
+      });
+      slider(0, 48, 1, num("gap", 0), "px", function (v) {
+        set("gap", v + "px");
+        ensureBox();
+      });
+    },
     blur: function () { filterSlider("blur"); },
     brightness: function () { filterSlider("brightness"); },
     greyscale: function () { filterSlider("greyscale"); },
@@ -1186,11 +1247,20 @@ function decorate(el) {
     show(open ? "" : key);
   }
 
-  var BASE_ICONS = ICONS.slice(); // the seven type controls, the ones always there
+  var BASE_ICONS = ICONS.slice(); // the type controls, the ones always there on text
+  // The one primary control for a container: its children's layout. Not in the
+  // `+` — a container's children are its whole job, so the control is primary.
+  var BOX_ICONS = [
+    {
+      key: "layout",
+      label: "Layout",
+      glyph: svg('<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>'),
+    },
+  ];
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
 
-  /** The controls on show: the seven, plus whatever was added to this element. */
+  /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     while (row.firstChild) row.removeChild(row.firstChild);
     // The element's own additions, in the order they were added to it. Read off
@@ -1201,7 +1271,12 @@ function decorate(el) {
       var item = ADD.filter(function (a) { return a.key === key; })[0];
       if (item) row.appendChild(button("ic", item.glyph, item.label, function () { toggle(key); }, key));
     });
-    BASE_ICONS.forEach(function (definition) {
+    // Each kind gets its own row: type controls for words, layout for a box.
+    // A container has no words, so the type controls have nothing to act on —
+    // and layout has nothing to act on in words, so neither kind borrows the
+    // other's. The added ones sit on both, because an addition was picked for
+    // this element.
+    (selectedKind === "container" ? BOX_ICONS : BASE_ICONS).forEach(function (definition) {
       row.appendChild(
         button("ic", definition.glyph, definition.label, function () { toggle(definition.key); }, definition.key)
       );
@@ -1249,10 +1324,10 @@ function decorate(el) {
     );
   }
 
-  /** Show the dock only for a text selection, and keep its control open across a
-      re-click on the same words, which is the click that starts a drag. */
+  /** Show the dock for a text or container selection, and keep its control open
+      across a re-click on the same element, which is the click that starts a drag. */
   function syncDock() {
-    var on = selectedKind === "text" && !!selected;
+    var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
     dock.hidden = !on;
     // Rebuilt on every selection, because the row is the selected element's own
     // dock: the seven type controls, the `+`, and only what this element has been

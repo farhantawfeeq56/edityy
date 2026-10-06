@@ -734,7 +734,7 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
-test("the dock opens on text and stays shut on anything else", () => {
+test("the dock opens on text and container, stays shut on media", () => {
   const { run, el } = fakeDom();
   const app = run();
   quiet(() => {
@@ -742,7 +742,30 @@ test("the dock opens on text and stays shut on anything else", () => {
     app.hover(el("div"));
     app.clickPage();
   });
-  assert.equal(app.root.nodes.dock.hidden, true, "a container is not this dock's business");
+  assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
+  assert.deepEqual(
+    app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["layout", "+"],
+    "layout plus the +, no type controls"
+  );
+  quiet(() => press(app, "layout"));
+  const layout = app.root.nodes.pop;
+  assert.equal(layout.hidden, false, "the layout control opens");
+  // Five rows: display, direction, justify, align, gap.
+  assert.equal(layout.children.length, 5);
+  assert.equal(layout.children[0].children.length, 3, "stack, flex, grid");
+  assert.equal(layout.children[1].children.length, 2, "row, column");
+  assert.equal(layout.children[2].children.length, 4, "four justifies");
+  assert.equal(layout.children[3].children.length, 4, "four aligns");
+  // Flex then gap: the box is real and the gap lands on the same element.
+  const box = app.root.selection().el;
+  for (const fn of layout.children[0].children[1].bubbles.click.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("display"), "flex");
+  const gap = layout.children[4].children[0];
+  gap.value = 12;
+  for (const fn of gap.bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("gap"), "12px");
+  assert.equal(layout.hidden, false, "still open after both");
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
   // Seven type icons and the `+`, each with a name for a tooltip.
