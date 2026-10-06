@@ -36,6 +36,9 @@ All notable changes to the `edityy` package. The format follows
 - The arrow keys move the selection: ↑ to the parent, ↓ to the first child, ← →
   to the siblings. While the caret is in words the arrows move the caret, so
   there they take Alt as well. (#68)
+- Padding and margin are in the `+` list for every element. Each one is a
+  slider for all four sides and a field for each side. Each side is written as a
+  longhand, so the edits list names the side. (#69)
 
 ### Fixed
 
