@@ -12,6 +12,7 @@ const want = [
   "src/client.js",
   "src/edityy.js",
   "src/index.js",
+  "src/vite.js",
 ];
 
 const [pkg] = JSON.parse(readFileSync(process.argv[2], "utf8"));

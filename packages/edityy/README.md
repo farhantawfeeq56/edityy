@@ -17,19 +17,17 @@ the tag into the HTML that server returns.
 
 ```ts
 import { defineConfig } from "vite";
-import { edityy } from "edityy";
+import { edityy } from "edityy/vite";
 
 export default defineConfig({
-  plugins: [
-    {
-      name: "edityy",
-      configureServer(server) {
-        server.middlewares.use(edityy());
-      },
-    },
-  ],
+  plugins: [edityy()],
 });
 ```
+
+The plugin runs on the dev server only (`apply: "serve"`), so `vite build` never
+includes the launcher. It works for every framework that runs on Vite's dev
+server: React, Vue, Svelte and Solid templates, SvelteKit, Astro, Nuxt, Remix and
+React Router. It takes the same options as the middleware below.
 
 **Anything else** that takes `(req, res, next)` — Connect, Express, a plain
 `http` server:

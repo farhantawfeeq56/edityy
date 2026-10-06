@@ -19,14 +19,16 @@
     "middleware",
     "localhost",
     "ai",
-    "codebase"
+    "codebase",
+    "vite-plugin"
   ],
   "type": "module",
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
     "./inject": "./src/index.js",
-    "./client": "./src/client.js"
+    "./client": "./src/client.js",
+    "./vite": "./src/vite.js"
   },
   "files": [
     "src",
