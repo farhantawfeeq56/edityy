@@ -833,16 +833,13 @@ test("one control opens at a time, under the dock, and Escape closes it", () => 
   assert.equal(pop.hidden, true, "nothing is open to begin with");
   quiet(() => press(app, "spacing"));
   assert.equal(pop.hidden, false);
-  assert.equal(app.root.nodes.row.children[3].attributes["aria-expanded"], "true");
+  assert.equal(app.root.nodes.row.children[5].attributes["aria-expanded"], "true");
   assert.equal(app.root.nodes.row.children[0].attributes["aria-expanded"], "false");
   assert.equal(fields(pop).length, 2, "spacing has letter and line fields");
-  // Opening another one replaces it rather than stacking.
-  quiet(() => press(app, "size"));
-  assert.equal(
-    pop.children.flatMap((c) => c.children).some((b) => b.getAttribute?.("aria-label") === "center"),
-    false,
-    "the old control is gone"
-  );
+  // Inline size editing does not open a second surface.
+  const size = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  assert.equal(pop.hidden, false, "spacing remains open while size stays inline");
+  assert.equal(size.children[0].type, "number");
   // Escape backs out one level: the control first, then the mode.
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(pop.hidden, true, "the control closes");
@@ -927,10 +924,9 @@ test("picking an option keeps the control open, and moves the tick", () => {
   for (const fn of align.bubbles.click.bubble) fn({});
   assert.equal(pop.hidden, true, "alignment cycles without opening a panel");
   assert.equal(p.style.getPropertyValue("text-align"), "center");
-  quiet(() => press(app, "size"));
-  assert.equal(pop.hidden, false);
-  quiet(() => press(app, "size"));
-  assert.equal(pop.hidden, true, "the same icon again closes it");
+  const size = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  for (const fn of size.bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, true, "size stays inline");
 });
 
 test("picking a face writes the whole stack to the element", () => {
@@ -1426,13 +1422,13 @@ test("each element keeps its own additions", () => {
     pickOption(app.root.nodes.pop, "Contrast");
   });
   const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(keys(), ["contrast", "family", "weight", "size", "spacing", "align", "decorate", "color", "+"]);
+  assert.deepEqual(keys(), ["contrast", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
 
   app.hover(first);
   app.clickPage();
   assert.deepEqual(
     keys(),
-    ["blur", "family", "weight", "size", "spacing", "align", "decorate", "color", "+"],
+    ["blur", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
     "the first element keeps only its own",
   );
 });
@@ -1630,10 +1626,8 @@ test("a value dragged back to where it was is not an edit", () => {
   const p = selectText(app);
   setSize(app, 40);
   // "" is what the stylesheet had: the record knows, so the edit is gone.
-  quiet(() => {
-    const input = app.root.nodes.pop.children[0].children[0];
-    input.value = "16";
-  });
+  const input = app.root.nodes.row.children.find((b) => b.dataset.key === "size").children[0];
+  input.value = "16";
   p.style.removeProperty("font-size");
   assert.equal(app.win.__edityy_changes(), "", "no edits, no prompt");
 });
