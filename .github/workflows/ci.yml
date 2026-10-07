@@ -57,6 +57,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # The route type helpers (LayoutProps, PageProps) are generated, not
+      # checked in, and the vinext build does not make them.
+      - run: npx next typegen
       - run: npx tsc --noEmit
       - run: node --test scripts/*.test.mjs
       - run: npm run build
