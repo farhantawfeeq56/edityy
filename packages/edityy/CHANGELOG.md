@@ -25,12 +25,48 @@ All notable changes to the `edityy` package. The format follows
   on: a selector, the source location when the Vite plugin stamped one, each
   property as `before → after` (the value the page showed, not the empty inline
   one) and any text change. `window.__edityy_changes()` returns the same text. (#65)
+- Undo and redo: ⌘Z / Ctrl+Z, and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y. One drag of a
+  slider is one step, from the first input to letting go, and a border's width
+  and style go back together. After typing into the words, ⌘Z stays the
+  browser's own text undo. (#66)
+- Edits survive a reload or a hot update. While the mode is on, they are kept in
+  `sessionStorage` for the page's path and put back after the page loads, with
+  the mode on again. An edit whose element is gone is dropped. Storage that is
+  missing or throws only means the edits are not kept. (#67)
+- The arrow keys move the selection: ↑ to the parent, ↓ to the first child, ← →
+  to the siblings. While the caret is in words the arrows move the caret, so
+  there they take Alt as well. (#68)
+- Padding and margin are in the `+` list for every element. Each one is a
+  slider for all four sides and a field for each side. Each side is written as a
+  longhand, so the edits list names the side. (#69)
+- The dock's icon row is a toolbar with one tab stop: ← → move along it, Home and
+  End go to its ends. Escape on an open control puts focus back on its icon. (#70)
+- "Save to project" in the edits list writes the edits to `.edityy/changes.json`
+  in the project, for a coding agent to read. The middleware and the Vite plugin
+  serve `POST /__edityy/changes` themselves; Next.js gets `changesRoute()` for a
+  one-line route file. Only JSON from the page's own origin is accepted, up to
+  1 MB, and the folder gets a `.gitignore` of its own. (#71)
+- `npx edityy mcp`: a stdio MCP server for coding agents, with
+  `get_visual_changes` and `clear_visual_changes` over the saved edits. Written
+  without an SDK, so the package still has no dependencies. (#72)
+- TypeScript declarations for every entry point (`edityy`, `edityy/inject`,
+  `edityy/client`, `edityy/vite`), so `strict` projects no longer fail with
+  "Could not find a declaration file". The Vite plugin's type is its own shape,
+  so the package still needs no `vite` types. (#60)
+
+### Changed
+
+- Under `prefers-reduced-motion: reduce`, the dock and its controls no longer
+  animate in. (#70)
 
 ### Fixed
 
 - Leaving the edit mode left `outline: none` on every element whose text was
   edited, and took away an outline the element had of its own. The outline is
   recorded before Edityy hides the focus ring, so exit puts back the page's. (#74)
+- An edit that resized the element under the pointer left the hover frame at
+  the old size, so one element had two frames. The hover frame is dropped on
+  every re-measure and comes back on the next pointer move. (#75)
 
 ## 0.1.3 — 2026-10-05
 

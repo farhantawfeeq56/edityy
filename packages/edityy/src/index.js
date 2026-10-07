@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 /** The launcher payload, read once at import. */
 export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "utf8");
@@ -6,6 +8,12 @@ export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "u
 /** Where the middleware serves the launcher and what it injects. */
 export const ASSET_PATH = "/__edityy/edityy.js";
 export const TAG = `<script src="${ASSET_PATH}" defer></script>`;
+
+/** Where the page sends its edits, and the file they are written to. */
+export const CHANGES_PATH = "/__edityy/changes";
+export const CHANGES_FILE = ".edityy/changes.json";
+/** The largest edit set the endpoint takes. Edits are text; this is plenty. */
+const SAVE_LIMIT = 1024 * 1024;
 
 /** Headers this middleware sets. */
 const JS = { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" };
@@ -45,6 +53,7 @@ export function inject(body, tag = TAG) {
 export function edityy(options = {}) {
   const base = options.tag ?? TAG;
   const nonce = options.nonce;
+  const root = options.root ?? process.cwd();
 
   return function edityyMiddleware(req, res, next) {
     const done = typeof next === "function" ? next : () => {};
@@ -55,6 +64,13 @@ export function edityy(options = {}) {
       if (pathname === ASSET_PATH) {
         res.writeHead?.(200, JS);
         res.end?.(launcher);
+        return;
+      }
+
+      if (pathname === CHANGES_PATH && options.save !== false) {
+        saveFromNode(req, res, root).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
         return;
       }
 
@@ -229,6 +245,140 @@ function spliceHead(held, tag, force) {
   }
   if (!HAS_HTML_OPEN.test(text)) return held;
   return Buffer.concat([held.subarray(0, close.index), Buffer.from(tag), held.subarray(close.index)]);
+}
+
+/** An error that knows the status it should answer with. */
+class SaveError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/**
+ * Write a page's edits to `.edityy/changes.json` under `root`, for a coding agent
+ * (or a person) to read. The folder gets a `.gitignore` of its own, so pending
+ * edits never end up in a commit by accident.
+ *
+ * Takes the body the launcher sends — `{ page, markdown, changes: [...] }` — and
+ * returns the path it wrote, relative to `root`.
+ */
+export async function writeChanges(payload, root = process.cwd()) {
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.changes)) {
+    throw new SaveError(400, "Expected a JSON object with a changes array.");
+  }
+  const record = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    page: typeof payload.page === "string" ? payload.page : null,
+    markdown: typeof payload.markdown === "string" ? payload.markdown : "",
+    changes: payload.changes,
+  };
+  const dir = join(root, ".edityy");
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, ".gitignore"), "*\n");
+  await writeFile(join(root, CHANGES_FILE), JSON.stringify(record, null, 2) + "\n");
+  return CHANGES_FILE;
+}
+
+/**
+ * Is this request the page itself, rather than another site in the same browser?
+ *
+ * The endpoint writes a file, so a page on another origin must not be able to
+ * reach it. A browser sends `Origin` on every POST and `Sec-Fetch-Site` on
+ * modern ones; either one naming another site is a refusal. JSON is required
+ * as well, which a cross-site form cannot send without a preflight this server
+ * never answers.
+ */
+function allowed(method, type, origin, fetchSite, host) {
+  if (method !== "POST") throw new SaveError(405, "POST the edits as JSON.");
+  if (!String(type ?? "").includes("application/json")) throw new SaveError(415, "Send the edits as application/json.");
+  if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, "Only the page itself can save edits.");
+  if (origin) {
+    let from = null;
+    try {
+      from = new URL(origin).host;
+    } catch {
+      // An origin that is not a URL ("null", for one) is not this page.
+    }
+    if (from !== host) throw new SaveError(403, "Only the page itself can save edits.");
+  }
+}
+
+/** The save endpoint on a Node dev server: read, check, write, answer. */
+async function saveFromNode(req, res, root) {
+  const answer = (status, body) => {
+    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end?.(JSON.stringify(body));
+  };
+  try {
+    const h = req.headers ?? {};
+    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host);
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      throw new SaveError(400, "The body is not JSON.");
+    }
+    answer(200, { ok: true, path: await writeChanges(payload, root) });
+  } catch (error) {
+    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+  }
+}
+
+/** A request body as a string, refused past SAVE_LIMIT. */
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const parts = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > SAVE_LIMIT) {
+        reject(new SaveError(413, "Too many edits to save at once."));
+        req.destroy?.();
+        return;
+      }
+      parts.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(parts).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+
+/**
+ * The save endpoint as a fetch-style route handler, for frameworks whose pages
+ * the middleware never sees — Next.js above all:
+ *
+ *   // app/%5F%5Fedityy/changes/route.ts  (Next serves %5F as "_")
+ *   import { changesRoute } from "edityy";
+ *   export const POST = changesRoute();
+ */
+export function changesRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  return async function POST(request) {
+    const json = (status, body) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+      });
+    try {
+      const h = request.headers;
+      const host = h.get("host") ?? new URL(request.url).host;
+      allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host);
+      const body = await request.text();
+      if (Buffer.byteLength(body) > SAVE_LIMIT) throw new SaveError(413, "Too many edits to save at once.");
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch {
+        throw new SaveError(400, "The body is not JSON.");
+      }
+      return json(200, { ok: true, path: await writeChanges(payload, root) });
+    } catch (error) {
+      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+    }
+  };
 }
 
 /** A body chunk as a Buffer, or nothing when there is no chunk. */

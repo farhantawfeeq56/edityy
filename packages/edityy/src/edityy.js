@@ -19,9 +19,11 @@
  * seven type controls and one `+`, and picking from the `+` adds a control —
  * shadow, blur, brightness, greyscale, contrast — as another icon in the row.
  *
- * Everything here is still in memory only: apply() writes an inline style,
- * remembers what was there, and revert() puts it back on exit. Nothing is
- * written to the codebase, which stays the source of truth.
+ * Every edit is an inline style: apply() writes it, remembers what was there,
+ * and revert() puts it back on exit. The edits list hands them on — copied as a
+ * prompt, or posted to the dev server, which writes them into the project for
+ * a coding agent. Edityy itself never writes to the codebase, which stays the
+ * source of truth.
  *
  * Browser IIFE on purpose: this file is served to the page as-is, so it cannot
  * be a module.
@@ -182,7 +184,11 @@
     // without turning the box into a lozenge.
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label{transition:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}#dock,.pop{animation:none}}",
+    // Four sides in a row, each a small field under its name.
+    ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
+    ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
+    ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px}",
     ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
@@ -199,6 +205,9 @@
     "font:600 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
     ".cta:hover{background:#86546b}",
     ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
+    ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
+    ".cta.ghost:hover{background:#3a283c0f}",
+    ".cta.ghost:disabled{background:transparent}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
@@ -206,7 +215,7 @@
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar">',
-    '<div class="row" id="row"></div>',
+    '<div class="row" id="row" role="toolbar" aria-label="Edit controls" aria-orientation="horizontal"></div>',
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
     '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
@@ -236,6 +245,8 @@
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
+  // The control that is open, "" for none.
+  var openKey = "";
   var countBadge = $("count");
   // The `+` sits at the end of the row and a revealed control goes in before it,
   // so adding one grows the row leftwards from the button that added it.
@@ -246,13 +257,16 @@
   // site's own face, taken from the app's own token wherever it sets one.
   var active = false;
   var selected = null;
-  // The kind of the current selection. Nothing reads it yet — there is no panel —
-  // but root.selection() reports it and it is the first thing any UI will want.
+  // The kind of the current selection: it decides which controls the dock starts
+  // with, and root.selection() reports it.
   var selectedKind = null; // "text" | "container" | "media"
   // The element whose words are being typed into, if any. One at a time: a new
   // selection closes the last, or two elements would both take the caret.
   var editing = null;
-  var changes = []; // { el, props: {longhand: value-before}, text: value-before, textEdited: bool }
+  // One record per touched element:
+  //   { el, props: {prop: inline value before}, set: {prop: was it set at all},
+  //     was: {prop: computed value before}, text: words before | null, added: [keys] }
+  var changes = [];
 
   /* ------------------------------------------------------------ selection */
 
@@ -369,6 +383,7 @@
   function apply(prop, value) {
     var rec = record(selected);
     remember(rec, prop);
+    var was = selected.style.getPropertyValue(prop);
     // `value` is a string, and "" means "not set": removeProperty empties it
     // without leaving a declaration behind, while setProperty("") would write one
     // that overrides the stylesheet with nothing — the bug a control that writes
@@ -376,7 +391,93 @@
     // since an empty value records nothing to put back.
     if (value) selected.style.setProperty(prop, value);
     else selected.style.removeProperty(prop); // back to the stylesheet's value
+    step(rec, prop, was, selected.style.getPropertyValue(prop));
     return rec;
+  }
+
+  /* -------------------------------------------------------------- history */
+
+  // Undo and redo, as a stack of steps. A step is one element and the inline
+  // values of the properties it touched, before and after:
+  //   { rec, before: {prop: value}, after: {prop: value}, at }
+  var history = [];
+  var future = [];
+  // The step this task's writes go into. A control can write two properties
+  // for one input (a border's width and its style), and those are one step.
+  var current = null;
+  // When the words were last typed into: the browser owns the text's own undo,
+  // so ⌘Z after typing is the browser's and ⌘Z after a drag is ours.
+  var typedAt = 0;
+  // A drag fires an input per pixel, and typing "40" fires two. A slider, a
+  // number or a colour holds its step open from the first input to the
+  // `change` the browser fires when the drag lets go, so the whole gesture is
+  // one step. A click on an option is a gesture of its own.
+  var dragging = false;
+
+  /** A continuous control is moving: what it writes joins the open step. */
+  function hold() {
+    dragging = true;
+  }
+
+  /** The drag let go, or the user moved on: the next write is a new step. */
+  function release() {
+    dragging = false;
+    var top = history[history.length - 1];
+    if (top) top.open = false;
+  }
+
+  function step(rec, prop, before, after) {
+    var now = Date.now();
+    if (!current) {
+      var top = history[history.length - 1];
+      current = top && top.open && top.rec === rec && prop in top.before ? top : null;
+      if (!current) {
+        if (top) top.open = false;
+        current = { rec: rec, before: {}, after: {}, at: now, open: dragging };
+        history.push(current);
+      }
+      // Closed at the end of this task, so the next input starts fresh.
+      Promise.resolve().then(function () { current = null; });
+    }
+    if (!(prop in current.before)) current.before[prop] = before;
+    current.after[prop] = after;
+    current.at = now;
+    future = [];
+  }
+
+  /** Write a step's values back without recording anything. */
+  function replay(target, values) {
+    Object.keys(values).forEach(function (prop) {
+      if (values[prop]) target.rec.el.style.setProperty(prop, values[prop]);
+      else target.rec.el.style.removeProperty(prop);
+    });
+    refit();
+    tally();
+    // An open control shows the value it read when it opened, so it is redrawn.
+    if (openKey && openKey !== "+") show(openKey);
+  }
+
+  function undo() {
+    var last = history.pop();
+    if (!last) return false;
+    replay(last, last.before);
+    future.push(last);
+    return true;
+  }
+
+  function redo() {
+    var next = future.pop();
+    if (!next) return false;
+    replay(next, next.after);
+    history.push(next);
+    return true;
+  }
+
+  /** A reverted element takes its steps with it: there is nothing left to undo. */
+  function forget(rec) {
+    var keep = function (x) { return x.rec !== rec; };
+    history = history.filter(keep);
+    future = future.filter(keep);
   }
 
   /* ---------------------------------------------------------- text editing */
@@ -466,6 +567,7 @@
     changes = changes.filter(function (other) {
       return other !== rec;
     });
+    forget(rec);
     tally();
   }
 
@@ -530,6 +632,7 @@
   /** Draw the selection frame and reveal whatever the new selection can edit. */
   function select(el, hit) {
     stopEditing(); // the caret belongs to the old selection, never to both
+    if (el !== selected) release();
     selected = el;
     // The kind comes from the pick, because a form control is text by way of the
     // walk rather than by way of `kind()`: it has no text node of its own.
@@ -819,6 +922,8 @@ function faces() {
     { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
   ];
 
+  var PAD_GLYPH = svg('<rect x="2.5" y="2.5" width="13" height="13" rx="1.5"/><rect x="6" y="6" width="6" height="6" rx=".5" stroke-dasharray="1.5 1.5"/>');
+  var MARGIN_GLYPH = svg('<rect x="5.5" y="5.5" width="7" height="7" rx="1"/><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2"/>');
   // The `+`, and the one control it opens: the five things that are not type.
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
@@ -834,6 +939,10 @@ function faces() {
     // text colour, which is in the primary dock, and text has no border at all.
     { key: "fill", label: "Fill", glyph: svg('<path d="M3.5 8.5 9 3l5.5 5.5v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M7 15.5v-4h4v4"/>') },
     { key: "border", label: "Border", glyph: svg('<rect x="3.5" y="3.5" width="11" height="11" rx="1.5"/><path d="M3.5 7h11"/>') },
+    // Space, inside the box and around it. The base controls of anything that is
+    // not text, and behind the `+` for text, whose padding matters too.
+    { key: "padding", label: "Padding", glyph: PAD_GLYPH },
+    { key: "margin", label: "Margin", glyph: MARGIN_GLYPH },
   ];
 
   /** A button in the dock, or an option inside one control. */
@@ -867,6 +976,8 @@ function faces() {
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
+    if (key !== openKey) release();
+    openKey = key;
     // Dressed by data-key, not by position: the row is rebuilt per selection and
     // the added controls sit in front of the seven, so index i is not icon i.
     for (var i = 0; i < row.children.length; i++) {
@@ -900,6 +1011,7 @@ function faces() {
         // purpose: comparing two weights or two faces means looking at the page
         // with the choices still in view, and a click that dismisses the list is
         // a click you have to make again before trying the next value.
+        release();
         onPick(value);
         mark(value);
       }, value);
@@ -944,6 +1056,7 @@ function icons(items, current, onPick, cls) {
       var b = button("ic", svg(item.icon), item.label || item.v, function () {
         // Stays open like every other control: these are things you try twice,
         // and the tick moves so you can see which one is on.
+        release();
         mark(onPick(item.v));
       }, item.v);
       b.setAttribute("aria-pressed", item.v === current ? "true" : "false");
@@ -976,8 +1089,10 @@ function icons(items, current, onPick, cls) {
     // Live: the element changes under the pointer, so there is nothing to commit.
     input.addEventListener("input", function () {
       out.textContent = input.value + unit;
+      hold();
       onInput(input.value);
     });
+    input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
     pop.appendChild(row);
@@ -1007,8 +1122,10 @@ function icons(items, current, onPick, cls) {
       if (input.value === "") return;
       var v = Number(input.value);
       out.textContent = v + unit;
+      hold();
       onInput(v);
     });
+    input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
     pop.appendChild(row);
@@ -1109,8 +1226,10 @@ function icons(items, current, onPick, cls) {
     swatch.title = "Pick a colour";
     swatch.setAttribute("aria-label", "Pick a colour");
     swatch.addEventListener("input", function () {
+      hold();
       onPick(swatch.value);
     });
+    swatch.addEventListener("change", release);
     bar.appendChild(swatch);
     pop.appendChild(bar);
   }
@@ -1119,7 +1238,7 @@ function icons(items, current, onPick, cls) {
   function set(prop, value) {
     if (!selected) return;
     apply(prop, value);
-    place(selBox, selected.getBoundingClientRect());
+    refit();
     tally();
   }
 
@@ -1183,6 +1302,46 @@ function icons(items, current, onPick, cls) {
     if (v === "start") v = "flex-start";
     if (v === "end") v = "flex-end";
     return v === "flex-start" || v === "center" || v === "flex-end" ? v : fallback;
+  }
+
+  /**
+   * Four sides of padding or margin: one slider for all four at once, and a
+   * field per side for one at a time. Written as the longhands, so the edits list
+   * says which side changed and an undo puts back exactly the four that moved.
+   */
+  function sides(prop, min, max) {
+    var names = [["top", "Top"], ["right", "Right"], ["bottom", "Bottom"], ["left", "Left"]];
+    var values = names.map(function (n) { return num(prop + "-" + n[0], 0); });
+    var inputs = [];
+    slider(min, max, 1, values[0], "px", function (v) {
+      names.forEach(function (n, i) {
+        set(prop + "-" + n[0], v + "px");
+        inputs[i].value = String(v);
+      });
+    });
+    var grid = document.createElement("div");
+    grid.className = "sides";
+    names.forEach(function (n, i) {
+      var cell = document.createElement("label");
+      cell.appendChild(text(n[1]));
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = min;
+      input.max = max;
+      input.step = 1;
+      input.value = values[i];
+      input.setAttribute("aria-label", n[1] + " " + prop);
+      input.addEventListener("input", function () {
+        if (input.value === "") return; // blank while typing is not a value
+        hold();
+        set(prop + "-" + n[0], Number(input.value) + "px");
+      });
+      input.addEventListener("change", release);
+      inputs.push(input);
+      cell.appendChild(input);
+      grid.appendChild(cell);
+    });
+    pop.appendChild(grid);
   }
 
   var CONTROLS = {
@@ -1278,8 +1437,10 @@ function icons(items, current, onPick, cls) {
       swatch.title = "Shadow colour";
       swatch.addEventListener("input", function () {
         values[4] = swatch.value;
+        hold();
         shadow(values);
       });
+      swatch.addEventListener("change", release);
       var bar = document.createElement("div");
       bar.className = "bar2";
       var name = text("Colour");
@@ -1402,6 +1563,8 @@ function icons(items, current, onPick, cls) {
     height: function () {
       number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height");
     },
+    padding: function () { sides("padding", 0, 160); },
+    margin: function () { sides("margin", -160, 160); },
     blur: function () { filterSlider("blur"); },
     brightness: function () { filterSlider("brightness"); },
     greyscale: function () { filterSlider("greyscale"); },
@@ -1534,7 +1697,32 @@ function decorate(el) {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
+    rove(row.children[0]);
   }
+
+  /**
+   * The row is one toolbar and one tab stop: Tab reaches it once, and the arrows
+   * move along it. The icon that has the stop is the one Tab comes back to.
+   */
+  function rove(target) {
+    for (var i = 0; i < row.children.length; i++) {
+      row.children[i].setAttribute("tabindex", row.children[i] === target ? "0" : "-1");
+    }
+  }
+
+  row.addEventListener("keydown", function (e) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
+    if (!(e.key in keys)) return;
+    var items = Array.prototype.slice.call(row.children);
+    var at = items.indexOf(e.target);
+    if (at === -1) return;
+    var move = keys[e.key];
+    var next = move === "first" ? 0 : move === "last" ? items.length - 1 : (at + move + items.length) % items.length;
+    rove(items[next]);
+    if (items[next].focus) items[next].focus();
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+  });
 
   /** Which optional controls this element has been given, in the order added. */
   function addedTo(el) {
@@ -1578,14 +1766,10 @@ function decorate(el) {
   function syncDock() {
     var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
     dock.hidden = !on;
-    // Rebuilt on every selection, because the row is the selected element's own
-    // dock: the seven type controls, the `+`, and only what this element has been
-    // given. Built here rather than in select() so a re-click on the same words,
-    // which keeps the control open, does not throw the row away mid-drag.
     // Rebuilt whenever the selection moves to a different element, because the
-    // row belongs to the element: its seven type controls, the `+`, and only
-    // what this element has been given. Tracked by which element the row was
-    // built for, so a re-click on the same words keeps the control that is open.
+    // row belongs to the element: its base controls, the `+`, and only what this
+    // element has been given. Tracked by which element the row was built for,
+    // so a re-click on the same element keeps the control that is open.
     if (on && rowFor !== selected) {
       buildRow();
       rowFor = selected;
@@ -1724,6 +1908,7 @@ function decorate(el) {
 
   /** Keep the number on the edits button in step with the edits. */
   function tally() {
+    keep();
     var n = report().length;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
@@ -1785,7 +1970,55 @@ function decorate(el) {
     copy.appendChild(text("Copy for an agent"));
     copy.disabled = !items.length;
     actions.appendChild(copy);
+    var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
+      saveEdits(function (message) {
+        save.textContent = message;
+        setTimeout(function () { save.textContent = "Save to project"; }, 2400);
+      });
+    }, "save");
+    save.appendChild(text("Save to project"));
+    save.disabled = !items.length;
+    actions.appendChild(save);
     pop.appendChild(actions);
+  }
+
+  // The dev server's save endpoint (index.js) and the file it writes.
+  var CHANGES_URL = "/__edityy/changes";
+  var CHANGES_FILE = ".edityy/changes.json";
+
+  /** The edits without their live elements: what can go over the wire. */
+  function plain(items) {
+    return items.map(function (item) {
+      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text };
+    });
+  }
+
+  /**
+   * Send the edits to the dev server, which writes them into the project for a
+   * coding agent to read. A server without the endpoint — Next.js until its
+   * route is added — answers 404, and the button says so instead of failing.
+   */
+  function saveEdits(done) {
+    var items = report();
+    if (typeof window.fetch !== "function") return done("Cannot save here");
+    var body = JSON.stringify({
+      page: window.location ? window.location.href : null,
+      markdown: markdown(items),
+      changes: plain(items),
+    });
+    window.fetch(CHANGES_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: body,
+    }).then(function (r) {
+      if (r.status === 404) return done("No save endpoint");
+      return r.json().then(function (j) {
+        done(j && j.ok ? "Saved to " + j.path : "Save failed");
+      });
+    }).catch(function () {
+      done("Save failed");
+    });
   }
 
   /** Put a string on the clipboard, by the API where there is one. */
@@ -1827,6 +2060,144 @@ function decorate(el) {
     return markdown(report());
   };
 
+  /* -------------------------------------------------------------- session */
+
+  // A reload or a hot update throws the page away and every inline style with
+  // it. The edits are kept in sessionStorage, per path, while the mode is on,
+  // and put back when the payload mounts again. Storage can be missing or throw
+  // (a private window, blocked site data), so every touch is guarded and the
+  // editor works the same without it — it just forgets on reload.
+  function storeKey() {
+    var path = window.location && window.location.pathname;
+    return "edityy:" + (path || "/");
+  }
+
+  function storage() {
+    try {
+      return window.sessionStorage || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Save the mode and its edits, or forget them once the mode is off. */
+  function keep() {
+    var store = storage();
+    if (!store) return;
+    try {
+      if (!active) {
+        store.removeItem(storeKey());
+        return;
+      }
+      var edits = [];
+      changes.forEach(function (rec) {
+        var props = {};
+        var any = false;
+        Object.keys(rec.props).forEach(function (prop) {
+          if (OWN[prop]) return;
+          props[prop] = {
+            before: rec.props[prop],
+            set: rec.set[prop],
+            was: rec.was[prop],
+            now: rec.el.style.getPropertyValue(prop),
+          };
+          any = true;
+        });
+        var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
+        if (!any && !text && !(rec.added && rec.added.length)) return;
+        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [] });
+      });
+      store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
+    } catch (e) {
+      /* full or blocked: the edits still work, they just do not survive a reload */
+    }
+  }
+
+  /**
+   * Put a saved session back: the edits on the elements they were made to, and
+   * the mode on. An element that is no longer on the page takes its edits with it.
+   */
+  function resume() {
+    var store = storage();
+    var saved = null;
+    try {
+      saved = store && JSON.parse(store.getItem(storeKey()) || "null");
+    } catch (e) {
+      saved = null;
+    }
+    if (!saved || saved.v !== 1 || !Array.isArray(saved.edits)) return;
+    saved.edits.forEach(function (edit) {
+      var el = null;
+      try {
+        el = document.querySelector ? document.querySelector(edit.selector) : null;
+      } catch (e) {
+        el = null; // a selector the page no longer parses the same way
+      }
+      if (!el || host.contains && host.contains(el)) return;
+      var rec = record(el);
+      Object.keys(edit.props || {}).forEach(function (prop) {
+        var p = edit.props[prop];
+        rec.props[prop] = p.before;
+        rec.set[prop] = !!p.set;
+        rec.was[prop] = p.was;
+        if (p.now) el.style.setProperty(prop, p.now);
+        else el.style.removeProperty(prop);
+      });
+      // Text only where it is still one run of words: anything else would
+      // destroy elements a framework has rendered inside it since.
+      if (edit.text && isLeafText(el) && el.textContent === edit.text.before) {
+        rec.text = edit.text.before;
+        el.textContent = edit.text.after;
+      }
+      if (edit.added && edit.added.length) rec.added = edit.added.slice();
+    });
+    enter();
+    tally(); // the count on the edits button, for the edits just put back
+  }
+
+  /* ----------------------------------------------------- keyboard selection */
+
+  // Never a target: not ours, and nothing anyone means to edit.
+  var SKIP = /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|LINK|META|HEAD|TITLE)$/;
+
+  function selectable(node) {
+    return !!node && !!node.tagName && node !== host && !SKIP.test(node.tagName) &&
+      node !== document.body && node !== document.documentElement;
+  }
+
+  /** The element an arrow moves to from this one, or null at an edge. */
+  function neighbour(el, arrow) {
+    if (arrow === "ArrowUp") return selectable(el.parentElement) ? el.parentElement : null;
+    if (arrow === "ArrowDown") {
+      for (var i = 0; i < el.children.length; i++) if (selectable(el.children[i])) return el.children[i];
+      return null;
+    }
+    var parent = el.parentElement;
+    if (!parent) return null;
+    var list = Array.prototype.filter.call(parent.children, selectable);
+    var at = list.indexOf(el) + (arrow === "ArrowRight" ? 1 : -1);
+    return list[at] || null;
+  }
+
+  /**
+   * ↑ the parent, ↓ the first child, ← → the siblings. A nested element is hard
+   * to hit with the pointer; one keystroke up from the words gets the box around
+   * them. While the caret is in words the arrows are the caret's, so there it
+   * takes Alt as well.
+   */
+  function walkSelection(e) {
+    if (!selected || !/^Arrow(Up|Down|Left|Right)$/.test(e.key)) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (editing && !e.altKey) return;
+    // A key aimed at our own controls (a focused slider) is theirs.
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    var next = neighbour(selected, e.key);
+    if (!next) return;
+    if (e.preventDefault) e.preventDefault();
+    select(next, { el: next, kind: kind(next) });
+    if (next.scrollIntoView) next.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   /* ----------------------------------------------------------------- mode */
 
   /** Park the orb's centre, the single origin every pointer transform is from. */
@@ -1850,6 +2221,7 @@ function decorate(el) {
 
   function enter() {
     active = true;
+    keep();
     anchor();
     // Scale from the orb before it travels, so the shrink reads as the beginning
     // of the morph rather than a jump.
@@ -1883,12 +2255,14 @@ function decorate(el) {
     document.removeEventListener("input", onEdit, true);
     window.removeEventListener("scroll", onScroll, true);
     window.removeEventListener("resize", refit, true);
-    // Nothing to revert today — no UI writes styles yet — but the backend is
-    // here and exiting must always put the page back exactly as it was.
+    // Exiting always puts the page back exactly as it was.
     stopEditing();
     changes.slice().forEach(revert);
+    history = [];
+    future = [];
     select(null);
     hideHover();
+    keep(); // the mode is off: nothing to bring back on the next load
   }
 
   /** The hover frame is only meaningful while the pointer is still on it. */
@@ -1910,6 +2284,7 @@ function decorate(el) {
    * on the next tick, because the browser reflows the element after this event.
    */
   function onEdit() {
+    typedAt = Date.now();
     if (editing) setTimeout(refit, 0);
     tally();
   }
@@ -1929,6 +2304,10 @@ function decorate(el) {
    */
   function refit() {
     if (selected) place(selBox, selected.getBoundingClientRect());
+    // The hover frame was measured when the pointer last moved. Whatever made
+    // this re-measure may have resized the element under it, so it is dropped
+    // until the next move draws it again where it belongs.
+    hideHover();
   }
   function onMove(e) {
     // The orb follows the pointer with no lag: a dot that trails is a dot the
@@ -1959,9 +2338,35 @@ function decorate(el) {
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
     if (e.key === "Escape") {
-      if (!pop.hidden) show("");
-      else exit();
+      if (!pop.hidden) {
+        // Focus goes back to the icon that opened the control, so a keyboard user
+        // is where they were rather than at the top of the page.
+        var opener = openKey === "changes" ? review : slot(openKey);
+        show("");
+        if (opener) {
+          if (opener !== review) rove(opener);
+          if (opener.focus) opener.focus();
+        }
+      } else exit();
       return;
+    }
+    // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redoes.
+    var mod = e.metaKey || e.ctrlKey;
+    var k = String(e.key || "").toLowerCase();
+    var isUndo = mod && k === "z" && !e.shiftKey;
+    var isRedo = mod && ((k === "z" && e.shiftKey) || (k === "y" && e.ctrlKey && !e.metaKey));
+    if (!isUndo && !isRedo) {
+      walkSelection(e);
+      return;
+    }
+    // Typed words are the browser's to undo: it keeps the caret and the text
+    // history, which a style undo knows nothing about. So while the caret is in
+    // words typed into since the last drag, the key goes to the browser.
+    var top = isUndo ? history[history.length - 1] : future[future.length - 1];
+    if (editing && (!top || typedAt > top.at)) return;
+    if (isUndo ? undo() : redo()) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   }
 
@@ -1973,4 +2378,16 @@ function decorate(el) {
   });
 
   (document.body || document.documentElement).appendChild(host);
+
+  // Not now, and not at load either: a framework hydrating the page compares its
+  // own markup with the DOM, and an edit put back before it is done is a
+  // mismatch it reports (React does, and keeps going after load). An idle
+  // callback runs once the page's scheduled work has drained, which is after
+  // hydration; the timeout keeps a busy page from never getting its edits back.
+  var settle = function () {
+    if (window.requestIdleCallback) window.requestIdleCallback(resume, { timeout: 3000 });
+    else setTimeout(resume, 300);
+  };
+  if (document.readyState === "complete") setTimeout(settle, 0);
+  else if (window.addEventListener) window.addEventListener("load", function () { setTimeout(settle, 0); });
 })();

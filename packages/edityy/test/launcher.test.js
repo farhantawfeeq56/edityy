@@ -1391,7 +1391,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const pop = app.root.nodes.pop;
   assert.deepEqual(
     pop.children[0].children.map((b) => b.title),
-    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border"],
+    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"],
   );
   // Picking one puts it in the row, and opens the control that was just picked.
   quiet(() => pickOption(pop, "Blur"));
@@ -1414,7 +1414,7 @@ test("a control can only be added once", () => {
   const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
   // Blur is gone because this element has it; the two new box controls are still
   // on offer, since only Blur was ever added.
-  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border"]);
+  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"]);
 });
 
 test("a filter slider writes the filter, and leaves the others alone", () => {
@@ -1529,10 +1529,12 @@ test("every change is still undone on exit", () => {
 
 /** Type a size into the open size control, as a user would. */
 const setSize = (app, px) => {
-  quiet(() => press(app, "size"));
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  if (icon.getAttribute("aria-expanded") !== "true") quiet(() => press(app, "size"));
   const input = app.root.nodes.pop.children[0].children[0];
   input.value = String(px);
   for (const fn of input.bubbles.input.bubble) fn({});
+  for (const fn of input.bubbles.change?.bubble ?? []) fn({}); // the field is left
 };
 
 /** Open the edits list. */
@@ -1642,4 +1644,393 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   const open = openEdits(app);
   assert.match(shown(open.children[0]), /No edits yet/);
   assert.equal(open.children[1].children[0].disabled, true);
+});
+
+/** Press a key with modifiers; returns whether the payload took it. */
+const key = (app, k, mods = {}) => {
+  let prevented = false;
+  quiet(() => app.fire("keydown", { key: k, ...mods, preventDefault: () => (prevented = true), stopPropagation() {} }));
+  return prevented;
+};
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test("⌘Z undoes the last edit and ⇧⌘Z redoes it", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  setSize(app, 50);
+  await tick();
+  // Two edits to the same property, each committed, are two steps.
+  assert.equal(key(app, "z", { metaKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+  assert.equal(key(app, "z", { ctrlKey: true }), true, "Ctrl on other systems");
+  assert.equal(p.style.getPropertyValue("font-size"), "");
+  assert.equal(key(app, "z", { metaKey: true }), false, "nothing left: the browser gets the key");
+  assert.equal(key(app, "z", { metaKey: true, shiftKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+  assert.equal(key(app, "y", { ctrlKey: true }), true);
+  assert.equal(p.style.getPropertyValue("font-size"), "50px");
+});
+
+test("one drag is one step, however many inputs it fires", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Blur");
+  });
+  for (const v of [2, 4, 6, 8]) drag(pop(app), 0, v);
+  await tick();
+  assert.match(p.style.getPropertyValue("filter"), /blur\(8px\)/);
+  key(app, "z", { metaKey: true });
+  assert.equal(p.style.getPropertyValue("filter"), "", "straight back to no filter");
+});
+
+test("a border's width and style are undone together", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Border");
+  });
+  const width = fields(pop(app)).find((n) => n.type === "range");
+  width.value = "3";
+  for (const fn of width.bubbles.input.bubble) fn({});
+  await tick();
+  assert.equal(p.style.getPropertyValue("border-style"), "solid");
+  key(app, "z", { metaKey: true });
+  assert.equal(p.style.getPropertyValue("border-width"), "");
+  assert.equal(p.style.getPropertyValue("border-style"), "");
+});
+
+test("after typing, ⌘Z is the browser's text undo, not ours", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  await new Promise((r) => setTimeout(r, 2));
+  p.textContent = "hello!";
+  app.fire("input", {});
+  assert.equal(key(app, "z", { metaKey: true }), false, "left to the browser");
+  assert.equal(p.style.getPropertyValue("font-size"), "40px");
+});
+
+test("a reverted element has nothing left to undo", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  await tick();
+  const open = openEdits(app);
+  const undoBtn = open.children[0].children[0].children[1];
+  quiet(() => { for (const fn of undoBtn.bubbles.click.bubble) fn({}); });
+  assert.equal(key(app, "z", { metaKey: true }), false);
+  assert.equal(p.style.getPropertyValue("font-size"), "");
+});
+
+/** A sessionStorage that keeps strings, as a browser's does. */
+const memoryStorage = () => {
+  const map = new Map();
+  return {
+    map,
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  };
+};
+/** Fire the window's load event, as the browser does once the page is in. */
+const load = async (win) => {
+  // Idle as soon as asked: the page in a test has nothing left to hydrate.
+  win.requestIdleCallback ??= (fn) => setTimeout(fn, 0);
+  for (const fn of win.bubbles?.load?.bubble ?? []) fn({});
+  await tick();
+  await tick();
+};
+
+test("edits survive a reload, and the mode comes back on", async () => {
+  const store = memoryStorage();
+  const first = fakeDom();
+  first.win.sessionStorage = store;
+  const app = first.run();
+  const p = selectText(app);
+  p.id = "intro";
+  setSize(app, 40);
+  p.textContent = "hello again";
+  app.fire("input", {});
+  const saved = JSON.parse(store.getItem("edityy:/"));
+  assert.equal(saved.edits.length, 1);
+  assert.equal(saved.edits[0].selector, "#intro");
+  assert.equal(saved.edits[0].props["font-size"].now, "40px");
+  assert.equal(saved.edits[0].props.outline, undefined, "Edityy's own outline is not an edit to keep");
+
+  // The page reloads: a fresh DOM with the same element in it, as the server
+  // sent it, and the same session storage.
+  const second = fakeDom();
+  second.win.sessionStorage = store;
+  const fresh = second.text("p", "hello");
+  second.doc.querySelector = (sel) => (sel === "#intro" ? fresh : null);
+  const again = second.run();
+  await load(second.win);
+  assert.equal(fresh.style.getPropertyValue("font-size"), "40px");
+  assert.equal(fresh.textContent, "hello again");
+  assert.ok(again.countDoc("click") > 0, "the mode is on again");
+  assert.equal(again.root.nodes.count.textContent, "1", "and the edits button counts them");
+  assert.match(again.win.__edityy_changes(), /`font-size`: `[^`]*` → `40px`/);
+
+  // And leaving the mode reverts the restored edits like any others, and
+  // forgets them.
+  quiet(() => again.fire("keydown", { key: "Escape" }));
+  assert.equal(fresh.style.getPropertyValue("font-size"), "");
+  assert.equal(fresh.textContent, "hello");
+  assert.equal(store.getItem("edityy:/"), null);
+});
+
+test("an edit whose element is gone is dropped, not applied somewhere else", async () => {
+  const store = memoryStorage();
+  store.setItem("edityy:/", JSON.stringify({ v: 1, edits: [{ selector: "#gone", props: { color: { before: "", set: false, was: "red", now: "blue" } }, text: null, added: [] }] }));
+  const dom = fakeDom();
+  dom.win.sessionStorage = store;
+  dom.doc.querySelector = () => null;
+  const app = dom.run();
+  await load(dom.win);
+  assert.equal(app.win.__edityy_changes(), "");
+});
+
+test("storage that throws does not break the editor", async () => {
+  const dom = fakeDom();
+  Object.defineProperty(dom.win, "sessionStorage", { get() { throw new Error("SecurityError"); } });
+  const app = dom.run();
+  await load(dom.win);
+  const p = selectText(app);
+  setSize(app, 30);
+  assert.equal(p.style.getPropertyValue("font-size"), "30px");
+});
+
+test("leaving the mode with no edits does not bring it back on reload", () => {
+  const store = memoryStorage();
+  const dom = fakeDom();
+  dom.win.sessionStorage = store;
+  const app = dom.run();
+  quiet(() => app.click());
+  assert.notEqual(store.getItem("edityy:/"), null, "on while the mode is");
+  quiet(() => app.click());
+  assert.equal(store.getItem("edityy:/"), null);
+});
+
+/** A small tree: section > (h2, p, img). */
+const tree = (dom) => {
+  const section = dom.el("section");
+  section.getAttribute = () => undefined;
+  const h2 = dom.text("h2", "Title");
+  const p = dom.text("p", "Body");
+  const img = dom.el("img");
+  for (const n of [h2, p, img]) section.appendChild(n);
+  const outer = dom.el("main");
+  outer.appendChild(section);
+  return { outer, section, h2, p, img };
+};
+const arrow = (app, k, mods = {}) => key(app, k, mods);
+
+test("arrows move the selection to the parent, a child or a sibling", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.img);
+  quiet(() => app.clickPage());
+  assert.equal(app.root.selection().el, t.img);
+  assert.equal(arrow(app, "ArrowLeft"), true, "the page does not scroll");
+  assert.equal(app.root.selection().el, t.p);
+  quiet(() => arrow(app, "ArrowLeft", { altKey: true })); // in words, Alt is needed
+  assert.equal(app.root.selection().el, t.h2);
+  quiet(() => arrow(app, "ArrowUp", { altKey: true }));
+  assert.equal(app.root.selection().el, t.section);
+  assert.equal(app.root.selection().kind, "container");
+  quiet(() => arrow(app, "ArrowUp"));
+  assert.equal(app.root.selection().el, t.outer);
+  assert.equal(arrow(app, "ArrowUp"), false, "nothing above: not the body");
+  quiet(() => arrow(app, "ArrowDown"));
+  assert.equal(app.root.selection().el, t.section);
+  quiet(() => arrow(app, "ArrowDown"));
+  assert.equal(app.root.selection().el, t.h2, "the first child");
+});
+
+test("in words being typed into, a bare arrow moves the caret, not the selection", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.p);
+  quiet(() => app.clickPage());
+  assert.equal(arrow(app, "ArrowUp"), false);
+  assert.equal(app.root.selection().el, t.p);
+});
+
+test("an arrow on one of our own controls is the control's", () => {
+  const dom = fakeDom();
+  const app = dom.run();
+  const t = tree(dom);
+  quiet(() => app.click());
+  app.hover(t.img);
+  quiet(() => app.clickPage());
+  assert.equal(arrow(app, "ArrowLeft", { composedPath: () => [app.host] }), false);
+  assert.equal(app.root.selection().el, t.img);
+});
+
+test("padding moves all four sides at once, or one side on its own", async () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Padding");
+  });
+  const all = fields(pop(app));
+  const range = all.find((n) => n.type === "range");
+  range.value = "24";
+  for (const fn of range.bubbles.input.bubble) fn({});
+  for (const fn of range.bubbles.change.bubble) fn({});
+  for (const side of ["top", "right", "bottom", "left"]) {
+    assert.equal(box.style.getPropertyValue("padding-" + side), "24px", side);
+  }
+  const numbers = all.filter((n) => n.type === "number");
+  assert.deepEqual(numbers.map((n) => n.value), ["24", "24", "24", "24"], "the fields follow the slider");
+  assert.equal(numbers[1].getAttribute("aria-label"), "Right padding");
+  await tick();
+
+  numbers[1].value = "8";
+  for (const fn of numbers[1].bubbles.input.bubble) fn({});
+  for (const fn of numbers[1].bubbles.change.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("padding-right"), "8px");
+  assert.equal(box.style.getPropertyValue("padding-left"), "24px");
+  await tick();
+
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-right"), "24px", "one side undoes alone");
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-top"), "", "and the four sides undo together");
+});
+
+test("margin can go negative, and is reverted on exit", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Margin");
+  });
+  const top = fields(pop(app)).filter((n) => n.type === "number")[0];
+  assert.equal(top.min, "-160");
+  top.value = "-12";
+  for (const fn of top.bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("margin-top"), "-12px");
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(box.style.getPropertyValue("margin-top"), "");
+});
+
+test("the row is one toolbar with one tab stop, and the arrows walk it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  assert.match(app.root.innerHTML, /id="row" role="toolbar" aria-label="Edit controls"/);
+  const row = app.root.nodes.row;
+  const stops = () => row.children.map((b) => b.getAttribute("tabindex"));
+  assert.deepEqual(stops().filter((t) => t === "0").length, 1, "one tab stop");
+  assert.equal(stops()[0], "0");
+  let focused = null;
+  for (const b of row.children) b.focus = () => (focused = b);
+  const send = (k, target) => {
+    for (const fn of row.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
+  };
+  send("ArrowLeft", row.children[0]);
+  assert.equal(focused, row.children[row.children.length - 1], "wraps to the end");
+  assert.equal(stops()[row.children.length - 1], "0");
+  send("Home", focused);
+  assert.equal(focused, row.children[0]);
+  send("ArrowRight", focused);
+  assert.equal(focused, row.children[1]);
+});
+
+test("Escape on an open control puts focus back on its icon", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "align");
+  let focused = null;
+  icon.focus = () => (focused = icon);
+  quiet(() => press(app, "align"));
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(focused, icon);
+  assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
+});
+
+test("reduced motion stops the dock and control animations", () => {
+  const { run } = fakeDom();
+  const app = run();
+  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}#dock,\.pop\{animation:none\}/);
+});
+
+test("Save to project posts the edits as JSON to the dev server", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const sent = [];
+  app.win.fetch = async (url, init) => {
+    sent.push({ url, init });
+    return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
+  };
+  selectText(app);
+  setSize(app, 40);
+  const open = openEdits(app);
+  const save = open.children[1].children[1];
+  assert.equal(save.dataset.key, "save");
+  for (const fn of save.bubbles.click.bubble) fn({});
+  await tick();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, "/__edityy/changes");
+  assert.equal(sent[0].init.method, "POST");
+  assert.equal(sent[0].init.headers["content-type"], "application/json");
+  const body = JSON.parse(sent[0].init.body);
+  assert.equal(body.changes.length, 1);
+  assert.equal(body.changes[0].props[0].prop, "font-size");
+  assert.equal(body.changes[0].rec, undefined, "no live element on the wire");
+  assert.match(body.markdown, /# Visual edits from Edityy/);
+  assert.equal(save.textContent, "Saved to .edityy/changes.json");
+});
+
+test("with no save endpoint the button says so", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  app.win.fetch = async () => ({ status: 404, json: async () => ({}) });
+  selectText(app);
+  setSize(app, 40);
+  const save = openEdits(app).children[1].children[1];
+  for (const fn of save.bubbles.click.bubble) fn({});
+  await tick();
+  assert.equal(save.textContent, "No save endpoint");
+});
+
+test("an edit drops the hover frame, which was measured at the old size", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  // The pointer is still over the words, so the hover frame is up.
+  for (const fn of app.doc.bubbles.mousemove.capture) fn({ clientX: 1, clientY: 1 });
+  assert.equal(app.root.nodes.hover.hidden, false);
+  setSize(app, 72);
+  assert.equal(app.root.nodes.hover.hidden, true, "no frame at the size the words used to be");
+  assert.equal(p.style.getPropertyValue("font-size"), "72px");
 });

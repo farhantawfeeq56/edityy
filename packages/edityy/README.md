@@ -77,7 +77,73 @@ The launcher script is bundled into the page rather than served from
 serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
-`launcher` from `edityy/inject`.
+`launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
+private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`.
+
+To save edits to the project from Next.js, add the route in
+[Save edits to the project](#save-edits-to-the-project).
+
+## Save edits to the project
+
+"Save to project" in the edits list sends the edits to the dev server, which writes
+them to `.edityy/changes.json` in the project root. A coding agent working in the
+repo can read them from there (or through [MCP](#mcp)). The folder gets its own
+`.gitignore`, so pending edits never end up in a commit.
+
+```json
+{
+  "version": 1,
+  "savedAt": "2026-10-06T09:30:00.000Z",
+  "page": "http://localhost:5173/pricing",
+  "markdown": "# Visual edits from Edityy\n…",
+  "changes": [
+    {
+      "label": "h1 “Simple pricing”",
+      "selector": "#pricing > h1",
+      "source": "src/Pricing.tsx:12:7",
+      "props": [{ "prop": "font-size", "before": "32px", "after": "40px" }],
+      "text": { "before": "Simple pricing", "after": "Pricing" }
+    }
+  ]
+}
+```
+
+The Vite plugin and the middleware handle this themselves (`POST /__edityy/changes`).
+They write under `process.cwd()`, or under `root` if you pass one, and accept only
+JSON from the page's own origin. `save: false` turns the endpoint off.
+
+**Next.js** needs one route file. Next treats a folder that starts with `_` as
+private, so the folder name spells the underscores as `%5F`:
+
+```ts
+// app/%5F%5Fedityy/changes/route.ts
+import { changesRoute } from "edityy";
+
+export const POST = changesRoute();
+```
+
+## MCP
+
+`npx edityy mcp` is a stdio [MCP](https://modelcontextprotocol.io) server that
+hands the saved edits to a coding agent. It has two tools:
+
+- `get_visual_changes` returns the edits in `.edityy/changes.json`, as the same
+  Markdown that "Copy for an agent" copies;
+- `clear_visual_changes` deletes them once they are in the code.
+
+Claude Code:
+
+```bash
+claude mcp add edityy -- npx edityy mcp
+```
+
+Cursor, or any client configured with JSON:
+
+```json
+{ "mcpServers": { "edityy": { "command": "npx", "args": ["edityy", "mcp"] } } }
+```
+
+It reads from the directory it is started in. Pass `--root <dir>` to read from another one.
 
 ## What it does
 
@@ -94,23 +160,36 @@ In the page, the launcher:
 - creates a host element fixed to the viewport at `z-index: 2147483647` with `pointer-events: none`, so it never comes between you and your site;
 - attaches an **open shadow root**, so your CSS (button resets, fonts, `!important` wars) cannot restyle the launcher and the launcher cannot leak styles back into your page;
 - renders one 56px circular button, 24px from the right and bottom edges;
-- dispatches an `edityy:launcher-click` event on `window` when clicked, and logs to the console.
+- dispatches an `edityy:launcher-click` event on `window` when clicked, and toggles the editing mode.
 
 The script is idempotent, so a page that renders the tag more than once still mounts one launcher.
+
+### The editing mode
+
+- The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run.
+- Words are typed into where they stand (`contenteditable="plaintext-only"`, leaf text only, so no child element is lost).
+- The dock at the bottom changes the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour; a container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
+- The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
+- Keys: Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons.
+- Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
 ## API
 
 ```js
-edityy({ tag, nonce }) // returns a (req, res, next) middleware
+edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
 ```
 
 - `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
 - `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
   function `(req, res) => string` when your app makes a new nonce for each response.
+- `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
+- `save: false` turns off the save endpoint.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
-for injecting into an HTML string yourself, and `edityy/client` — the browser
-bootstrap that mounts the launcher, for frameworks that inject client modules.
+for injecting into an HTML string yourself, `changesRoute({ root })` (the save
+endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
+`CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
+mounts the launcher, for frameworks that inject client modules.
 
 ## Known limits
 
@@ -119,10 +198,10 @@ bootstrap that mounts the launcher, for frameworks that inject client modules.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 
-## What comes next
+## Events
 
-Clicking the launcher opens the editor panel. `edityy:launcher-click` is the seam
-the editor uses to talk to your page.
+`edityy:launcher-click` is dispatched on `window` each time the launcher is
+clicked, for a host app that wants to know.
 
 ## License
 
