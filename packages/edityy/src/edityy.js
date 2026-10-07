@@ -1908,7 +1908,7 @@ function decorate(el) {
 
   /** Keep the number on the edits button in step with the edits. */
   function tally() {
-    keep();
+    keepSoon();
     var n = report().length;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
@@ -2080,8 +2080,24 @@ function decorate(el) {
     }
   }
 
+  // tally() runs on every keystroke, and keep() finds a selector for every
+  // edited element and writes them all. So a run of keys writes once, after the
+  // last; leaving the page writes what is still to be written.
+  var KEEP_DELAY = 250;
+  var keepTimer = 0;
+  function keepSoon() {
+    if (!keepTimer) keepTimer = setTimeout(keep, KEEP_DELAY);
+  }
+  if (window.addEventListener) {
+    window.addEventListener("pagehide", function () {
+      if (keepTimer) keep();
+    });
+  }
+
   /** Save the mode and its edits, or forget them once the mode is off. */
   function keep() {
+    if (keepTimer) clearTimeout(keepTimer);
+    keepTimer = 0;
     var store = storage();
     if (!store) return;
     try {
@@ -2290,8 +2306,27 @@ function decorate(el) {
   }
 
   function onScroll() {
-    refit();
     hideHover();
+    inFrame("refit", refit);
+  }
+
+  /**
+   * Run `fn` in the next animation frame, once however often it is asked for
+   * before then; the last `fn` asked for is the one that runs. A pointer move or
+   * a scroll can fire many times in one frame, and measuring for each is work
+   * the screen never shows. Without requestAnimationFrame, `fn` runs now.
+   */
+  var queued = {};
+  function inFrame(key, fn) {
+    if (typeof window.requestAnimationFrame !== "function") return fn();
+    var waiting = !!queued[key];
+    queued[key] = fn;
+    if (waiting) return;
+    window.requestAnimationFrame(function () {
+      var run = queued[key];
+      queued[key] = null;
+      if (run && active) run();
+    });
   }
   /**
    * Put the selection frame back where the element now is.
@@ -2315,13 +2350,18 @@ function decorate(el) {
     // the page's own mousemove never has to fire.
     launch.style.transform =
       "translate(" + (e.clientX - anchorX) + "px," + (e.clientY - anchorY) + "px) scale(" + POINT + ")";
-    var el = textAt(e.clientX, e.clientY);
-    if (!el) {
-      hideHover();
-      return;
-    }
-    place(hoverBox, el.getBoundingClientRect());
-    hoverBox.hidden = false;
+    // The dot moves now; finding and measuring what is under it waits a frame.
+    var x = e.clientX;
+    var y = e.clientY;
+    inFrame("hover", function () {
+      var el = textAt(x, y);
+      if (!el) {
+        hideHover();
+        return;
+      }
+      place(hoverBox, el.getBoundingClientRect());
+      hoverBox.hidden = false;
+    });
   }
 
   function onClick(e) {

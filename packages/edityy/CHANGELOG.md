@@ -6,6 +6,12 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
+### Changed
+
+- The launcher writes the edits to `sessionStorage` once the keys stop, not on
+  each key, and when the page is left. It finds and measures the element under
+  the pointer, and the selection after a scroll, once for each animation frame. (#109)
+
 ### Security
 
 - The save endpoint takes requests only for `localhost`, its subdomains, IP
