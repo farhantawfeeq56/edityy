@@ -83,7 +83,9 @@ jobs:
   publish:
     name: publish
     needs: check
-    if: needs.check.outputs.on-npm == 'false'
+    # Only main: a manual run on another branch or a tag must not publish code
+    # that the review on main has not seen.
+    if: needs.check.outputs.on-npm == 'false' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Must match the environment in the npm trusted publisher config.
     environment: npm
@@ -177,7 +179,7 @@ jobs:
     # Also runs when publish was skipped because the version was already on npm,
     # so a re-run after a failed release step finishes the job.
     if: >-
-      always() && needs.check.result == 'success'
+      always() && needs.check.result == 'success' && github.ref == 'refs/heads/main'
       && needs.check.outputs.released == 'false'
       && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
       && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
