@@ -1727,9 +1727,9 @@ function decorate(el) {
     var n = report().length;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
-    // An open list is a view of the edits, so it is redrawn with them. Not while
-    // typing, though: rebuilding the list on every key would cost a caret nothing
-    // but take a list scroll position away.
+    // An open list shows the edits, so redraw it when they change. Do not redraw
+    // it while the user types: a redraw on each key resets the scroll position of
+    // the list.
     if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
   }
 
