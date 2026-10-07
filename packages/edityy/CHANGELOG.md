@@ -24,6 +24,14 @@ All notable changes to the `edityy` package. The format follows
   added. A status set with `res.statusCode`, and a held `304`, also stay. (#106)
 - An HTML page that calls `write()` before `end()` without a `content-length`
   streams after `</head>`. Before, it was held until `end()`. (#106)
+- The Vite plugin saves edits under Vite's `root`, where the source locations
+  start. Before, it saved under `process.cwd()`. (#108)
+- `changes.json` is written to a temporary file and then renamed, so the MCP
+  server never reads half of a file. (#108)
+- A body past the size limit gets its 413 answer. Before, the socket closed
+  first. (#108)
+- The MCP server keeps answering after a message fails. On `initialize`, it
+  answers with a protocol version it speaks. (#108)
 
 ## 0.1.4 — 2026-10-07
 

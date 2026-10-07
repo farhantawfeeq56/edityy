@@ -109,7 +109,8 @@ repo can read them from there (or through [MCP](#mcp)). The folder gets its own
 ```
 
 The Vite plugin and the middleware handle this themselves (`POST /__edityy/changes`).
-They write under `process.cwd()`, or under `root` if you pass one, and accept only
+The middleware writes under `process.cwd()` and the Vite plugin under Vite's
+`root`, or under `root` if you pass one. Both accept only
 JSON from the page's own origin. `save: false` turns the endpoint off.
 
 The endpoint takes requests only for `localhost` (and its subdomains) and IP

@@ -15,6 +15,10 @@ const call = (root, method, params, id = 1) => handle({ jsonrpc: "2.0", id, meth
 test("initializes as a tools server and lists its two tools", async () => {
   const init = await call(tmp(), "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } });
   assert.equal(init.result.protocolVersion, "2025-06-18");
+  const older = await call(tmp(), "initialize", { protocolVersion: "2024-11-05" });
+  assert.equal(older.result.protocolVersion, "2024-11-05", "a version it speaks is kept");
+  const unknown = await call(tmp(), "initialize", { protocolVersion: "1999-01-01" });
+  assert.equal(unknown.result.protocolVersion, "2025-06-18", "any other gets the newest it speaks");
   assert.deepEqual(init.result.capabilities, { tools: {} });
   assert.equal(init.result.serverInfo.name, "edityy");
   const list = await call(tmp(), "tools/list");

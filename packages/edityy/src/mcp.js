@@ -18,8 +18,11 @@ import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
-/** What this server speaks when a client asks for something it does not know. */
-const PROTOCOL = "2025-06-18";
+/**
+ * The MCP versions this server speaks, newest first. A client that asks for one
+ * of them gets it; any other gets the newest, as the spec says.
+ */
+const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 const TOOLS = [
   {
@@ -79,7 +82,7 @@ export async function handle(message, root) {
   switch (method) {
     case "initialize":
       return reply({
-        protocolVersion: typeof params?.protocolVersion === "string" ? params.protocolVersion : PROTOCOL,
+        protocolVersion: PROTOCOLS.includes(params?.protocolVersion) ? params.protocolVersion : PROTOCOLS[0],
         capabilities: { tools: {} },
         serverInfo: { name: "edityy", version: VERSION },
       });
@@ -114,17 +117,28 @@ export function serve({ root = process.cwd(), input = process.stdin, output = pr
   let queue = Promise.resolve();
   lines.on("line", (line) => {
     if (!line.trim()) return;
-    queue = queue.then(async () => {
-      let message;
-      try {
-        message = JSON.parse(line);
-      } catch {
-        output.write(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }) + "\n");
-        return;
-      }
-      const answer = await handle(message, root);
-      if (answer) output.write(JSON.stringify(answer) + "\n");
-    });
+    // The catch keeps the chain alive: a rejected link would skip every
+    // message after it, and the agent would wait for answers that never come.
+    queue = queue
+      .then(async () => {
+        let message;
+        try {
+          message = JSON.parse(line);
+        } catch {
+          output.write(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }) + "\n");
+          return;
+        }
+        let answer;
+        try {
+          answer = await handle(message, root);
+        } catch (error) {
+          answer = { jsonrpc: "2.0", id: message?.id ?? null, error: { code: -32603, message: String(error?.message ?? error) } };
+        }
+        if (answer) output.write(JSON.stringify(answer) + "\n");
+      })
+      .catch(() => {
+        // The output is gone: nothing to answer on, but keep reading.
+      });
   });
   return lines;
 }

@@ -2,6 +2,7 @@
 // Run: npm test
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import http from "node:http";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -103,10 +104,22 @@ test("refuses a change that is not the shape the launcher sends", async () => {
   }
 });
 
-test("refuses a body past the size limit", async () => {
-  const root = tmp();
-  const big = JSON.stringify({ changes: [{ x: "y".repeat(1024 * 1024 + 10) }] });
-  assert.equal((await send(root, request(big))).status, 413);
+test("refuses a body past the size limit, and the page gets the answer", async () => {
+  const middleware = edityy({ root: tmp() });
+  const server = http.createServer((req, res) => middleware(req, res, () => res.end()));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const big = JSON.stringify({ changes: [{ x: "y".repeat(1024 * 1024 + 10) }] });
+    const res = await fetch(`http://127.0.0.1:${server.address().port}${CHANGES_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: big,
+    });
+    assert.equal(res.status, 413);
+    assert.equal((await res.json()).ok, false);
+  } finally {
+    server.close();
+  }
 });
 
 test("save: false leaves the path to the app", async () => {

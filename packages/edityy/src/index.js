@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 
@@ -333,7 +333,12 @@ export async function writeChanges(payload, root = process.cwd()) {
   const dir = join(root, ".edityy");
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, ".gitignore"), "*\n");
-  await writeFile(join(root, CHANGES_FILE), JSON.stringify(record, null, 2) + "\n");
+  // Written beside the file, then renamed over it: a reader (the MCP server)
+  // sees the old edits or the new ones, never half of a file.
+  const file = join(root, CHANGES_FILE);
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temp, JSON.stringify(record, null, 2) + "\n");
+  await rename(temp, file);
   return CHANGES_FILE;
 }
 
@@ -413,20 +418,27 @@ async function saveFromNode(req, res, root, allowedHosts) {
   }
 }
 
-/** A request body as a string, refused past SAVE_LIMIT. */
+/**
+ * A request body as a string, refused past SAVE_LIMIT.
+ *
+ * Past the limit the rest of the body is drained, not the request destroyed:
+ * destroying it closes the socket, and the 413 never reaches the page.
+ */
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const parts = [];
     let size = 0;
-    req.on("data", (chunk) => {
+    const onData = (chunk) => {
       size += chunk.length;
       if (size > SAVE_LIMIT) {
+        req.off?.("data", onData);
+        req.resume?.();
         reject(new SaveError(413, "Too many edits to save at once."));
-        req.destroy?.();
         return;
       }
       parts.push(chunk);
-    });
+    };
+    req.on("data", onData);
     req.on("end", () => resolve(Buffer.concat(parts).toString("utf8")));
     req.on("error", reject);
   });
