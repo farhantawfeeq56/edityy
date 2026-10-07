@@ -1,7 +1,11 @@
 // Checks for the Vite plugin (src/vite.js). Run: npm test
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ASSET_PATH, launcher } from "../src/index.js";
+import { EventEmitter } from "node:events";
+import { existsSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ASSET_PATH, CHANGES_FILE, CHANGES_PATH, launcher } from "../src/index.js";
 import edityyDefault, { edityy, stampSource } from "../src/vite.js";
 
 /** The slice of Vite's dev server the plugin touches. */
@@ -32,6 +36,21 @@ test("mounts the middleware, which serves the launcher", () => {
   server.used[0]({ url: ASSET_PATH }, res, () => assert.fail("the asset is served, not passed on"));
   assert.equal(res.status, 200);
   assert.equal(res.body, launcher);
+});
+
+test("saves under Vite's root, where the source locations start", async () => {
+  const root = mkdtempSync(join(tmpdir(), "edityy-vite-"));
+  const plugin = edityy();
+  plugin.configResolved({ root });
+  const server = fakeServer();
+  plugin.configureServer(server);
+  const req = new EventEmitter();
+  Object.assign(req, { url: CHANGES_PATH, method: "POST", headers: { host: "localhost", "content-type": "application/json" } });
+  const answered = new Promise((resolve) => server.used[0](req, { writeHead() {}, end: resolve }, () => {}));
+  req.emit("data", Buffer.from(JSON.stringify({ changes: [] })));
+  req.emit("end");
+  await answered;
+  assert.ok(existsSync(join(root, CHANGES_FILE)));
 });
 
 test("passes its options to the middleware", () => {

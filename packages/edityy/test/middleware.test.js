@@ -1,6 +1,7 @@
 // Checks for the dev-server middleware and the HTML injection it does.
 // Run: npm test
 import assert from "node:assert/strict";
+import http from "node:http";
 import { test } from "node:test";
 import { ASSET_PATH, TAG, edityy, inject, launcher } from "../src/index.js";
 
@@ -209,13 +210,58 @@ test("injects a body split across write() and end()", () => {
   assert.deepEqual(written, []);
 });
 
-test("a write() with no end() body still flushes on end()", () => {
+test("a write() before end() with no length streams, as Node chunks it", () => {
   const res = fakeRes({ headers: { "content-type": "text/html" } });
-  res.write = () => {};
+  const wire = [];
+  res.write = (chunk) => wire.push(String(chunk));
   handle("/", res);
-  res.write("<html><head></head><body>x</body></html>");
+  res.writeHead(200, { "x-kept": "yes" });
+  res.write("<html><head></head><body>first");
+  assert.equal(res.status, 200, "the head goes out with the first write, not at end()");
+  assert.equal(res.getHeader("x-kept"), "yes");
+  assert.equal(wire.length, 1, "the head of the page is not held to end()");
+  assert.match(wire[0], /defer><\/script><\/head><body>first$/);
   res.end();
-  assert.match(res.body.toString(), /defer><\/script>/);
+  assert.equal(res.getHeader("content-length"), undefined, "a stream has no length to fix");
+});
+
+test("a real server keeps the status, message and headers given to writeHead()", async () => {
+  const page = "<html><head></head><body>hi</body></html>";
+  const middleware = edityy({ save: false });
+  const server = http.createServer((req, res) =>
+    middleware(req, res, () => {
+      if (req.url === "/head") {
+        res.writeHead(201, "Made", { "Content-Type": "text/html", "set-cookie": ["a=1", "b=2"], "content-length": 1 });
+        res.end(page);
+      } else if (req.url === "/code") {
+        res.statusCode = 404;
+        res.setHeader("content-type", "text/html");
+        res.end(page);
+      } else {
+        res.writeHead(304, { "content-type": "text/html", etag: '"x"' });
+        res.end();
+      }
+    })
+  );
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const head = await fetch(base + "/head");
+    assert.equal(head.status, 201);
+    assert.equal(head.statusText, "Made");
+    assert.equal(head.headers.get("content-type"), "text/html");
+    assert.deepEqual(head.headers.getSetCookie(), ["a=1", "b=2"]);
+    const body = await head.text();
+    assert.match(body, /defer><\/script><\/head>/);
+    assert.equal(Number(head.headers.get("content-length")), Buffer.byteLength(body));
+
+    assert.equal((await fetch(base + "/code")).status, 404);
+    const cached = await fetch(base + "/cached");
+    assert.equal(cached.status, 304);
+    assert.equal(cached.headers.get("etag"), '"x"');
+  } finally {
+    server.close();
+  }
 });
 
 test("encodes correctly for a multi-byte body", () => {

@@ -12,6 +12,11 @@ export interface EdityyOptions {
   root?: string;
   /** `false` turns off the save endpoint at {@link CHANGES_PATH}. */
   save?: boolean;
+  /**
+   * More hosts the save endpoint takes, besides `localhost`, its subdomains and
+   * IP addresses. A leading dot also takes the subdomains; `true` takes every host.
+   */
+  allowedHosts?: string[] | true;
 }
 
 /** One property an edit changed, with the value the page showed before. */
@@ -34,6 +39,7 @@ export interface ElementChange {
 /** What the page sends to the save endpoint. */
 export interface ChangesPayload {
   page?: string | null;
+  /** Ignored: the Markdown is made from the checked `changes`. */
   markdown?: string;
   changes: ElementChange[];
 }
@@ -73,7 +79,10 @@ export declare function writeChanges(payload: ChangesPayload, root?: string): Pr
 /**
  * The save endpoint as a fetch-style route handler, for Next.js:
  * `export const POST = changesRoute();` in `app/%5F%5Fedityy/changes/route.ts`.
+ * It answers 404 unless `NODE_ENV` is `development`.
  */
-export declare function changesRoute(options?: { root?: string }): (request: Request) => Promise<Response>;
+export declare function changesRoute(
+  options?: Pick<EdityyOptions, "root" | "allowedHosts">
+): (request: Request) => Promise<Response>;
 
 export default edityy;

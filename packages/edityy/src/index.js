@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 
 /** The launcher payload, read once at import. */
 export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "utf8");
@@ -54,6 +55,7 @@ export function edityy(options = {}) {
   const base = options.tag ?? TAG;
   const nonce = options.nonce;
   const root = options.root ?? process.cwd();
+  const hosts = options.allowedHosts;
 
   return function edityyMiddleware(req, res, next) {
     const done = typeof next === "function" ? next : () => {};
@@ -68,7 +70,7 @@ export function edityy(options = {}) {
       }
 
       if (pathname === CHANGES_PATH && options.save !== false) {
-        saveFromNode(req, res, root).catch(() => {
+        saveFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -102,12 +104,15 @@ function withNonce(tag, nonce) {
  * A buffered HTML body has its headers held back until end(). That is the whole
  * trick: injecting a tag changes the body's length, and once writeHead() has run
  * the length is already on the wire, so a corrected content-length would arrive
- * too late and the client would stop reading mid-tag. Dev servers send one
- * buffered HTML body, so holding it costs nothing.
+ * too late and the client would stop reading mid-tag. The held writeHead() is
+ * sent at end() with every header and the status message it was given, and the
+ * new length.
  *
- * A streamed (chunked) HTML body has no length to correct, so its headers go
- * straight out. Only the bytes up to `</head>` are held — the tag goes in there
- * and everything after it streams through as it is written.
+ * A streamed HTML body has no length to correct, so its headers go straight
+ * out. Only the bytes up to `</head>` are held — the tag goes in there and
+ * everything after it streams through as it is written. A body is a stream when
+ * the handler says `transfer-encoding: chunked`, or when it calls write() before
+ * end() without a content-length: Node chunks that body without the header.
  *
  * Non-HTML responses are never held: they go straight through.
  */
@@ -117,48 +122,75 @@ function patch(res, tag, next) {
   const originalEnd = res.end;
   const originalWriteHead = res.writeHead;
 
-  // What this response is: "pass" (not HTML), "buffer" (HTML, held to end()) or
-  // "stream" (chunked HTML, held to </head>). Decided from what the handler
-  // sends, because getHeader() is empty once headers are on the wire.
+  // What this response is: "pass" (not HTML), "html" (HTML, not yet known how
+  // it is sent), "buffer" (HTML, held to end()) or "stream" (HTML, held to
+  // </head>). Decided from what the handler sends, because getHeader() is empty
+  // once headers are on the wire.
   let mode = null;
-  let status = 200;
+  // The held writeHead(): its status, its message and its headers.
+  let status;
+  let message;
+  let held;
+  let headHeld = false;
   // Stream mode only: whether the held head has gone out yet.
   let flushed = false;
-  const decide = (headers) => {
+
+  const header = (name) => headerOf(held, name) ?? res.getHeader?.(name);
+  const decide = () => {
     if (mode) return mode;
-    const type = String(headers["content-type"] ?? res.getHeader?.("content-type") ?? "");
-    const chunked = String(headers["transfer-encoding"] ?? res.getHeader?.("transfer-encoding") ?? "") === "chunked";
-    mode = !type.includes("text/html") ? "pass" : chunked ? "stream" : "buffer";
+    const type = String(header("content-type") ?? "");
+    const chunked = String(header("transfer-encoding") ?? "").toLowerCase() === "chunked";
+    mode = !type.includes("text/html") ? "pass" : chunked ? "stream" : "html";
     return mode;
+  };
+
+  /** Send the held writeHead(), with `extra` headers over the top of its own. */
+  const sendHead = (self, extra) => {
+    if (!headHeld && !extra) return;
+    const headers = { ...headerObject(held) };
+    for (const name of Object.keys(extra ?? {})) {
+      for (const key of Object.keys(headers)) if (key.toLowerCase() === name) delete headers[key];
+      headers[name] = extra[name];
+    }
+    const code = status ?? res.statusCode ?? 200;
+    headHeld = false;
+    if (message === undefined) originalWriteHead.call(self, code, headers);
+    else originalWriteHead.call(self, code, message, headers);
   };
 
   /** Stream mode: send what is held, with the tag in it if its </head> is there. */
   const flush = (force) => {
-    const held = parts.length === 1 ? parts[0] : Buffer.concat(parts);
-    let out = held;
+    const out = parts.length === 1 ? parts[0] : Buffer.concat(parts);
+    let spliced = out;
     try {
-      const spliced = spliceHead(held, tag, force);
+      spliced = spliceHead(out, tag, force);
       if (spliced === null) return null; // no </head> yet: keep holding
-      out = spliced;
     } catch {
-      // Fall through: send exactly what the server produced.
+      spliced = out; // send exactly what the server produced
     }
     flushed = true;
     parts.length = 0;
-    return out;
+    return spliced;
   };
 
   res.writeHead = function (code, ...rest) {
-    const headers = rest.find((value) => value && typeof value === "object") ?? {};
     status = code;
-    if (decide(headers) === "buffer") return this; // held: sent for real at end()
-    return originalWriteHead.call(this, code, ...rest);
+    message = typeof rest[0] === "string" ? rest[0] : undefined;
+    held = rest.find((value) => value && typeof value === "object");
+    if (decide() !== "html") return originalWriteHead.call(this, code, ...rest);
+    headHeld = true; // sent for real once it is known how the body goes out
+    return this;
   };
 
   res.write = function (chunk, encoding, callback) {
     // A write with no writeHead before it: the headers set so far are the
     // headers, because Node sends them with this first chunk.
-    decide({});
+    decide();
+    if (mode === "html") {
+      // A write before end() with no length is a body Node chunks: stream it.
+      mode = header("content-length") === undefined ? "stream" : "buffer";
+      if (mode === "stream") sendHead(this);
+    }
     // Hold only while this is HTML; anything else streams through.
     if (mode === "pass" || flushed) return originalWrite.call(this, chunk, encoding, callback);
     const buffer = toBuffer(chunk, encoding);
@@ -178,11 +210,11 @@ function patch(res, tag, next) {
     res.write = originalWrite;
     res.writeHead = originalWriteHead;
 
-    const kind = decide({});
-    if (kind === "pass") return originalEnd.call(this, chunk, encoding, callback);
+    if (decide() === "html") mode = "buffer";
+    if (mode === "pass") return originalEnd.call(this, chunk, encoding, callback);
     const done = typeof encoding === "function" ? encoding : callback;
 
-    if (kind === "stream") {
+    if (mode === "stream") {
       if (flushed) return originalEnd.call(this, chunk, encoding, callback);
       const last = toBuffer(chunk, encoding);
       if (last) parts.push(last);
@@ -190,8 +222,13 @@ function patch(res, tag, next) {
       return originalEnd.call(this, flush(true), done);
     }
 
-    // No body at all (204, 304, HEAD): pass the arguments straight through.
+    // No body at all (204, 304, HEAD): the held head as it was, then end().
     if ((chunk === undefined || chunk === null) && parts.length === 0) {
+      try {
+        sendHead(this);
+      } catch {
+        // Fall through to end() with whatever headers exist.
+      }
       return originalEnd.call(this, chunk, encoding, callback);
     }
 
@@ -205,11 +242,10 @@ function patch(res, tag, next) {
       // Fall through: send exactly what the server produced.
     }
 
-    // Now the length is known, so the headers can go out correct. If setHeader
+    // Now the length is known, so the headers can go out correct. If that
     // throws, still send the body: a wrong length beats no page at all.
     try {
-      res.setHeader?.("content-length", Buffer.byteLength(body));
-      originalWriteHead.call(this, status);
+      sendHead(this, { "content-length": Buffer.byteLength(body) });
     } catch {
       // Fall through to end() below with whatever headers exist.
     }
@@ -217,6 +253,30 @@ function patch(res, tag, next) {
   };
 
   next();
+}
+
+/** A header's value from writeHead()'s headers, by any case of its name. */
+function headerOf(headers, name) {
+  const all = headerObject(headers);
+  for (const key of Object.keys(all)) if (key.toLowerCase() === name) return all[key];
+  return undefined;
+}
+
+/**
+ * writeHead()'s headers as an object. Node also takes them as a flat array
+ * (`[name, value, ...]`) or as pairs; a name given twice keeps both values.
+ */
+function headerObject(headers) {
+  if (!headers) return {};
+  if (!Array.isArray(headers)) return headers;
+  const pairs = Array.isArray(headers[0]) ? headers : [];
+  if (!pairs.length) for (let i = 0; i + 1 < headers.length; i += 2) pairs.push([headers[i], headers[i + 1]]);
+  const out = {};
+  for (const [name, value] of pairs) {
+    if (name in out) out[name] = [].concat(out[name], value);
+    else out[name] = value;
+  }
+  return out;
 }
 
 /** How much of a streamed page is held while looking for </head>. */
@@ -247,37 +307,38 @@ function spliceHead(held, tag, force) {
   return Buffer.concat([held.subarray(0, close.index), Buffer.from(tag), held.subarray(close.index)]);
 }
 
-/** An error that knows the status it should answer with. */
-class SaveError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
 /**
  * Write a page's edits to `.edityy/changes.json` under `root`, for a coding agent
  * (or a person) to read. The folder gets a `.gitignore` of its own, so pending
  * edits never end up in a commit by accident.
  *
- * Takes the body the launcher sends — `{ page, markdown, changes: [...] }` — and
- * returns the path it wrote, relative to `root`.
+ * Takes the body the launcher sends — `{ page, changes: [...] }` — and returns
+ * the path it wrote, relative to `root`. Each change is checked and cut down to
+ * the fields an agent needs, and the Markdown is made from them: a `markdown`
+ * field in the payload is ignored, because an agent acts on what it reads.
  */
 export async function writeChanges(payload, root = process.cwd()) {
-  if (!payload || typeof payload !== "object" || !Array.isArray(payload.changes)) {
+  if (!payload || typeof payload !== "object") {
     throw new SaveError(400, "Expected a JSON object with a changes array.");
   }
+  const changes = checkChanges(payload.changes);
+  const page = checkPage(payload.page);
   const record = {
     version: 1,
     savedAt: new Date().toISOString(),
-    page: typeof payload.page === "string" ? payload.page : null,
-    markdown: typeof payload.markdown === "string" ? payload.markdown : "",
-    changes: payload.changes,
+    page,
+    markdown: markdownFor(changes, page),
+    changes,
   };
   const dir = join(root, ".edityy");
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, ".gitignore"), "*\n");
-  await writeFile(join(root, CHANGES_FILE), JSON.stringify(record, null, 2) + "\n");
+  // Written beside the file, then renamed over it: a reader (the MCP server)
+  // sees the old edits or the new ones, never half of a file.
+  const file = join(root, CHANGES_FILE);
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temp, JSON.stringify(record, null, 2) + "\n");
+  await rename(temp, file);
   return CHANGES_FILE;
 }
 
@@ -289,10 +350,15 @@ export async function writeChanges(payload, root = process.cwd()) {
  * modern ones; either one naming another site is a refusal. JSON is required
  * as well, which a cross-site form cannot send without a preflight this server
  * never answers.
+ *
+ * The host is checked too. A site can point its own name at 127.0.0.1 (DNS
+ * rebinding); its requests then have that name as both Host and Origin, so the
+ * two agree. Only a local name, an IP address or a host the app names passes.
  */
-function allowed(method, type, origin, fetchSite, host) {
+function allowed(method, type, origin, fetchSite, host, allowedHosts) {
   if (method !== "POST") throw new SaveError(405, "POST the edits as JSON.");
   if (!String(type ?? "").includes("application/json")) throw new SaveError(415, "Send the edits as application/json.");
+  if (!hostAllowed(host, allowedHosts)) throw new SaveError(403, "Only a local host can save edits. Add this one to allowedHosts.");
   if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, "Only the page itself can save edits.");
   if (origin) {
     let from = null;
@@ -305,15 +371,40 @@ function allowed(method, type, origin, fetchSite, host) {
   }
 }
 
+/**
+ * Is `host` (a Host header, port and all) one this endpoint answers?
+ *
+ * `localhost` and its subdomains, and any IP address, always: an address is not
+ * a name, so no other site can point it here. Then each name in `allowedHosts`,
+ * where a leading dot also takes its subdomains (as Vite's `allowedHosts`
+ * does), or every host for `true`.
+ */
+function hostAllowed(host, allowedHosts) {
+  if (allowedHosts === true) return true;
+  if (typeof host !== "string" || !host || /[@/\\\s]/.test(host)) return false;
+  let name;
+  try {
+    name = new URL(`http://${host}`).hostname;
+  } catch {
+    return false;
+  }
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  if (name.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true;
+  return (Array.isArray(allowedHosts) ? allowedHosts : []).some((allow) => {
+    const want = String(allow).toLowerCase();
+    return want.startsWith(".") ? name === want.slice(1) || name.endsWith(want) : name === want;
+  });
+}
+
 /** The save endpoint on a Node dev server: read, check, write, answer. */
-async function saveFromNode(req, res, root) {
+async function saveFromNode(req, res, root, allowedHosts) {
   const answer = (status, body) => {
     res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end?.(JSON.stringify(body));
   };
   try {
     const h = req.headers ?? {};
-    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host);
+    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host, allowedHosts);
     const body = await readBody(req);
     let payload;
     try {
@@ -327,20 +418,27 @@ async function saveFromNode(req, res, root) {
   }
 }
 
-/** A request body as a string, refused past SAVE_LIMIT. */
+/**
+ * A request body as a string, refused past SAVE_LIMIT.
+ *
+ * Past the limit the rest of the body is drained, not the request destroyed:
+ * destroying it closes the socket, and the 413 never reaches the page.
+ */
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const parts = [];
     let size = 0;
-    req.on("data", (chunk) => {
+    const onData = (chunk) => {
       size += chunk.length;
       if (size > SAVE_LIMIT) {
+        req.off?.("data", onData);
+        req.resume?.();
         reject(new SaveError(413, "Too many edits to save at once."));
-        req.destroy?.();
         return;
       }
       parts.push(chunk);
-    });
+    };
+    req.on("data", onData);
     req.on("end", () => resolve(Buffer.concat(parts).toString("utf8")));
     req.on("error", reject);
   });
@@ -353,6 +451,10 @@ function readBody(req) {
  *   // app/%5F%5Fedityy/changes/route.ts  (Next serves %5F as "_")
  *   import { changesRoute } from "edityy";
  *   export const POST = changesRoute();
+ *
+ * It answers 404 unless NODE_ENV is "development": `next build` puts the route
+ * in the production server, and a production server must not write files for
+ * whoever asks.
  */
 export function changesRoute(options = {}) {
   const root = options.root ?? process.cwd();
@@ -362,10 +464,11 @@ export function changesRoute(options = {}) {
         status,
         headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
       });
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
     try {
       const h = request.headers;
       const host = h.get("host") ?? new URL(request.url).host;
-      allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host);
+      allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts);
       const body = await request.text();
       if (Buffer.byteLength(body) > SAVE_LIMIT) throw new SaveError(413, "Too many edits to save at once.");
       let payload;

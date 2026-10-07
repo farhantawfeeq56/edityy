@@ -109,8 +109,18 @@ repo can read them from there (or through [MCP](#mcp)). The folder gets its own
 ```
 
 The Vite plugin and the middleware handle this themselves (`POST /__edityy/changes`).
-They write under `process.cwd()`, or under `root` if you pass one, and accept only
+The middleware writes under `process.cwd()` and the Vite plugin under Vite's
+`root`, or under `root` if you pass one. Both accept only
 JSON from the page's own origin. `save: false` turns the endpoint off.
+
+The endpoint takes requests only for `localhost` (and its subdomains) and IP
+addresses. This stops another site that points its own name at your computer
+(DNS rebinding). If you open the dev server under another name, add it with
+`allowedHosts: ["dev.example", ".test.example"]`. A leading dot also takes the
+subdomains, and `true` takes every host.
+
+Each change is checked before it is written, and the `markdown` field is made
+from the checked changes. The page cannot put its own text there.
 
 **Next.js** needs one route file. Next treats a folder that starts with `_` as
 private, so the folder name spells the underscores as `%5F`:
@@ -121,6 +131,9 @@ import { changesRoute } from "edityy";
 
 export const POST = changesRoute();
 ```
+
+The route answers 404 unless `NODE_ENV` is `development`, so it writes nothing in
+a production build.
 
 ## MCP
 
@@ -181,7 +194,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ## API
 
 ```js
-edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
+edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) middleware
 ```
 
 - `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
@@ -189,9 +202,11 @@ edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
   function `(req, res) => string` when your app makes a new nonce for each response.
 - `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
 - `save: false` turns off the save endpoint.
+- `allowedHosts` names more hosts the save endpoint takes, besides `localhost` and IP addresses.
+  A leading dot also takes the subdomains; `true` takes every host.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
-for injecting into an HTML string yourself, `changesRoute({ root })` (the save
+for injecting into an HTML string yourself, `changesRoute({ root, allowedHosts })` (the save
 endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
 `CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
 mounts the launcher, for frameworks that inject client modules.
@@ -199,7 +214,7 @@ mounts the launcher, for frameworks that inject client modules.
 ## Known limits
 
 - **Dev-only.** This is not a proxy and not a production server plugin. Install it as a dev dependency and keep it out of your production build.
-- **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
+- **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. A response is chunked when it says `transfer-encoding: chunked`, or when it calls `write()` before `end()` without a `content-length`. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **Google Fonts need network access.** A page whose CSP blocks `api.fontsource.org`, `fonts.googleapis.com` or `fonts.gstatic.com` shows only its own fonts. A Google font you pick is not added to your project: add it to your code when you keep the edit.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.

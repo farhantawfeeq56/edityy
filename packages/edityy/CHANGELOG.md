@@ -17,6 +17,36 @@ All notable changes to the `edityy` package. The format follows
 
 - The font list measures each family name once, not once for each face that
   `document.fonts` holds. (#105)
+- The launcher writes the edits to `sessionStorage` once the keys stop, not on
+  each key, and when the page is left. It finds and measures the element under
+  the pointer, and the selection after a scroll, once for each animation frame. (#109)
+
+### Security
+
+- The save endpoint takes requests only for `localhost`, its subdomains, IP
+  addresses and the hosts in the new `allowedHosts` option. Before, a site that
+  pointed its own name at the computer could write the saved edits. (#107)
+- `changesRoute()` answers 404 unless `NODE_ENV` is `development`, so a
+  production build of a Next.js app writes nothing. (#107)
+- Each saved change is checked for its shape and size. The `markdown` in
+  `changes.json` and in `get_visual_changes` is made from the checked changes;
+  the page cannot put its own text there. (#107)
+
+### Fixed
+
+- The middleware keeps the status message and the headers that a handler gives
+  to `writeHead()` on an HTML page. Before, they were lost when the tag was
+  added. A status set with `res.statusCode`, and a held `304`, also stay. (#106)
+- An HTML page that calls `write()` before `end()` without a `content-length`
+  streams after `</head>`. Before, it was held until `end()`. (#106)
+- The Vite plugin saves edits under Vite's `root`, where the source locations
+  start. Before, it saved under `process.cwd()`. (#108)
+- `changes.json` is written to a temporary file and then renamed, so the MCP
+  server never reads half of a file. (#108)
+- A body past the size limit gets its 413 answer. Before, the socket closed
+  first. (#108)
+- The MCP server keeps answering after a message fails. On `initialize`, it
+  answers with a protocol version it speaks. (#108)
 
 ## 0.1.4 — 2026-10-07
 

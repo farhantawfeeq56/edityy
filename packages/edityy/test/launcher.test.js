@@ -503,6 +503,28 @@ test("the pointer travels home and grows back into the orb on exit", () => {
   assert.equal(app.countDoc("click"), 0, "the page is released");
 });
 
+test("many pointer moves in one frame find and measure once", () => {
+  const { run, text, win } = fakeDom();
+  const frames = [];
+  win.requestAnimationFrame = (fn) => frames.push(fn);
+  const app = run();
+  const heading = text("h1", "Edityy");
+  let measured = 0;
+  const rect = heading.getBoundingClientRect;
+  heading.getBoundingClientRect = () => (measured++, rect());
+  quiet(() => {
+    app.click();
+    app.hover(heading);
+    for (let x = 0; x < 5; x++) app.fire("mousemove", { clientX: x, clientY: 10 });
+  });
+  assert.match(app.launch().style.transform, /translate\(4px,/, "the dot is where the pointer is, now");
+  assert.equal(measured, 0, "nothing measured before the frame");
+  assert.equal(frames.length, 1, "one frame asked for");
+  quiet(() => frames.shift()());
+  assert.equal(measured, 1);
+  assert.equal(app.root.nodes.hover.hidden, false);
+});
+
 test("the hover frame stands off the element", () => {
   const { run, text } = fakeDom();
   const app = run();
@@ -1827,6 +1849,9 @@ test("edits survive a reload, and the mode comes back on", async () => {
   setSize(app, 40);
   p.textContent = "hello again";
   app.fire("input", {});
+  // Typing writes once the keys stop; leaving the page writes at once.
+  assert.equal(JSON.parse(store.getItem("edityy:/")).edits.length, 0, "not on each key");
+  for (const fn of first.win.bubbles.pagehide.bubble) fn({});
   const saved = JSON.parse(store.getItem("edityy:/"));
   assert.equal(saved.edits.length, 1);
   assert.equal(saved.edits[0].selector, "#intro");

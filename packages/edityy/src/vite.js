@@ -32,8 +32,9 @@ export function edityy(options = {}) {
     },
     configureServer(server) {
       // Added directly, not from a returned post hook, so it runs before Vite's
-      // own HTML middleware and sees the page Vite sends.
-      server.middlewares.use(middleware(options));
+      // own HTML middleware and sees the page Vite sends. Edits are saved under
+      // Vite's root, the same root the source locations are relative to.
+      server.middlewares.use(middleware({ root, ...options }));
     },
     transform(code, id) {
       if (options.source === false) return null;

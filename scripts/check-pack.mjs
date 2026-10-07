@@ -9,6 +9,7 @@ const want = [
   "LICENSE",
   "README.md",
   "package.json",
+  "src/changes.js",
   "src/cli.js",
   "src/client.d.ts",
   "src/client.js",
