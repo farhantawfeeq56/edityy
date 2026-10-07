@@ -153,13 +153,16 @@
     "background:#f9f2ee;cursor:pointer}",
     "input[type=color]::-webkit-color-swatch-wrapper{padding:3px}",
     "input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}",
-    "input[type=number]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
+    "input[type=number],input[type=search]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
     // paints them in its own light grey, which is invisible on paper.
     "background:#f9f2ee;-webkit-text-fill-color:#3a283c;color:#3a283c;",
     "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;",
     "transition:border-color .13s ease,box-shadow .13s ease}",
-    "input[type=number]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
+    "input[type=number]:focus,input[type=search]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
+    // The search over the family list sits on top of it, a little apart.
+    "input[type=search]{margin-bottom:6px;padding:8px 10px;font-variant-numeric:normal}",
+    "input[type=search]::placeholder{-webkit-text-fill-color:#86546b;color:#86546b}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
     // One element, both states. Anchored bottom-right while the mode is off, moved
@@ -252,9 +255,10 @@
   // so adding one grows the row leftwards from the button that added it.
   var addBtn = null;
 
-  // The font stacks a machine already has. No webfonts: the editor must not
-  // change what the page loads, only what it looks like. The first entry is the
-  // site's own face, taken from the app's own token wherever it sets one.
+  // The font stacks a machine already has. No webfonts load with the editor: it
+  // must not change what the page loads, only what it looks like. A Google font
+  // is fetched only when the family control draws or picks it. The first entry
+  // is the site's own face, taken from the app's own token wherever it sets one.
   var active = false;
   var selected = null;
   // The kind of the current selection: it decides which controls the dock starts
@@ -723,8 +727,13 @@ function faces() {
     probe.style.fontFamily = stack;
     return probe.getBoundingClientRect().width;
   };
+  // Every measure forces a layout, so the fallback is measured once and each
+  // name once: document.fonts holds a face per weight, style and subset, and a
+  // Google family alone can be a hundred of them.
+  var base;
   var available = function (label) {
-    return measure(JSON.stringify(label) + ",monospace") !== measure("monospace");
+    if (base === undefined) base = measure("monospace");
+    return measure(JSON.stringify(label) + ",monospace") !== base;
   };
 
   try {
@@ -757,11 +766,16 @@ function faces() {
     }
     SYSTEM_FONTS.forEach(function (f) { names.push(f.label); });
 
+    var checked = {};
     names.forEach(function (name) {
       var label = faceName(name);
       // Generics and the vendor prefixes are never a face anyone picked on
       // purpose, and none of them can be measured.
-      if (!label || GENERIC.test(label)) return;
+      if (!label || GENERIC.test(label) || checked[label]) return;
+      checked[label] = true;
+      // A Google font drawn only as a sample of its own name is not the page's:
+      // it has a few letters and it lives in the catalog below.
+      if (previewed[label] && !loaded[label]) return;
       if (available(label)) add(label, label, label);
     });
   } finally {
@@ -772,6 +786,139 @@ function faces() {
   SYSTEM_FONTS.forEach(function (f) { add(f.label, f.stack, f.stack); });
   return out;
 }
+
+  /* ------------------------------------------------------- Google Fonts */
+
+  // The Google Fonts catalog, after the page's own faces. None of it loads with
+  // the page: the names are fetched the first time the family control opens,
+  // and a font file only when its row is drawn or picked. Fontsource serves the
+  // names with CORS and no API key; Google serves the files.
+  var CATALOG_URL = "https://api.fontsource.org/v1/fonts?type=google";
+  var FONTS_CSS = "https://fonts.googleapis.com/css2?";
+  // The most rows the list draws at one time. The catalog is near 2,000 names,
+  // and a row is a button and a preview, so the search narrows it instead.
+  var MAX_ROWS = 40;
+  // The generic family for each category, so a face that has not arrived yet
+  // falls back to one of the same kind.
+  var GENERIC_FOR = { serif: "serif", monospace: "monospace", handwriting: "cursive" };
+
+  var catalog = null; // the catalog request, made once per visit
+  var sheets = {}; // stylesheet URL -> its load, so each URL is requested once
+  var previewed = {}; // family -> true once a sample of its name is requested
+  var loaded = {}; // family -> true once the whole family is requested
+
+  /** The catalog, fetched once. A failure is forgotten, so the next open tries again. */
+  function googleFonts() {
+    if (!catalog) {
+      catalog = (typeof fetch === "function" ? fetch(CATALOG_URL) : Promise.reject(new Error("no fetch")))
+        .then(function (res) {
+          if (!res.ok) throw new Error("Google Fonts catalog: HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (list) {
+          var out = [];
+          (Array.isArray(list) ? list : []).forEach(function (f) {
+            // Icon fonts draw pictures, not words.
+            if (!f || typeof f.family !== "string" || f.category === "icons") return;
+            var stack = JSON.stringify(f.family) + "," + (GENERIC_FOR[f.category] || "sans-serif");
+            // Only what a row needs. The rest of the record is dropped here.
+            out.push({
+              label: f.family,
+              stack: stack,
+              v: stack,
+              key: f.family.toLowerCase(),
+              google: true,
+              weights: Array.isArray(f.weights) ? f.weights : [400],
+              styles: Array.isArray(f.styles) ? f.styles : ["normal"],
+            });
+          });
+          return out;
+        });
+      catalog.catch(function () {
+        catalog = null;
+      });
+    }
+    return catalog;
+  }
+
+  /** One stylesheet in the page head, requested once however often it is asked for. */
+  function sheet(url) {
+    if (!sheets[url]) {
+      sheets[url] = new Promise(function (resolve, reject) {
+        var link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = url;
+        link.setAttribute("data-edityy-font", "");
+        link.onload = resolve;
+        link.onerror = function () {
+          // Removed, so a later ask makes a new request and not a cached failure.
+          link.remove();
+          delete sheets[url];
+          reject(new Error("Google Fonts stylesheet failed: " + url));
+        };
+        // @font-face has no effect inside a shadow root, so it goes in the page.
+        (document.head || document.documentElement).appendChild(link);
+      });
+    }
+    return sheets[url];
+  }
+
+  /** A family as css2 wants it: spaces as plus signs, the rest escaped. */
+  function familyParam(name) {
+    return "family=" + encodeURIComponent(name).replace(/%20/g, "+");
+  }
+
+  /**
+   * Draw each row in its own face, for the cost of the letters in its name.
+   *
+   * One request for all the rows drawn together, and `text=` asks Google for
+   * only those glyphs, so each file is a small part of the real font.
+   */
+  function previewFaces(items) {
+    var fresh = items.filter(function (f) {
+      return !previewed[f.label] && !loaded[f.label];
+    });
+    if (!fresh.length) return;
+    var letters = {};
+    fresh.forEach(function (f) {
+      // Kept on failure as well: a sample is not worth a second request.
+      previewed[f.label] = true;
+      f.label.split("").forEach(function (c) { letters[c] = true; });
+    });
+    var url =
+      FONTS_CSS +
+      fresh.map(function (f) { return familyParam(f.label); }).join("&") +
+      "&text=" + encodeURIComponent(Object.keys(letters).join("")) +
+      "&display=swap";
+    sheet(url).catch(function () {
+      /* the rows stay in their fallback face */
+    });
+  }
+
+  /**
+   * The whole family, when it is picked: every weight and style it has. The
+   * stylesheet only declares them; the browser downloads the files the page
+   * then uses. If the full request fails, the regular face alone is tried.
+   */
+  function loadFamily(f) {
+    loaded[f.label] = true;
+    var weights = f.weights.slice().sort(function (a, b) { return a - b; });
+    var ital = [];
+    if (f.styles.indexOf("normal") !== -1 || f.styles.indexOf("italic") === -1) ital.push(0);
+    if (f.styles.indexOf("italic") !== -1) ital.push(1);
+    var tuples = [];
+    ital.forEach(function (i) {
+      weights.forEach(function (w) { tuples.push(i + "," + w); });
+    });
+    var axes = ital.indexOf(1) !== -1 ? ":ital,wght@" + tuples.join(";") : ":wght@" + weights.join(";");
+    var family = FONTS_CSS + familyParam(f.label);
+    return sheet(family + axes + "&display=swap")
+      .catch(function () { return sheet(family + "&display=swap"); })
+      .catch(function (e) {
+        delete loaded[f.label];
+        throw e;
+      });
+  }
 
   var WEIGHTS = [300, 400, 500, 600, 700, 800];
   var ALIGNS = [
@@ -998,33 +1145,130 @@ function faces() {
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
-  function options(items, current, onPick, font) {
+  function options(items, current, onPick) {
     var list = document.createElement("div");
     list.className = "list";
     items.forEach(function (item) {
-      // Every row writes item.v, whatever the control is: a list of faces and a
-      // list of alignments are both just choices, and one that forgets its value
-      // silently writes nothing at all.
-      var value = item.v === undefined ? item.stack : item.v;
-      var b = button("opt", "", item.label || value, function () {
-        // Picking an option does not close anything. The control stays open on
-        // purpose: comparing two weights or two faces means looking at the page
-        // with the choices still in view, and a click that dismisses the list is
-        // a click you have to make again before trying the next value.
-        release();
-        onPick(value);
-        mark(value);
-      }, value);
-      // The label is added rather than passed in, because a face name is text and
-      // text is a node — there is no markup to parse it out of.
-      b.appendChild(text(font ? font(item) : item.label));
-      // cssText rather than the property: a face stack is commas and quotes, and
-      // the shorthand carries them through without the DOM re-parsing anything.
-      b.style.cssText = "font-family:" + item.stack;
-      b.setAttribute("aria-pressed", value === current ? "true" : "false");
-      list.appendChild(b);
+      list.appendChild(option(item, current, onPick));
     });
     pop.appendChild(list);
+  }
+
+  /** One row of a list of options. `onPick` gets the value and the item. */
+  function option(item, current, onPick) {
+    // Every row writes item.v, whatever the control is: a list of faces and a
+    // list of alignments are both just choices, and one that forgets its value
+    // silently writes nothing at all.
+    var value = item.v === undefined ? item.stack : item.v;
+    var b = button("opt", "", item.label || value, function () {
+      // Picking an option does not close anything. The control stays open on
+      // purpose: comparing two weights or two faces means looking at the page
+      // with the choices still in view, and a click that dismisses the list is
+      // a click you have to make again before trying the next value.
+      release();
+      onPick(value, item);
+      mark(value);
+    }, value);
+    // The label is added rather than passed in, because a face name is text and
+    // text is a node — there is no markup to parse it out of.
+    b.appendChild(text(item.label));
+    // cssText rather than the property: a face stack is commas and quotes, and
+    // the shorthand carries them through without the DOM re-parsing anything.
+    b.style.cssText = "font-family:" + item.stack;
+    b.setAttribute("aria-pressed", value === current ? "true" : "false");
+    return b;
+  }
+
+  /**
+   * The family control: the faces the page has, then the Google Fonts catalog,
+   * with one search field over both.
+   *
+   * The page's faces show at once. The catalog arrives when its one request
+   * does, and the list is drawn again then. At most MAX_ROWS rows are drawn,
+   * and only those rows are previewed, so typing narrows the catalog and a
+   * scroll never starts a download.
+   */
+  function familyControl() {
+    var local = faces();
+    var mine = {};
+    local.forEach(function (f) { mine[f.label] = true; });
+    var current = get("font-family");
+    var google = null;
+    var failed = false;
+    var timer = 0;
+
+    var find = document.createElement("input");
+    find.type = "search";
+    find.placeholder = "Search fonts";
+    find.setAttribute("aria-label", "Search fonts");
+    find.addEventListener("input", function () {
+      // One draw for each pause in the typing, not for each key: a draw can
+      // request previews.
+      clearTimeout(timer);
+      timer = setTimeout(draw, 120);
+    });
+    var list = document.createElement("div");
+    list.className = "list";
+    var note = document.createElement("p");
+    note.className = "note";
+    pop.appendChild(find);
+    pop.appendChild(list);
+    pop.appendChild(note);
+
+    /** Is this control still the one on screen? A late answer must not draw into another. */
+    function open() {
+      return openKey === "family" && list.parentElement === pop;
+    }
+
+    function say(words) {
+      note.textContent = words;
+      note.hidden = !words;
+    }
+
+    function pick(value, item) {
+      current = value;
+      set("font-family", value);
+      if (!item.google) return;
+      loadFamily(item).catch(function () {
+        if (open()) say(item.label + " did not load. The text shows in a fallback face.");
+      });
+    }
+
+    function draw() {
+      if (!open()) return;
+      var q = String(find.value || "").trim().toLowerCase();
+      var rows = local.filter(function (f) { return !q || f.label.toLowerCase().indexOf(q) !== -1; });
+      var drawn = [];
+      var more = 0;
+      for (var i = 0; google && i < google.length; i++) {
+        var f = google[i];
+        if (mine[f.label] || (q && f.key.indexOf(q) === -1)) continue;
+        if (rows.length < MAX_ROWS) {
+          rows.push(f);
+          drawn.push(f);
+        } else more++;
+      }
+      while (list.firstChild) list.removeChild(list.firstChild);
+      rows.forEach(function (f) { list.appendChild(option(f, current, pick)); });
+      previewFaces(drawn);
+      if (failed) say("Google Fonts did not load. Close and open this control to try again.");
+      else if (!google) say("Loading Google Fonts…");
+      else if (more) say(more + " more fonts. Type a name to find them.");
+      else if (!rows.length) say("No font has that name.");
+      else say("");
+    }
+
+    draw();
+    googleFonts().then(
+      function (items) {
+        google = items;
+        draw();
+      },
+      function () {
+        failed = true;
+        draw();
+      }
+    );
   }
 
   /** Move the tick in an open control to whatever was just picked. */
@@ -1352,9 +1596,7 @@ function icons(items, current, onPick, cls) {
       show("");
     },
     family: function () {
-      options(faces(), get("font-family"), function (v) { set("font-family", v); }, function (f) {
-        return f.label;
-      });
+      familyControl();
     },
     weight: function () {
       slider(100, 900, 100, num("font-weight", 400), "", function (v) { set("font-weight", v); });

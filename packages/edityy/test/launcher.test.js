@@ -300,7 +300,9 @@ function fakeDom() {
   function run() {
     // Re-running the payload with the same window is the "loaded twice" case:
     // it guards on `window.__edityy` and must mount nothing the second time.
-    new Function("window", "document", "CustomEvent", source)(win, doc, win.CustomEvent);
+    // fetch is passed in, so no test reaches the network: a test that needs the
+    // font catalog sets win.fetch before it runs the payload.
+    new Function("window", "document", "CustomEvent", "fetch", source)(win, doc, win.CustomEvent, win.fetch);
     return {
       win,
       doc,
@@ -868,12 +870,13 @@ test("each control opens the shape it needs", () => {
   // payload keeps for a page that names no fonts — which is the point: no list of
   // fonts is baked in, and the one on screen here is not the one in the source.
   quiet(() => press(app, "family"));
+  assert.equal(pop.children[0].type, "search", "a search field over the list");
   assert.ok(
-    pop.children[0].children.every((b) => b.style.cssText.startsWith("font-family:")),
+    pop.children[1].children.every((b) => b.style.cssText.startsWith("font-family:")),
     "each option wears the face it offers"
   );
   assert.deepEqual(
-    pop.children[0].children.map((b) => b.getAttribute("aria-label")),
+    pop.children[1].children.map((b) => b.getAttribute("aria-label")),
     ["System UI", "Helvetica", "Georgia", "Times New Roman", "Courier New"],
     "the machine's own faces, and nothing invented"
   );
@@ -957,12 +960,74 @@ test("picking a face writes the whole stack to the element", () => {
   const app = run();
   const p = selectText(app);
   quiet(() => press(app, "family"));
-  const opts = app.root.nodes.pop.children[0].children;
+  const opts = app.root.nodes.pop.children[1].children;
   for (const fn of opts[1].bubbles.click.bubble) fn({});
   // The stack, not the bare name: "Helvetica" alone resolves to whatever the
   // machine substitutes, while "Helvetica,Arial,sans-serif" is a real choice.
   assert.equal(p.style.getPropertyValue("font-family"), "Helvetica,Arial,sans-serif");
   assert.equal(app.root.nodes.pop.hidden, false, "and the list stays open");
+});
+
+test("Google Fonts load only when asked for, and each request is made once", async () => {
+  const dom = fakeDom();
+  const requests = [];
+  let answer = () => Promise.reject(new Error("offline"));
+  dom.win.fetch = (url) => (requests.push(url), answer());
+  const app = dom.run();
+  const links = () => dom.doc.documentElement.children.filter((n) => n.tagName === "LINK");
+  const tick = () => new Promise((r) => setImmediate(r));
+  const reopen = async () => {
+    quiet(() => press(app, "family"));
+    if (app.root.nodes.pop.hidden) quiet(() => press(app, "family"));
+    await tick();
+  };
+  const pop = app.root.nodes.pop;
+
+  const p = selectText(app);
+  assert.equal(requests.length, 0, "nothing is fetched until the family control opens");
+  assert.equal(links().length, 0, "and no font file is asked for");
+
+  // A failed catalog keeps the page's own faces and says so. The next open tries again.
+  await reopen();
+  assert.equal(requests.length, 1);
+  assert.equal(pop.children[1].children.length, 5, "the system faces are still there");
+  assert.match(pop.children[2].textContent, /did not load/);
+
+  answer = async () => ({
+    ok: true,
+    json: async () => [
+      { family: "Inter", category: "sans-serif", weights: [400, 700], styles: ["italic", "normal"] },
+      { family: "Lora", category: "serif", weights: [400], styles: ["normal"] },
+      { family: "Material Icons", category: "icons", weights: [400], styles: ["normal"] },
+    ],
+  });
+  quiet(() => press(app, "family")); // close
+  await reopen();
+  assert.equal(requests.length, 2, "the retry");
+  const rows = () => pop.children[1].children.map((b) => b.title);
+  assert.deepEqual(rows().slice(5), ["Inter", "Lora"], "the catalog after the page's faces, and no icon fonts");
+  assert.equal(links().length, 1, "one preview request for all the rows drawn");
+  assert.match(links()[0].href, /family=Inter&family=Lora&text=/);
+
+  // Open again: the catalog and the previews are kept, not requested again.
+  quiet(() => press(app, "family"));
+  await reopen();
+  assert.equal(requests.length, 2);
+  assert.equal(links().length, 1);
+
+  // The search narrows the list.
+  pop.children[0].value = "lo";
+  for (const fn of pop.children[0].bubbles.input.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 150));
+  assert.deepEqual(rows(), ["Lora"]);
+
+  // A pick writes the stack and loads the whole family, once.
+  pickOption(pop, "Lora");
+  assert.equal(p.style.getPropertyValue("font-family"), '"Lora",serif');
+  assert.equal(links().length, 2);
+  assert.equal(links()[1].href, "https://fonts.googleapis.com/css2?family=Lora:wght@400&display=swap");
+  pickOption(pop, "Lora");
+  assert.equal(links().length, 2, "a second pick makes no second request");
 });
 
 test("decorations stack, because CSS lets them", () => {

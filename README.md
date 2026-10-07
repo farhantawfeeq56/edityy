@@ -136,7 +136,8 @@ exists), so a re-run never publishes twice. If the version is still not installa
 staged it instead of publishing it, and the run fails and says so. A maintainer approves it on npmjs.com (**Staged
 Packages**) with 2FA, then re-runs the workflow to create the release.
 
-To rehearse without publishing: **Actions → Release → Run workflow** on `main` with `dry-run` ticked.
+To rehearse without publishing: **Actions → Release → Run workflow** on `main` with `dry-run` ticked. The publish and release jobs run only on
+`main`; a run on another branch or a tag skips them.
 
 ### One-time setup (owner)
 

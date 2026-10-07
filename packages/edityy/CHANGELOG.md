@@ -6,8 +6,17 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
+### Added
+
+- The font family control has a search field and the Google Fonts catalog,
+  after the page's own fonts. The catalog is fetched on the first open, and a
+  font file only when its row is drawn or picked. Each request is made once.
+  No API key is necessary. (#105)
+
 ### Changed
 
+- The font list measures each family name once, not once for each face that
+  `document.fonts` holds. (#105)
 - The launcher writes the edits to `sessionStorage` once the keys stop, not on
   each key, and when the page is left. It finds and measures the element under
   the pointer, and the selection after a scroll, once for each animation frame. (#109)
