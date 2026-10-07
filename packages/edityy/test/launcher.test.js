@@ -1602,12 +1602,10 @@ test("every change is still undone on exit", () => {
 
 /** Type a size into the open size control, as a user would. */
 const setSize = (app, px) => {
-  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
-  if (icon.getAttribute("aria-expanded") !== "true") quiet(() => press(app, "size"));
-  const input = app.root.nodes.pop.children[0].children[0];
+  const input = app.root.nodes.row.children.find((b) => b.dataset.key === "size").children[0];
   input.value = String(px);
   for (const fn of input.bubbles.input.bubble) fn({});
-  for (const fn of input.bubbles.change?.bubble ?? []) fn({}); // the field is left
+  for (const fn of input.bubbles.change?.bubble ?? []) fn({});
 };
 
 /** Open the edits list. */
