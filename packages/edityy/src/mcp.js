@@ -14,6 +14,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -38,7 +39,12 @@ const TOOLS = [
   },
 ];
 
-/** The saved edits as text for the agent, or why there are none. */
+/**
+ * The saved edits as text for the agent, or why there are none.
+ *
+ * The Markdown is made here from the checked changes. A `markdown` field in the
+ * file is not passed on: the agent applies what it reads to the code.
+ */
 async function readChanges(root) {
   let saved;
   try {
@@ -49,9 +55,16 @@ async function readChanges(root) {
     }
     throw new Error(`Could not read ${CHANGES_FILE}: ${error.message}`);
   }
-  if (!Array.isArray(saved.changes) || !saved.changes.length) return "The saved edit list is empty.";
-  const head = `Saved ${saved.savedAt ?? "at an unknown time"}${saved.page ? ` from ${saved.page}` : ""}.`;
-  return `${head}\n\n${saved.markdown || JSON.stringify(saved.changes, null, 2)}`;
+  let changes;
+  try {
+    changes = checkChanges(saved?.changes);
+  } catch (error) {
+    throw new Error(`${CHANGES_FILE} does not hold an edit list Edityy wrote (${error.message}) Save the edits from the page again.`);
+  }
+  if (!changes.length) return "The saved edit list is empty.";
+  const page = checkPage(saved.page);
+  const at = typeof saved.savedAt === "string" && !Number.isNaN(Date.parse(saved.savedAt)) ? saved.savedAt : "at an unknown time";
+  return `Saved ${at}${page ? ` from ${page}` : ""}.\n\n${markdownFor(changes, page)}`;
 }
 
 /** Answer one JSON-RPC message; null for a notification, which gets no answer. */

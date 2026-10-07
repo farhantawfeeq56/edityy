@@ -112,6 +112,15 @@ The Vite plugin and the middleware handle this themselves (`POST /__edityy/chang
 They write under `process.cwd()`, or under `root` if you pass one, and accept only
 JSON from the page's own origin. `save: false` turns the endpoint off.
 
+The endpoint takes requests only for `localhost` (and its subdomains) and IP
+addresses. This stops another site that points its own name at your computer
+(DNS rebinding). If you open the dev server under another name, add it with
+`allowedHosts: ["dev.example", ".test.example"]`. A leading dot also takes the
+subdomains, and `true` takes every host.
+
+Each change is checked before it is written, and the `markdown` field is made
+from the checked changes. The page cannot put its own text there.
+
 **Next.js** needs one route file. Next treats a folder that starts with `_` as
 private, so the folder name spells the underscores as `%5F`:
 
@@ -121,6 +130,9 @@ import { changesRoute } from "edityy";
 
 export const POST = changesRoute();
 ```
+
+The route answers 404 unless `NODE_ENV` is `development`, so it writes nothing in
+a production build.
 
 ## MCP
 
@@ -176,7 +188,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ## API
 
 ```js
-edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
+edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) middleware
 ```
 
 - `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different attribute set.
@@ -184,9 +196,11 @@ edityy({ tag, nonce, root, save }) // returns a (req, res, next) middleware
   function `(req, res) => string` when your app makes a new nonce for each response.
 - `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
 - `save: false` turns off the save endpoint.
+- `allowedHosts` names more hosts the save endpoint takes, besides `localhost` and IP addresses.
+  A leading dot also takes the subdomains; `true` takes every host.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
-for injecting into an HTML string yourself, `changesRoute({ root })` (the save
+for injecting into an HTML string yourself, `changesRoute({ root, allowedHosts })` (the save
 endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
 `CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
 mounts the launcher, for frameworks that inject client modules.

@@ -6,6 +6,17 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
+### Security
+
+- The save endpoint takes requests only for `localhost`, its subdomains, IP
+  addresses and the hosts in the new `allowedHosts` option. Before, a site that
+  pointed its own name at the computer could write the saved edits. (#107)
+- `changesRoute()` answers 404 unless `NODE_ENV` is `development`, so a
+  production build of a Next.js app writes nothing. (#107)
+- Each saved change is checked for its shape and size. The `markdown` in
+  `changes.json` and in `get_visual_changes` is made from the checked changes;
+  the page cannot put its own text there. (#107)
+
 ### Fixed
 
 - The middleware keeps the status message and the headers that a handler gives

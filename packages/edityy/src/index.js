@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 
 /** The launcher payload, read once at import. */
 export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "utf8");
@@ -54,6 +55,7 @@ export function edityy(options = {}) {
   const base = options.tag ?? TAG;
   const nonce = options.nonce;
   const root = options.root ?? process.cwd();
+  const hosts = options.allowedHosts;
 
   return function edityyMiddleware(req, res, next) {
     const done = typeof next === "function" ? next : () => {};
@@ -68,7 +70,7 @@ export function edityy(options = {}) {
       }
 
       if (pathname === CHANGES_PATH && options.save !== false) {
-        saveFromNode(req, res, root).catch(() => {
+        saveFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -305,32 +307,28 @@ function spliceHead(held, tag, force) {
   return Buffer.concat([held.subarray(0, close.index), Buffer.from(tag), held.subarray(close.index)]);
 }
 
-/** An error that knows the status it should answer with. */
-class SaveError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
 /**
  * Write a page's edits to `.edityy/changes.json` under `root`, for a coding agent
  * (or a person) to read. The folder gets a `.gitignore` of its own, so pending
  * edits never end up in a commit by accident.
  *
- * Takes the body the launcher sends — `{ page, markdown, changes: [...] }` — and
- * returns the path it wrote, relative to `root`.
+ * Takes the body the launcher sends — `{ page, changes: [...] }` — and returns
+ * the path it wrote, relative to `root`. Each change is checked and cut down to
+ * the fields an agent needs, and the Markdown is made from them: a `markdown`
+ * field in the payload is ignored, because an agent acts on what it reads.
  */
 export async function writeChanges(payload, root = process.cwd()) {
-  if (!payload || typeof payload !== "object" || !Array.isArray(payload.changes)) {
+  if (!payload || typeof payload !== "object") {
     throw new SaveError(400, "Expected a JSON object with a changes array.");
   }
+  const changes = checkChanges(payload.changes);
+  const page = checkPage(payload.page);
   const record = {
     version: 1,
     savedAt: new Date().toISOString(),
-    page: typeof payload.page === "string" ? payload.page : null,
-    markdown: typeof payload.markdown === "string" ? payload.markdown : "",
-    changes: payload.changes,
+    page,
+    markdown: markdownFor(changes, page),
+    changes,
   };
   const dir = join(root, ".edityy");
   await mkdir(dir, { recursive: true });
@@ -347,10 +345,15 @@ export async function writeChanges(payload, root = process.cwd()) {
  * modern ones; either one naming another site is a refusal. JSON is required
  * as well, which a cross-site form cannot send without a preflight this server
  * never answers.
+ *
+ * The host is checked too. A site can point its own name at 127.0.0.1 (DNS
+ * rebinding); its requests then have that name as both Host and Origin, so the
+ * two agree. Only a local name, an IP address or a host the app names passes.
  */
-function allowed(method, type, origin, fetchSite, host) {
+function allowed(method, type, origin, fetchSite, host, allowedHosts) {
   if (method !== "POST") throw new SaveError(405, "POST the edits as JSON.");
   if (!String(type ?? "").includes("application/json")) throw new SaveError(415, "Send the edits as application/json.");
+  if (!hostAllowed(host, allowedHosts)) throw new SaveError(403, "Only a local host can save edits. Add this one to allowedHosts.");
   if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, "Only the page itself can save edits.");
   if (origin) {
     let from = null;
@@ -363,15 +366,40 @@ function allowed(method, type, origin, fetchSite, host) {
   }
 }
 
+/**
+ * Is `host` (a Host header, port and all) one this endpoint answers?
+ *
+ * `localhost` and its subdomains, and any IP address, always: an address is not
+ * a name, so no other site can point it here. Then each name in `allowedHosts`,
+ * where a leading dot also takes its subdomains (as Vite's `allowedHosts`
+ * does), or every host for `true`.
+ */
+function hostAllowed(host, allowedHosts) {
+  if (allowedHosts === true) return true;
+  if (typeof host !== "string" || !host || /[@/\\\s]/.test(host)) return false;
+  let name;
+  try {
+    name = new URL(`http://${host}`).hostname;
+  } catch {
+    return false;
+  }
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  if (name.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true;
+  return (Array.isArray(allowedHosts) ? allowedHosts : []).some((allow) => {
+    const want = String(allow).toLowerCase();
+    return want.startsWith(".") ? name === want.slice(1) || name.endsWith(want) : name === want;
+  });
+}
+
 /** The save endpoint on a Node dev server: read, check, write, answer. */
-async function saveFromNode(req, res, root) {
+async function saveFromNode(req, res, root, allowedHosts) {
   const answer = (status, body) => {
     res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end?.(JSON.stringify(body));
   };
   try {
     const h = req.headers ?? {};
-    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host);
+    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host, allowedHosts);
     const body = await readBody(req);
     let payload;
     try {
@@ -411,6 +439,10 @@ function readBody(req) {
  *   // app/%5F%5Fedityy/changes/route.ts  (Next serves %5F as "_")
  *   import { changesRoute } from "edityy";
  *   export const POST = changesRoute();
+ *
+ * It answers 404 unless NODE_ENV is "development": `next build` puts the route
+ * in the production server, and a production server must not write files for
+ * whoever asks.
  */
 export function changesRoute(options = {}) {
   const root = options.root ?? process.cwd();
@@ -420,10 +452,11 @@ export function changesRoute(options = {}) {
         status,
         headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
       });
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
     try {
       const h = request.headers;
       const host = h.get("host") ?? new URL(request.url).host;
-      allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host);
+      allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts);
       const body = await request.text();
       if (Buffer.byteLength(body) > SAVE_LIMIT) throw new SaveError(413, "Too many edits to save at once.");
       let payload;
