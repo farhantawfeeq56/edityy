@@ -1526,3 +1526,120 @@ test("every change is still undone on exit", () => {
 
 
 
+
+/** Type a size into the open size control, as a user would. */
+const setSize = (app, px) => {
+  quiet(() => press(app, "size"));
+  const input = app.root.nodes.pop.children[0].children[0];
+  input.value = String(px);
+  for (const fn of input.bubbles.input.bubble) fn({});
+};
+
+/** Open the edits list. */
+const openEdits = (app) => {
+  for (const fn of app.root.nodes.review.bubbles.click.bubble) fn({});
+  return app.root.nodes.pop;
+};
+
+test("the edits button counts the elements that really changed", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  assert.equal(app.root.nodes.count.hidden, true, "nothing to count yet");
+  setSize(app, 40);
+  assert.equal(app.root.nodes.count.hidden, false);
+  assert.equal(app.root.nodes.count.textContent, "1");
+});
+
+test("a value dragged back to where it was is not an edit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  // "" is what the stylesheet had: the record knows, so the edit is gone.
+  quiet(() => {
+    const input = app.root.nodes.pop.children[0].children[0];
+    input.value = "16";
+  });
+  p.style.removeProperty("font-size");
+  assert.equal(app.win.__edityy_changes(), "", "no edits, no prompt");
+});
+
+test("the edits list names each element, and reverts one without the others", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  setSize(app, 40);
+  const q = app.el("h2", { text: "second" });
+  app.hover(q);
+  quiet(() => app.clickPage());
+  setSize(app, 20);
+
+  const open = openEdits(app);
+  assert.equal(app.root.nodes.review.getAttribute("aria-expanded"), "true");
+  const lines = open.children[0].children;
+  assert.equal(lines.length, 2);
+  assert.match(lines[0].children[0].title, /p “hello”/);
+  assert.match(shown(lines[0].children[0]), /1 edit$/);
+
+  const undo = lines[0].children[1];
+  quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
+  assert.equal(p.style.getPropertyValue("font-size"), "", "the first is back as it was");
+  assert.equal(q.style.getPropertyValue("font-size"), "20px", "the second is untouched");
+  assert.equal(app.root.nodes.pop.children[0].children.length, 1, "and the list redrew");
+  assert.equal(app.root.nodes.count.textContent, "1");
+});
+
+test("the edits are copied as a prompt a coding agent can act on", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  let copied = null;
+  app.win.navigator = { clipboard: { writeText: async (v) => { copied = v; } } };
+  const p = selectText(app);
+  p.computed = { "font-size": "16px" };
+  p.getAttribute = (k) => (k === "data-edityy-src" ? "src/App.tsx:12:7" : undefined);
+  setSize(app, 40);
+  p.textContent = "hello there";
+
+  const open = openEdits(app);
+  const copy = open.children[1].children[0];
+  assert.equal(copy.disabled, false);
+  for (const fn of copy.bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(copied, app.win.__edityy_changes());
+  assert.match(copied, /^# Visual edits from Edityy/);
+  assert.match(copied, /not with inline styles/);
+  assert.match(copied, /## 1\. p “hello there”/);
+  assert.match(copied, /- Source: `src\/App\.tsx:12:7`\n/);
+  assert.match(copied, /- `font-size`: `16px` → `40px`/, "before is what the page showed, not the empty inline value");
+  assert.match(copied, /- Text: "hello" → "hello there"/);
+  assert.doesNotMatch(copied, /outline/, "Edityy's own focus-ring change is not an edit");
+  assert.equal(copy.textContent, "Copied");
+});
+
+test("an element is found again by a short selector", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  const list = el("ul");
+  list.getAttribute = () => undefined;
+  const items = [app.el("li", { text: "one" }), app.el("li", { text: "two" })];
+  for (const item of items) list.appendChild(item);
+  const section = el("section");
+  section.id = "pricing";
+  section.appendChild(list);
+  app.hover(items[1]);
+  quiet(() => app.clickPage());
+  setSize(app, 30);
+  assert.match(app.win.__edityy_changes(), /- Selector: `#pricing > ul > li:nth-of-type\(2\)`/);
+});
+
+test("with nothing edited the list says so and nothing can be copied", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const open = openEdits(app);
+  assert.match(shown(open.children[0]), /No edits yet/);
+  assert.equal(open.children[1].children[0].disabled, true);
+});
