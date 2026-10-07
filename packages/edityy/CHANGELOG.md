@@ -47,6 +47,9 @@ All notable changes to the `edityy` package. The format follows
   first. (#108)
 - The MCP server keeps answering after a message fails. On `initialize`, it
   answers with a protocol version it speaks. (#108)
+- The Italic control sets `font-style`. Before, it wrote
+  `text-decoration-line: italic`, which the browser ignores. The control also
+  shows the decorations that are on when it opens. (#120)
 
 ## 0.1.4 — 2026-10-07
 
