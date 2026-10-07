@@ -764,24 +764,18 @@ test("the dock opens on text and container, stays shut on media", () => {
   quiet(() => press(app, "mode"));
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
-  // Seven type icons and the `+`, each with a name for a tooltip.
+  // Typography values are visible in the primary dock. Spacing replaces the
+  // separate line-height and letter-spacing controls.
   const row = app.root.nodes.row;
-  assert.equal(row.children.length, 9);
+  assert.equal(row.children.length, 8);
   assert.deepEqual(
     row.children.map((b) => b.dataset.key),
-    ["family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"]
+    ["family", "size", "weight", "color", "align", "spacing", "decorate", "+"]
   );
   for (const icon of row.children) assert.match(icon.attributes["aria-label"], /\w/);
-  // Six drawn as SVG and two as letterforms: Aa is the face panel's own mark.
-  // The stub does not parse markup, so this reads what the payload handed over —
-  // and the A with a swatch under it is the colour of the words. Enough to catch a
-  // glyph that ships empty, which is how the icons went missing.
-  const glyphs = row.children.map((b) => b.innerHTML);
-  assert.equal(glyphs.filter((g) => g.includes("<svg")).length, 7, "six type icons and the +");
-  assert.deepEqual(
-    glyphs.filter((g) => g.startsWith("<i")).map((g) => g.replace(/<[^>]+>/g, "")),
-    ["Aa", "A"]
-  );
+  assert.equal(row.children.find((b) => b.dataset.key === "family").firstChild.nodeValue, "System UI");
+  assert.equal(row.children.find((b) => b.dataset.key === "size").children[0].value, 16);
+  assert.match(row.children.find((b) => b.dataset.key === "spacing").innerHTML, /<svg/);
   assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it does not scroll away");
   assert.match(app.root.innerHTML, /#dock\{[^}]*bottom:24px/, "and it sits at the bottom of the viewport");
   // The control opens above the icon row, or the viewport eats it.
@@ -837,20 +831,15 @@ test("one control opens at a time, under the dock, and Escape closes it", () => 
   quiet(() => selectText(app));
   const pop = app.root.nodes.pop;
   assert.equal(pop.hidden, true, "nothing is open to begin with");
-  quiet(() => press(app, "align"));
+  quiet(() => press(app, "spacing"));
   assert.equal(pop.hidden, false);
   assert.equal(app.root.nodes.row.children[5].attributes["aria-expanded"], "true");
   assert.equal(app.root.nodes.row.children[0].attributes["aria-expanded"], "false");
-  // Four alignments, each drawn as its own lines rather than a word.
-  assert.equal(pop.children[0].children.length, 4);
-  assert.match(shown(pop), /<path d="M3 5h12M3 9h8M3 13h12"/, "each alignment drawn as its own lines");
-  // Opening another one replaces it rather than stacking.
-  quiet(() => press(app, "size"));
-  assert.equal(
-    pop.children.flatMap((c) => c.children).some((b) => b.getAttribute?.("aria-label") === "center"),
-    false,
-    "the old control is gone"
-  );
+  assert.equal(fields(pop).length, 2, "spacing has letter and line fields");
+  // Inline size editing does not open a second surface.
+  const size = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  assert.equal(pop.hidden, false, "spacing remains open while size stays inline");
+  assert.equal(size.children[0].type, "number");
   // Escape backs out one level: the control first, then the mode.
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(pop.hidden, true, "the control closes");
@@ -880,22 +869,18 @@ test("each control opens the shape it needs", () => {
     ["System UI", "Helvetica", "Georgia", "Times New Roman", "Courier New"],
     "the machine's own faces, and nothing invented"
   );
-  // Weight is a slider from the lightest to the heaviest.
-  quiet(() => press(app, "weight"));
-  const range = fields(pop)[0];
-  assert.equal(range.type, "range");
-  assert.equal(range.min, "100", "the lightest weight");
-  assert.equal(range.max, "900", "to the heaviest");
-  // Size is a number, because 44 is typed rather than dragged for.
-  quiet(() => press(app, "size"));
-  const number = fields(pop)[0];
+  // A system face with no discovered weights disables the weight control.
+  assert.equal(app.root.nodes.row.children.find((b) => b.dataset.key === "weight").disabled, true);
+  // Size is editable and offers common pixel values.
+  const sizeButton = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  for (const fn of sizeButton.bubbles.click.bubble) fn({});
+  const number = sizeButton.children[0];
+  assert.ok(number, "size control remains available after opening the font list");
   assert.equal(number.type, "number");
-  // Tracking is a slider too: it is judged by eye, and a drag beats typing.
-  quiet(() => press(app, "tracking"));
-  const track = fields(pop)[0];
-  assert.equal(track.type, "range");
-  assert.equal(track.min, "-4", "tight, as large type needs");
-  assert.equal(track.max, "16", "to wide, as small caps need");
+  assert.equal(sizeButton.children.some((n) => n.className === "custom-select"), true);
+  // Both spacing values share one control.
+  quiet(() => press(app, "spacing"));
+  assert.deepEqual(fields(pop).map((input) => input.type), ["number", "number"]);
   // Decoration is a row of icons, named rather than spelled as CSS values.
   quiet(() => press(app, "decorate"));
   const marks = pop.children[0].children;
@@ -916,8 +901,7 @@ test("a change is applied to the element and remembered for exit", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
-  quiet(() => press(app, "size"));
-  const input = app.root.nodes.pop.children[0].children[0];
+  const input = app.root.nodes.row.children.find((b) => b.dataset.key === "size").children[0];
   input.value = "42";
   for (const fn of input.bubbles.input.bubble) fn({});
   assert.equal(p.style.getPropertyValue("font-size"), "42px");
@@ -936,23 +920,13 @@ test("picking an option keeps the control open, and moves the tick", () => {
   const app = run();
   const p = selectText(app);
   const pop = app.root.nodes.pop;
-  quiet(() => press(app, "align"));
-  const opts = pop.children[0].children;
-  // Pick the second alignment. The control stays: comparing two values means
-  // looking at the page with the choices still there.
-  for (const fn of opts[1].bubbles.click.bubble) fn({});
-  assert.equal(pop.hidden, false, "still open after a choice");
+  const align = app.root.nodes.row.children.find((b) => b.dataset.key === "align");
+  for (const fn of align.bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, true, "alignment cycles without opening a panel");
   assert.equal(p.style.getPropertyValue("text-align"), "center");
-  assert.equal(opts[1].getAttribute("aria-pressed"), "true", "the tick moved");
-  assert.equal(opts[0].getAttribute("aria-pressed"), "false");
-  // It closes on another primary icon, or on the same one again.
-  quiet(() => press(app, "align"));
-  assert.equal(pop.hidden, true, "the same icon again closes it");
-  quiet(() => press(app, "size"));
-  assert.equal(pop.hidden, false);
-  quiet(() => press(app, "weight"));
-  assert.equal(pop.hidden, false, "another icon replaces it rather than stacking");
-  assert.equal(fields(pop)[0].type, "range", "and it is the new control that is showing");
+  const size = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
+  for (const fn of size.bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, true, "size stays inline");
 });
 
 test("picking a face writes the whole stack to the element", () => {
@@ -996,8 +970,8 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   answer = async () => ({
     ok: true,
     json: async () => [
-      { family: "Inter", category: "sans-serif", weights: [400, 700], styles: ["italic", "normal"] },
-      { family: "Lora", category: "serif", weights: [400], styles: ["normal"] },
+      { family: "Inter", category: "sans-serif", weights: [400, 700], axes: [{ tag: "wght", min: 100, max: 900 }], styles: ["italic", "normal"] },
+      { family: "Lora", category: "serif", weights: [300, 400, 700], styles: ["normal"] },
       { family: "Material Icons", category: "icons", weights: [400], styles: ["normal"] },
     ],
   });
@@ -1025,9 +999,15 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   pickOption(pop, "Lora");
   assert.equal(p.style.getPropertyValue("font-family"), '"Lora",serif');
   assert.equal(links().length, 2);
-  assert.equal(links()[1].href, "https://fonts.googleapis.com/css2?family=Lora:wght@400&display=swap");
+  assert.equal(links()[1].href, "https://fonts.googleapis.com/css2?family=Lora:wght@300;400;700&display=swap");
   pickOption(pop, "Lora");
   assert.equal(links().length, 2, "a second pick makes no second request");
+  quiet(() => press(app, "weight"));
+  assert.equal(fields(pop)[0].type, "number", "fixed fonts keep weight editable");
+  assert.equal(all(pop).some((node) => node.className === "custom-select"), true, "fixed weights use a custom dropdown");
+  fields(pop)[0].value = "650";
+  for (const fn of fields(pop)[0].bubbles.input.bubble) fn({});
+  assert.equal(p.style.getPropertyValue("font-weight"), "650");
 });
 
 test("decorations stack, because CSS lets them", () => {
@@ -1085,7 +1065,7 @@ test("an open control survives a click back on the same words", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
-  quiet(() => press(app, "weight"));
+  quiet(() => press(app, "spacing"));
   assert.equal(app.root.nodes.pop.hidden, false);
   // Clicking the same element again is the click that would start a drag, so the
   // dock must not close under the pointer.
@@ -1353,18 +1333,22 @@ test("scrolling drops the hover frame, whose element has nothing to do with the 
   assert.equal(app.root.nodes.hover.hidden, true);
 });
 
-test("text colour writes color, which is the colour of the words", () => {
+test("text colour uses the dock button without opening a second surface", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
-  quiet(() => press(app, "color"));
-  const swatch = inputOf(pop(app), "color");
-  assert.ok(swatch, "a colour control");
-  swatch.value = "#86546b";
+  const colorButton = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
+  const pop = app.root.nodes.pop;
+  for (const fn of colorButton.bubbles.click.bubble) fn({});
+  const swatch = all(pop).find((node) => node.type === "range");
+  assert.ok(swatch, "a custom colour palette opens");
+  swatch.value = "134";
   for (const fn of swatch.bubbles.input.bubble) fn({});
   assert.equal(p.style.getPropertyValue("color"), "#86546b");
   // The text fill IS the text colour; fill is the box behind it.
   assert.equal(p.style.getPropertyValue("background-color"), "", "the background is not touched");
+  for (const fn of colorButton.bubbles.click.bubble) fn({});
+  assert.equal(app.root.nodes.pop.hidden, true, "clicking colour again closes the palette");
 });
 
 test("fill and border are the box, and are behind the + rather than in the dock", () => {
@@ -1420,10 +1404,8 @@ test("no colour of ours is offered, because a site has never heard of our palett
   selectText(app);
   quiet(() => press(app, "color"));
   const open = pop(app);
-  // The native picker and nothing else. Offering our own ramp put one click
-  // between a teal brand and a plum that belongs to us.
-  assert.equal(all(open).filter((n) => n.className === "ic swatch").length, 0, "no swatches of ours");
-  assert.equal(all(open).filter((n) => n.type === "color").length, 1, "just the browser picker");
+  assert.equal(all(open).filter((n) => n.type === "range").length, 3, "RGB sliders are custom");
+  assert.equal(all(open).filter((n) => n.type === "color").length, 0, "the default picker is not used");
   const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
   // Nothing invents a colour to fall back on: an element whose colour is a name
   // or an rgb() leaves the UA default alone rather than showing a colour of ours.
@@ -1465,13 +1447,13 @@ test("each element keeps its own additions", () => {
     pickOption(app.root.nodes.pop, "Contrast");
   });
   const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(keys(), ["contrast", "family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"]);
+  assert.deepEqual(keys(), ["contrast", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
 
   app.hover(first);
   app.clickPage();
   assert.deepEqual(
     keys(),
-    ["blur", "family", "weight", "size", "line", "tracking", "align", "decorate", "color", "+"],
+    ["blur", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
     "the first element keeps only its own",
   );
 });
@@ -1496,7 +1478,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /<path d="M9 3\.5v11M3\.5 9h11"/, "a plus sign, drawn");
+  assert.match(plus.innerHTML, /<circle cx="9" cy="4"/, "three dots, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the five additions, as a list under the dock.
@@ -1641,12 +1623,10 @@ test("every change is still undone on exit", () => {
 
 /** Type a size into the open size control, as a user would. */
 const setSize = (app, px) => {
-  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "size");
-  if (icon.getAttribute("aria-expanded") !== "true") quiet(() => press(app, "size"));
-  const input = app.root.nodes.pop.children[0].children[0];
+  const input = app.root.nodes.row.children.find((b) => b.dataset.key === "size").children[0];
   input.value = String(px);
   for (const fn of input.bubbles.input.bubble) fn({});
-  for (const fn of input.bubbles.change?.bubble ?? []) fn({}); // the field is left
+  for (const fn of input.bubbles.change?.bubble ?? []) fn({});
 };
 
 /** Open the edits list. */
@@ -1671,10 +1651,8 @@ test("a value dragged back to where it was is not an edit", () => {
   const p = selectText(app);
   setSize(app, 40);
   // "" is what the stylesheet had: the record knows, so the edit is gone.
-  quiet(() => {
-    const input = app.root.nodes.pop.children[0].children[0];
-    input.value = "16";
-  });
+  const input = app.root.nodes.row.children.find((b) => b.dataset.key === "size").children[0];
+  input.value = "16";
   p.style.removeProperty("font-size");
   assert.equal(app.win.__edityy_changes(), "", "no edits, no prompt");
 });
@@ -2084,10 +2062,10 @@ test("Escape on an open control puts focus back on its icon", () => {
   const { run } = fakeDom();
   const app = run();
   selectText(app);
-  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "align");
+  const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "spacing");
   let focused = null;
   icon.focus = () => (focused = icon);
-  quiet(() => press(app, "align"));
+  quiet(() => press(app, "spacing"));
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(focused, icon);
   assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");

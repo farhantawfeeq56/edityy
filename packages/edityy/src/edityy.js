@@ -82,8 +82,41 @@
     "transition:background .13s ease,color .13s ease,transform .13s ease}",
     ".ic:hover{background:#3a283c0f}",
     ".ic:active{transform:scale(.92)}",
+    ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
     ".ic[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
     ".ic.add{color:#86546b}",
+    ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
+    "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:600 12px/34px inherit}",
+    ".ic.group-start{margin-left:6px;position:relative}",
+    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:#3a283c26}",
+    ".ic.size-control{width:108px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
+    ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
+    "font:600 12px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    ".custom-select{position:relative;flex:1;min-width:0}",
+    ".custom-select-trigger{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
+    "background:#f9f2ee;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
+    ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
+    "max-height:180px;overflow-y:auto;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:8px;",
+    "box-shadow:0 8px 18px #3a283c1f}",
+    ".custom-option{border:0;border-radius:6px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 13px/1.2 inherit;cursor:pointer}",
+    ".custom-option:hover,.custom-option[aria-pressed=true]{background:#3a283c0f}",
+    ".size-control .custom-select{width:52px;flex:none}",
+    ".size-control .custom-select-trigger{border:0;padding:4px;font-size:11px;background:transparent}",
+    ".size-control .custom-select-menu{bottom:auto;top:calc(100% + 4px);width:64px}",
+    ".weight-control{gap:8px}",
+    ".weight-control>input{width:64px;flex:none}",
+    ".weight-control .custom-select{min-width:120px}",
+    ".color-button[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
+    ".color-preview{width:100%;height:24px;border-radius:7px;margin-bottom:8px;background:#86546b}",
+    ".color-panel{width:220px}",
+    ".color-panel label{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px}",
+    ".color-panel input[type=range]{width:100%}",
+    ".color-panel .color-row{display:flex;align-items:center;gap:8px}",
+    ".color-panel .color-row output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}",
+    ".color-panel input[type=text]{flex:1;min-width:0;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
+    "background:#f9f2ee;color:#3a283c;font:500 13px/1 inherit;outline:none}",
+    ".color-panel input[type=text]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
+    ".color-picker{display:none}",
     ".ic svg{width:18px;height:18px;display:block;color:inherit;stroke:currentColor}",
     // Type controls are their own glyphs: a letterform says "this is about type"
     // faster than any abstract mark could. color:inherit is not optional: the
@@ -131,6 +164,7 @@
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
     ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
     ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+
     ".field-label{white-space:nowrap}",
     ".val{min-width:36px;text-align:right;font:600 13px/1 inherit;color:#86546b;",
     "font-variant-numeric:tabular-nums}",
@@ -806,6 +840,7 @@ function faces() {
   var sheets = {}; // stylesheet URL -> its load, so each URL is requested once
   var previewed = {}; // family -> true once a sample of its name is requested
   var loaded = {}; // family -> true once the whole family is requested
+  var fontMeta = {}; // family -> available weight metadata
 
   /** The catalog, fetched once. A failure is forgotten, so the next open tries again. */
   function googleFonts() {
@@ -830,6 +865,7 @@ function faces() {
               google: true,
               weights: Array.isArray(f.weights) ? f.weights : [400],
               styles: Array.isArray(f.styles) ? f.styles : ["normal"],
+              axes: Array.isArray(f.axes) ? f.axes : [],
             });
           });
           return out;
@@ -1020,8 +1056,11 @@ function faces() {
       ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + "</svg>";
   };
   var ICONS = [
-    // Serif Aa, the way the font panel of every design tool marks it.
-    { key: "family", label: "Font family", glyph: '<i class="g serif">Aa</i>' },
+    // The selected face is text in the dock, so users can identify it without
+    // opening a list. CSS truncates long family names without hiding the value.
+    { key: "family", label: "Font family", glyph: "" },
+    // The size editor is embedded in the dock button itself.
+    { key: "size", label: "Font size", glyph: "" },
     // A heavy A beside a light one: the weight scale is the control.
     {
       key: "weight",
@@ -1032,29 +1071,19 @@ function faces() {
         '<path d="M2 14 5.5 4 9 14M3.3 10.5h4.4"/>' +
         '<path d="M12.5 14 16 4 19.5 14M13.8 10.5h4.4" stroke-width="1"/></svg>',
     },
-    // A tall A beside a short one: two sizes.
-    {
-      key: "size",
-      label: "Font size",
-      glyph: svg('<path d="M2 13 5.5 4 9 13M3.3 10h4.4"/><path d="M11 13V6.5h1.8a1.75 1.75 0 0 1 0 3.5H11M15 5v9"/>'),
-    },
-    // Two lines with the leading between them.
-    {
-      key: "line",
-      label: "Line height",
-      glyph: svg('<path d="M3 5.5h12M3 12.5h12M12 7.5v3"/>'),
-    },
-    // Tight, then loose: the same two letters, tracked apart.
-    {
-      key: "tracking",
-      label: "Letter spacing",
-      glyph: svg('<path d="M6.5 5 4 13M11.5 5 14 13M2.5 9h13"/>'),
-    },
+    // A letterform painted in: the colour the words themselves are.
+    { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
     // Four bars, each ending short of a different edge: what the button does.
     {
       key: "align",
       label: "Text alignment",
       glyph: svg('<path d="M3 4.5h12M3 8h8M3 11.5h12M3 15h8"/>'),
+    },
+    // Line and letter spacing belong to one typography-spacing control.
+    {
+      key: "spacing",
+      label: "Typography spacing",
+      glyph: svg('<path d="M3 5.5h12M3 12.5h12M12 7.5v3M6.5 5 4 13M11.5 5 14 13"/>'),
     },
     // A with a line under it: the two decorations at once.
     {
@@ -1062,11 +1091,6 @@ function faces() {
       label: "Text decoration",
       glyph: svg('<path d="M4.5 11 7.5 4 10.5 11M5.5 8.5h4M4 14h7"/>'),
     },
-    // A letterform painted in: the colour the words themselves are.
-    // An A over a bar that shows the element own colour once one is selected.
-    // It starts empty rather than wearing a colour of ours: a swatch that does
-    // not match the site reads as the site being that colour.
-    { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
   ];
 
   var PAD_GLYPH = svg('<rect x="2.5" y="2.5" width="13" height="13" rx="1.5"/><rect x="6" y="6" width="6" height="6" rx=".5" stroke-dasharray="1.5 1.5"/>');
@@ -1228,6 +1252,9 @@ function faces() {
     function pick(value, item) {
       current = value;
       set("font-family", value);
+      if (item.google) fontMeta[item.label.toLowerCase()] = item;
+      updateFamilyLabel();
+      updateWeightButton();
       if (!item.google) return;
       loadFamily(item).catch(function () {
         if (open()) say(item.label + " did not load. The text shows in a fallback face.");
@@ -1262,6 +1289,7 @@ function faces() {
     googleFonts().then(
       function (items) {
         google = items;
+        items.forEach(function (item) { fontMeta[item.label.toLowerCase()] = item; });
         draw();
       },
       function () {
@@ -1269,6 +1297,99 @@ function faces() {
         draw();
       }
     );
+  }
+
+  /** Update the visible family value without rebuilding the open control. */
+  function updateFamilyLabel() {
+    var b = slot("family");
+    if (!b) return;
+    var name = faceName(get("font-family")) || "System UI";
+    while (b.firstChild) b.removeChild(b.firstChild);
+    b.appendChild(text(name));
+    b.title = "Font family: " + name;
+    b.setAttribute("aria-label", "Font family: " + name);
+  }
+
+  /** Update the visible size value without closing the open control. */
+  function updateSizeLabel() {
+    var b = slot("size");
+    if (!b) return;
+    var value = num("font-size", 16);
+    var input = b.querySelector && b.querySelector("input");
+    if (input) input.value = String(value);
+    var trigger = b.querySelector && b.querySelector(".custom-select-trigger");
+    if (trigger) trigger.textContent = value + "px";
+    b.title = "Font size: " + value + "px";
+    b.setAttribute("aria-label", "Font size: " + value + "px");
+  }
+
+  /** Return the weight choices the selected face exposes, if known. */
+  function weightInfo() {
+    var name = faceName(get("font-family")).toLowerCase();
+    var meta = fontMeta[name];
+    var axis;
+    var values = [];
+    var add = function (value) {
+      var labels = { normal: 400, regular: 400, medium: 500, semibold: 600, "semi-bold": 600, bold: 700, heavy: 800, black: 900 };
+      var parsed = labels[String(value).toLowerCase()] || Number(value);
+      if (parsed > 0 && values.indexOf(parsed) === -1) values.push(parsed);
+    };
+    if (meta) {
+      axis = (meta.axes || []).filter(function (item) {
+        return (item.tag || item) === "wght";
+      })[0];
+      if (axis) return { kind: "variable", min: Number(axis.min) || 100, max: Number(axis.max) || 900 };
+      if (meta.variable || meta.variation || meta.fontVariationSettings) return { kind: "variable", min: 100, max: 900 };
+      (meta.weights || []).forEach(add);
+    }
+    try {
+      Array.prototype.forEach.call(document.fonts || [], function (font) {
+        if (String(font.family || "").replace(/[\"']/g, "").toLowerCase() !== name) return;
+        String(font.weight || "").split(/\s+/).forEach(add);
+      });
+      for (var i = 0; i < document.styleSheets.length; i++) {
+        var rules;
+        try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+        for (var j = 0; rules && j < rules.length; j++) {
+          if (rules[j].type !== 5) continue;
+          var style = rules[j].style;
+          var family = faceName(style.getPropertyValue("font-family")).toLowerCase();
+          if (family !== name) continue;
+          var weight = style.getPropertyValue("font-weight").trim();
+          var range = weight.match(/^(\d+)\s+(\d+)$/);
+          if (range) return { kind: "variable", min: Number(range[1]), max: Number(range[2]) };
+          weight.split(/\s+/).forEach(add);
+        }
+      }
+    } catch (e) {
+      /* FontFaceSet and stylesheet inspection are optional. */
+    }
+    values.sort(function (a, b) { return a - b; });
+    return values.length > 1 ? { kind: "fixed", values: values } : { kind: "none" };
+  }
+
+  /** Update the weight control state when the selected family changes. */
+  function updateWeightButton() {
+    var b = slot("weight");
+    if (!b) return;
+    var info = weightInfo();
+    b.disabled = info.kind === "none";
+    b.setAttribute("aria-disabled", b.disabled ? "true" : "false");
+    b.title = b.disabled ? "Font weight is not available" : "Font weight";
+  }
+
+  /** Cycle the text alignment directly from the primary dock. */
+  function cycleAlignment() {
+    if (!pop.hidden) show("");
+    var current = get("text-align") || "left";
+    var at = ALIGNS.map(function (item) { return item.v; }).indexOf(current);
+    var next = ALIGNS[(at + 1) % ALIGNS.length];
+    set("text-align", next.v);
+    var b = slot("align");
+    if (!b) return;
+    b.innerHTML = svg(next.icon);
+    b.title = next.label;
+    b.setAttribute("aria-label", next.label);
   }
 
   /** Move the tick in an open control to whatever was just picked. */
@@ -1373,6 +1494,41 @@ function icons(items, current, onPick, cls) {
     row.appendChild(input);
     row.appendChild(out);
     pop.appendChild(row);
+    return row;
+  }
+
+  /** A custom list that keeps its value editable through the paired input. */
+  function customSelect(items, current, onPick, label) {
+    var wrap = document.createElement("div");
+    wrap.className = "custom-select";
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "custom-select-trigger";
+    trigger.textContent = current;
+    trigger.setAttribute("aria-label", label);
+    var menu = document.createElement("div");
+    menu.className = "custom-select-menu";
+    menu.hidden = true;
+    items.forEach(function (item) {
+      var option = button("custom-option", "", item.label, function () {
+        trigger.textContent = item.label;
+        menu.hidden = true;
+        for (var i = 0; i < menu.children.length; i++) {
+          menu.children[i].setAttribute("aria-pressed", menu.children[i] === option ? "true" : "false");
+        }
+        onPick(item.value);
+      }, String(item.value));
+      option.appendChild(text(item.label));
+      option.setAttribute("aria-pressed", String(item.value) === String(current) ? "true" : "false");
+      menu.appendChild(option);
+    });
+    trigger.addEventListener("click", function (e) {
+      if (e.stopPropagation) e.stopPropagation();
+      menu.hidden = !menu.hidden;
+    });
+    wrap.appendChild(trigger);
+    wrap.appendChild(menu);
+    return wrap;
   }
 
   /**
@@ -1447,16 +1603,65 @@ function icons(items, current, onPick, cls) {
     set(f.prop, list.length ? list.join(" ") : "");
   }
 
-  /**
-   * A colour control: the native picker, and nothing else.
-   *
-   * No palette of our own. A colour that is not in the design system of the
-   * site being edited is a colour that appears nowhere in it, and offering four
-   * of ours on every site is worse than offering none — one click from a teal
-   * brand to a plum that belongs to us. So the only colour offered is the one
-   * the element already has, and anything new is the browser own picker, which
-   * is where the OS eyedropper lives.
-   */
+  function colorControl() {
+    var panel = document.createElement("div");
+    panel.className = "color-panel";
+    var current = hex() || "#86546b";
+    var channels = current.slice(1).match(/../g).map(function (value) { return parseInt(value, 16); });
+    var preview = document.createElement("div");
+    preview.className = "color-preview";
+    var hexInput = document.createElement("input");
+    hexInput.type = "text";
+    hexInput.value = current;
+    hexInput.setAttribute("aria-label", "Hex text colour");
+    function value() {
+      return "#" + channels.map(function (channel) { return ("0" + channel.toString(16)).slice(-2); }).join("");
+    }
+    function applyColour(next) {
+      if (!/^#[\da-f]{6}$/i.test(next)) return;
+      channels = next.slice(1).match(/../g).map(function (part) { return parseInt(part, 16); });
+      hexInput.value = next;
+      preview.style.background = next;
+      rows.forEach(function (row, index) { row.input.value = channels[index]; row.output.textContent = channels[index]; });
+      hold();
+      set("color", next);
+      paintSwatch();
+      release();
+    }
+    var rows = ["Red", "Green", "Blue"].map(function (label, index) {
+      var line = document.createElement("label");
+      line.className = "color-row";
+      line.appendChild(text(label));
+      var input = document.createElement("input");
+      input.type = "range";
+      input.min = 0;
+      input.max = 255;
+      input.value = channels[index];
+      var output = document.createElement("output");
+      output.textContent = input.value;
+      input.addEventListener("input", function () {
+        channels[index] = Number(input.value);
+        output.textContent = input.value;
+        var next = value();
+        hexInput.value = next;
+        preview.style.background = next;
+        hold();
+        set("color", next);
+        paintSwatch();
+      });
+      line.appendChild(input);
+      line.appendChild(output);
+      panel.appendChild(line);
+      return { input: input, output: output };
+    });
+    preview.style.background = current;
+    hexInput.addEventListener("change", function () { applyColour(hexInput.value); });
+    panel.insertBefore(preview, panel.firstChild);
+    panel.insertBefore(hexInput, panel.children[1]);
+    pop.appendChild(panel);
+  }
+
+  /** A colour control for non-text additions. */
   function colour(prop, current, onPick) {
     var bar = document.createElement("div");
     bar.className = "bar2";
@@ -1588,6 +1793,20 @@ function icons(items, current, onPick, cls) {
     pop.appendChild(grid);
   }
 
+  function spacingControl() {
+    var list = document.createElement("div");
+    list.className = "spacing-fields";
+    var letter = number(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) {
+      set("letter-spacing", v + "px");
+    }, "Letter spacing");
+    var line = number(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) {
+      set("line-height", v);
+    }, "Line spacing");
+    list.appendChild(letter);
+    list.appendChild(line);
+    pop.appendChild(list);
+  }
+
   var CONTROLS = {
     mode: function () {
       var at = MODES.indexOf(mode());
@@ -1599,35 +1818,59 @@ function icons(items, current, onPick, cls) {
       familyControl();
     },
     weight: function () {
-      slider(100, 900, 100, num("font-weight", 400), "", function (v) { set("font-weight", v); });
+      var info = weightInfo();
+      if (info.kind === "variable") {
+        slider(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), "", function (v) { set("font-weight", v); });
+      } else if (info.kind === "fixed") {
+        var current = num("font-weight", info.values[0]);
+        var row = document.createElement("div");
+        row.className = "bar2 weight-control";
+        var input = document.createElement("input");
+        input.type = "number";
+        input.min = info.values[0];
+        input.max = info.values[info.values.length - 1];
+        input.step = 1;
+        input.value = current;
+        input.setAttribute("aria-label", "Custom font weight");
+        input.addEventListener("input", function () {
+          if (input.value === "") return;
+          hold();
+          set("font-weight", input.value);
+        });
+        input.addEventListener("change", release);
+        row.appendChild(input);
+        row.appendChild(customSelect(info.values.map(function (value) {
+          var labels = { 300: "Light", 400: "Regular", 500: "Medium", 600: "Semibold", 700: "Bold", 800: "Extra bold", 900: "Black" };
+          return { value: value, label: labels[value] ? labels[value] + " (" + value + ")" : String(value) };
+        }), current, function (v) {
+          input.value = v;
+          set("font-weight", v);
+        }, "Font weight choices"));
+        pop.appendChild(row);
+      }
     },
     size: function () {
-      number(8, 200, 1, num("font-size", 16), "px", function (v) { set("font-size", v + "px"); });
-    },
-    line: function () {
-      slider(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) { set("line-height", v); });
-    },
-    tracking: function () {
-      // A slider, because tracking is judged by eye and a drag is faster than
-      // typing: -4 to 16 covers every letterform anyone ships, and the negative
-      // half is where large type needs it.
-      slider(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) { set("letter-spacing", v + "px"); });
-    },
-    align: function () {
-      icons(ALIGNS, get("text-align") || "left", function (v) {
-        set("text-align", v);
-        return v; // alignment is single-choice: this one is now the only one on
+      var size = num("font-size", 16);
+      var row = number(8, 200, 1, size, "px", function (v) {
+        set("font-size", v + "px");
+        updateSizeLabel();
       });
+      row.appendChild(customSelect([12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72, 96].map(function (value) {
+        return { value: value, label: value + "px" };
+      }), size, function (v) {
+        set("font-size", v + "px");
+        updateSizeLabel();
+      }, "Common font sizes"));
     },
+    spacing: spacingControl,
+    align: cycleAlignment,
     decorate: function () {
       icons(DECORATIONS, decorations(), function (v) {
         return decorate(v);
       });
     },
     color: function () {
-      // paintSwatch too, so the bar on the icon keeps up with what was just
-      // picked instead of waiting for the next selection to change it.
-      colour("color", hex(), function (v) { set("color", v); paintSwatch(); });
+      colorControl();
     },
     fill: function () {
       colour("background-color", get("background-color"), function (v) {
@@ -1891,7 +2134,9 @@ function decorations() {
 
   /** Open this control, or close it if it is the one already open. */
   function toggle(key) {
-    var open = pop.children[0] && slot(key).getAttribute("aria-expanded") === "true";
+    var target = slot(key);
+    if (!target || target.disabled) return;
+    var open = pop.children[0] && target.getAttribute("aria-expanded") === "true";
     show(open ? "" : key);
   }
 
@@ -1951,11 +2196,66 @@ function decorations() {
       ));
     }
     definitions.forEach(function (definition) {
-      row.appendChild(button("ic", definition.glyph, definition.label, function () {
-        toggle(definition.key);
-      }, definition.key));
+      var isText = selectedKind === "text";
+      var html = definition.glyph;
+      var className = "ic";
+      var onClick = function () { toggle(definition.key); };
+      if (isText && definition.key === "family") className += " family-name";
+      if (isText && definition.key === "size") {
+        var sizeButton = document.createElement("button");
+        sizeButton.type = "button";
+        sizeButton.className = "ic size-control";
+        sizeButton.title = definition.label;
+        sizeButton.setAttribute("aria-label", definition.label);
+        sizeButton.dataset.key = "size";
+        var sizeInput = document.createElement("input");
+        sizeInput.type = "number";
+        sizeInput.min = 8;
+        sizeInput.max = 200;
+        sizeInput.step = 1;
+        sizeInput.value = num("font-size", 16);
+        sizeInput.setAttribute("aria-label", "Font size in pixels");
+        sizeInput.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
+        sizeInput.addEventListener("input", function () {
+          if (sizeInput.value === "") return;
+          hold();
+          set("font-size", Number(sizeInput.value) + "px");
+        });
+        sizeInput.addEventListener("change", release);
+        sizeButton.appendChild(sizeInput);
+        sizeButton.appendChild(customSelect([12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72, 96].map(function (value) {
+          return { value: value, label: value + "px" };
+        }), num("font-size", 16), function (value) {
+          sizeInput.value = value;
+          set("font-size", value + "px");
+          updateSizeLabel();
+        }, "Common font sizes"));
+        sizeButton.addEventListener("click", function () {});
+        row.appendChild(sizeButton);
+        return;
+      }
+      if (isText && definition.key === "align") className += " group-start";
+      if (isText && definition.key === "decorate") className += " group-start";
+      if (isText && definition.key === "color") {
+        className += " color-button";
+        onClick = function () { toggle("color"); };
+      }
+      var item = button(className, html, definition.label, onClick, definition.key);
+      row.appendChild(item);
     });
-    addBtn = button("ic add", svg('<path d="M9 3.5v11M3.5 9h11"/>'), "Add a control", function () {
+    if (selectedKind === "text") {
+      updateFamilyLabel();
+      updateSizeLabel();
+      updateWeightButton();
+      var align = ALIGNS.filter(function (item) { return item.v === (get("text-align") || "left"); })[0] || ALIGNS[0];
+      var alignButton = slot("align");
+      if (alignButton) {
+        alignButton.innerHTML = svg(align.icon);
+        alignButton.title = align.label;
+        alignButton.setAttribute("aria-label", align.label);
+      }
+    }
+    addBtn = button("ic add group-start", svg('<circle cx="9" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/>'), "Add a control", function () {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
