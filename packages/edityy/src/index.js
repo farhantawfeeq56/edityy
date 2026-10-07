@@ -102,12 +102,15 @@ function withNonce(tag, nonce) {
  * A buffered HTML body has its headers held back until end(). That is the whole
  * trick: injecting a tag changes the body's length, and once writeHead() has run
  * the length is already on the wire, so a corrected content-length would arrive
- * too late and the client would stop reading mid-tag. Dev servers send one
- * buffered HTML body, so holding it costs nothing.
+ * too late and the client would stop reading mid-tag. The held writeHead() is
+ * sent at end() with every header and the status message it was given, and the
+ * new length.
  *
- * A streamed (chunked) HTML body has no length to correct, so its headers go
- * straight out. Only the bytes up to `</head>` are held — the tag goes in there
- * and everything after it streams through as it is written.
+ * A streamed HTML body has no length to correct, so its headers go straight
+ * out. Only the bytes up to `</head>` are held — the tag goes in there and
+ * everything after it streams through as it is written. A body is a stream when
+ * the handler says `transfer-encoding: chunked`, or when it calls write() before
+ * end() without a content-length: Node chunks that body without the header.
  *
  * Non-HTML responses are never held: they go straight through.
  */
@@ -117,48 +120,75 @@ function patch(res, tag, next) {
   const originalEnd = res.end;
   const originalWriteHead = res.writeHead;
 
-  // What this response is: "pass" (not HTML), "buffer" (HTML, held to end()) or
-  // "stream" (chunked HTML, held to </head>). Decided from what the handler
-  // sends, because getHeader() is empty once headers are on the wire.
+  // What this response is: "pass" (not HTML), "html" (HTML, not yet known how
+  // it is sent), "buffer" (HTML, held to end()) or "stream" (HTML, held to
+  // </head>). Decided from what the handler sends, because getHeader() is empty
+  // once headers are on the wire.
   let mode = null;
-  let status = 200;
+  // The held writeHead(): its status, its message and its headers.
+  let status;
+  let message;
+  let held;
+  let headHeld = false;
   // Stream mode only: whether the held head has gone out yet.
   let flushed = false;
-  const decide = (headers) => {
+
+  const header = (name) => headerOf(held, name) ?? res.getHeader?.(name);
+  const decide = () => {
     if (mode) return mode;
-    const type = String(headers["content-type"] ?? res.getHeader?.("content-type") ?? "");
-    const chunked = String(headers["transfer-encoding"] ?? res.getHeader?.("transfer-encoding") ?? "") === "chunked";
-    mode = !type.includes("text/html") ? "pass" : chunked ? "stream" : "buffer";
+    const type = String(header("content-type") ?? "");
+    const chunked = String(header("transfer-encoding") ?? "").toLowerCase() === "chunked";
+    mode = !type.includes("text/html") ? "pass" : chunked ? "stream" : "html";
     return mode;
+  };
+
+  /** Send the held writeHead(), with `extra` headers over the top of its own. */
+  const sendHead = (self, extra) => {
+    if (!headHeld && !extra) return;
+    const headers = { ...headerObject(held) };
+    for (const name of Object.keys(extra ?? {})) {
+      for (const key of Object.keys(headers)) if (key.toLowerCase() === name) delete headers[key];
+      headers[name] = extra[name];
+    }
+    const code = status ?? res.statusCode ?? 200;
+    headHeld = false;
+    if (message === undefined) originalWriteHead.call(self, code, headers);
+    else originalWriteHead.call(self, code, message, headers);
   };
 
   /** Stream mode: send what is held, with the tag in it if its </head> is there. */
   const flush = (force) => {
-    const held = parts.length === 1 ? parts[0] : Buffer.concat(parts);
-    let out = held;
+    const out = parts.length === 1 ? parts[0] : Buffer.concat(parts);
+    let spliced = out;
     try {
-      const spliced = spliceHead(held, tag, force);
+      spliced = spliceHead(out, tag, force);
       if (spliced === null) return null; // no </head> yet: keep holding
-      out = spliced;
     } catch {
-      // Fall through: send exactly what the server produced.
+      spliced = out; // send exactly what the server produced
     }
     flushed = true;
     parts.length = 0;
-    return out;
+    return spliced;
   };
 
   res.writeHead = function (code, ...rest) {
-    const headers = rest.find((value) => value && typeof value === "object") ?? {};
     status = code;
-    if (decide(headers) === "buffer") return this; // held: sent for real at end()
-    return originalWriteHead.call(this, code, ...rest);
+    message = typeof rest[0] === "string" ? rest[0] : undefined;
+    held = rest.find((value) => value && typeof value === "object");
+    if (decide() !== "html") return originalWriteHead.call(this, code, ...rest);
+    headHeld = true; // sent for real once it is known how the body goes out
+    return this;
   };
 
   res.write = function (chunk, encoding, callback) {
     // A write with no writeHead before it: the headers set so far are the
     // headers, because Node sends them with this first chunk.
-    decide({});
+    decide();
+    if (mode === "html") {
+      // A write before end() with no length is a body Node chunks: stream it.
+      mode = header("content-length") === undefined ? "stream" : "buffer";
+      if (mode === "stream") sendHead(this);
+    }
     // Hold only while this is HTML; anything else streams through.
     if (mode === "pass" || flushed) return originalWrite.call(this, chunk, encoding, callback);
     const buffer = toBuffer(chunk, encoding);
@@ -178,11 +208,11 @@ function patch(res, tag, next) {
     res.write = originalWrite;
     res.writeHead = originalWriteHead;
 
-    const kind = decide({});
-    if (kind === "pass") return originalEnd.call(this, chunk, encoding, callback);
+    if (decide() === "html") mode = "buffer";
+    if (mode === "pass") return originalEnd.call(this, chunk, encoding, callback);
     const done = typeof encoding === "function" ? encoding : callback;
 
-    if (kind === "stream") {
+    if (mode === "stream") {
       if (flushed) return originalEnd.call(this, chunk, encoding, callback);
       const last = toBuffer(chunk, encoding);
       if (last) parts.push(last);
@@ -190,8 +220,13 @@ function patch(res, tag, next) {
       return originalEnd.call(this, flush(true), done);
     }
 
-    // No body at all (204, 304, HEAD): pass the arguments straight through.
+    // No body at all (204, 304, HEAD): the held head as it was, then end().
     if ((chunk === undefined || chunk === null) && parts.length === 0) {
+      try {
+        sendHead(this);
+      } catch {
+        // Fall through to end() with whatever headers exist.
+      }
       return originalEnd.call(this, chunk, encoding, callback);
     }
 
@@ -205,11 +240,10 @@ function patch(res, tag, next) {
       // Fall through: send exactly what the server produced.
     }
 
-    // Now the length is known, so the headers can go out correct. If setHeader
+    // Now the length is known, so the headers can go out correct. If that
     // throws, still send the body: a wrong length beats no page at all.
     try {
-      res.setHeader?.("content-length", Buffer.byteLength(body));
-      originalWriteHead.call(this, status);
+      sendHead(this, { "content-length": Buffer.byteLength(body) });
     } catch {
       // Fall through to end() below with whatever headers exist.
     }
@@ -217,6 +251,30 @@ function patch(res, tag, next) {
   };
 
   next();
+}
+
+/** A header's value from writeHead()'s headers, by any case of its name. */
+function headerOf(headers, name) {
+  const all = headerObject(headers);
+  for (const key of Object.keys(all)) if (key.toLowerCase() === name) return all[key];
+  return undefined;
+}
+
+/**
+ * writeHead()'s headers as an object. Node also takes them as a flat array
+ * (`[name, value, ...]`) or as pairs; a name given twice keeps both values.
+ */
+function headerObject(headers) {
+  if (!headers) return {};
+  if (!Array.isArray(headers)) return headers;
+  const pairs = Array.isArray(headers[0]) ? headers : [];
+  if (!pairs.length) for (let i = 0; i + 1 < headers.length; i += 2) pairs.push([headers[i], headers[i + 1]]);
+  const out = {};
+  for (const [name, value] of pairs) {
+    if (name in out) out[name] = [].concat(out[name], value);
+    else out[name] = value;
+  }
+  return out;
 }
 
 /** How much of a streamed page is held while looking for </head>. */

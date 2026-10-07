@@ -194,7 +194,7 @@ mounts the launcher, for frameworks that inject client modules.
 ## Known limits
 
 - **Dev-only.** This is not a proxy and not a production server plugin. Install it as a dev dependency and keep it out of your production build.
-- **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
+- **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. A response is chunked when it says `transfer-encoding: chunked`, or when it calls `write()` before `end()` without a `content-length`. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 

@@ -4,6 +4,16 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- The middleware keeps the status message and the headers that a handler gives
+  to `writeHead()` on an HTML page. Before, they were lost when the tag was
+  added. A status set with `res.statusCode`, and a held `304`, also stay. (#106)
+- An HTML page that calls `write()` before `end()` without a `content-length`
+  streams after `</head>`. Before, it was held until `end()`. (#106)
+
 ## 0.1.4 — 2026-10-07
 
 ### Added
