@@ -4,6 +4,20 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- The font family control has a search field and the Google Fonts catalog,
+  after the page's own fonts. The catalog is fetched on the first open, and a
+  font file only when its row is drawn or picked. Each request is made once.
+  No API key is necessary. (#105)
+
+### Changed
+
+- The font list measures each family name once, not once for each face that
+  `document.fonts` holds. (#105)
+
 ## 0.1.4 — 2026-10-07
 
 ### Added

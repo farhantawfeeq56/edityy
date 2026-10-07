@@ -169,6 +169,11 @@ The script is idempotent, so a page that renders the tag more than once still mo
 - The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run.
 - Words are typed into where they stand (`contenteditable="plaintext-only"`, leaf text only, so no child element is lost).
 - The dock at the bottom changes the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour; a container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
+- The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over both. Nothing loads with the page:
+  - The first open of the control fetches the catalog of names (about 35 KB) from `api.fontsource.org`, once for each page visit.
+  - The list draws 40 rows at most. One request to `fonts.googleapis.com` gets a sample of those rows' names, so each row shows in its own face.
+  - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
+  - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
 - Keys: Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
@@ -196,6 +201,7 @@ mounts the launcher, for frameworks that inject client modules.
 - **Dev-only.** This is not a proxy and not a production server plugin. Install it as a dev dependency and keep it out of your production build.
 - **Streamed HTML is held only up to `</head>`.** A chunked response gets the tag before `</head>` and everything after it streams through. If no `</head>` arrives in the first 256 KB, the page is sent unchanged.
 - **A strict `script-src` CSP blocks the tag** unless you pass the page's nonce as `nonce`.
+- **Google Fonts need network access.** A page whose CSP blocks `api.fontsource.org`, `fonts.googleapis.com` or `fonts.gstatic.com` shows only its own fonts. A Google font you pick is not added to your project: add it to your code when you keep the edit.
 - **It fails open.** An error inside the middleware is swallowed and your page is served unchanged, rather than taking the dev server down.
 
 ## Events
