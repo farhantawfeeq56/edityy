@@ -1056,6 +1056,31 @@ test("decorations stack, because CSS lets them", () => {
   assert.equal(app.root.nodes.pop.hidden, false, "the control is still open throughout");
 });
 
+test("italic writes font-style, not a decoration", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => press(app, "decorate"));
+  const marks = app.root.nodes.pop.children[0].children;
+  const pick = (i) => {
+    for (const fn of marks[i].bubbles.click.bubble) fn({});
+  };
+  quiet(() => pick(0));
+  quiet(() => pick(2));
+  assert.equal(p.style.getPropertyValue("font-style"), "italic");
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "underline", "italic is not in the list");
+  assert.equal(marks[0].getAttribute("aria-pressed"), "true", "underline is still on");
+  assert.equal(marks[2].getAttribute("aria-pressed"), "true");
+  // Reopened on the same words, the italic button shows that it is on.
+  quiet(() => press(app, "decorate"));
+  quiet(() => press(app, "decorate"));
+  const again = app.root.nodes.pop.children[0].children;
+  assert.equal(again[2].getAttribute("aria-pressed"), "true", "italic is kept");
+  for (const fn of again[2].bubbles.click.bubble) quiet(() => fn({}));
+  assert.equal(p.style.getPropertyValue("font-style"), "");
+  assert.equal(p.style.getPropertyValue("text-decoration-line"), "underline");
+});
+
 test("an open control survives a click back on the same words", () => {
   const { run } = fakeDom();
   const app = run();

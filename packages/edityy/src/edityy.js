@@ -1303,10 +1303,10 @@ function icons(items, current, onPick, cls) {
         release();
         mark(onPick(item.v));
       }, item.v);
-      b.setAttribute("aria-pressed", item.v === current ? "true" : "false");
       list.appendChild(b);
       return b;
     });
+    mark(current);
     function mark(on) {
       var picked = Array.isArray(on) ? on : [on];
       rows.forEach(function (b, i) {
@@ -1620,7 +1620,7 @@ function icons(items, current, onPick, cls) {
       });
     },
     decorate: function () {
-      icons(DECORATIONS, String(get("text-decoration-line") || "").split(/\s+/), function (v) {
+      icons(DECORATIONS, decorations(), function (v) {
         return decorate(v);
       });
     },
@@ -1842,16 +1842,36 @@ function icons(items, current, onPick, cls) {
  * text-decoration-line is a space-separated list, so underline and strikethrough
  * are both legitimate on the same words. Picking one adds it, picking it again
  * takes it off, and the list is only emptied when nothing is left.
+ *
+ * Italic sits in the same row but is not a decoration: it is font-style, and
+ * `text-decoration-line: italic` is invalid, so the browser drops it.
  */
 function decorate(el) {
-  var current = String(get("text-decoration-line") || "none")
-    .split(/\s+/)
-    .filter(function (v) { return v && v !== "none"; });
+  if (el === "italic") {
+    if (get("font-style") === "italic") {
+      set("font-style", "");
+      // Still italic from the stylesheet (an <em>, say): override it.
+      if (get("font-style") === "italic") set("font-style", "normal");
+    } else {
+      set("font-style", "italic");
+    }
+    return decorations();
+  }
+  var current = decorations().filter(function (v) { return v !== "italic"; });
   var at = current.indexOf(el);
   if (at === -1) current.push(el);
   else current.splice(at, 1);
   set("text-decoration-line", current.join(" "));
-  return current;
+  return decorations();
+}
+
+/** The decorations that are on now, with italic read from font-style. */
+function decorations() {
+  var on = String(get("text-decoration-line") || "none")
+    .split(/\s+/)
+    .filter(function (v) { return v && v !== "none"; });
+  if (get("font-style") === "italic") on.push("italic");
+  return on;
 }
 
 /** The dock itself: seven icons, a `+`, and only one control open at a time. */
