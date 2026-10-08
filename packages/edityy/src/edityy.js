@@ -1017,13 +1017,9 @@ function faces() {
     wrap: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>',
     columns: '<path d="M4 3v12M9 3v12M14 3v12"/>',
     rows: '<path d="M3 4h12M3 9h12M3 14h12"/>',
-    columnGap: '<path d="M4 4v10M14 4v10M7 9h4M9 7l2 2-2 2"/>',
-    rowGap: '<path d="M4 4h10M4 14h10M9 7v4M7 9l2 2 2-2"/>',
     grid: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>',
     size: '<path d="M3 9h12M9 3v12M6 6 3 9l3 3M12 6l3 3-3 3M6 3l3 3 3-3M6 15l3-3 3 3"/>',
     position: '<path d="M3 3h12v12H3zM9 6v6M6 9h6"/>',
-    width: '<path d="M3 9h12M6 6l-3 3 3 3M12 6l3 3-3 3"/>',
-    height: '<path d="M9 3v12M6 6l3-3 3 3M6 12l3 3 3-3"/>',
   };
 
   // The filters, as data. Blur is the only one that takes a length; the other
