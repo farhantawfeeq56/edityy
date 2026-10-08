@@ -2001,10 +2001,10 @@ function icons(items, current, onPick, cls) {
         pop.appendChild(pair);
         slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
           set("column-gap", v + "px");
-        }, "Column", pair);
+        }, "Column gap", pair);
         slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
           set("row-gap", v + "px");
-        }, "Row", pair);
+        }, "Row gap", pair);
         return;
       }
       slider(0, 48, 1, num("gap", 0), "px", function (v) {
@@ -2056,7 +2056,6 @@ function icons(items, current, onPick, cls) {
         pop.appendChild(row);
       });
     },
-
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
     blur: function () { filterSlider("blur"); },
@@ -2165,7 +2164,7 @@ function decorations() {
       { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
     ],
     grid: [
-      { key: "grid", label: "Grid", glyph: svg(BOX_GLYPHS.grid) },
+      { key: "grid", label: "Grid size", glyph: svg(BOX_GLYPHS.grid) },
       { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
       { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
     ],
