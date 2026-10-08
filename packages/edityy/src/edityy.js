@@ -164,6 +164,8 @@
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
     ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
     ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+    ".pair{display:flex;flex-direction:column;gap:2px;padding:2px 0}",
+    ".pair .bar2{padding:6px}",
 
     ".field-label{white-space:nowrap}",
     ".val{min-width:36px;text-align:right;font:600 13px/1 inherit;color:#86546b;",
@@ -1015,11 +1017,9 @@ function faces() {
     wrap: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>',
     columns: '<path d="M4 3v12M9 3v12M14 3v12"/>',
     rows: '<path d="M3 4h12M3 9h12M3 14h12"/>',
-    columnGap: '<path d="M4 4v10M14 4v10M7 9h4M9 7l2 2-2 2"/>',
-    rowGap: '<path d="M4 4h10M4 14h10M9 7v4M7 9l2 2 2-2"/>',
+    grid: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>',
+    size: '<path d="M3 9h12M9 3v12M6 6 3 9l3 3M12 6l3 3-3 3M6 3l3 3 3-3M6 15l3-3 3 3"/>',
     position: '<path d="M3 3h12v12H3zM9 6v6M6 9h6"/>',
-    width: '<path d="M3 9h12M6 6l-3 3 3 3M12 6l3 3-3 3"/>',
-    height: '<path d="M9 3v12M6 6l3-3 3 3M6 12l3 3 3-3"/>',
   };
 
   // The filters, as data. Blur is the only one that takes a length; the other
@@ -1439,9 +1439,15 @@ function icons(items, current, onPick, cls) {
   }
 
   /** A slider with a live readout, for weight and line height. */
-  function slider(min, max, step, current, unit, onInput) {
+  function slider(min, max, step, current, unit, onInput, label, parent) {
     var row = document.createElement("div");
     row.className = "bar2";
+    if (label) {
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      caption.textContent = label;
+      row.appendChild(caption);
+    }
     var input = document.createElement("input");
     input.type = "range";
     input.min = min;
@@ -1460,11 +1466,12 @@ function icons(items, current, onPick, cls) {
     input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
-    pop.appendChild(row);
+    (parent || pop).appendChild(row);
+    return row;
   }
 
   /** A number field, for size and tracking. */
-  function number(min, max, step, current, unit, onInput, label) {
+  function number(min, max, step, current, unit, onInput, label, parent) {
     var row = document.createElement("div");
     row.className = "bar2";
     if (label) {
@@ -1493,7 +1500,7 @@ function icons(items, current, onPick, cls) {
     input.addEventListener("change", release);
     row.appendChild(input);
     row.appendChild(out);
-    pop.appendChild(row);
+    (parent || pop).appendChild(row);
     return row;
   }
 
@@ -1988,36 +1995,43 @@ function icons(items, current, onPick, cls) {
       });
     },
     gap: function () {
+      if (mode() === "grid") {
+        var pair = document.createElement("div");
+        pair.className = "pair";
+        pop.appendChild(pair);
+        slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
+          set("column-gap", v + "px");
+        }, "Column gap", pair);
+        slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
+          set("row-gap", v + "px");
+        }, "Row gap", pair);
+        return;
+      }
       slider(0, 48, 1, num("gap", 0), "px", function (v) {
         set("gap", v + "px");
         ensureBox();
       });
     },
-    columns: function () {
-      var current = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
+    grid: function () {
+      var columns = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
+      var rows = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
       if (mode() !== "grid") setMode("grid");
-      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
+      var pair = document.createElement("div");
+      pair.className = "pair";
+      pop.appendChild(pair);
+      number(1, 12, 1, columns ? Number(columns[1]) : 1, "", function (v) {
         set("grid-template-columns", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Columns");
-    },
-    rows: function () {
-      var current = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
-      if (mode() !== "grid") setMode("grid");
-      number(1, 12, 1, current ? Number(current[1]) : 1, "", function (v) {
+      }, "Columns", pair);
+      number(1, 12, 1, rows ? Number(rows[1]) : 1, "", function (v) {
         set("grid-template-rows", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Rows");
+      }, "Rows", pair);
     },
-    columnGap: function () {
-      if (mode() !== "grid") setMode("grid");
-      slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
-        set("column-gap", v + "px");
-      });
-    },
-    rowGap: function () {
-      if (mode() !== "grid") setMode("grid");
-      slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
-        set("row-gap", v + "px");
-      });
+    size: function () {
+      var pair = document.createElement("div");
+      pair.className = "pair";
+      pop.appendChild(pair);
+      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width", pair);
+      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height", pair);
     },
     bounds: function () {
       ["top", "right", "bottom", "left"].forEach(function (prop) {
@@ -2041,12 +2055,6 @@ function icons(items, current, onPick, cls) {
         row.appendChild(unit);
         pop.appendChild(row);
       });
-    },
-    width: function () {
-      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width");
-    },
-    height: function () {
-      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height");
     },
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
@@ -2156,16 +2164,13 @@ function decorations() {
       { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
     ],
     grid: [
-      { key: "columns", label: "Columns", glyph: svg(BOX_GLYPHS.columns) },
-      { key: "rows", label: "Rows", glyph: svg(BOX_GLYPHS.rows) },
-      { key: "columnGap", label: "Column gap", glyph: svg(BOX_GLYPHS.columnGap) },
-      { key: "rowGap", label: "Row gap", glyph: svg(BOX_GLYPHS.rowGap) },
+      { key: "grid", label: "Grid size", glyph: svg(BOX_GLYPHS.grid) },
+      { key: "gap", label: "Gap", glyph: svg(BOX_GLYPHS.gap) },
       { key: "alignment", label: "Alignment", glyph: svg(BOX_GLYPHS.alignment) },
     ],
     absolute: [
       { key: "bounds", label: "Top / Right / Bottom / Left", glyph: svg(BOX_GLYPHS.position) },
-      { key: "width", label: "Width", glyph: svg(BOX_GLYPHS.width) },
-      { key: "height", label: "Height", glyph: svg(BOX_GLYPHS.height) },
+      { key: "size", label: "Size", glyph: svg(BOX_GLYPHS.size) },
     ],
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
