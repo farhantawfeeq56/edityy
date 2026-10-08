@@ -4,52 +4,60 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.1.5 — 2026-10-08
 
 ### Added
 
 - The font family control has a search field and the Google Fonts catalog,
   after the page's own fonts. The catalog is fetched on the first open, and a
   font file only when its row is drawn or picked. Each request is made once.
-  No API key is necessary. (#105)
+  No API key is necessary. (#105, @AathilFelix)
+- The text dock has the controls in groups, with a separator between the
+  groups. The Font size control is a pixel field in the dock, with a list of
+  common sizes. The Font weight control lists only the weights that the font
+  has. The Text colour control has an RGB and hex palette. The add control is
+  a three-dot button. (#118, @farhantawfeeq56)
 
 ### Changed
 
 - The font list measures each family name once, not once for each face that
-  `document.fonts` holds. (#105)
+  `document.fonts` holds. (#105, @AathilFelix)
 - The launcher writes the edits to `sessionStorage` once the keys stop, not on
   each key, and when the page is left. It finds and measures the element under
-  the pointer, and the selection after a scroll, once for each animation frame. (#109)
+  the pointer, and the selection after a scroll, once for each animation frame. (#109, @AathilFelix)
+- The container dock has one Size control for width and height, one Grid
+  control for columns and rows, and one Gap control for the row and column
+  gaps. The CSS properties that they set do not change. (#122, @farhantawfeeq56)
 
 ### Security
 
 - The save endpoint takes requests only for `localhost`, its subdomains, IP
   addresses and the hosts in the new `allowedHosts` option. Before, a site that
-  pointed its own name at the computer could write the saved edits. (#107)
+  pointed its own name at the computer could write the saved edits. (#107, @AathilFelix)
 - `changesRoute()` answers 404 unless `NODE_ENV` is `development`, so a
-  production build of a Next.js app writes nothing. (#107)
+  production build of a Next.js app writes nothing. (#107, @AathilFelix)
 - Each saved change is checked for its shape and size. The `markdown` in
   `changes.json` and in `get_visual_changes` is made from the checked changes;
-  the page cannot put its own text there. (#107)
+  the page cannot put its own text there. (#107, @AathilFelix)
 
 ### Fixed
 
 - The middleware keeps the status message and the headers that a handler gives
   to `writeHead()` on an HTML page. Before, they were lost when the tag was
-  added. A status set with `res.statusCode`, and a held `304`, also stay. (#106)
+  added. A status set with `res.statusCode`, and a held `304`, also stay. (#106, @AathilFelix)
 - An HTML page that calls `write()` before `end()` without a `content-length`
-  streams after `</head>`. Before, it was held until `end()`. (#106)
+  streams after `</head>`. Before, it was held until `end()`. (#106, @AathilFelix)
 - The Vite plugin saves edits under Vite's `root`, where the source locations
-  start. Before, it saved under `process.cwd()`. (#108)
+  start. Before, it saved under `process.cwd()`. (#108, @AathilFelix)
 - `changes.json` is written to a temporary file and then renamed, so the MCP
-  server never reads half of a file. (#108)
+  server never reads half of a file. (#108, @AathilFelix)
 - A body past the size limit gets its 413 answer. Before, the socket closed
-  first. (#108)
+  first. (#108, @AathilFelix)
 - The MCP server keeps answering after a message fails. On `initialize`, it
-  answers with a protocol version it speaks. (#108)
+  answers with a protocol version it speaks. (#108, @AathilFelix)
 - The Italic control sets `font-style`. Before, it wrote
   `text-decoration-line: italic`, which the browser ignores. The control also
-  shows the decorations that are on when it opens. (#120)
+  shows the decorations that are on when it opens. (#120, @AathilFelix)
 
 ## 0.1.4 — 2026-10-07
 
