@@ -52,7 +52,7 @@ const dom = {
 
 for (const [key, value] of Object.entries(dom)) globalThis[key] = value;
 
-// Import for its side effect, exactly as `instrumentationClientInject` does.
+// Import for its side effect, exactly as the `instrumentation-client` file does.
 await import("../src/client.js");
 
 test("mounts the launcher host into the document", () => {

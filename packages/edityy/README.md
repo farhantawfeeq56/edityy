@@ -50,27 +50,37 @@ Reload the page. The launcher is in the bottom-right.
 ### Next.js
 
 Next renders the page itself, so a dev-server middleware cannot patch its HTML.
-Hand the client bootstrap to `instrumentationClientInject` instead — it runs
-before hydration, so there is no route handler and no `<script>` tag in the layout:
+Load the client bootstrap from an `instrumentation-client` file instead. Next
+runs it before hydration, so there is no route handler and no `<script>` tag in
+the layout. Put the file in the project root, or in `src/` if your app is there:
+
+```ts
+// instrumentation-client.ts
+if (process.env.NODE_ENV === "development") import("edityy/client");
+```
+
+This works on Next.js 15.3 and later. The check keeps the launcher out of
+`next build`, since this is a dev tool.
+
+On Next.js 16.3 and later, you can set `instrumentationClientInject` in
+`next.config.ts` instead of the file:
 
 ```ts
 // next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  instrumentationClientInject: ["edityy/client"],
+  ...(process.env.NODE_ENV === "development" && {
+    instrumentationClientInject: ["edityy/client"],
+  }),
 };
 
 export default nextConfig;
 ```
 
-Keep it off in production, since this is a dev tool:
-
-```ts
-...(process.env.NODE_ENV === "development" && {
-  instrumentationClientInject: ["edityy/client"],
-}),
-```
+Do not use this option on Next.js 16.2 or earlier. Those versions do not know
+it: they print `Unrecognized key(s) in object: 'instrumentationClientInject'`,
+ignore it, and show no launcher.
 
 The launcher script is bundled into the page rather than served from
 `ASSET_PATH`, so nothing extra is requested at runtime. If you would rather
@@ -78,7 +88,8 @@ serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
 `launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
-private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`.
+private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`. Use this
+approach also on Next.js before 15.3, which has no `instrumentation-client` file.
 
 To save edits to the project from Next.js, add the route in
 [Save edits to the project](#save-edits-to-the-project).
