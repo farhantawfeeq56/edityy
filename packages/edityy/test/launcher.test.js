@@ -21,7 +21,7 @@ function fakeDom() {
   const computed = (el) => {
     const view = {
       getPropertyValue: (prop) => {
-        const v = el.style.getPropertyValue(prop) || el.computed?.[prop] || "";
+        const v = el.style.getPropertyValue(prop) || el.computed?.[prop] || (prop === "display" ? "block" : "");
         // A browser hands back the initial value of anything unset, and the
         // payload reads filters and shadows back: `filter: none` is what tells it
         // no filter is on, where "" says nothing at all.
@@ -146,6 +146,10 @@ function fakeDom() {
     // A live HTMLCollection, not an array: the payload must not assume slice().
     get firstChild() {
       return node.children[0] ?? null;
+    },
+    get nextSibling() {
+      if (!node.parentElement) return null;
+      return node.parentElement.children[node.parentElement.children.indexOf(node) + 1] ?? null;
     },
     addEventListener: (type, fn) => (bubble(node, type).push(fn)),
     removeEventListener: (type, fn) => {
@@ -312,12 +316,25 @@ function fakeDom() {
       launch: () => root.nodes.launch,
       click: () => click([root.nodes.launch, appended[0], doc]),
       /** Click the page, not the shadow host. */
-      clickPage: () => click([hovered ?? doc, doc]),
+      clickPage: (clientX = 1, clientY = 1) => {
+        const path = [hovered ?? doc, doc];
+        const event = {
+          clientX,
+          clientY,
+          composedPath: () => path,
+          preventDefault() {},
+          stopPropagation() {},
+        };
+        for (const fn of [...bucket(doc, "click", "capture"), ...bucket(doc, "click", "bubble")]) fn(event);
+      },
       /** Click inside the editing panel, whose path runs through the host. */
       clickPanel: () => click([root.nodes.panel, appended[0], doc]),
       /** Fire a document event, as the browser would. */
       fire: (type, event = {}) => {
         for (const fn of [...bucket(doc, type, "capture"), ...bucket(doc, type, "bubble")]) fn(event);
+      },
+      move: (clientX, clientY) => {
+        for (const fn of [...bucket(doc, "mousemove", "capture"), ...bucket(doc, "mousemove", "bubble")]) fn({ clientX, clientY });
       },
       /** One of a frame's bars, in the order the payload built them: run first
           for each edge, then the three accent bars over it. */
@@ -495,6 +512,7 @@ test("the pointer travels home and grows back into the orb on exit", () => {
     app.click();
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
+    app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
   assert.equal(app.launch().style.transform, "translate(0px,0px) scale(1)");
@@ -703,14 +721,15 @@ test("the dock opens on text and container, stays shut on media", () => {
     app.clickPage();
   });
   assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
+  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Default");
   assert.deepEqual(
     app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "direction", "gap", "alignment", "+"],
-    "Stack controls match the table"
+    "existing containers retain their default controls"
   );
   const box = app.root.selection().el;
 
-  // Mode is the only cyclic control: Stack -> Flex -> Grid -> Absolute -> Stack.
+  // The mode cycle omits Stack and starts at Flex.
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "direction", "wrap", "alignment", "gap", "+"]);
@@ -725,11 +744,10 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(box.style.getPropertyValue("position"), "absolute");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "direction", "gap", "alignment", "+"]);
+    ["mode", "direction", "wrap", "alignment", "gap", "+"]);
 
   quiet(() => press(app, "alignment"));
   assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
-  quiet(() => press(app, "mode"));
   quiet(() => press(app, "wrap"));
   assert.equal(app.root.nodes.pop.children[0].children.length, 3, "flex wrap options");
   quiet(() => press(app, "alignment"));
@@ -776,8 +794,6 @@ test("the dock opens on text and container, stays shut on media", () => {
   for (const fn of sizeInputs[1].bubbles.input.bubble) fn({});
   assert.equal(box.style.getPropertyValue("height"), "180px");
   quiet(() => press(app, "mode"));
-  quiet(() => press(app, "mode"));
-  quiet(() => press(app, "mode"));
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
   // Typography values are visible in the primary dock. Spacing replaces the
@@ -815,12 +831,7 @@ test("wrap and direction establish flex before applying the choice", () => {
   assert.equal(box.style.getPropertyValue("flex-direction"), "row");
   pickOption(app.root.nodes.pop, "Wrap");
   assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap");
-  quiet(() => {
-    press(app, "mode");
-    press(app, "mode");
-    press(app, "mode");
-    press(app, "direction");
-  });
+  quiet(() => press(app, "direction"));
   pickOption(app.root.nodes.pop, "Column");
   assert.equal(box.style.getPropertyValue("flex-direction"), "column");
 });
@@ -1487,6 +1498,102 @@ test("an icon's stroke follows the button, so an open control's icon stays visib
   assert.match(css, /\.ic svg\{[^}]*stroke:currentColor/, "and the paths are stroked from it");
 });
 
+test("Edityy starts with Add choices before the user selects an element", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  assert.equal(app.root.selection(), null);
+  assert.equal(app.root.nodes.dock.hidden, false);
+  assert.equal(app.root.nodes.row.hidden, true);
+  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
+});
+
+test("Add mode previews and inserts an element at the chosen location", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
+  const target = el("section", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
+  target.computed = { display: "block" };
+  parent.appendChild(target);
+  quiet(() => {
+    app.click();
+    for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
+    app.hover(target);
+    app.move(40, 55);
+  });
+
+  assert.equal(app.root.nodes.dock.hidden, true, "the selection dock yields to the insertion cursor");
+  assert.equal(app.root.nodes.insert.hidden, false);
+  assert.equal(app.root.nodes.insert.style.top, "60px", "the indicator previews after the target");
+  app.clickPage(40, 55);
+  const created = parent.children[1];
+  assert.equal(created.tagName, "P");
+  assert.equal(created.textContent, "Text");
+  assert.equal(app.root.selection().el, created);
+  assert.equal(app.root.selection().kind, "text");
+  assert.equal(app.root.nodes.dock.hidden, false);
+  assert.equal(app.root.nodes.row.hidden, false);
+  assert.equal(app.root.nodes.pop.hidden, true);
+  assert.equal(app.root.nodes.count.textContent, "1");
+
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(parent.children.includes(created), false, "exit reverts the created element");
+});
+
+test("container insertion previews between its children", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const outer = el("body");
+  const container = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
+  outer.appendChild(container);
+  const first = el("p", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
+  const second = el("p", { rect: { left: 20, top: 80, right: 200, bottom: 120, width: 180, height: 40 } });
+  container.computed = { display: "block" };
+  first.computed = { display: "block" };
+  second.computed = { display: "block" };
+  container.appendChild(first);
+  container.appendChild(second);
+  container.childNodes = [first, second];
+  quiet(() => {
+    app.click();
+    for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
+    app.hover(container);
+    app.move(100, 55);
+  });
+  assert.equal(app.root.nodes.insert.style.top, "70px", "the indicator previews halfway between the children");
+  app.clickPage(100, 55);
+  assert.equal(container.children[1].tagName, "DIV");
+  assert.equal(app.root.selection().el, container.children[1]);
+});
+
+test("the selected-element Add action uses the same insertion flow", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main");
+  const target = el("section");
+  const sibling = el("aside");
+  parent.appendChild(target);
+  parent.appendChild(sibling);
+  quiet(() => {
+    app.click();
+    app.hover(target);
+    app.clickPage();
+  });
+  const add = app.root.nodes.create;
+  for (const fn of add.bubbles.click.bubble) fn({});
+  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
+  for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
+  app.hover(sibling);
+  app.move(10, 1);
+  app.clickPage(10, 1);
+  const created = parent.children[2];
+  assert.equal(created.tagName, "DIV");
+  assert.equal(created.style.getPropertyValue("display"), "flex");
+  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  assert.equal(app.root.selection().el, created);
+  assert.equal(app.root.selection().kind, "container");
+});
+
 test("the dock ends in a + that adds a control to the row", () => {
   const { run } = fakeDom();
   const app = run();
@@ -1893,7 +2000,10 @@ test("edits survive a reload, and the mode comes back on", async () => {
 
   // And leaving the mode reverts the restored edits like any others, and
   // forgets them.
-  quiet(() => again.fire("keydown", { key: "Escape" }));
+  quiet(() => {
+    again.fire("keydown", { key: "Escape" }); // close initial Add choices
+    again.fire("keydown", { key: "Escape" }); // exit the mode
+  });
   assert.equal(fresh.style.getPropertyValue("font-size"), "");
   assert.equal(fresh.textContent, "hello");
   assert.equal(store.getItem("edityy:/"), null);

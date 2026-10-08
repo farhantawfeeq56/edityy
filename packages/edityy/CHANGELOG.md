@@ -4,7 +4,17 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.1.6 — 2026-10-08
+
+### Added
+
+- Edityy opens with Text and Container options. Choose a page location to insert
+  the element, then edit it. New containers use Flex layout. (#127)
+
+### Changed
+
+- Remove Stack from the container layout mode control. Existing default-layout
+  containers keep their layout until the user selects Flex, Grid or Absolute. (#127)
 
 ### Fixed
 
