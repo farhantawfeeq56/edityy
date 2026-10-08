@@ -4,6 +4,16 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- The README's Next.js setup loads the launcher from an `instrumentation-client`
+  file, which Next.js 15.3 and later run. Before, it used only
+  `instrumentationClientInject`, which Next.js 16.2 and earlier ignore, so no
+  launcher came up. The option stays as the alternative for Next.js 16.3 and
+  later. (#126, @AathilFelix)
+
 ## 0.1.5 — 2026-10-08
 
 ### Added
