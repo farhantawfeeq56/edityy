@@ -1353,6 +1353,7 @@ test("element actions navigate, delete reversibly, and disable unavailable targe
   app.action("Delete");
   assert.equal(parent.children.includes(selected), false);
   assert.match(app.win.__edityy_changes(), /- Removed: section/);
+  assert.equal(app.root.nodes.count.textContent, "1", "the edits button counts the delete");
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.deepEqual(parent.children, [selected, sibling], "exit restores the deleted element before its sibling");
 });
@@ -1462,12 +1463,47 @@ test("moving a selected element uses the insertion indicator and restores its po
   assert.deepEqual(parent.children, [second, outer]);
   assert.deepEqual(other.children, [first], "move can reparent an element into another container");
   assert.match(app.win.__edityy_changes(), /- Moved to: `/);
+  assert.equal(app.root.nodes.count.textContent, "1", "the edits button counts the move");
+  app.action("Delete");
+  const prompt = app.win.__edityy_changes();
+  assert.match(prompt, /- Selector: `main > div`/, "a delete after a move names the place in the code");
+  assert.doesNotMatch(prompt, /- Moved to:/, "a deleted element is reported as removed, not moved");
   quiet(() => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
   assert.deepEqual(parent.children, [first, second, outer], "exit restores the original DOM position");
   assert.deepEqual(other.children, [], "exit restores the original parent");
+});
+
+test("moving into a grid places the element between the items of one row", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const page = el("main", { rect: { left: 0, top: 0, right: 400, bottom: 300, width: 400, height: 300 } });
+  const moved = el("p", { text: "Moved", rect: { left: 0, top: 0, right: 300, bottom: 20, width: 300, height: 20 } });
+  const grid = el("section", { rect: { left: 0, top: 40, right: 300, bottom: 160, width: 300, height: 120 } });
+  grid.computed = { display: "grid" };
+  const cards = [0, 1, 2, 3].map((i) => {
+    const left = (i % 3) * 100;
+    const top = 40 + Math.floor(i / 3) * 60;
+    return el("article", { rect: { left, top, right: left + 90, bottom: top + 50, width: 90, height: 50 } });
+  });
+  page.appendChild(moved);
+  page.appendChild(grid);
+  cards.forEach((card) => grid.appendChild(card));
+  quiet(() => {
+    app.click();
+    app.hover(moved);
+    app.clickPage();
+  });
+  app.action("Move");
+  // The pointer is in the gap between the second and third cards of the first
+  // row. Read by y alone, that is in front of the first card.
+  app.hover(grid);
+  app.move(195, 60);
+  assert.equal(app.root.nodes.insert.style.left, "195px", "the line stands in the gap between the cards");
+  app.clickPage(195, 60);
+  assert.deepEqual(grid.children, [cards[0], cards[1], moved, cards[2], cards[3]]);
 });
 
 test("the selection frame follows the element as it grows and shrinks", () => {
