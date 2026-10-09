@@ -37,8 +37,8 @@ function str(value, name, max, fallback = "") {
 /**
  * The changes, cut down to the fields an agent needs, or a 400 SaveError.
  *
- * Each change is `{ label, selector, source, props: [{ prop, before, after }],
- * text: { before, after } | null }`, the shape the launcher sends.
+ * Each change is `{ label, selector, source, props, text, removed, moved }`,
+ * the shape the launcher sends.
  */
 export function checkChanges(changes) {
   if (!Array.isArray(changes)) throw new SaveError(400, "Expected a JSON object with a changes array.");
@@ -64,6 +64,9 @@ export function checkChanges(changes) {
         return { prop, before: str(p.before, "before", MAX_SHORT), after: str(p.after, "after", MAX_SHORT) };
       }),
       text,
+      removed: change.removed === true,
+      moved: change.moved === true,
+      movedTo: str(change.movedTo, "movedTo", MAX_SHORT, null),
     };
   });
 }
@@ -111,6 +114,8 @@ export function markdownFor(changes, page) {
     if (change.source) out.push(`- Source: ${code(change.source)}`);
     for (const p of change.props) out.push(`- ${code(p.prop)}: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
+    if (change.removed) out.push("- Removed: this element");
+    if (change.moved) out.push(`- Moved to: ${code(change.movedTo || "a new position")}`);
     out.push("");
   });
   return out.join("\n");

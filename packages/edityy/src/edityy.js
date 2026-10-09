@@ -11,10 +11,10 @@
  * 2. A temporary editing mode. The orb shrinks into the pointer, while the
  *    dock offers element creation before a selection. Choosing Text or Container
  *    previews an insertion point; clicking inserts and selects the new element.
- *    Otherwise, hovering outlines an element and clicking selects it.
+ *    Otherwise, hovering outlines an element; clicking selects it and opens its actions.
  *
- * Selecting text puts the caret in it, so the words are editable where they
- * sit; selecting anything opens a dock that changes it. The dock starts with
+ * Selecting an element opens an action menu and a dock. Text becomes editable
+ * only after the user chooses Edit text; the dock changes styles and starts with
  * Text and Container options. A selected element also has type controls and a
  * `+` to add controls — shadow, blur, brightness, greyscale or contrast.
  *
@@ -222,6 +222,14 @@
     // without turning the box into a lozenge.
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
+    ".element-menu-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;font-weight:500}",
+    ".element-menu-tag{padding:3px 6px;border-radius:5px;background:#d79eac;color:#3a283c;font-size:10px;font-weight:600;text-transform:uppercase}",
+    ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
+    ".element-action{display:flex;align-items:center;gap:5px;border:1px solid #3a283c1a;border-radius:7px;padding:7px 9px;background:#f9f2ee;color:#3a283c;font:500 12px/1 system-ui,sans-serif;cursor:pointer}",
+    ".element-action:hover{background:#3a283c0f}",
+    ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
+    ".element-action.delete{color:#86546b}",
     ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
     ".insert:after{content:'+';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;color:#f9f2ee;",
@@ -254,6 +262,7 @@
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
     '<div class="frame" id="sel" hidden></div>',
+    '<div class="element-menu" id="element-menu" hidden role="toolbar" aria-label="Element actions"></div>',
     '<div class="insert" id="insert" hidden></div>',
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
@@ -287,6 +296,7 @@
   var POINT = 0.16;
   var hoverBox = $("hover");
   var selBox = $("sel");
+  var elementMenu = $("element-menu");
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
@@ -306,6 +316,8 @@
   // is the site's own face, taken from the app's own token wherever it sets one.
   var active = false;
   var selected = null;
+  var selectedItems = [];
+  var extraSelectionFrames = [];
   // The kind of the current selection: it decides which controls the dock starts
   // with, and root.selection() reports it.
   var selectedKind = null; // "text" | "container" | "media"
@@ -320,6 +332,7 @@
   var insertion = null;
   var pointerX = null;
   var pointerY = null;
+  var moving = null;
 
   /* ------------------------------------------------------------ selection */
 
@@ -613,7 +626,18 @@
 
   /** Undo every property and the text of one element. */
   function revert(rec) {
-    if (rec.created && rec.el.parentElement) rec.el.parentElement.removeChild(rec.el);
+    if (rec.location && rec.location.parent) {
+      rec.location.parent.insertBefore(rec.el, rec.location.before && rec.location.before.parentElement === rec.location.parent ? rec.location.before : null);
+    } else if (rec.removed && rec.removed.parent) {
+      rec.removed.parent.insertBefore(rec.el, rec.removed.before && rec.removed.before.parentElement === rec.removed.parent ? rec.removed.before : null);
+    }
+    if (rec.created && rec.el.parentElement) {
+      var parent = rec.el.parentElement;
+      (rec.wrapped || []).slice().reverse().forEach(function (item) {
+        parent.insertBefore(item.el, item.before && item.before.parentElement === parent ? item.before : null);
+      });
+      parent.removeChild(rec.el);
+    }
     Object.keys(rec.props).forEach(function (prop) {
       restore(rec, prop);
     });
@@ -688,25 +712,112 @@
     stopEditing(); // the caret belongs to the old selection, never to both
     if (el !== selected) release();
     selected = el;
+    selectedItems = el ? [el] : [];
     // The kind comes from the pick, because a form control is text by way of the
     // walk rather than by way of `kind()`: it has no text node of its own.
     selectedKind = el && hit ? hit.kind : null;
-    if (!el) {
-      selBox.hidden = true;
-      syncDock();
-      paintSwatch();
+    syncSelectionFrames();
+    syncDock();
+    syncElementMenu();
+    paintSwatch();
+  }
+
+  function syncSelectionFrames() {
+    var count = selectedItems.length;
+    selBox.hidden = !count;
+    for (var i = 1; i < count; i++) {
+      if (!extraSelectionFrames[i - 1]) {
+        var frame = document.createElement("div");
+        frame.className = "frame";
+        root.appendChild(frame);
+        extraSelectionFrames.push(frame);
+      }
+    }
+    extraSelectionFrames.forEach(function (frame, i) { frame.hidden = i + 1 >= count; });
+    selectedItems.forEach(function (el, i) {
+      place(i === 0 ? selBox : extraSelectionFrames[i - 1], el.getBoundingClientRect());
+    });
+  }
+
+  function actionButton(label, action, className) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "element-action" + (className ? " " + className : "");
+    button.textContent = label;
+    button.setAttribute("aria-label", label);
+    button.addEventListener("click", action);
+    return button;
+  }
+
+  function syncElementMenu() {
+    if (!active || !selected || selectedItems.length !== 1 || editing || addKind) {
+      elementMenu.hidden = true;
       return;
     }
-    selBox.hidden = false;
-    place(selBox, el.getBoundingClientRect(), el);
-    // Words become editable where they sit; nothing else gets a caret, because
-    // textContent over a container would destroy the child elements in it.
-    if (selectedKind === "text") editText(el);
+    while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+    var heading = document.createElement("div");
+    heading.className = "element-menu-title";
+    var badge = document.createElement("span");
+    badge.className = "element-menu-tag";
+    badge.textContent = selectedKind || "element";
+    heading.appendChild(badge);
+    heading.appendChild(document.createTextNode(nameOf(selected)));
+    elementMenu.appendChild(heading);
+    var actions = document.createElement("div");
+    actions.className = "element-menu-actions";
+    var edit = actionButton("Edit text", function () {
+      if (selectedKind === "text") editText(selected);
+      elementMenu.hidden = true;
+    });
+    edit.disabled = selectedKind !== "text" || !isLeafText(selected);
+    actions.appendChild(edit);
+    actions.appendChild(actionButton("Move", function () { startMove(); }));
+    var parent = selectable(selected.parentElement) ? selected.parentElement : null;
+    var parentButton = actionButton("Parent", function () {
+      if (parent) select(parent, { el: parent, kind: kind(parent) });
+    });
+    parentButton.disabled = !parent;
+    actions.appendChild(parentButton);
+    var child = Array.prototype.filter.call(selected.children || [], selectable)[0] || null;
+    var childButton = actionButton("Child", function () {
+      if (child) select(child, { el: child, kind: kind(child) });
+    });
+    childButton.disabled = !child;
+    actions.appendChild(childButton);
+    actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, "delete"));
+    elementMenu.appendChild(actions);
+    elementMenu.hidden = false;
+    var rect = selected.getBoundingClientRect();
+    var width = elementMenu.offsetWidth || 280;
+    var height = elementMenu.offsetHeight || 92;
+    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    var top = rect.bottom + height + 12 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
+    elementMenu.style.left = left + "px";
+    elementMenu.style.top = Math.max(12, top) + "px";
+  }
+
+  function deleteSelected() {
+    if (!selected || !selected.parentElement) return;
+    var el = selected;
+    var rec = record(el);
+    rec.selector = selectorFor(el);
+    rec.source = sourceOf(el);
+    rec.removed = { parent: el.parentElement, before: el.nextSibling };
+    el.parentElement.removeChild(el);
+    select(null);
+  }
+
+  function extendSelection(el) {
+    if (!el) return select(null);
+    stopEditing();
+    var index = selectedItems.indexOf(el);
+    if (index !== -1) selectedItems.splice(index, 1);
+    else selectedItems.push(el);
+    selected = selectedItems[0] || null;
+    selectedKind = selected ? kind(selected) : null;
+    syncSelectionFrames();
     syncDock();
-    // After syncDock, not before: the dock is what builds the row, so on the
-    // first selection there is no colour icon to paint yet and the bar stayed
-    // empty on the element that matters most — the first one you click.
-    paintSwatch();
+    syncElementMenu();
   }
 
   // What is selected, and what it was classified as. The seam any UI starts
@@ -1151,6 +1262,52 @@ function faces() {
     return document.createTextNode(value);
   }
 
+  function canAutoLayout() {
+    if (selectedItems.length < 2) return false;
+    var parent = selectedItems[0].parentElement;
+    return !!parent && selectedItems.every(function (el) { return el.parentElement === parent; });
+  }
+
+  function autoLayout() {
+    if (!canAutoLayout()) return;
+    var parent = selectedItems[0].parentElement;
+    var ordered = Array.prototype.filter.call(parent.children, function (el) { return selectedItems.indexOf(el) !== -1; });
+    var originalPositions = ordered.map(function (el) { return { el: el, before: el.nextSibling }; });
+    var wrapper = document.createElement("div");
+    wrapper.style.setProperty("display", "flex");
+    wrapper.style.setProperty("flex-direction", "column");
+    parent.insertBefore(wrapper, ordered[0]);
+    ordered.forEach(function (el) { wrapper.appendChild(el); });
+    record(wrapper).created = true;
+    record(wrapper).wrapped = originalPositions;
+    show("");
+    select(wrapper, { el: wrapper, kind: "container" });
+  }
+
+  function startMove() {
+    if (!selected || !selected.parentElement) return;
+    moving = selected;
+    var rec = record(moving);
+    if (!rec.location) rec.location = { parent: moving.parentElement, before: moving.nextSibling };
+    rec.selector = selectorFor(moving);
+    rec.source = sourceOf(moving);
+    moving.parentElement.removeChild(moving);
+    syncSelectionFrames();
+    startInsertion("move");
+  }
+
+  function startInsertion(kind) {
+    addKind = kind;
+    elementMenu.hidden = true;
+    insertion = null;
+    pointerX = null;
+    pointerY = null;
+    dock.hidden = true;
+    insertLine.hidden = true;
+    hideHover();
+    show("");
+  }
+
   /** Offer the two page elements users can create. */
   function creationOptions() {
     options([
@@ -1158,14 +1315,7 @@ function faces() {
       { v: "text", label: "Text", stack: "system-ui,sans-serif" },
     ], "", function (kind) {
       if (kind !== "container" && kind !== "text") return;
-      addKind = kind;
-      insertion = null;
-      pointerX = null;
-      pointerY = null;
-      dock.hidden = true;
-      insertLine.hidden = true;
-      hideHover();
-      show("");
+      startInsertion(kind);
     });
   }
 
@@ -2362,10 +2512,12 @@ function decorations() {
   /** Show the dock for a text or container selection, and keep its control open
       across a re-click on the same element, which is the click that starts a drag. */
   function syncDock() {
+    if (editing) return;
+    var multi = selectedItems.length > 1;
     var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
-    dock.hidden = !on && !(active && !selected);
-    row.hidden = !on;
-    create.hidden = !on;
+    dock.hidden = multi || (!on && !(active && !selected));
+    row.hidden = !on || multi;
+    create.hidden = !on || multi;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this
     // element has been given. Tracked by which element the row was built for,
@@ -2375,6 +2527,9 @@ function decorations() {
       rowFor = selected;
     }
     if (!active) {
+      dock.hidden = true;
+      show("");
+    } else if (multi) {
       dock.hidden = true;
       show("");
     } else if (addKind) {
@@ -2421,7 +2576,10 @@ function decorations() {
     var text = rec.text !== null && rec.el.textContent !== rec.text
       ? { before: rec.text, after: rec.el.textContent }
       : null;
-    return props.length || text || rec.created ? { props: props, text: text, created: rec.created } : null;
+    var moved = rec.location && (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
+    return props.length || text || rec.created || rec.removed || moved
+      ? { props: props, text: text, created: rec.created, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+      : null;
   }
 
   /**
@@ -2485,12 +2643,15 @@ function decorations() {
       var src = sourceOf(rec.el);
       out.push({
         label: nameOf(rec.el).trim(),
-        selector: selectorFor(rec.el),
-        source: src ? src.at : null,
-        sourceIsOwn: src ? src.own : false,
+        selector: rec.selector || selectorFor(rec.el),
+        source: rec.source ? rec.source.at : src ? src.at : null,
+        sourceIsOwn: rec.source ? rec.source.own : src ? src.own : false,
         props: d.props,
         text: d.text,
         created: d.created,
+        removed: d.removed,
+        moved: d.moved,
+        movedTo: d.movedTo,
         rec: rec,
       });
     });
@@ -2520,6 +2681,8 @@ function decorations() {
         out.push("- `" + c.prop + "`: `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
       });
       if (item.created) out.push("- Added: a new " + item.rec.el.tagName.toLowerCase());
+      if (item.removed) out.push("- Removed: " + item.label);
+      if (item.moved) out.push("- Moved to: `" + (item.movedTo || "a new position") + "`");
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
       out.push("");
     });
@@ -2555,7 +2718,7 @@ function decorations() {
     items.forEach(function (item) {
       var line = document.createElement("div");
       line.className = "chg";
-      var n = item.props.length + (item.text ? 1 : 0) + (item.created ? 1 : 0);
+      var n = item.props.length + (item.text ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0);
       var name = button("opt", "", "Select " + item.label, function () {
         var el = item.rec.el;
         select(el, { el: el, kind: kind(el) });
@@ -2609,7 +2772,7 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, created: item.created };
+      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, created: item.created, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
     });
   }
 
@@ -2731,7 +2894,7 @@ function decorations() {
       }
       var edits = [];
       changes.forEach(function (rec) {
-        if (rec.created) return;
+        if (rec.created || rec.removed || rec.location) return;
         var props = {};
         var any = false;
         Object.keys(rec.props).forEach(function (prop) {
@@ -2746,7 +2909,9 @@ function decorations() {
         });
         var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
         if (!any && !text && !rec.created && !(rec.added && rec.added.length)) return;
-        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [] });
+        var location = rec.location;
+        var moved = location && (rec.el.parentElement !== location.parent || rec.el.nextSibling !== location.before);
+        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [], moved: !!moved });
       });
       store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
     } catch (e) {
@@ -2899,9 +3064,15 @@ function decorations() {
     window.removeEventListener("resize", refit, true);
     // Exiting always puts the page back exactly as it was.
     stopEditing();
+    if (moving) {
+      var location = record(moving).location;
+      location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
+    }
     changes.slice().forEach(revert);
     addKind = null;
     insertion = null;
+    moving = null;
+    elementMenu.hidden = true;
     pointerX = null;
     pointerY = null;
     insertLine.hidden = true;
@@ -2969,7 +3140,8 @@ function decorations() {
    * around words that are no longer there.
    */
   function refit() {
-    if (selected) place(selBox, selected.getBoundingClientRect());
+    syncSelectionFrames();
+    if (!elementMenu.hidden && !moving) syncElementMenu();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
@@ -2977,6 +3149,7 @@ function decorations() {
     if (addKind && pointerX !== null) showInsertion(pointerX, pointerY);
   }
   function showInsertion(x, y) {
+    if (moving) return showMoveInsertion(x, y);
     var hit = pickAt(x, y);
     var target = hit && hit.el;
     if (target && target.parentElement && target.parentElement !== host) {
@@ -3051,9 +3224,76 @@ function decorations() {
     insertLine.hidden = false;
   }
 
+  function showMoveInsertion(x, y) {
+    var hit = pickAt(x, y);
+    var target = hit && hit.el;
+    for (var node = target; node; node = node.parentElement) {
+      if (node === moving) {
+        insertion = null;
+        insertLine.hidden = true;
+        return;
+      }
+    }
+    if (!target || !target.parentElement || target.parentElement === host) {
+      insertion = null;
+      insertLine.hidden = true;
+      return;
+    }
+    var children = hit.kind === "container"
+      ? Array.prototype.filter.call(target.children || [], function (el) { return el !== moving; })
+      : [];
+    var parent = hit.kind === "container" ? target : target.parentElement;
+    var style = window.getComputedStyle(parent);
+    var horizontal = /^(TABLE|TBODY|THEAD|TFOOT|TR|UL|OL|DL)$/.test(parent.tagName) ||
+      (/^(flex|inline-flex)$/.test(style.display) && style.flexDirection.indexOf("row") === 0);
+    var coordinate = horizontal ? x : y;
+    var siblings = children.length || hit.kind === "container"
+      ? children
+      : Array.prototype.filter.call(parent.children, function (el) { return el !== moving; });
+    var before = null;
+    var boundary = null;
+    for (var i = 0; i < siblings.length; i++) {
+      var rect = siblings[i].getBoundingClientRect();
+      var start = horizontal ? rect.left : rect.top;
+      var end = horizontal ? rect.right : rect.bottom;
+      if (coordinate < (start + end) / 2) {
+        before = siblings[i];
+        boundary = start;
+        break;
+      }
+      boundary = end;
+    }
+    var bounds = parent.getBoundingClientRect();
+    if (!siblings.length) boundary = horizontal ? x : y;
+    insertion = { parent: parent, before: before };
+    if (horizontal) {
+      insertLine.style.left = (boundary === null ? bounds.right : boundary) + "px";
+      insertLine.style.top = bounds.top + "px";
+      insertLine.style.width = "2px";
+      insertLine.style.height = bounds.height + "px";
+    } else {
+      insertLine.style.left = bounds.left + "px";
+      insertLine.style.top = (boundary === null ? bounds.bottom : boundary) + "px";
+      insertLine.style.width = bounds.width + "px";
+      insertLine.style.height = "2px";
+    }
+    insertLine.hidden = false;
+  }
+
   function insertElement(x, y) {
     showInsertion(x, y);
     if (!insertion || !insertion.parent.insertBefore) return;
+    if (moving) {
+      insertion.parent.insertBefore(moving, insertion.before || null);
+      moving = null;
+      addKind = null;
+      insertion = null;
+      insertLine.hidden = true;
+      syncSelectionFrames();
+      syncElementMenu();
+      syncDock();
+      return;
+    }
     var el = document.createElement(addKind === "text" ? "p" : "div");
     if (addKind === "text") el.textContent = "Text";
     else el.style.setProperty("display", "flex");
@@ -3104,20 +3344,36 @@ function decorations() {
       return;
     }
     var hit = pickAt(e.clientX, e.clientY);
-    select(hit && hit.el, hit);
+    if (e.shiftKey) extendSelection(hit && hit.el);
+    else select(hit && hit.el, hit);
   }
 
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
+    if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+      e.preventDefault();
+      e.stopPropagation();
+      autoLayout();
+      return;
+    }
     if (e.key === "Escape") {
       if (addKind) {
+        if (moving) {
+          var location = record(moving).location;
+          location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
+          moving = null;
+          syncSelectionFrames();
+        }
         addKind = null;
         insertion = null;
         pointerX = null;
         pointerY = null;
         insertLine.hidden = true;
-        if (selected) syncDock();
-        else {
+        syncSelectionFrames();
+        if (selected) {
+          syncDock();
+          syncElementMenu();
+        } else {
           dock.hidden = false;
           show("create");
         }
@@ -3132,6 +3388,8 @@ function decorations() {
           if (opener.focus) opener.focus();
         }
         if (starting) exit();
+      } else if (editing) {
+        stopEditing();
       } else exit();
       return;
     }
