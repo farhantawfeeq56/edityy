@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { CHANGES_FILE, writeChanges } from "../src/index.js";
 import { handle } from "../src/mcp.js";
@@ -62,7 +63,9 @@ test("an unknown tool is an invalid-params error", async () => {
 test("`edityy mcp` speaks newline-delimited JSON-RPC on stdio", async () => {
   const root = tmp();
   await writeChanges({ markdown: "# Visual edits", changes: [{ selector: "p" }] }, root);
-  const child = spawn(process.execPath, [new URL("../src/cli.js", import.meta.url).pathname, "mcp", "--root", root]);
+  // fileURLToPath, not .pathname: on Windows a pathname is /C:/..., which does
+  // not exist as a file, so the child never starts and the test waits forever.
+  const child = spawn(process.execPath, [fileURLToPath(new URL("../src/cli.js", import.meta.url)), "mcp", "--root", root]);
   const answers = [];
   let buffer = "";
   const done = new Promise((resolve) => {
