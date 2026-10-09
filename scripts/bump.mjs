@@ -73,9 +73,9 @@ function main(bump) {
   };
 
   let lock = read("package-lock.json");
-  const entry = `"packages/edityy": {\n      "version": "${current}"`;
-  if (!lock.includes(entry)) throw new Error("package-lock.json has no packages/edityy entry at the current version.");
-  lock = lock.replace(entry, `"packages/edityy": {\n      "version": "${version}"`);
+  const entry = new RegExp(`("packages/edityy": \\{\\r?\\n\\s+"version": ")([^\"]+)(")`);
+  if (!entry.test(lock)) throw new Error("package-lock.json has no packages/edityy entry.");
+  lock = lock.replace(entry, `$1${version}$3`);
 
   // The site uses the workspace copy only while the root range covers it (#45).
   const rootPkg = JSON.parse(read("package.json"));

@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.1.7 — 2026-10-09
+
+### Added
+
+- Shift-click selects multiple elements. Shift+A wraps selected siblings in a
+  column flex container. The element action menu offers Edit text, Move, Parent,
+  Child and Delete. (#130)
+
 ## 0.1.6 — 2026-10-08
 
 ### Added

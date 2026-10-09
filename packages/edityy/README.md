@@ -190,7 +190,8 @@ The script is idempotent, so a page that renders the tag more than once still mo
 
 ### The editing mode
 
-- The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run.
+- The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run. Shift-click adds or removes elements from the selection.
+- Selecting an element opens a nearby action menu with **Edit text**, **Move**, **Parent**, **Child** and **Delete**. Text is not editable until you choose **Edit text**. Move previews a new position among its siblings. Delete is temporary and undoable when you leave edit mode.
 - Words are typed into where they stand (`contenteditable="plaintext-only"`, leaf text only, so no child element is lost).
 - The dock at the bottom changes the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour; a container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
 - The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over both. Nothing loads with the page:
@@ -199,7 +200,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
   - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
   - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
-- Keys: Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons.
+- Keys: Shift+A wraps selected siblings in a column flex container. Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons. Shift+Arrow does not extend the selection.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
 ## API
