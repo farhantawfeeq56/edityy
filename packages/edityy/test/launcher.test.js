@@ -643,6 +643,10 @@ test("Shift+A applies column auto layout to sibling selections and restores them
   assert.deepEqual(parent.children, [wrapper, gap]);
   assert.equal(app.root.selection().el, wrapper);
   assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  // The prompt says what to build and what goes in it, by the places in the code.
+  const prompt = app.win.__edityy_changes();
+  assert.match(prompt, /- Added: a new `div` with `display: flex; flex-direction: column;`/);
+  assert.match(prompt, /- Wraps: `main > div`, `main > p`/);
   quiet(() => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });

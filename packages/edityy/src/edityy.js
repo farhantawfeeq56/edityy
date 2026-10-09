@@ -1275,14 +1275,25 @@ function faces() {
     if (!canAutoLayout()) return;
     var parent = selectedItems[0].parentElement;
     var ordered = Array.prototype.filter.call(parent.children, function (el) { return selectedItems.indexOf(el) !== -1; });
-    var originalPositions = ordered.map(function (el) { return { el: el, before: el.nextSibling }; });
+    // Each element's place in the code is read before the wrapper goes round it:
+    // after, its selector runs through a div that is in no source file.
+    var originalPositions = ordered.map(function (el) {
+      var rec = record(el);
+      if (!rec.selector) {
+        rec.selector = selectorFor(el);
+        rec.source = sourceOf(el);
+      }
+      return { el: el, before: el.nextSibling, selector: rec.selector };
+    });
     var wrapper = document.createElement("div");
     wrapper.style.setProperty("display", "flex");
     wrapper.style.setProperty("flex-direction", "column");
     parent.insertBefore(wrapper, ordered[0]);
     ordered.forEach(function (el) { wrapper.appendChild(el); });
-    record(wrapper).created = true;
-    record(wrapper).wrapped = originalPositions;
+    var rec = record(wrapper);
+    rec.created = true;
+    rec.createdStyle = wrapper.style.cssText;
+    rec.wrapped = originalPositions;
     show("");
     select(wrapper, { el: wrapper, kind: "container" });
   }
@@ -2581,8 +2592,21 @@ function decorations() {
       : null;
     var moved = rec.location && (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
     return props.length || text || rec.created || rec.removed || moved
-      ? { props: props, text: text, created: rec.created, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+      ? { props: props, text: text, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
       : null;
+  }
+
+  /**
+   * What an agent needs to make an added element: its tag, the style it was
+   * made with (a later change to that style is listed as a property), and the
+   * elements it was put around.
+   */
+  function creation(rec) {
+    return {
+      tag: rec.el.tagName.toLowerCase(),
+      style: rec.createdStyle || "",
+      wraps: (rec.wrapped || []).map(function (item) { return item.selector; }),
+    };
   }
 
   /**
@@ -2652,6 +2676,7 @@ function decorations() {
         props: d.props,
         text: d.text,
         created: d.created,
+        added: d.added,
         removed: d.removed,
         moved: d.moved,
         movedTo: d.movedTo,
@@ -2683,7 +2708,12 @@ function decorations() {
       item.props.forEach(function (c) {
         out.push("- `" + c.prop + "`: `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
       });
-      if (item.created) out.push("- Added: a new " + item.rec.el.tagName.toLowerCase());
+      if (item.added) {
+        out.push("- Added: a new `" + item.added.tag + "`" + (item.added.style ? " with `" + item.added.style + "`" : ""));
+        if (item.added.wraps.length) {
+          out.push("- Wraps: " + item.added.wraps.map(function (selector) { return "`" + selector + "`"; }).join(", "));
+        }
+      }
       if (item.removed) out.push("- Removed: " + item.label);
       if (item.moved) out.push("- Moved to: `" + (item.movedTo || "a new position") + "`");
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
@@ -2778,7 +2808,7 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, created: item.created, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
     });
   }
 
@@ -3304,7 +3334,9 @@ function decorations() {
     if (addKind === "text") el.textContent = "Text";
     else el.style.setProperty("display", "flex");
     insertion.parent.insertBefore(el, insertion.before || null);
-    record(el).created = true;
+    var rec = record(el);
+    rec.created = true;
+    rec.createdStyle = el.style.cssText;
     var kindToSelect = addKind;
     addKind = null;
     insertion = null;
