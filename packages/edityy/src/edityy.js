@@ -1435,6 +1435,9 @@ function faces() {
 
     function pick(value, item) {
       current = value;
+      // The project does not load a Google font, so the report has to say which
+      // pick was one. A later pick of a page or system face clears the mark.
+      record(selected).googleFont = item.google ? item.label : null;
       set("font-family", value);
       if (item.google) fontMeta[item.label.toLowerCase()] = item;
       updateFamilyLabel();
@@ -2571,7 +2574,13 @@ function decorations() {
       var before = rec.set[prop] ? rec.props[prop] : "";
       var after = rec.el.style.getPropertyValue(prop);
       if (after === before) return;
-      props.push({ prop: prop, before: rec.was[prop] || before, after: after });
+      var entry = { prop: prop, before: rec.was[prop] || before, after: after };
+      // Only while the family is still the Google font that was picked: an undo
+      // or a later pick puts a different family there.
+      if (prop === "font-family" && rec.googleFont && faceName(after).toLowerCase() === rec.googleFont.toLowerCase()) {
+        entry.googleFont = rec.googleFont;
+      }
+      props.push(entry);
     });
     var text = rec.text !== null && rec.el.textContent !== rec.text
       ? { before: rec.text, after: rec.el.textContent }
@@ -2658,6 +2667,12 @@ function decorations() {
     return out;
   }
 
+  /** What an agent must do for a Google font, which the project does not load yet. */
+  function googleFontNote(family) {
+    return "`" + family + "` is a Google font that the project does not load. " +
+      "Add it to the project the way the project loads its fonts, then use it in `font-family`.";
+  }
+
   /** The same, as Markdown written for a coding agent to act on. */
   function markdown(items) {
     if (!items.length) return "";
@@ -2679,6 +2694,7 @@ function decorations() {
       }
       item.props.forEach(function (c) {
         out.push("- `" + c.prop + "`: `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
+        if (c.googleFont) out.push("- Font: " + googleFontNote(c.googleFont));
       });
       if (item.created) out.push("- Added: a new " + item.rec.el.tagName.toLowerCase());
       if (item.removed) out.push("- Removed: " + item.label);
@@ -2911,7 +2927,7 @@ function decorations() {
         if (!any && !text && !rec.created && !(rec.added && rec.added.length)) return;
         var location = rec.location;
         var moved = location && (rec.el.parentElement !== location.parent || rec.el.nextSibling !== location.before);
-        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [], moved: !!moved });
+        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [], moved: !!moved, googleFont: rec.googleFont || null });
       });
       store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
     } catch (e) {
@@ -2956,6 +2972,7 @@ function decorations() {
         el.textContent = edit.text.after;
       }
       if (edit.added && edit.added.length) rec.added = edit.added.slice();
+      if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
     });
     enter();
     tally(); // the count on the edits button, for the edits just put back
