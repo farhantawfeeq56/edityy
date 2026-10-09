@@ -134,9 +134,10 @@ function fakeDom() {
     insertBefore: (child, before) => {
       const at = node.children.indexOf(before);
       const was = child.parentElement;
-      if (was) was.children.splice(was.children.indexOf(child), 1);
+      const old = was ? was.children.indexOf(child) : -1;
+      if (was) was.children.splice(old, 1);
       child.parentElement = node;
-      node.children.splice(at === -1 ? node.children.length : at, 0, child);
+      node.children.splice(at === -1 ? node.children.length : at > old && was === node ? at - 1 : at, 0, child);
       created.push(child);
       return child;
     },
@@ -206,6 +207,13 @@ function fakeDom() {
       return root._html;
     },
     nodes: {},
+    children: [],
+    appendChild: (child) => {
+      child.parentElement = root;
+      root.children.push(child);
+      created.push(child);
+      return child;
+    },
     bubbles: {},
     // Every input the payload builds, keyed by the CSS property it drives.
     inputs: {},
@@ -314,13 +322,19 @@ function fakeDom() {
       host: appended[0],
       appended,
       launch: () => root.nodes.launch,
+      action: (name) => {
+        const button = root.nodes["element-menu"].children[1].children.find((item) => item.textContent === name);
+        assert.ok(button, `no element action "${name}"`);
+        for (const fn of button.bubbles.click.bubble) fn({});
+      },
       click: () => click([root.nodes.launch, appended[0], doc]),
       /** Click the page, not the shadow host. */
-      clickPage: (clientX = 1, clientY = 1) => {
+      clickPage: (clientX = 1, clientY = 1, shiftKey = false) => {
         const path = [hovered ?? doc, doc];
         const event = {
           clientX,
           clientY,
+          shiftKey,
           composedPath: () => path,
           preventDefault() {},
           stopPropagation() {},
@@ -579,6 +593,73 @@ test("a text element wins over the container around it", () => {
   assert.equal(app.root.selection().kind, "text");
 });
 
+test("shift-click adds and removes elements without a count, and Shift+Arrow does not extend selection", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const first = el("div");
+  const second = el("p", { text: "Second" });
+  quiet(() => {
+    app.click();
+    app.hover(first);
+    app.clickPage();
+    app.hover(second);
+    app.clickPage(1, 1, true);
+  });
+  assert.equal(app.root.nodes.dock.hidden, true);
+  assert.equal(app.root.nodes.row.hidden, true);
+  assert.equal(app.root.nodes.sel.hidden, false);
+  assert.equal(app.root.children.filter((node) => node.className === "frame" && !node.hidden).length, 1);
+  quiet(() => app.fire("keydown", { key: "ArrowRight", shiftKey: true }));
+  assert.equal(app.root.nodes.dock.hidden, true, "Shift+Arrow does not add to the selection");
+  quiet(() => app.clickPage(1, 1, true));
+  assert.equal(app.root.nodes.dock.hidden, false, "removing one element returns to single selection");
+  assert.equal(app.root.nodes.row.hidden, false);
+});
+
+test("Shift+A applies column auto layout to sibling selections and restores them on exit", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main");
+  const first = el("div");
+  const gap = el("aside");
+  const second = el("p", { text: "Second" });
+  parent.appendChild(first);
+  parent.appendChild(gap);
+  parent.appendChild(second);
+  quiet(() => {
+    app.click();
+    app.hover(first);
+    app.clickPage();
+    app.hover(second);
+    app.clickPage(1, 1, true);
+    app.fire("keydown", { key: "A", shiftKey: true, preventDefault() {}, stopPropagation() {} });
+  });
+  const wrapper = parent.children[0];
+  assert.equal(app.root.nodes.pop.hidden, true, "Shift+A runs the action without opening choices");
+  assert.equal(wrapper.tagName, "DIV");
+  assert.equal(wrapper.style.getPropertyValue("display"), "flex");
+  assert.equal(wrapper.style.getPropertyValue("flex-direction"), "column");
+  assert.deepEqual(wrapper.children, [first, second]);
+  assert.deepEqual(parent.children, [wrapper, gap]);
+  assert.equal(app.root.selection().el, wrapper);
+  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.deepEqual(parent.children, [first, gap, second], "exit restores the original element order");
+});
+
+test("Shift+A without a selection does not open an action menu", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.fire("keydown", { key: "A", shiftKey: true, preventDefault() {}, stopPropagation() {} });
+  });
+  assert.equal(app.root.nodes.pop.hidden, false, "the initial creation options remain available");
+});
+
 test("an element with no text is still selectable", () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -627,11 +708,12 @@ const kindOf = (app, node) => {
 
 /** Select some text and open the dock, as picking words does. Enters the mode
     first if it is not already in it, since some callers are already inside. */
-const selectText = (app) => {
+const selectText = (app, edit = false) => {
   if (!app.countDoc("click")) quiet(() => app.click());
   const p = app.el("p", { text: "hello" });
   app.hover(p);
   app.clickPage();
+  if (edit) app.action("Edit text");
   return p;
 };
 
@@ -855,7 +937,7 @@ test("inline-flex containers expose the wrap control", () => {
 test("one control opens at a time, under the dock, and Escape closes it", () => {
   const { run } = fakeDom();
   const app = run();
-  quiet(() => selectText(app));
+  selectText(app, true);
   const pop = app.root.nodes.pop;
   assert.equal(pop.hidden, true, "nothing is open to begin with");
   quiet(() => press(app, "spacing"));
@@ -871,8 +953,11 @@ test("one control opens at a time, under the dock, and Escape closes it", () => 
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(pop.hidden, true, "the control closes");
   assert.equal(app.root.nodes.dock.hidden, false, "but the dock stays");
+  app.action("Edit text");
   quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(app.root.nodes.dock.hidden, true, "and the next Escape leaves the mode");
+  assert.equal(app.root.nodes.dock.hidden, false, "Escape closes text editing");
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(app.root.nodes.dock.hidden, true, "the next Escape leaves the mode");
 });
 
 
@@ -1193,16 +1278,28 @@ test("deselecting reports no kind at all", () => {
   assert.equal(app.root.selection(), null);
 });
 
+test("selecting text shows actions without editing until Edit text is chosen", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app, false);
+  assert.equal(p.getAttribute("contenteditable"), undefined);
+  assert.equal(app.root.nodes["element-menu"].hidden, false);
+  assert.deepEqual(app.root.nodes["element-menu"].children[1].children.map((button) => button.textContent), ["Edit text", "Move", "Parent", "Child", "Delete"]);
+  app.action("Edit text");
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
+  assert.equal(app.root.nodes["element-menu"].hidden, true);
+});
+
 test("selecting text makes the words editable where they sit", () => {
   const { run } = fakeDom();
   const app = run();
-  const p = selectText(app);
+  const p = selectText(app, true);
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
   // plaintext-only, not true: pasting must not paste markup into the page.
   assert.notEqual(p.getAttribute("contenteditable"), "true");
 });
 
-test("selecting something else takes the caret off the old words", () => {
+test("selecting something else stops the active text edit", () => {
   const { run } = fakeDom();
   const app = run();
   const first = selectText(app);
@@ -1210,13 +1307,13 @@ test("selecting something else takes the caret off the old words", () => {
   app.hover(second);
   app.clickPage();
   assert.equal(first.getAttribute("contenteditable"), undefined, "the old element is handed back");
-  assert.equal(second.getAttribute("contenteditable"), "plaintext-only");
+  assert.equal(second.getAttribute("contenteditable"), undefined, "selection does not start text editing");
 });
 
 test("exiting the mode gives the words back to the page", () => {
   const { run } = fakeDom();
   const app = run();
-  const p = selectText(app);
+  const p = selectText(app, true);
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(p.getAttribute("contenteditable"), undefined);
 });
@@ -1233,7 +1330,34 @@ test("a container gets no caret, because its children are not text to rewrite", 
   assert.equal(card.getAttribute("contenteditable"), undefined);
 });
 
-test("an element with child elements takes no caret, because typing would take them", () => {
+test("element actions navigate, delete reversibly, and disable unavailable targets", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main");
+  const selected = el("section");
+  const sibling = el("aside");
+  const child = el("p", { text: "Child" });
+  parent.appendChild(selected);
+  parent.appendChild(sibling);
+  selected.appendChild(child);
+  quiet(() => {
+    app.click();
+    app.hover(selected);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes["element-menu"].children[1].children[2].disabled, false);
+  app.action("Child");
+  assert.equal(app.root.selection().el, child);
+  app.action("Parent");
+  assert.equal(app.root.selection().el, selected);
+  app.action("Delete");
+  assert.equal(parent.children.includes(selected), false);
+  assert.match(app.win.__edityy_changes(), /- Removed: section/);
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.deepEqual(parent.children, [selected, sibling], "exit restores the deleted element before its sibling");
+});
+
+test("an element with child elements disables Edit text, because typing would take them", () => {
   const { run, el } = fakeDom();
   const app = run();
   // A heading holding an <em>: text to the dock, but its words are not leaf text
@@ -1252,13 +1376,15 @@ test("an element with child elements takes no caret, because typing would take t
     app.clickPage();
   });
   assert.equal(app.root.selection().kind, "text", "still text, so the dock opens");
+  assert.equal(app.root.nodes["element-menu"].children[1].children[0].disabled, true);
   assert.equal(heading.getAttribute("contenteditable"), undefined, "but the words are not rewritten");
 });
 
 test("the words being edited get no second ring on top of Edityy's own frame", () => {
   const { run } = fakeDom();
   const app = run();
-  const p = selectText(app);
+  const p = selectText(app, true);
+  app.action("Edit text");
   // The browser draws a focus ring on any focused element. Edityy already draws
   // a selection frame, so the words ended up with two outlines, one of them not
   // ours. The frame is the ring.
@@ -1272,6 +1398,7 @@ test("an element's own inline outline survives being edited", () => {
   const p = app.el("p", { text: "hello", style: { outline: "2px solid red" } });
   app.hover(p);
   quiet(() => app.clickPage());
+  app.action("Edit text");
   assert.equal(p.style.getPropertyValue("outline"), "none", "no focus ring while editing");
   quiet(() => {
     app.fire("keydown", { key: "Escape" });
@@ -1300,6 +1427,7 @@ test("typing edits in place, where the caret was put", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
+  app.action("Edit text");
   // The payload must not rewrite textContent to make an element editable: that
   // destroys the text node and the browser drops the caret at the start, so
   // clicking the middle of a line always typed at the beginning.
@@ -1307,10 +1435,45 @@ test("typing edits in place, where the caret was put", () => {
   assert.equal(p.childNodes.length, 1, "and the node the caret sits in still exists");
 });
 
+test("moving a selected element uses the insertion indicator and restores its position on cancel", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main", { rect: { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 } });
+  const first = el("div", { rect: { left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30 } });
+  const second = el("p", { text: "Second", rect: { left: 0, top: 40, right: 100, bottom: 70, width: 100, height: 30 } });
+  const outer = el("section", { rect: { left: 220, top: 0, right: 420, bottom: 200, width: 200, height: 200 } });
+  const other = el("div", { rect: { left: 220, top: 0, right: 420, bottom: 200, width: 200, height: 200 } });
+  parent.appendChild(first);
+  parent.appendChild(second);
+  parent.appendChild(outer);
+  outer.appendChild(other);
+  quiet(() => {
+    app.click();
+    app.hover(first);
+    app.clickPage();
+  });
+  app.action("Move");
+  assert.equal(parent.children.includes(first), false, "the moving item leaves its old slot during placement");
+  assert.equal(app.root.nodes.dock.hidden, true, "the dock yields to the placement cursor");
+  app.hover(other);
+  app.move(300, 100);
+  assert.equal(app.root.nodes.insert.hidden, false);
+  app.clickPage(300, 100);
+  assert.deepEqual(parent.children, [second, outer]);
+  assert.deepEqual(other.children, [first], "move can reparent an element into another container");
+  assert.match(app.win.__edityy_changes(), /- Moved to: `/);
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.deepEqual(parent.children, [first, second, outer], "exit restores the original DOM position");
+  assert.deepEqual(other.children, [], "exit restores the original parent");
+});
+
 test("the selection frame follows the element as it grows and shrinks", () => {
   const { run } = fakeDom();
   const app = run();
-  const p = selectText(app);
+  const p = selectText(app, true);
   p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 60, width: 100, height: 40 });
   quiet(() => {
     press(app, "size");
@@ -1731,6 +1894,7 @@ test("every change is still undone on exit", () => {
     drag(pop(app), 0, 12);
   });
   assert.match(p.style.getPropertyValue("filter"), /blur\(12px\)/);
+  press(app, "+");
   quiet(() => app.fire("keydown", { key: "Escape" })); // the control
   quiet(() => app.fire("keydown", { key: "Escape" })); // then the mode
   assert.equal(p.style.getPropertyValue("filter"), "", "the page is back as it was");
@@ -1810,7 +1974,7 @@ test("the edits are copied as a prompt a coding agent can act on", async () => {
   const app = run();
   let copied = null;
   app.win.navigator = { clipboard: { writeText: async (v) => { copied = v; } } };
-  const p = selectText(app);
+  const p = selectText(app, true);
   p.computed = { "font-size": "16px" };
   p.getAttribute = (k) => (k === "data-edityy-src" ? "src/App.tsx:12:7" : undefined);
   setSize(app, 40);
@@ -1923,7 +2087,7 @@ test("a border's width and style are undone together", async () => {
 test("after typing, ⌘Z is the browser's text undo, not ours", async () => {
   const { run } = fakeDom();
   const app = run();
-  const p = selectText(app);
+  const p = selectText(app, true);
   setSize(app, 40);
   await tick();
   await new Promise((r) => setTimeout(r, 2));
@@ -1970,7 +2134,7 @@ test("edits survive a reload, and the mode comes back on", async () => {
   const first = fakeDom();
   first.win.sessionStorage = store;
   const app = first.run();
-  const p = selectText(app);
+  const p = selectText(app, true);
   p.id = "intro";
   setSize(app, 40);
   p.textContent = "hello again";
@@ -2086,6 +2250,7 @@ test("in words being typed into, a bare arrow moves the caret, not the selection
   quiet(() => app.click());
   app.hover(t.p);
   quiet(() => app.clickPage());
+  app.action("Edit text");
   assert.equal(arrow(app, "ArrowUp"), false);
   assert.equal(app.root.selection().el, t.p);
 });
@@ -2225,6 +2390,9 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   const body = JSON.parse(sent[0].init.body);
   assert.equal(body.changes.length, 1);
   assert.equal(body.changes[0].props[0].prop, "font-size");
+  assert.equal(body.changes[0].removed, false);
+  assert.equal(body.changes[0].moved, false);
+  assert.equal(body.changes[0].movedTo, null);
   assert.equal(body.changes[0].rec, undefined, "no live element on the wire");
   assert.match(body.markdown, /# Visual edits from Edityy/);
   assert.equal(save.textContent, "Saved to .edityy/changes.json");
