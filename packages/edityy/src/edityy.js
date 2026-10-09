@@ -723,7 +723,10 @@
   }
 
   function syncSelectionFrames() {
-    var count = selectedItems.length;
+    // The element being moved is off the page until it is placed, so it has no
+    // box to frame: measured, it is a dot in the top-left corner.
+    var items = moving ? [] : selectedItems;
+    var count = items.length;
     selBox.hidden = !count;
     for (var i = 1; i < count; i++) {
       if (!extraSelectionFrames[i - 1]) {
@@ -734,7 +737,7 @@
       }
     }
     extraSelectionFrames.forEach(function (frame, i) { frame.hidden = i + 1 >= count; });
-    selectedItems.forEach(function (el, i) {
+    items.forEach(function (el, i) {
       place(i === 0 ? selBox : extraSelectionFrames[i - 1], el.getBoundingClientRect());
     });
   }
@@ -2720,10 +2723,13 @@ function decorations() {
       line.className = "chg";
       var n = item.props.length + (item.text ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0);
       var name = button("opt", "", "Select " + item.label, function () {
+        // A deleted element is off the page: there is nothing to frame or edit.
+        if (item.removed) return;
         var el = item.rec.el;
         select(el, { el: el, kind: kind(el) });
         show("changes");
       }, "");
+      name.disabled = item.removed;
       name.appendChild(text(item.label + " · " + n + (n === 1 ? " edit" : " edits")));
       var undo = button("ic", svg('<path d="M4 7h7a4 4 0 0 1 0 8H8M7 4 4 7l3 3"/>'), "Revert " + item.label, function () {
         if (item.rec.el === editing) stopEditing();
