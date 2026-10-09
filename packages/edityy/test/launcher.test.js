@@ -643,6 +643,10 @@ test("Shift+A applies column auto layout to sibling selections and restores them
   assert.deepEqual(parent.children, [wrapper, gap]);
   assert.equal(app.root.selection().el, wrapper);
   assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  // The prompt says what to build and what goes in it, by the places in the code.
+  const prompt = app.win.__edityy_changes();
+  assert.match(prompt, /- Added: a new `div` with `display: flex; flex-direction: column;`/);
+  assert.match(prompt, /- Wraps: `main > div`, `main > p`/);
   quiet(() => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
@@ -1354,7 +1358,15 @@ test("element actions navigate, delete reversibly, and disable unavailable targe
   assert.equal(parent.children.includes(selected), false);
   assert.match(app.win.__edityy_changes(), /- Removed: section/);
   assert.equal(app.root.nodes.count.textContent, "1", "the edits button counts the delete");
-  quiet(() => app.fire("keydown", { key: "Escape" }));
+  // A deleted element is off the page, so its line in the edits list cannot select it.
+  const deleted = openEdits(app).children[0].children[0].children[0];
+  assert.equal(deleted.disabled, true);
+  quiet(() => { for (const fn of deleted.bubbles.click.bubble) fn({}); });
+  assert.equal(app.root.selection(), null);
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
   assert.deepEqual(parent.children, [selected, sibling], "exit restores the deleted element before its sibling");
 });
 
@@ -1456,6 +1468,7 @@ test("moving a selected element uses the insertion indicator and restores its po
   app.action("Move");
   assert.equal(parent.children.includes(first), false, "the moving item leaves its old slot during placement");
   assert.equal(app.root.nodes.dock.hidden, true, "the dock yields to the placement cursor");
+  assert.equal(app.root.nodes.sel.hidden, true, "the element in the air has no frame");
   app.hover(other);
   app.move(300, 100);
   assert.equal(app.root.nodes.insert.hidden, false);
