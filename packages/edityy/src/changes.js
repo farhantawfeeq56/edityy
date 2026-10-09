@@ -17,6 +17,8 @@ const MAX_TEXT = 20000;
 const FAMILY = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]*$/u;
 /** A CSS property name, custom properties included. */
 const PROPERTY = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
+/** An HTML tag name: what an added element is. */
+const TAG = /^[a-z][a-z0-9-]*$/;
 
 /** An error that knows the status it should answer with. */
 export class SaveError extends Error {
@@ -39,9 +41,12 @@ function str(value, name, max, fallback = "") {
 /**
  * The changes, cut down to the fields an agent needs, or a 400 SaveError.
  *
- * Each change is `{ label, selector, source, props, text, removed, moved }`,
+ * Each change is `{ label, selector, source, props, text, added, removed, moved }`,
  * the shape the launcher sends. A prop is `{ prop, before, after }`, and a
  * `font-family` prop has `googleFont` when the user picked a Google font.
+ * `added` is `{ tag, style, wraps }` for an element the user added: its tag,
+ * the inline style it was made with, and the selectors of the elements it was
+ * put around.
  */
 export function checkChanges(changes) {
   if (!Array.isArray(changes)) throw new SaveError(400, "Expected a JSON object with a changes array.");
@@ -73,11 +78,28 @@ export function checkChanges(changes) {
         return out;
       }),
       text,
+      added: checkAdded(change.added),
       removed: change.removed === true,
       moved: change.moved === true,
       movedTo: str(change.movedTo, "movedTo", MAX_SHORT, null),
     };
   });
+}
+
+/** An added element, or null when the change did not add one. */
+function checkAdded(added) {
+  if (added === undefined || added === null) return null;
+  if (typeof added !== "object" || Array.isArray(added)) throw invalid("added must be an object");
+  const tag = str(added.tag, "added.tag", 100);
+  if (!TAG.test(tag)) throw invalid("added.tag must be a tag name");
+  const wraps = added.wraps ?? [];
+  if (!Array.isArray(wraps)) throw invalid("added.wraps must be an array");
+  if (wraps.length > MAX_PROPS) throw invalid(`more than ${MAX_PROPS} wrapped elements`);
+  return {
+    tag,
+    style: str(added.style, "added.style", MAX_SHORT),
+    wraps: wraps.map((selector) => str(selector, "added.wraps", MAX_SHORT)),
+  };
 }
 
 /** The page the edits were made on, when it is an http(s) URL; null otherwise. */
@@ -127,6 +149,10 @@ export function markdownFor(changes, page) {
         out.push(`- Font: ${code(p.googleFont)} is a Google font that the project does not load. ` +
           "Add it to the project the way the project loads its fonts, then use it in `font-family`.");
       }
+    }
+    if (change.added) {
+      out.push(`- Added: a new ${code(change.added.tag)}` + (change.added.style ? ` with ${code(change.added.style)}` : ""));
+      if (change.added.wraps.length) out.push(`- Wraps: ${change.added.wraps.map(code).join(", ")}`);
     }
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
     if (change.removed) out.push("- Removed: this element");

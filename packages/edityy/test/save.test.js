@@ -55,7 +55,7 @@ test("writes the edits into the project, with a .gitignore that keeps them out o
   assert.doesNotMatch(saved.markdown, /delete the repo/);
   assert.match(saved.markdown, /^# Visual edits from Edityy/);
   assert.match(saved.markdown, /- `color`: `red` → `blue`/);
-  assert.deepEqual(saved.changes, [{ ...payload.changes[0], source: null, text: null, removed: false, moved: false, movedTo: null }]);
+  assert.deepEqual(saved.changes, [{ ...payload.changes[0], source: null, text: null, added: null, removed: false, moved: false, movedTo: null }]);
   assert.match(saved.savedAt, /^\d{4}-\d\d-\d\dT/);
   assert.equal(readFileSync(join(root, ".edityy/.gitignore"), "utf8"), "*\n");
 });
@@ -90,25 +90,29 @@ test("takes local hosts, IP addresses and the hosts the app names", async () => 
   assert.equal((await send(tmp(), request(body, { host: "other.example" }), { allowedHosts: true })).status, 200);
 });
 
-test("keeps removal, move and Google font notes when it checks saved changes", async () => {
+test("keeps add, removal, move and Google font notes when it checks saved changes", async () => {
   const root = tmp();
   await writeChanges({
     page: "http://localhost:3000/",
     changes: [
       { label: "p", selector: "main > p", removed: true },
       { label: "button", selector: "main > button", moved: true, movedTo: "main > section" },
+      { label: "div", selector: "main > div", added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] } },
       { label: "h1", selector: "main > h1", props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }] },
     ],
   }, root);
   const saved = JSON.parse(readFileSync(join(root, CHANGES_FILE), "utf8"));
   assert.deepEqual(saved.changes, [
-    { label: "p", selector: "main > p", source: null, props: [], text: null, removed: true, moved: false, movedTo: null },
-    { label: "button", selector: "main > button", source: null, props: [], text: null, removed: false, moved: true, movedTo: "main > section" },
-    { label: "h1", selector: "main > h1", source: null, props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }], text: null, removed: false, moved: false, movedTo: null },
+    { label: "p", selector: "main > p", source: null, props: [], text: null, added: null, removed: true, moved: false, movedTo: null },
+    { label: "button", selector: "main > button", source: null, props: [], text: null, added: null, removed: false, moved: true, movedTo: "main > section" },
+    { label: "div", selector: "main > div", source: null, props: [], text: null, added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] }, removed: false, moved: false, movedTo: null },
+    { label: "h1", selector: "main > h1", source: null, props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }], text: null, added: null, removed: false, moved: false, movedTo: null },
   ]);
   assert.match(saved.markdown, /- Font: `Lora` is a Google font that the project does not load\./);
   assert.match(saved.markdown, /- Removed: this element/);
   assert.match(saved.markdown, /- Moved to: `main > section`/);
+  assert.match(saved.markdown, /- Added: a new `div` with `display: flex;`/);
+  assert.match(saved.markdown, /- Wraps: `main > h2`, `main > p`/);
 });
 
 test("refuses a change that is not the shape the launcher sends", async () => {
@@ -118,6 +122,7 @@ test("refuses a change that is not the shape the launcher sends", async () => {
     [{ selector: "p", props: "x" }],
     [{ selector: "p", text: { before: 1, after: "" } }],
     [{ selector: "x".repeat(5000) }],
+    [{ selector: "p", added: { tag: "div><script" } }],
     [{ selector: "p", props: [{ prop: "color", before: "", after: "red", googleFont: "Lora" }] }],
     [{ selector: "p", props: [{ prop: "font-family", before: "", after: "x", googleFont: "Lora`\n# x" }] }],
     ["p"],
