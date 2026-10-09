@@ -803,11 +803,16 @@
     if (!selected || !selected.parentElement) return;
     var el = selected;
     var rec = record(el);
-    rec.selector = selectorFor(el);
-    rec.source = sourceOf(el);
+    // Where the element was when the page loaded, which is where the code puts
+    // it: a delete after a move must not name the moved place.
+    if (!rec.selector) {
+      rec.selector = selectorFor(el);
+      rec.source = sourceOf(el);
+    }
     rec.removed = { parent: el.parentElement, before: el.nextSibling };
     el.parentElement.removeChild(el);
     select(null);
+    tally();
   }
 
   function extendSelection(el) {
@@ -1296,6 +1301,7 @@ function faces() {
     rec.wrapped = originalPositions;
     show("");
     select(wrapper, { el: wrapper, kind: "container" });
+    tally();
   }
 
   function startMove() {
@@ -1303,8 +1309,10 @@ function faces() {
     moving = selected;
     var rec = record(moving);
     if (!rec.location) rec.location = { parent: moving.parentElement, before: moving.nextSibling };
-    rec.selector = selectorFor(moving);
-    rec.source = sourceOf(moving);
+    if (!rec.selector) {
+      rec.selector = selectorFor(moving);
+      rec.source = sourceOf(moving);
+    }
     moving.parentElement.removeChild(moving);
     syncSelectionFrames();
     startInsertion("move");
@@ -2590,7 +2598,12 @@ function decorations() {
     var text = rec.text !== null && rec.el.textContent !== rec.text
       ? { before: rec.text, after: rec.el.textContent }
       : null;
-    var moved = rec.location && (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
+    // An element added and then deleted in this session leaves nothing to report.
+    if (rec.created && rec.removed) return null;
+    // Not moved while it is still in the air, nor once it is deleted: "Removed"
+    // already says where it went.
+    var moved = rec.location && rec.el !== moving && !rec.removed &&
+      (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
     return props.length || text || rec.created || rec.removed || moved
       ? { props: props, text: text, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
       : null;
@@ -3194,44 +3207,12 @@ function decorations() {
         ? Array.prototype.filter.call(target.children, function (child) { return child !== host; })
         : [];
       if (children.length) parent = target;
-      var parentStyle = window.getComputedStyle(parent);
-      var horizontal = /^(TABLE|TBODY|THEAD|TFOOT|TR|UL|OL|DL)$/.test(parent.tagName) ||
-        (/^(flex|inline-flex)$/.test(parentStyle.display) && parentStyle.flexDirection.indexOf("row") === 0);
-      var coordinate = horizontal ? x : y;
-      var beforeNode = null;
-      var boundary = null;
       var siblings = children.length ? children : [target];
-      for (var i = 0; i < siblings.length; i++) {
-        var rect = siblings[i].getBoundingClientRect();
-        var start = horizontal ? rect.left : rect.top;
-        var end = horizontal ? rect.right : rect.bottom;
-        var midpoint = (start + end) / 2;
-        if (coordinate < midpoint) {
-          beforeNode = siblings[i];
-          if (i === 0) boundary = start;
-          else {
-            var previous = siblings[i - 1].getBoundingClientRect();
-            boundary = ((horizontal ? previous.right : previous.bottom) + start) / 2;
-          }
-          break;
-        }
-        boundary = end;
-      }
+      var spot = spotAmong(siblings, x, y, parent);
+      var beforeNode = spot.before;
       if (!children.length && beforeNode === null && siblings[0].nextSibling) beforeNode = siblings[0].nextSibling;
-      if (!siblings.length) boundary = coordinate;
-      var parentRect = parent.getBoundingClientRect();
       insertion = { parent: parent, before: beforeNode };
-      insertLine.style.left = parentRect.left + "px";
-      insertLine.style.width = parentRect.width + "px";
-      if (horizontal) {
-        insertLine.style.left = boundary + "px";
-        insertLine.style.top = parentRect.top + "px";
-        insertLine.style.width = "2px";
-        insertLine.style.height = parentRect.height + "px";
-      } else {
-        insertLine.style.top = boundary + "px";
-        insertLine.style.height = "2px";
-      }
+      drawLine(spot.line);
     } else {
       var body = document.body || document.documentElement;
       var pageTarget = body;
@@ -3279,40 +3260,88 @@ function decorations() {
       ? Array.prototype.filter.call(target.children || [], function (el) { return el !== moving; })
       : [];
     var parent = hit.kind === "container" ? target : target.parentElement;
-    var style = window.getComputedStyle(parent);
-    var horizontal = /^(TABLE|TBODY|THEAD|TFOOT|TR|UL|OL|DL)$/.test(parent.tagName) ||
-      (/^(flex|inline-flex)$/.test(style.display) && style.flexDirection.indexOf("row") === 0);
-    var coordinate = horizontal ? x : y;
     var siblings = children.length || hit.kind === "container"
       ? children
       : Array.prototype.filter.call(parent.children, function (el) { return el !== moving; });
+    var spot = spotAmong(siblings, x, y, parent);
+    insertion = { parent: parent, before: spot.before };
+    drawLine(spot.line);
+  }
+
+  /**
+   * The sibling the pointer is in front of, and the line that shows the gap.
+   *
+   * A row reads the pointer's x and a column reads its y. A grid or a wrapping
+   * flex row is both: the pointer picks a row first, then a side in that row.
+   * Reading y alone put every drop in a grid in front of the first item of a
+   * row, so the second and third places in the row could not be reached.
+   */
+  function spotAmong(siblings, x, y, parent) {
+    var style = window.getComputedStyle(parent);
+    var display = style.getPropertyValue("display");
+    var horizontal = /^(TABLE|TBODY|THEAD|TFOOT|TR|UL|OL|DL)$/.test(parent.tagName) ||
+      (/^(flex|inline-flex)$/.test(display) && style.getPropertyValue("flex-direction").indexOf("row") === 0);
+    var wraps = /^(grid|inline-grid)$/.test(display) ||
+      (horizontal && /^wrap/.test(style.getPropertyValue("flex-wrap")));
+    var bounds = parent.getBoundingClientRect();
+    var rects = siblings.map(function (el) { return el.getBoundingClientRect(); });
+    if (wraps && rects.length) return spotInRows(siblings, rects, x, y);
+    var coordinate = horizontal ? x : y;
     var before = null;
-    var boundary = null;
-    for (var i = 0; i < siblings.length; i++) {
-      var rect = siblings[i].getBoundingClientRect();
-      var start = horizontal ? rect.left : rect.top;
-      var end = horizontal ? rect.right : rect.bottom;
+    var boundary = rects.length ? null : coordinate;
+    for (var i = 0; i < rects.length; i++) {
+      var start = horizontal ? rects[i].left : rects[i].top;
+      var end = horizontal ? rects[i].right : rects[i].bottom;
       if (coordinate < (start + end) / 2) {
         before = siblings[i];
-        boundary = start;
+        boundary = i === 0 ? start : ((horizontal ? rects[i - 1].right : rects[i - 1].bottom) + start) / 2;
         break;
       }
       boundary = end;
     }
-    var bounds = parent.getBoundingClientRect();
-    if (!siblings.length) boundary = horizontal ? x : y;
-    insertion = { parent: parent, before: before };
-    if (horizontal) {
-      insertLine.style.left = (boundary === null ? bounds.right : boundary) + "px";
-      insertLine.style.top = bounds.top + "px";
-      insertLine.style.width = "2px";
-      insertLine.style.height = bounds.height + "px";
-    } else {
-      insertLine.style.left = bounds.left + "px";
-      insertLine.style.top = (boundary === null ? bounds.bottom : boundary) + "px";
-      insertLine.style.width = bounds.width + "px";
-      insertLine.style.height = "2px";
+    return {
+      before: before,
+      line: horizontal
+        ? { left: boundary, top: bounds.top, width: 2, height: bounds.height }
+        : { left: bounds.left, top: boundary, width: bounds.width, height: 2 },
+    };
+  }
+
+  /** The same, for siblings laid out in rows that wrap. */
+  function spotInRows(siblings, rects, x, y) {
+    // Siblings that share a row with this one: their boxes overlap top to bottom.
+    var sharesRow = function (i) {
+      return rects.some(function (r, j) { return j !== i && r.top < rects[i].bottom && r.bottom > rects[i].top; });
+    };
+    var beside = function (r, left) { return { left: left, top: r.top, width: 2, height: r.height }; };
+    var above = function (r) { return { left: r.left, top: r.top, width: r.width, height: 2 }; };
+    for (var i = 0; i < rects.length; i++) {
+      var r = rects[i];
+      var prev = i ? rects[i - 1] : null;
+      // The pointer is above this row, so the gap is at the end of the row before.
+      if (y < r.top) {
+        var endOfRow = prev && y >= prev.top;
+        return { before: siblings[i], line: endOfRow ? beside(prev, prev.right) : above(r) };
+      }
+      if (y > r.bottom) continue;
+      var row = sharesRow(i);
+      if (row ? x < (r.left + r.right) / 2 : y < (r.top + r.bottom) / 2) {
+        var left = prev && prev.top < r.bottom && prev.bottom > r.top ? (prev.right + r.left) / 2 : r.left;
+        return { before: siblings[i], line: row ? beside(r, left) : above(r) };
+      }
     }
+    var last = rects[rects.length - 1];
+    return {
+      before: null,
+      line: sharesRow(rects.length - 1) ? beside(last, last.right) : { left: last.left, top: last.bottom, width: last.width, height: 2 },
+    };
+  }
+
+  function drawLine(line) {
+    insertLine.style.left = line.left + "px";
+    insertLine.style.top = line.top + "px";
+    insertLine.style.width = line.width + "px";
+    insertLine.style.height = line.height + "px";
     insertLine.hidden = false;
   }
 
@@ -3328,6 +3357,7 @@ function decorations() {
       syncSelectionFrames();
       syncElementMenu();
       syncDock();
+      tally();
       return;
     }
     var el = document.createElement(addKind === "text" ? "p" : "div");
