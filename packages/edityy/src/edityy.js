@@ -13,10 +13,12 @@
  *    previews an insertion point; clicking inserts and selects the new element.
  *    Otherwise, hovering outlines an element; clicking selects it and opens its actions.
  *
- * Selecting an element opens an action menu and a dock. Text becomes editable
- * only after the user chooses Edit text; the dock changes styles and starts with
- * Text and Container options. A selected element also has type controls and a
- * `+` to add controls — shadow, blur, brightness, greyscale or contrast.
+ * Selecting an element opens one surface at the element: the element's own
+ * actions on top, and the style controls under them. Text becomes editable
+ * only after the user chooses Edit text; the control row changes styles and
+ * starts with Text and Container options. A selected element also has type
+ * controls and a `+` to add controls — shadow, blur, brightness, greyscale or
+ * contrast.
  *
  * Every edit is an inline style: apply() writes it, remembers what was there,
  * and revert() puts it back on exit. The edits list hands them on — copied as a
@@ -63,59 +65,23 @@
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
-    "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
-    // The text dock: seven icons in a row and, above them, the one control that is
-    // open. Fixed, so it holds still while the page scrolls under it, and below
-    // the pointer's z-index so the dot is never hidden behind it.
-    "#dock{position:fixed;left:50%;bottom:24px;z-index:3;pointer-events:auto;",
-    "display:flex;flex-direction:column;align-items:center;gap:8px;transform:translateX(-50%);",
-    "transition:left .2s ease,top .2s ease,right .2s ease,bottom .2s ease,transform .2s ease;",
-    "animation:dockIn .26s cubic-bezier(.2,.9,.25,1)}",
-    "@keyframes dockIn{from{opacity:0;transform:translateX(-50%) translateY(14px) scale(.96)}",
-    "to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}",
-    // vartest: the interaction variants. Only #dock moves; the row, the control
-    // and the bar go with it. Delete this block with the switcher below.
-    "#switcher{position:fixed;right:24px;bottom:92px;z-index:6;pointer-events:auto;display:flex;gap:2px;",
-    "padding:4px;background:#3a283c;border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    "#switcher button{width:24px;height:24px;border:0;border-radius:8px;background:transparent;color:#f9f2ee;",
-    "font:600 11px/1 inherit;cursor:pointer}",
-    "#switcher button[aria-pressed=true]{background:#f9f2ee;color:#3a283c}",
-    // 2: the same dock, on the right edge, centred.
-    "#dock[data-variant=right]{left:auto;right:24px;bottom:auto;top:50%;transform:translateY(-50%)}",
-    // 3: a full-height rail on the left at a fixed width; the control still
-    // floats beside it in a panel of its own.
-    "#dock[data-variant=sidebar],#dock[data-variant=allside]{left:0;right:auto;top:0;bottom:0;transform:none;",
-    "align-items:stretch;justify-content:flex-start;gap:0;animation:none;pointer-events:none}",
-    "#dock[data-variant=sidebar] .bar,#dock[data-variant=allside] .bar{flex-direction:column;align-items:stretch;",
-    "flex:1;min-height:0;width:280px;gap:8px;padding:12px;background:#f9f2ee;border-right:1px solid #3a283c1a;pointer-events:auto}",
-    "#dock[data-variant=sidebar] .row,#dock[data-variant=allside] .row{flex-direction:column;align-items:stretch;overflow-y:auto}",
-    "#dock[data-variant=allside] .row{flex:1}",
-    "#dock[data-variant=sidebar] .pop{position:absolute;left:288px;top:12px;pointer-events:auto}",
-    // 4: everything, the control included, lives in the rail.
-    "#dock[data-variant=allside] .pop{position:static;max-inline-size:256px;pointer-events:auto}",
-    // 5: no dock at all. The pop alone is placed at the element, and the menu
-    // that the click already opens carries the rest.
-    "#dock[data-variant=context]{left:0;top:0;transform:none;align-items:flex-start;animation:none}",
-    "#dock[data-variant=context] .bar{display:none}",
-    "#dock[data-variant=context] .pop{position:absolute;max-inline-size:280px;pointer-events:auto}",
-    // 6: a command bar pinned to the bottom edge. The icons go on a grid and
-    // the open control is a panel above the bar.
-    "#dock[data-variant=bottom]{left:50%;bottom:24px;transform:translateX(-50%)}",
-    "#dock[data-variant=bottom] .row{display:grid;grid-template-columns:repeat(6,34px);gap:4px;padding:8px}",
-    // 7: the same bar, pinned to the top edge, with the control under it rather
-    // than over it — there is viewport below, there is none above.
-    "#dock[data-variant=topbar]{left:50%;top:24px;bottom:auto;transform:translateX(-50%)}",
-    "#dock[data-variant=topbar] .row{display:grid;grid-template-columns:repeat(6,34px);gap:4px;padding:8px}",
-    "#dock[data-variant=topbar] #pop{order:2}",
-    // 8: the baseline dock pinned to the top edge.
-    "#dock[data-variant=top]{left:50%;top:24px;bottom:auto;transform:translateX(-50%)}",
-    // 9: a right sidebar, with its control floating beside the rail.
-    "#dock[data-variant=rightside]{left:auto;right:0;top:0;bottom:0;transform:none;align-items:stretch;justify-content:flex-start;gap:0;animation:none;pointer-events:none}",
-    "#dock[data-variant=rightside] .bar{flex-direction:column;align-items:stretch;flex:1;min-height:0;width:280px;gap:8px;padding:12px;background:#f9f2ee;border-left:1px solid #3a283c1a;pointer-events:auto}",
-    "#dock[data-variant=rightside] .row{flex-direction:column;align-items:stretch;overflow-y:auto}",
-    "#dock[data-variant=rightside] .pop{position:absolute;right:288px;top:12px;pointer-events:auto}",
-    // 10: a compact dock follows the selected element.
-    "#dock[data-variant=floating]{left:0;top:0;bottom:auto;transform:none}",
+    "[hidden]{display:none!important}", // also for #dock, whose display:grid would beat it
+    // The dock and the menu are one surface at the element: the menu leads, the
+    // dock sits under it, and the open control goes under the dock. A grid,
+    // because the dock can also sit beside the menu when the page leaves no
+    // room under the element — placeContextSurface picks the shape with
+    // data-layout. Fixed, so the surface follows the element, and below the
+    // pointer's z-index so the dot is never hidden behind it.
+    "#dock{position:fixed;left:0;top:0;z-index:3;pointer-events:auto;",
+    "display:grid;grid-template-columns:auto;grid-template-areas:\"menu\" \"bar\" \"pop\";",
+    "align-items:start;justify-items:start;",
+    "transition:left .2s ease,top .2s ease,right .2s ease,bottom .2s ease,transform .2s ease}",
+    // The dock beside the menu: right when the element has room on that side,
+    // left when it has none. The open control still comes below the pair.
+    "#dock[data-layout=side]{grid-template-columns:auto auto;",
+    "grid-template-areas:\"menu bar\" \"pop pop\"}",
+    "#dock[data-layout=left]{grid-template-columns:auto auto;",
+    "grid-template-areas:\"bar menu\" \"pop pop\"}",
     ".row{display:flex;gap:2px;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     // Icons: hairline strokes on the ramp, filled when their control is open, so
@@ -177,11 +143,10 @@
     ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
-    // with dead paper either side of the icons.
-    ".pop{padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
-    // Above the dock, not under it: the dock never moves, but the page does, and
-    // a control that opens downward gets swallowed by the viewport.
-    "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;",
+    // with dead paper either side of the icons. The pop is the surface's last
+    // row, so an open control lands under the dock rather than over it, and the
+    // surface is placed with that height: placeContextSurface keeps it in view.
+    ".pop{grid-area:pop;max-inline-size:420px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "animation:popIn .16s ease-out}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
@@ -266,7 +231,11 @@
     // without turning the box into a lozenge.
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
+    // The menu is the dock's first row now, not a fixed card of its own: a
+    // position of its own would pin it inside a surface that moves as one. The
+    // margin is the gap to the dock below, and a hidden menu takes its margin
+    // with it, so the rows never leave dead space behind.
+    ".element-menu{position:static;grid-area:menu;margin-bottom:8px;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
     ".element-menu-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;font-weight:500}",
     ".element-menu-tag{padding:3px 6px;border-radius:5px;background:#d79eac;color:#3a283c;font-size:10px;font-weight:600;text-transform:uppercase}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
@@ -278,24 +247,16 @@
     ".insert:after{content:'+';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;color:#f9f2ee;",
     "font:600 16px/18px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #86546b}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}#dock,.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
     ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
     ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
-    ".bar{display:flex;align-items:center;gap:6px}",
-    // The label in a command-bar button, and the ADD list inside the open `+`
-    // control: both are hidden wherever the layout already reads as a row.
+    ".bar{grid-area:bar;margin-bottom:8px;display:flex;align-items:center;gap:6px}",
+    // Every button carries its label as text and as a title; the row reads as
+    // icons, so the text stays hidden and the title does the talking.
     ".lbl{display:none}",
-    "#dock[data-variant=bottom] .lbl,#dock[data-variant=topbar] .lbl,#dock[data-variant=allside] .lbl{display:block;font:500 11px/1.2 inherit}",
-    "#dock[data-variant=bottom] .ic,#dock[data-variant=topbar] .ic{padding:0 8px !important;text-align:center}",
-    "#dock[data-variant=bottom] .ic.family-name,#dock[data-variant=topbar] .ic.family-name{width:auto;max-width:96px}",
-    "#dock[data-variant=bottom] .size-control,#dock[data-variant=topbar] .size-control{width:auto;max-width:104px}",
-    "#dock[data-variant=allside] .ic{display:flex;align-items:center;gap:8px;justify-content:flex-start;width:100%}",
-    ".vsw{width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:#f9f2ee;",
-    "font:600 11px/22px inherit;cursor:pointer;padding:0}",
-    ".vsw[aria-pressed=true]{background:#f9f2ee;color:#3a283c}",
     ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     ".ic.solo[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
@@ -314,8 +275,6 @@
     ".cta.ghost:hover{background:#3a283c0f}",
     ".cta.ghost:disabled{background:transparent}",
     "</style>",
-    // vartest: the floating switcher. Keys 1..8 pick the same variants.
-    '<div id="switcher" role="group" aria-label="Interaction variant"></div>',
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
     '<div class="frame" id="sel" hidden></div>',
@@ -323,7 +282,7 @@
     '<div class="insert" id="insert" hidden></div>',
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
-    '<div class="bar">',
+    '<div class="bar" id="bar">',
     '<div class="row" id="row" role="toolbar" aria-label="Edit controls" aria-orientation="horizontal"></div>',
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
@@ -356,7 +315,7 @@
   var elementMenu = $("element-menu");
   var insertLine = $("insert");
   var dock = $("dock");
-  var switcher = $("switcher");
+  var bar = $("bar");
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
@@ -811,7 +770,9 @@
   }
 
   function syncElementMenu() {
-    if (!active || !selected || selectedItems.length !== 1 || addKind || (!contextMenu && editing)) {
+    // No `editing` check: the surface stays at the element while its words
+    // are being typed into, the same way the dock does.
+    if (!active || !selected || selectedItems.length !== 1 || addKind) {
       elementMenu.hidden = true;
       return;
     }
@@ -826,24 +787,6 @@
     elementMenu.appendChild(heading);
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
-    // vartest: with no dock, the menu carries the controls as well as the
-    // actions. Every other variant leaves it exactly as it was.
-    if (contextMenu) {
-      contextMenuItems().forEach(function (item) {
-        actions.appendChild(actionButton(item.label, function () {
-          if (item.v === "edit") {
-            editText(selected);
-            elementMenu.hidden = true;
-            return;
-          }
-          show(item.v);
-        }));
-      });
-      elementMenu.appendChild(actions);
-      elementMenu.hidden = false;
-      placeElementMenu(280, actions.children.length * 30 + 40);
-      return;
-    }
     var edit = actionButton("Edit text", function () {
       if (selectedKind === "text") editText(selected);
       elementMenu.hidden = true;
@@ -866,16 +809,9 @@
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, "delete"));
     elementMenu.appendChild(actions);
     elementMenu.hidden = false;
-    placeElementMenu(elementMenu.offsetWidth || 280, elementMenu.offsetHeight || 92);
-  }
-
-  /** Put the menu just under the element, or above it when it would not fit. */
-  function placeElementMenu(width, height) {
-    var rect = selected.getBoundingClientRect();
-    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var top = rect.bottom + height + 12 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
-    elementMenu.style.left = left + "px";
-    elementMenu.style.top = Math.max(12, top) + "px";
+    // The menu is a row of the surface: the dock's placement moves the whole of
+    // it, so the menu carries no coordinates of its own.
+    placeContextSurface();
   }
 
   function deleteSelected() {
@@ -1441,6 +1377,9 @@ function faces() {
     create.setAttribute("aria-expanded", key === "create" ? "true" : "false");
     if (!key) {
       pop.hidden = true;
+      // The surface shrinks with the control gone, and the dock carries the
+      // whole of it, so the surface is placed again with the pop closed.
+      placeContextSurface();
       return;
     }
     pop.hidden = false;
@@ -1451,26 +1390,76 @@ function faces() {
     else if (key === "create") creationOptions();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
-    if (key && contextMenu) placeAtElement();
+    placeContextSurface();
   }
 
-  /** In the dock-less variant the open control is placed at the element itself. */
-  function placeAtElement() {
-    if (pop.hidden) return;
-    // Nothing selected yet: the create list is all there is, and the middle of
-    // the bottom edge is where a menu with nothing to point at belongs.
+  /**
+   * Put the merged surface at the element: the menu on top, the dock under it,
+   * and the open control under the dock.
+   *
+   * The dock sits under the menu whenever the whole stack fits under the
+   * element. When it does not, the dock moves beside the menu — to the right
+   * when the element has room there, to the left when it has none — and the
+   * control still opens below the pair. With nothing selected there is no
+   * element to point at, and the surface goes where the dock always goes.
+   */
+  function placeContextSurface() {
+    if (dock.hidden || addKind) return;
     if (!selected) {
-      pop.style.left = Math.max(12, (window.innerWidth - (pop.offsetWidth || 280)) / 2) + "px";
-      pop.style.top = Math.max(12, window.innerHeight - (pop.offsetHeight || 120) - 24) + "px";
+      dock.dataset.layout = "stack";
+      dock.style.left = "50%";
+      dock.style.top = "auto";
+      dock.style.bottom = "24px";
+      dock.style.transform = "translateX(-50%)";
       return;
     }
+    var gap = 8;
+    var pad = 12;
+    var menuH = elementMenu.hidden ? 0 : elementMenu.offsetHeight || 0;
+    var barH = bar.offsetHeight || 0;
+    var popH = pop.hidden ? 0 : pop.offsetHeight || 0;
+    var menuW = elementMenu.hidden ? 0 : elementMenu.offsetWidth || 0;
+    var barW = bar.offsetWidth || 0;
+    var popW = pop.hidden ? 0 : pop.offsetWidth || 0;
+    var rows = (menuH ? 1 : 0) + (barH ? 1 : 0) + (popH ? 1 : 0);
+    var stackH = menuH + barH + popH + gap * Math.max(0, rows - 1);
+    var stackW = Math.max(menuW, barW, popW);
+    var sideH = Math.max(menuH, barH) + (popH ? gap + popH : 0);
+    var sideW = Math.max(menuW + gap + barW, popW);
+    var vh = window.innerHeight;
+    var vw = window.innerWidth;
     var rect = selected.getBoundingClientRect();
-    var width = pop.offsetWidth || 280;
-    var height = pop.offsetHeight || 120;
-    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var below = rect.bottom + 8 + height <= window.innerHeight;
-    pop.style.left = left + "px";
-    pop.style.top = (below ? rect.bottom + 8 : Math.max(12, rect.top - height - 8)) + "px";
+    // Under the element when the surface fits, over it when it does not, and
+    // clamped to whichever edge the page leaves at last.
+    var top = function (h) {
+      var below = rect.bottom + gap;
+      if (below + h <= vh - pad) return below;
+      var above = rect.top - h - gap;
+      return above >= pad ? above : Math.max(pad, Math.min(below, vh - h - pad));
+    };
+    var left = Math.max(pad, Math.min(rect.left, vw - stackW - pad));
+    var layout = "stack";
+    var height = stackH;
+    var width = stackW;
+    // Only when the stack does not fit under the element does the dock look for
+    // room beside the menu.
+    if (rect.bottom + gap + stackH > vh - pad
+      && rect.bottom + gap + sideH <= vh - pad
+      && sideW <= vw - 2 * pad) {
+      height = sideH;
+      width = sideW;
+      if (rect.left + sideW + pad <= vw) layout = "side";
+      else if (rect.left - gap - barW >= pad) {
+        layout = "left";
+        // The menu keeps its place at the element: the dock hangs off its left.
+        left = Math.max(pad, Math.min(rect.left - gap - barW, vw - sideW - pad));
+      }
+    }
+    dock.dataset.layout = layout;
+    dock.style.left = left + "px";
+    dock.style.top = top(height) + "px";
+    dock.style.bottom = "auto";
+    dock.style.transform = "none";
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
@@ -2677,111 +2666,14 @@ function decorations() {
     }
   }
 
-  /* -------------------------------------------------- vartest: variants */
+  /* ------------------------------------------------------------- one surface */
 
-  // The interaction designs under test, after an element is clicked. Each one is
-  // a placement for the same #dock, so nothing below this line is thrown away.
-  // `menu` is the one thing the dock-less variant needs: the element actions,
-  // drawn at the element instead of in a dock.
-  var VARIANTS = [
-    { name: "dock", note: "Dock at the bottom" },
-    { name: "right", note: "Dock at the right edge" },
-    { name: "sidebar", note: "Sidebar; the control floats beside it" },
-    { name: "allside", note: "Everything in the sidebar" },
-    { name: "context", note: "Contextual menu at the element, no dock" },
-    { name: "bottom", note: "Command bar at the bottom" },
-    { name: "topbar", note: "Command bar at the top" },
-    { name: "top", note: "Dock at the top" },
-    { name: "rightside", note: "Sidebar on the right" },
-    { name: "floating", note: "Dock beside the selected element" },
-  ];
-  var variant = (function () {
-    try {
-      return Number(window.localStorage.getItem("edityy:variant")) || 0;
-    } catch (e) {
-      return 0;
-    }
-  })();
-
-  /** Contextual menu items for the variant that has no dock. */
-  function contextMenuItems() {
-    var items = [{ v: "edit", label: "Edit text", kind: "text" }];
-    if (selectedKind === "text") {
-      ICONS.forEach(function (definition) {
-        items.push({ v: definition.key, label: definition.label, kind: "control" });
-      });
-    } else {
-      items.push({ v: "mode", label: "Layout mode", kind: "control" });
-      BOX_ICONS[mode()].forEach(function (definition) {
-        items.push({ v: definition.key, label: definition.label, kind: "control" });
-      });
-    }
-    items.push({ v: "+", label: "Add a control", kind: "control" });
-    return items;
-  }
-
-  function setVariant(index) {
-    variant = index;
-    var current = VARIANTS[variant] || VARIANTS[0];
-    dock.setAttribute("data-variant", current.name);
-    dock.style.left = "";
-    dock.style.top = "";
-    dock.style.bottom = "";
-    dock.style.transform = "";
-    // The element actions menu is a second surface only for the dock-less
-    // variant: in every other one it is the menu it always was.
-    contextMenu = current.name === "context";
-    // The placements are CSS; these two are inline, so they are cleared on every
-    // switch. A stale left would pin a centred control to the last element.
-    pop.style.left = "";
-    pop.style.top = "";
-    try {
-      window.localStorage.setItem("edityy:variant", String(variant));
-    } catch (e) { /* a blocked store is not a reason to fail */ }
-    for (var i = 0; i < switcher.children.length; i++) {
-      switcher.children[i].setAttribute("aria-pressed", i === variant ? "true" : "false");
-      switcher.children[i].title = (i + 1) + " · " + VARIANTS[i].note;
-    }
-    if (contextMenu) {
-      show("");
-      if (selected) elementMenu.hidden = false;
-    }
-    syncDock();
-    syncElementMenu();
-    placeVariantDock();
-  }
-
-  function placeVariantDock() {
-    if (VARIANTS[variant].name !== "floating" || !selected || dock.hidden) return;
-    var rect = selected.getBoundingClientRect();
-    var width = dock.offsetWidth || 280;
-    var height = dock.offsetHeight || 60;
-    dock.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)) + "px";
-    dock.style.top = rect.bottom + height + 12 <= window.innerHeight
-      ? rect.bottom + 8 + "px"
-      : Math.max(12, rect.top - height - 8) + "px";
-    dock.style.bottom = "auto";
-    dock.style.transform = "none";
-  }
-
-  // The menu stands in for the dock only in that one variant. Off, the dock
-  // still owns the controls and the menu is only the element's own actions.
-  var contextMenu = false;
-
-  VARIANTS.forEach(function (item, i) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "vsw";
-    button.textContent = String(i + 1);
-    button.title = (i + 1) + " · " + item.note;
-    button.setAttribute("aria-label", item.note);
-    button.addEventListener("click", function (e) {
-      e.stopPropagation();
-      setVariant(i);
-    });
-    switcher.appendChild(button);
-  });
-  setVariant(variant);
+  // The menu and the dock are never apart: the menu is the dock's first row, so
+  // it moves into the dock once, here, and the two travel as one surface. The
+  // menu began life as a fixed card beside the element, and it keeps no
+  // coordinates of its own any more — the dock's placement moves the whole of
+  // it. See placeContextSurface for where the surface goes.
+  dock.appendChild(elementMenu);
 
   /* --------------------------------------------------------------- review */
 
@@ -3416,8 +3308,7 @@ function decorations() {
   function refit() {
     syncSelectionFrames();
     if (!elementMenu.hidden && !moving) syncElementMenu();
-    if (contextMenu) placeAtElement();
-    placeVariantDock();
+    placeContextSurface();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
@@ -3643,29 +3534,12 @@ function decorations() {
     else select(hit && hit.el, hit);
   }
 
-  /** Is the caret in a field the page owns? Then a keystroke is the page's. */
-  function typing() {
-    var el = document.activeElement;
-    if (!el || !el.tagName) return false;
-    return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable;
-  }
-
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
     if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       e.preventDefault();
       e.stopPropagation();
       autoLayout();
-      return;
-    }
-    // vartest: 1..9 and 0 switch the interaction variant. Not while a control is being
-    // typed into, where a digit is a digit.
-    var digit = String(e.key || "");
-    var pick = /^[0-9]$/.test(digit) ? (digit === "0" ? 9 : Number(digit) - 1) : -1;
-    if (pick >= 0 && pick < VARIANTS.length && !e.metaKey && !e.ctrlKey && !e.altKey && !editing && !typing()) {
-      e.preventDefault();
-      e.stopPropagation();
-      setVariant(pick);
       return;
     }
     if (e.key === "Escape") {

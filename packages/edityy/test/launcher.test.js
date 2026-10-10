@@ -894,12 +894,14 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(row.children.find((b) => b.dataset.key === "family").firstChild.nodeValue, "System UI");
   assert.equal(row.children.find((b) => b.dataset.key === "size").children[0].value, 16);
   assert.match(row.children.find((b) => b.dataset.key === "spacing").innerHTML, /<svg/);
-  assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it does not scroll away");
-  assert.match(app.root.innerHTML, /#dock\{[^}]*bottom:24px/, "and it sits at the bottom of the viewport");
-  // The control opens above the icon row, or the viewport eats it.
-  const markup = app.root.innerHTML;
-  assert.ok(markup.indexOf('id="pop"') < markup.indexOf('id="row"'), "the control is above the dock");
-  assert.match(app.root.innerHTML, /#dock\{[^}]*flex-direction:column/, "stacked by the dock itself");
+  assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it follows the element as the page scrolls");
+  // One surface: the menu is the dock's first row, the controls under it, and
+  // the open control under those. The grid areas give that order; the markup
+  // puts the pop first, which is why the areas and not the tags decide.
+  assert.match(app.root.innerHTML, /grid-template-areas:"menu" "bar" "pop"/,
+    "menu, then the dock, then the open control");
+  // The menu hangs off the surface rather than floating on its own.
+  assert.match(app.root.innerHTML, /\.element-menu\{[^}]*grid-area:menu/);
 });
 
 test("wrap and direction establish flex before applying the choice", () => {
@@ -2424,7 +2426,9 @@ test("Escape on an open control puts focus back on its icon", () => {
 test("reduced motion stops the dock and control animations", () => {
   const { run } = fakeDom();
   const app = run();
-  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}#dock,\.pop\{animation:none\}/);
+  // The dock keeps its slide between elements; the popover keeps its fade.
+  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}\.pop\{animation:none\}/);
+  assert.match(app.root.innerHTML, /#dock\{[^}]*transition:left/);
 });
 
 test("Save to project posts the edits as JSON to the dev server", async () => {
@@ -2481,38 +2485,54 @@ test("an edit drops the hover frame, which was measured at the old size", () => 
   assert.equal(p.style.getPropertyValue("font-size"), "72px");
 });
 
-test("the variant switcher moves the dock without losing it", () => {
+test("the menu and the dock are one surface at the element", () => {
   const { run } = fakeDom();
   const app = run();
   const dock = app.root.nodes.dock;
-  const buttons = app.root.nodes.switcher;
-  const pick = (n) => {
-    const b = buttons.children.find((x) => x.textContent === String(n));
-    for (const fn of b.bubbles.click.bubble) fn({ stopPropagation() {} });
-  };
-  assert.equal(buttons.children.length, 10, "one button per variant");
-  assert.equal(dock.getAttribute("data-variant"), "dock", "the dock starts where it was");
+  const menu = app.root.nodes["element-menu"];
+  assert.equal(menu.parentElement, dock, "the menu is the dock's first row from the start");
   selectText(app);
-  assert.equal(dock.hidden, false, "and it shows on a selection");
-  // The keys are the pointer's equal: 1..9 and 0 pick the same ten.
-  const key = (k) => quiet(() => app.fire("keydown", { key: k, preventDefault() {}, stopPropagation() {} }));
-  key("3");
-  assert.equal(dock.getAttribute("data-variant"), "sidebar", "3 is the sidebar");
-  assert.equal(dock.hidden, false, "the dock itself is still there, only moved");
-  key("9");
-  assert.equal(dock.getAttribute("data-variant"), "rightside", "9 is the ninth variant");
-  key("0");
-  assert.equal(dock.getAttribute("data-variant"), "floating", "0 is the tenth variant");
-  // A variant with no CSS rule is a dead button: it names a placement the sheet
-  // does not hold. Variant 1 is the exception — it is the baseline the default
-  // #dock rule already is, so it must NOT have a rule of its own.
-  const css = app.root.innerHTML;
-  const variants = [...source.matchAll(/\{ name: "(\w+)"/g)].map((m) => m[1]);assert.equal(variants[0], "dock", "the first variant is the baseline");
-  for (const name of variants.slice(1)) {
-    assert.ok(css.includes(`[data-variant=${name}]`), `no CSS rule for the "${name}" variant`);
-  }
-  assert.ok(!css.includes("[data-variant=dock]"), "the baseline needs no rule of its own");
-  pick(1);
-  assert.equal(dock.getAttribute("data-variant"), "dock", "and the pointer brings it back");
-  assert.equal(dock.hidden, false, "still shown, never lost");
+  assert.equal(dock.hidden, false, "a selection opens the surface");
+  assert.equal(menu.hidden, false, "the menu is part of it, not a card beside it");
+  assert.equal(dock.dataset.layout, "stack", "the dock sits under the menu");
+  // The surface is placed at the element, and only the dock carries
+  // coordinates: the menu and the open control hold none of their own.
+  assert.equal(dock.style.left, "12px", "the dock is placed at the element");
+  assert.equal(dock.style.top, "28px", "under it, where there is room");
+  assert.equal(menu.style.getPropertyValue("left"), "");
+  // An open control grows the surface and comes out under the dock.
+  quiet(() => press(app, "spacing"));
+  assert.equal(app.root.nodes.pop.hidden, false, "the control is open");
+  assert.equal(dock.style.top, "28px", "the surface is placed again with it open");
+  assert.equal(app.root.nodes.pop.style.getPropertyValue("left"), "",
+    "the control carries no coordinates of its own: it is the dock's last row");
+});
+
+test("with no room under the element the dock moves beside the menu", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  const p = selectText(app);
+  // The stub measures every element at 300px; the dock is shortened to keep
+  // the menu the taller of the two, which is what makes the side layout fit.
+  app.root.nodes.bar.offsetHeight = 40;
+  // An element low on the page: the menu-over-dock stack no longer fits under
+  // it, but the menu-over-menu-and-dock pair does.
+  const at = (left, bottom) => {
+    p.getBoundingClientRect = () => ({ left, top: bottom - 20, right: left + 100, bottom, width: 100, height: 20 });
+    quiet(() => app.scroll());
+  };
+  at(0, 460);
+  assert.equal(dock.dataset.layout, "side", "the dock sits to the right of the menu");
+  assert.equal(dock.style.left, "12px", "the surface stays at the element");
+  // The dock goes left when the element has no room on its right.
+  at(1100, 460);
+  assert.equal(dock.dataset.layout, "left", "the dock sits to the left of the menu");
+  assert.equal(dock.style.left, "640px", "clamped so the surface stays in view");
+  // With nothing selected there is no element to point at, and the surface goes
+  // where the dock always went.
+  app.hover(null);
+  quiet(() => app.clickPage());
+  assert.equal(dock.style.left, "50%", "centred at the bottom");
+  assert.equal(dock.style.bottom, "24px");
 });
