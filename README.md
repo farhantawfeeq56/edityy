@@ -123,7 +123,8 @@ and every version gets a provenance attestation.
 3. Merge the PR the usual way. On the push to `main`, the `Release` workflow:
    - **check**: reads the version, and stops if CHANGELOG.md has no section for it;
    - **publish**: runs the tests and publishes, if that version is not on npm yet;
-   - **release**: creates the `v<version>` tag and GitHub Release with that version's CHANGELOG notes.
+   - **release**: creates the `v<version>` tag and GitHub Release with that version's CHANGELOG notes. Below them,
+     GitHub adds the list of merged PRs, each with its author.
 
    A version with a prerelease suffix (`1.0.0-beta.1`) goes to the `next` dist-tag and a prerelease, never `latest`.
    A push that does not change the version publishes nothing.
