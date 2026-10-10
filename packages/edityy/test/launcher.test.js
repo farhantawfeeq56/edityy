@@ -1118,12 +1118,22 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   assert.equal(links()[1].href, "https://fonts.googleapis.com/css2?family=Lora:wght@300;400;700&display=swap");
   pickOption(pop, "Lora");
   assert.equal(links().length, 2, "a second pick makes no second request");
+  // The project does not load Lora, so the agent is told to add it.
+  assert.match(app.win.__edityy_changes(), /- Font: `Lora` is a Google font that the project does not load\./);
   quiet(() => press(app, "weight"));
   assert.equal(fields(pop)[0].type, "number", "fixed fonts keep weight editable");
   assert.equal(all(pop).some((node) => node.className === "custom-select"), true, "fixed weights use a custom dropdown");
   fields(pop)[0].value = "650";
   for (const fn of fields(pop)[0].bubbles.input.bubble) fn({});
   assert.equal(p.style.getPropertyValue("font-weight"), "650");
+
+  // A system face after it needs nothing added, so the note goes.
+  await reopen();
+  pop.children[0].value = "georgia";
+  for (const fn of pop.children[0].bubbles.input.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 150));
+  pickOption(pop, "Georgia");
+  assert.doesNotMatch(app.win.__edityy_changes(), /Google font/);
 });
 
 test("decorations stack, because CSS lets them", () => {

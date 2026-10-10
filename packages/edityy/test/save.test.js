@@ -90,7 +90,7 @@ test("takes local hosts, IP addresses and the hosts the app names", async () => 
   assert.equal((await send(tmp(), request(body, { host: "other.example" }), { allowedHosts: true })).status, 200);
 });
 
-test("keeps add, removal and move actions when it checks saved changes", async () => {
+test("keeps add, removal, move and Google font notes when it checks saved changes", async () => {
   const root = tmp();
   await writeChanges({
     page: "http://localhost:3000/",
@@ -98,6 +98,7 @@ test("keeps add, removal and move actions when it checks saved changes", async (
       { label: "p", selector: "main > p", removed: true },
       { label: "button", selector: "main > button", moved: true, movedTo: "main > section" },
       { label: "div", selector: "main > div", added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] } },
+      { label: "h1", selector: "main > h1", props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }] },
     ],
   }, root);
   const saved = JSON.parse(readFileSync(join(root, CHANGES_FILE), "utf8"));
@@ -105,7 +106,9 @@ test("keeps add, removal and move actions when it checks saved changes", async (
     { label: "p", selector: "main > p", source: null, props: [], text: null, added: null, removed: true, moved: false, movedTo: null },
     { label: "button", selector: "main > button", source: null, props: [], text: null, added: null, removed: false, moved: true, movedTo: "main > section" },
     { label: "div", selector: "main > div", source: null, props: [], text: null, added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] }, removed: false, moved: false, movedTo: null },
+    { label: "h1", selector: "main > h1", source: null, props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }], text: null, added: null, removed: false, moved: false, movedTo: null },
   ]);
+  assert.match(saved.markdown, /- Font: `Lora` is a Google font that the project does not load\./);
   assert.match(saved.markdown, /- Removed: this element/);
   assert.match(saved.markdown, /- Moved to: `main > section`/);
   assert.match(saved.markdown, /- Added: a new `div` with `display: flex;`/);
@@ -120,6 +123,8 @@ test("refuses a change that is not the shape the launcher sends", async () => {
     [{ selector: "p", text: { before: 1, after: "" } }],
     [{ selector: "x".repeat(5000) }],
     [{ selector: "p", added: { tag: "div><script" } }],
+    [{ selector: "p", props: [{ prop: "color", before: "", after: "red", googleFont: "Lora" }] }],
+    [{ selector: "p", props: [{ prop: "font-family", before: "", after: "x", googleFont: "Lora`\n# x" }] }],
     ["p"],
   ];
   for (const changes of bad) {

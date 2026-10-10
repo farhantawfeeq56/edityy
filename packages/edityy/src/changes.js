@@ -13,6 +13,8 @@ const MAX_CHANGES = 500;
 const MAX_PROPS = 100;
 const MAX_SHORT = 2000;
 const MAX_TEXT = 20000;
+/** A font family name as Google Fonts writes it: "Lora", "M PLUS 1p", "Noto Sans JP". */
+const FAMILY = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]*$/u;
 /** A CSS property name, custom properties included. */
 const PROPERTY = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
 /** An HTML tag name: what an added element is. */
@@ -40,9 +42,11 @@ function str(value, name, max, fallback = "") {
  * The changes, cut down to the fields an agent needs, or a 400 SaveError.
  *
  * Each change is `{ label, selector, source, props, text, added, removed, moved }`,
- * the shape the launcher sends. `added` is `{ tag, style, wraps }` for an
- * element the user added: its tag, the inline style it was made with, and the
- * selectors of the elements it was put around.
+ * the shape the launcher sends. A prop is `{ prop, before, after }`, and a
+ * `font-family` prop has `googleFont` when the user picked a Google font.
+ * `added` is `{ tag, style, wraps }` for an element the user added: its tag,
+ * the inline style it was made with, and the selectors of the elements it was
+ * put around.
  */
 export function checkChanges(changes) {
   if (!Array.isArray(changes)) throw new SaveError(400, "Expected a JSON object with a changes array.");
@@ -65,7 +69,13 @@ export function checkChanges(changes) {
         if (!p || typeof p !== "object") throw invalid("each prop must be an object");
         const prop = str(p.prop, "prop", 200);
         if (!PROPERTY.test(prop)) throw invalid("prop must be a CSS property name");
-        return { prop, before: str(p.before, "before", MAX_SHORT), after: str(p.after, "after", MAX_SHORT) };
+        const out = { prop, before: str(p.before, "before", MAX_SHORT), after: str(p.after, "after", MAX_SHORT) };
+        const googleFont = str(p.googleFont, "googleFont", 200, null);
+        if (googleFont !== null) {
+          if (prop !== "font-family" || !FAMILY.test(googleFont)) throw invalid("googleFont must be a font family on font-family");
+          out.googleFont = googleFont;
+        }
+        return out;
       }),
       text,
       added: checkAdded(change.added),
@@ -133,7 +143,13 @@ export function markdownFor(changes, page) {
     out.push(`## ${i + 1}. ${code(change.label || change.selector || "element")}`, "");
     if (change.selector) out.push(`- Selector: ${code(change.selector)}`);
     if (change.source) out.push(`- Source: ${code(change.source)}`);
-    for (const p of change.props) out.push(`- ${code(p.prop)}: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
+    for (const p of change.props) {
+      out.push(`- ${code(p.prop)}: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
+      if (p.googleFont) {
+        out.push(`- Font: ${code(p.googleFont)} is a Google font that the project does not load. ` +
+          "Add it to the project the way the project loads its fonts, then use it in `font-family`.");
+      }
+    }
     if (change.added) {
       out.push(`- Added: a new ${code(change.added.tag)}` + (change.added.style ? ` with ${code(change.added.style)}` : ""));
       if (change.added.wraps.length) out.push(`- Wraps: ${change.added.wraps.map(code).join(", ")}`);
