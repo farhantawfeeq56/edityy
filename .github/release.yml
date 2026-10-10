@@ -1,0 +1,7 @@
+# The list of merged PRs that GitHub adds to each release (#141). Only PRs that
+# people opened go in it: dependency bumps from Dependabot stay out.
+changelog:
+  exclude:
+    authors:
+      - dependabot
+      - dependabot[bot]

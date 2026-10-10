@@ -205,5 +205,7 @@ jobs:
 
           prerelease=()
           if [ "$DIST_TAG" != "latest" ]; then prerelease=(--prerelease); fi
+          # --generate-notes adds GitHub's list of the merged PRs below the
+          # CHANGELOG notes. Each PR shows with its author, so no credit is typed by hand.
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" \
-            --notes-file "$notes" "${prerelease[@]}"
+            --notes-file "$notes" --generate-notes "${prerelease[@]}"
