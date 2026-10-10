@@ -2480,3 +2480,39 @@ test("an edit drops the hover frame, which was measured at the old size", () => 
   assert.equal(app.root.nodes.hover.hidden, true, "no frame at the size the words used to be");
   assert.equal(p.style.getPropertyValue("font-size"), "72px");
 });
+
+test("the variant switcher moves the dock without losing it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  const buttons = app.root.nodes.switcher;
+  const pick = (n) => {
+    const b = buttons.children.find((x) => x.textContent === String(n));
+    for (const fn of b.bubbles.click.bubble) fn({ stopPropagation() {} });
+  };
+  assert.equal(buttons.children.length, 10, "one button per variant");
+  assert.equal(dock.getAttribute("data-variant"), "dock", "the dock starts where it was");
+  selectText(app);
+  assert.equal(dock.hidden, false, "and it shows on a selection");
+  // The keys are the pointer's equal: 1..9 and 0 pick the same ten.
+  const key = (k) => quiet(() => app.fire("keydown", { key: k, preventDefault() {}, stopPropagation() {} }));
+  key("3");
+  assert.equal(dock.getAttribute("data-variant"), "sidebar", "3 is the sidebar");
+  assert.equal(dock.hidden, false, "the dock itself is still there, only moved");
+  key("9");
+  assert.equal(dock.getAttribute("data-variant"), "rightside", "9 is the ninth variant");
+  key("0");
+  assert.equal(dock.getAttribute("data-variant"), "floating", "0 is the tenth variant");
+  // A variant with no CSS rule is a dead button: it names a placement the sheet
+  // does not hold. Variant 1 is the exception — it is the baseline the default
+  // #dock rule already is, so it must NOT have a rule of its own.
+  const css = app.root.innerHTML;
+  const variants = [...source.matchAll(/\{ name: "(\w+)"/g)].map((m) => m[1]);assert.equal(variants[0], "dock", "the first variant is the baseline");
+  for (const name of variants.slice(1)) {
+    assert.ok(css.includes(`[data-variant=${name}]`), `no CSS rule for the "${name}" variant`);
+  }
+  assert.ok(!css.includes("[data-variant=dock]"), "the baseline needs no rule of its own");
+  pick(1);
+  assert.equal(dock.getAttribute("data-variant"), "dock", "and the pointer brings it back");
+  assert.equal(dock.hidden, false, "still shown, never lost");
+});
