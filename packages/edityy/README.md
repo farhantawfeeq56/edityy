@@ -191,9 +191,10 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ### The editing mode
 
 - The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run. Shift-click adds or removes elements from the selection.
-- Selecting an element opens a nearby action menu with **Edit text**, **Move**, **Parent**, **Child** and **Delete**. Text is not editable until you choose **Edit text**. Move previews a new position among its siblings. Delete is temporary and undoable when you leave edit mode.
+- Selecting an element opens one surface at it. The actions come first — **Edit text**, **Move**, **Parent**, **Child** and **Delete** — and the controls sit below them. Text is not editable until you choose **Edit text**. Move previews a new position among its siblings. Delete is temporary and undoable when you leave edit mode.
+- The controls change the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour. A container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
+- The surface follows the element. The controls sit under the actions, or beside them when the page leaves no room there. An open control comes out below the controls, or above the actions when there is no room below.
 - Words are typed into where they stand (`contenteditable="plaintext-only"`, leaf text only, so no child element is lost).
-- The dock at the bottom changes the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour; a container or media element starts with padding and margin. The `+` adds shadow, blur, brightness, greyscale, contrast, fill, border, padding and margin to that one element.
 - The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over both. Nothing loads with the page:
   - The first open of the control fetches the catalog of names (about 35 KB) from `api.fontsource.org`, once for each page visit.
   - The list draws 40 rows at most. One request to `fonts.googleapis.com` gets a sample of those rows' names, so each row shows in its own face.
