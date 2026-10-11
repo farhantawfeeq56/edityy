@@ -4,6 +4,22 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.0 — 2026-10-11
+
+### Changed
+
+- Selecting an element opens one surface at the element. The element actions
+  come first, and the style controls sit below them. An open control comes out
+  below the controls. (#145)
+- The surface follows the element. The controls sit under the actions, or
+  beside them when the page leaves no room there. An open control comes out
+  above the actions when there is no room below the controls. (#145)
+
+### Removed
+
+- The interaction variant switcher, its number keys and the saved variant are
+  gone. The merged surface is the design. (#143, #145)
+
 ## 0.1.7 — 2026-10-09
 
 ### Added

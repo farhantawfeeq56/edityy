@@ -13,10 +13,12 @@
  *    previews an insertion point; clicking inserts and selects the new element.
  *    Otherwise, hovering outlines an element; clicking selects it and opens its actions.
  *
- * Selecting an element opens an action menu and a dock. Text becomes editable
- * only after the user chooses Edit text; the dock changes styles and starts with
- * Text and Container options. A selected element also has type controls and a
- * `+` to add controls — shadow, blur, brightness, greyscale or contrast.
+ * Selecting an element opens one surface at the element: the element's own
+ * actions on top, and the style controls under them. Text becomes editable
+ * only after the user chooses Edit text; the control row changes styles and
+ * starts with Text and Container options. A selected element also has type
+ * controls and a `+` to add controls — shadow, blur, brightness, greyscale or
+ * contrast.
  *
  * Every edit is an inline style: apply() writes it, remembers what was there,
  * and revert() puts it back on exit. The edits list hands them on — copied as a
@@ -63,15 +65,29 @@
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
-    "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
-    // The text dock: seven icons in a row and, above them, the one control that is
-    // open. Fixed, so it holds still while the page scrolls under it, and below
-    // the pointer's z-index so the dot is never hidden behind it.
-    "#dock{position:fixed;left:50%;bottom:24px;z-index:3;pointer-events:auto;",
-    "display:flex;flex-direction:column;align-items:center;gap:8px;transform:translateX(-50%);",
-    "animation:dockIn .26s cubic-bezier(.2,.9,.25,1)}",
-    "@keyframes dockIn{from{opacity:0;transform:translateX(-50%) translateY(14px) scale(.96)}",
-    "to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}",
+    "[hidden]{display:none!important}", // also for #dock, whose display:grid would beat it
+    // The dock and the menu are one surface at the element: the menu leads, the
+    // dock sits under it, and the open control goes under the dock. A grid,
+    // because the dock can also sit beside the menu when the page leaves no
+    // room under the element — placeContextSurface picks the shape with
+    // data-layout. Fixed, so the surface follows the element, and below the
+    // pointer's z-index so the dot is never hidden behind it.
+    "#dock{position:fixed;left:0;top:0;z-index:3;pointer-events:auto;",
+    "display:grid;grid-template-columns:auto;grid-template-areas:\"menu\" \"bar\" \"pop\";",
+    "align-items:start;justify-items:start;",
+    "transition:left .2s ease,top .2s ease,right .2s ease,bottom .2s ease,transform .2s ease}",
+    // The dock beside the menu: right when the element has room on that side,
+    // left when it has none. The open control still comes below the pair.
+    "#dock[data-layout=side]{grid-template-columns:auto auto;",
+    "grid-template-areas:\"menu bar\" \"pop pop\"}",
+    "#dock[data-layout=left]{grid-template-columns:auto auto;",
+    "grid-template-areas:\"bar menu\" \"pop pop\"}",
+    // The control over the menu: the pair stays against the element and the
+    // surface grows upwards. placeContextSurface chooses it when there is no
+    // room under the dock.
+    "#dock[data-pop=up]{grid-template-areas:\"pop\" \"menu\" \"bar\"}",
+    "#dock[data-pop=up][data-layout=side]{grid-template-areas:\"pop pop\" \"menu bar\"}",
+    "#dock[data-pop=up][data-layout=left]{grid-template-areas:\"pop pop\" \"bar menu\"}",
     ".row{display:flex;gap:2px;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     // Icons: hairline strokes on the ramp, filled when their control is open, so
@@ -133,11 +149,10 @@
     ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
-    // with dead paper either side of the icons.
-    ".pop{padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
-    // Above the dock, not under it: the dock never moves, but the page does, and
-    // a control that opens downward gets swallowed by the viewport.
-    "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;",
+    // with dead paper either side of the icons. The pop is the surface's last
+    // row — or its first, when there is no room under the dock and it opens
+    // over the menu instead (placeContextSurface picks, data-pop records).
+    ".pop{grid-area:pop;max-inline-size:420px;margin-bottom:8px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "animation:popIn .16s ease-out}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
@@ -222,7 +237,11 @@
     // without turning the box into a lozenge.
     ".frame{position:fixed;pointer-events:none;z-index:1;",
     "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
+    // The menu is the dock's first row now, not a fixed card of its own: a
+    // position of its own would pin it inside a surface that moves as one. The
+    // margin is the gap to the dock below, and a hidden menu takes its margin
+    // with it, so the rows never leave dead space behind.
+    ".element-menu{position:static;grid-area:menu;margin-bottom:8px;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
     ".element-menu-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;font-weight:500}",
     ".element-menu-tag{padding:3px 6px;border-radius:5px;background:#d79eac;color:#3a283c;font-size:10px;font-weight:600;text-transform:uppercase}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
@@ -234,13 +253,16 @@
     ".insert:after{content:'+';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;color:#f9f2ee;",
     "font:600 16px/18px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #86546b}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}#dock,.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
     ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
     ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
-    ".bar{display:flex;align-items:center;gap:6px}",
+    ".bar{grid-area:bar;margin-bottom:8px;display:flex;align-items:center;gap:6px}",
+    // Every button carries its label as text and as a title; the row reads as
+    // icons, so the text stays hidden and the title does the talking.
+    ".lbl{display:none}",
     ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     ".ic.solo[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
@@ -266,7 +288,7 @@
     '<div class="insert" id="insert" hidden></div>',
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
-    '<div class="bar">',
+    '<div class="bar" id="bar">',
     '<div class="row" id="row" role="toolbar" aria-label="Edit controls" aria-orientation="horizontal"></div>',
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
@@ -299,6 +321,7 @@
   var elementMenu = $("element-menu");
   var insertLine = $("insert");
   var dock = $("dock");
+  var bar = $("bar");
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
@@ -753,7 +776,9 @@
   }
 
   function syncElementMenu() {
-    if (!active || !selected || selectedItems.length !== 1 || editing || addKind) {
+    // No `editing` check: the surface stays at the element while its words
+    // are being typed into, the same way the dock does.
+    if (!active || !selected || selectedItems.length !== 1 || addKind) {
       elementMenu.hidden = true;
       return;
     }
@@ -790,13 +815,9 @@
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, "delete"));
     elementMenu.appendChild(actions);
     elementMenu.hidden = false;
-    var rect = selected.getBoundingClientRect();
-    var width = elementMenu.offsetWidth || 280;
-    var height = elementMenu.offsetHeight || 92;
-    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var top = rect.bottom + height + 12 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
-    elementMenu.style.left = left + "px";
-    elementMenu.style.top = Math.max(12, top) + "px";
+    // The menu is a row of the surface: the dock's placement moves the whole of
+    // it, so the menu carries no coordinates of its own.
+    placeContextSurface();
   }
 
   function deleteSelected() {
@@ -1362,6 +1383,9 @@ function faces() {
     create.setAttribute("aria-expanded", key === "create" ? "true" : "false");
     if (!key) {
       pop.hidden = true;
+      // The surface shrinks with the control gone, and the dock carries the
+      // whole of it, so the surface is placed again with the pop closed.
+      placeContextSurface();
       return;
     }
     pop.hidden = false;
@@ -1372,6 +1396,97 @@ function faces() {
     else if (key === "create") creationOptions();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
+    placeContextSurface();
+  }
+
+  /**
+   * Put the surface at the element: the menu leading, the dock under it, and
+   * the open control under the dock.
+   *
+   * The pair — menu and dock — is measured on its own, so its shape is the same
+   * with a control open and closed. It is placed against the element: under it,
+   * or over it when the page leaves no room, and the dock sits beside the menu
+   * when the pair fits neither way. The open control then hangs off the pair on
+   * the side away from the element, and over the menu when that side has no
+   * room: the pair keeps its place and the surface grows the other way. With
+   * nothing selected there is no element to point at, and the surface goes where
+   * the dock always went.
+   */
+  function placeContextSurface() {
+    if (dock.hidden || addKind) return;
+    if (!selected) {
+      dock.dataset.layout = "stack";
+      dock.dataset.pop = "down";
+      dock.style.left = "50%";
+      dock.style.top = "auto";
+      dock.style.bottom = "24px";
+      dock.style.transform = "translateX(-50%)";
+      return;
+    }
+    var gap = 8;
+    var pad = 12;
+    var menuH = elementMenu.hidden ? 0 : elementMenu.offsetHeight || 0;
+    var barH = bar.offsetHeight || 0;
+    var popH = pop.hidden ? 0 : pop.offsetHeight || 0;
+    var menuW = elementMenu.hidden ? 0 : elementMenu.offsetWidth || 0;
+    var barW = bar.offsetWidth || 0;
+    var popW = pop.hidden ? 0 : pop.offsetWidth || 0;
+    var vh = window.innerHeight;
+    var vw = window.innerWidth;
+    var rect = selected.getBoundingClientRect();
+    // The pair: menu over dock, or dock beside the menu.
+    var stackH = menuH + barH + (menuH && barH ? gap : 0);
+    var sideH = Math.max(menuH, barH);
+    var pairW = menuW + gap + barW;
+    var below = rect.bottom + gap + stackH <= vh - pad;
+    var side = !below && rect.bottom + gap + sideH <= vh - pad && Math.max(pairW, popW) <= vw - 2 * pad;
+    var pairH = stackH;
+    var layout = "stack";
+    var width = Math.max(menuW, barW, popW);
+    if (side) {
+      pairH = sideH;
+      layout = rect.left + pairW + pad <= vw ? "side" : "left";
+      width = Math.max(pairW, popW);
+    }
+    // The menu keeps its place at the element: the dock hangs off its left.
+    var left = layout === "left"
+      ? Math.max(pad, Math.min(rect.left - gap - barW, vw - width - pad))
+      : Math.max(pad, Math.min(rect.left, vw - width - pad));
+    // The pair goes under the element, or over it when the page leaves no room,
+    // clamped to whichever edge is left at last.
+    var under = rect.bottom + gap;
+    var pairTop = below || side ? under
+      : rect.top - gap - pairH >= pad ? rect.top - gap - pairH
+      : Math.max(pad, Math.min(under, vh - pairH - pad));
+    // The control joins the pair on the side away from the element — under the
+    // dock when the pair is under it, over the menu when the pair is over it —
+    // and crosses to the far side when that side has no room for it.
+    var popUp = false;
+    var top = pairTop;
+    if (popH) {
+      var over = pairTop - popH - gap >= pad;
+      var under = pairTop + pairH + gap + popH <= vh - pad;
+      if (below || side) {
+        if (!under && over) {
+          popUp = true;
+          top = pairTop - popH - gap;
+        } else if (!under && rect.top - gap - pairH - gap - popH >= pad) {
+          // No room on either side of the pair: the pair moves over the element
+          // and the control opens over the menu there.
+          popUp = true;
+          top = rect.top - gap - pairH - gap - popH;
+        }
+      } else if (over) {
+        popUp = true;
+        top = pairTop - popH - gap;
+      }
+    }
+    dock.dataset.layout = layout;
+    dock.dataset.pop = popUp ? "up" : "down";
+    dock.style.left = left + "px";
+    dock.style.top = top + "px";
+    dock.style.bottom = "auto";
+    dock.style.transform = "none";
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
@@ -2451,7 +2566,10 @@ function decorations() {
         className += " color-button";
         onClick = function () { toggle("color"); };
       }
-      var item = button(className, html, definition.label, onClick, definition.key);
+      // Every button carries its label as text as well as a title. On a grid the
+      // row is wider than the glyphs, and a row of unlabelled marks is a guessing
+      // game; the glyph is the first thing in the button and the label follows it.
+      var item = button(className, html + '<span class="lbl">' + definition.label + "</span>", definition.label, onClick, definition.key);
       row.appendChild(item);
     });
     if (selectedKind === "text") {
@@ -2574,6 +2692,15 @@ function decorations() {
       show("");
     }
   }
+
+  /* ------------------------------------------------------------- one surface */
+
+  // The menu and the dock are never apart: the menu is the dock's first row, so
+  // it moves into the dock once, here, and the two travel as one surface. The
+  // menu began life as a fixed card beside the element, and it keeps no
+  // coordinates of its own any more — the dock's placement moves the whole of
+  // it. See placeContextSurface for where the surface goes.
+  dock.appendChild(elementMenu);
 
   /* --------------------------------------------------------------- review */
 
@@ -3208,6 +3335,7 @@ function decorations() {
   function refit() {
     syncSelectionFrames();
     if (!elementMenu.hidden && !moving) syncElementMenu();
+    placeContextSurface();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
