@@ -2508,6 +2508,38 @@ test("the menu and the dock are one surface at the element", () => {
     "the control carries no coordinates of its own: it is the dock's last row");
 });
 
+test("with no room under the dock the control opens over the menu", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  // Measured as a browser would: a two-row menu, a one-row dock, a tall list.
+  app.root.nodes["element-menu"].offsetHeight = 140;
+  app.root.nodes.bar.offsetHeight = 44;
+  const p = selectText(app);
+  // The pair sits under the element while no control is open.
+  const at = (bottom) => {
+    p.getBoundingClientRect = () => ({ left: 10, top: bottom - 20, right: 110, bottom, width: 100, height: 20 });
+    quiet(() => app.scroll());
+  };
+  at(500);
+  assert.equal(dock.style.top, "508px", "the menu is under the element");
+  assert.equal(dock.dataset.pop, "down");
+  // The control has no room under the dock, so it opens over the menu: the pair
+  // keeps its place under the element and the surface grows the other way.
+  app.root.nodes.pop.offsetHeight = 248;
+  quiet(() => press(app, "family"));
+  assert.equal(dock.dataset.pop, "up", "the control opens over the menu");
+  assert.equal(dock.style.top, "252px", "248 + the gap leaves the menu where it was");
+  assert.equal(app.root.nodes.pop.style.getPropertyValue("left"), "",
+    "the control is still a row of the surface, not a placed card");
+  // The pair itself moves over the element when the page leaves it no room
+  // under it, and the control opens over the menu there.
+  at(700);
+  assert.equal(dock.dataset.layout, "stack");
+  assert.equal(dock.dataset.pop, "up", "still over the menu, now over the element too");
+  assert.equal(dock.style.top, "224px", "the surface grows upwards from the pair");
+});
+
 test("with no room under the element the dock moves beside the menu", () => {
   const { run } = fakeDom();
   const app = run();

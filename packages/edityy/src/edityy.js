@@ -82,6 +82,12 @@
     "grid-template-areas:\"menu bar\" \"pop pop\"}",
     "#dock[data-layout=left]{grid-template-columns:auto auto;",
     "grid-template-areas:\"bar menu\" \"pop pop\"}",
+    // The control over the menu: the pair stays against the element and the
+    // surface grows upwards. placeContextSurface chooses it when there is no
+    // room under the dock.
+    "#dock[data-pop=up]{grid-template-areas:\"pop\" \"menu\" \"bar\"}",
+    "#dock[data-pop=up][data-layout=side]{grid-template-areas:\"pop pop\" \"menu bar\"}",
+    "#dock[data-pop=up][data-layout=left]{grid-template-areas:\"pop pop\" \"bar menu\"}",
     ".row{display:flex;gap:2px;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     // Icons: hairline strokes on the ramp, filled when their control is open, so
@@ -144,9 +150,9 @@
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons. The pop is the surface's last
-    // row, so an open control lands under the dock rather than over it, and the
-    // surface is placed with that height: placeContextSurface keeps it in view.
-    ".pop{grid-area:pop;max-inline-size:420px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
+    // row — or its first, when there is no room under the dock and it opens
+    // over the menu instead (placeContextSurface picks, data-pop records).
+    ".pop{grid-area:pop;max-inline-size:420px;margin-bottom:8px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "animation:popIn .16s ease-out}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
@@ -1394,19 +1400,23 @@ function faces() {
   }
 
   /**
-   * Put the merged surface at the element: the menu on top, the dock under it,
-   * and the open control under the dock.
+   * Put the surface at the element: the menu leading, the dock under it, and
+   * the open control under the dock.
    *
-   * The dock sits under the menu whenever the whole stack fits under the
-   * element. When it does not, the dock moves beside the menu — to the right
-   * when the element has room there, to the left when it has none — and the
-   * control still opens below the pair. With nothing selected there is no
-   * element to point at, and the surface goes where the dock always goes.
+   * The pair — menu and dock — is measured on its own, so its shape is the same
+   * with a control open and closed. It is placed against the element: under it,
+   * or over it when the page leaves no room, and the dock sits beside the menu
+   * when the pair fits neither way. The open control then hangs off the pair on
+   * the side away from the element, and over the menu when that side has no
+   * room: the pair keeps its place and the surface grows the other way. With
+   * nothing selected there is no element to point at, and the surface goes where
+   * the dock always went.
    */
   function placeContextSurface() {
     if (dock.hidden || addKind) return;
     if (!selected) {
       dock.dataset.layout = "stack";
+      dock.dataset.pop = "down";
       dock.style.left = "50%";
       dock.style.top = "auto";
       dock.style.bottom = "24px";
@@ -1421,43 +1431,60 @@ function faces() {
     var menuW = elementMenu.hidden ? 0 : elementMenu.offsetWidth || 0;
     var barW = bar.offsetWidth || 0;
     var popW = pop.hidden ? 0 : pop.offsetWidth || 0;
-    var rows = (menuH ? 1 : 0) + (barH ? 1 : 0) + (popH ? 1 : 0);
-    var stackH = menuH + barH + popH + gap * Math.max(0, rows - 1);
-    var stackW = Math.max(menuW, barW, popW);
-    var sideH = Math.max(menuH, barH) + (popH ? gap + popH : 0);
-    var sideW = Math.max(menuW + gap + barW, popW);
     var vh = window.innerHeight;
     var vw = window.innerWidth;
     var rect = selected.getBoundingClientRect();
-    // Under the element when the surface fits, over it when it does not, and
-    // clamped to whichever edge the page leaves at last.
-    var top = function (h) {
-      var below = rect.bottom + gap;
-      if (below + h <= vh - pad) return below;
-      var above = rect.top - h - gap;
-      return above >= pad ? above : Math.max(pad, Math.min(below, vh - h - pad));
-    };
-    var left = Math.max(pad, Math.min(rect.left, vw - stackW - pad));
+    // The pair: menu over dock, or dock beside the menu.
+    var stackH = menuH + barH + (menuH && barH ? gap : 0);
+    var sideH = Math.max(menuH, barH);
+    var pairW = menuW + gap + barW;
+    var below = rect.bottom + gap + stackH <= vh - pad;
+    var side = !below && rect.bottom + gap + sideH <= vh - pad && Math.max(pairW, popW) <= vw - 2 * pad;
+    var pairH = stackH;
     var layout = "stack";
-    var height = stackH;
-    var width = stackW;
-    // Only when the stack does not fit under the element does the dock look for
-    // room beside the menu.
-    if (rect.bottom + gap + stackH > vh - pad
-      && rect.bottom + gap + sideH <= vh - pad
-      && sideW <= vw - 2 * pad) {
-      height = sideH;
-      width = sideW;
-      if (rect.left + sideW + pad <= vw) layout = "side";
-      else if (rect.left - gap - barW >= pad) {
-        layout = "left";
-        // The menu keeps its place at the element: the dock hangs off its left.
-        left = Math.max(pad, Math.min(rect.left - gap - barW, vw - sideW - pad));
+    var width = Math.max(menuW, barW, popW);
+    if (side) {
+      pairH = sideH;
+      layout = rect.left + pairW + pad <= vw ? "side" : "left";
+      width = Math.max(pairW, popW);
+    }
+    // The menu keeps its place at the element: the dock hangs off its left.
+    var left = layout === "left"
+      ? Math.max(pad, Math.min(rect.left - gap - barW, vw - width - pad))
+      : Math.max(pad, Math.min(rect.left, vw - width - pad));
+    // The pair goes under the element, or over it when the page leaves no room,
+    // clamped to whichever edge is left at last.
+    var under = rect.bottom + gap;
+    var pairTop = below || side ? under
+      : rect.top - gap - pairH >= pad ? rect.top - gap - pairH
+      : Math.max(pad, Math.min(under, vh - pairH - pad));
+    // The control joins the pair on the side away from the element — under the
+    // dock when the pair is under it, over the menu when the pair is over it —
+    // and crosses to the far side when that side has no room for it.
+    var popUp = false;
+    var top = pairTop;
+    if (popH) {
+      var over = pairTop - popH - gap >= pad;
+      var under = pairTop + pairH + gap + popH <= vh - pad;
+      if (below || side) {
+        if (!under && over) {
+          popUp = true;
+          top = pairTop - popH - gap;
+        } else if (!under && rect.top - gap - pairH - gap - popH >= pad) {
+          // No room on either side of the pair: the pair moves over the element
+          // and the control opens over the menu there.
+          popUp = true;
+          top = rect.top - gap - pairH - gap - popH;
+        }
+      } else if (over) {
+        popUp = true;
+        top = pairTop - popH - gap;
       }
     }
     dock.dataset.layout = layout;
+    dock.dataset.pop = popUp ? "up" : "down";
     dock.style.left = left + "px";
-    dock.style.top = top(height) + "px";
+    dock.style.top = top + "px";
     dock.style.bottom = "auto";
     dock.style.transform = "none";
   }
