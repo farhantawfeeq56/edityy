@@ -4,6 +4,21 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- The selection frame carries four corner handles and four edge handles. An edge
+  handle is at most 24px or 40% of its edge, whichever is smaller, and a handle
+  on a short edge is hidden. (#147)
+
+### Changed
+
+- The bounding box is a 1.5px line that straddles the element's own edge, in the
+  negative of the colour it lies on. (#147)
+- Every icon is a Phosphor regular glyph, so the dock, the element actions and
+  the insert marker draw one family. (#148)
+
 ## 0.2.0 — 2026-10-11
 
 ### Changed
