@@ -671,7 +671,9 @@ test("Shift+A without a selection does not open an action menu", () => {
     app.click();
     app.fire("keydown", { key: "A", shiftKey: true, preventDefault() {}, stopPropagation() {} });
   });
-  assert.equal(app.root.nodes.pop.hidden, false, "the initial creation options remain available");
+  assert.equal(app.root.nodes.dock.hidden, false, "the dock is still up");
+  assert.equal(app.root.nodes.row.hidden, true, "no controls: nothing is selected");
+  assert.equal(app.root.nodes.pop.hidden, true, "and no list opens");
 });
 
 test("an element with no text is still selectable", () => {
@@ -1806,100 +1808,15 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   assert.match(glyph, /fill="currentColor"/, "a Phosphor path paints itself with it");
 });
 
-test("Edityy starts with Add choices before the user selects an element", () => {
+test("the dock opens with nothing selected, and offers no Add choice", () => {
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
   assert.equal(app.root.selection(), null);
-  assert.equal(app.root.nodes.dock.hidden, false);
-  assert.equal(app.root.nodes.row.hidden, true);
-  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
-});
-
-test("Add mode previews and inserts an element at the chosen location", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const parent = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
-  const target = el("section", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
-  target.computed = { display: "block" };
-  parent.appendChild(target);
-  quiet(() => {
-    app.click();
-    for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
-    app.hover(target);
-    app.move(40, 55);
-  });
-
-  assert.equal(app.root.nodes.dock.hidden, true, "the selection dock yields to the insertion cursor");
-  assert.equal(app.root.nodes.insert.hidden, false);
-  assert.equal(app.root.nodes.insert.style.top, "60px", "the indicator previews after the target");
-  app.clickPage(40, 55);
-  const created = parent.children[1];
-  assert.equal(created.tagName, "P");
-  assert.equal(created.textContent, "Text");
-  assert.equal(app.root.selection().el, created);
-  assert.equal(app.root.selection().kind, "text");
-  assert.equal(app.root.nodes.dock.hidden, false);
-  assert.equal(app.root.nodes.row.hidden, false);
-  assert.equal(app.root.nodes.pop.hidden, true);
-  assert.equal(app.root.nodes.count.textContent, "1");
-
-  quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(parent.children.includes(created), false, "exit reverts the created element");
-});
-
-test("container insertion previews between its children", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const outer = el("body");
-  const container = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
-  outer.appendChild(container);
-  const first = el("p", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
-  const second = el("p", { rect: { left: 20, top: 80, right: 200, bottom: 120, width: 180, height: 40 } });
-  container.computed = { display: "block" };
-  first.computed = { display: "block" };
-  second.computed = { display: "block" };
-  container.appendChild(first);
-  container.appendChild(second);
-  container.childNodes = [first, second];
-  quiet(() => {
-    app.click();
-    for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
-    app.hover(container);
-    app.move(100, 55);
-  });
-  assert.equal(app.root.nodes.insert.style.top, "70px", "the indicator previews halfway between the children");
-  app.clickPage(100, 55);
-  assert.equal(container.children[1].tagName, "DIV");
-  assert.equal(app.root.selection().el, container.children[1]);
-});
-
-test("the selected-element Add action uses the same insertion flow", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const parent = el("main");
-  const target = el("section");
-  const sibling = el("aside");
-  parent.appendChild(target);
-  parent.appendChild(sibling);
-  quiet(() => {
-    app.click();
-    app.hover(target);
-    app.clickPage();
-  });
-  const add = app.root.nodes.create;
-  for (const fn of add.bubbles.click.bubble) fn({});
-  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
-  for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
-  app.hover(sibling);
-  app.move(10, 1);
-  app.clickPage(10, 1);
-  const created = parent.children[2];
-  assert.equal(created.tagName, "DIV");
-  assert.equal(created.style.getPropertyValue("display"), "flex");
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
-  assert.equal(app.root.selection().el, created);
-  assert.equal(app.root.selection().kind, "container");
+  assert.equal(app.root.nodes.dock.hidden, false, "the dock is up before a selection");
+  assert.equal(app.root.nodes.row.hidden, true, "with no controls: nothing is selected");
+  assert.equal(app.root.nodes.pop.hidden, true, "and no list opens on its own");
+  assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
 
 test("the dock ends in a + that adds a control to the row", () => {

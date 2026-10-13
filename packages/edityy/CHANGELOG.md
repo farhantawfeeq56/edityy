@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Removed
+
+- The Add element button and its Text and Container choices are gone. A click on
+  the page selects an element; it never inserts one. Shift+A still wraps selected
+  elements in a new container. (#153)
+
 ## 0.3.0 — 2026-10-13
 
 ### Added
