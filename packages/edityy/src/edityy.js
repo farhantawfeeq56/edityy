@@ -1668,6 +1668,22 @@ function faces() {
     b.title = b.disabled ? "Font weight is not available" : "Font weight";
   }
 
+  /**
+   * Paint a cycle button with the value the element has now.
+   *
+   * A cycle button has no control to open, so the button itself says which value
+   * is on. An element without the property keeps its plain glyph.
+   */
+  function paintCycle(list, key, prop) {
+    var value = String(get(prop) || "").trim();
+    var item = list.filter(function (choice) { return choice.v === value; })[0];
+    var b = item && slot(key);
+    if (!b) return;
+    b.innerHTML = svg(item.icon) + '<span class="lbl">' + item.label + "</span>";
+    b.title = item.label;
+    b.setAttribute("aria-label", item.label);
+  }
+
   /** Cycle the text alignment directly from the primary dock. */
   function cycleAlignment() {
     if (!pop.hidden) show("");
@@ -2230,15 +2246,17 @@ function icons(items, current, onPick, cls) {
       bar.appendChild(swatch);
       pop.appendChild(bar);
     },
-    // Direction on its own: row or column. Flex-only, but a grid is left
-    // alone — the property is harmless there and yanking the mode surprises.
+    // Direction as a cycle button: one click moves to the next value, so no
+    // control opens. Flex-only in the table, but a grid is left alone — the
+    // property is harmless there and yanking the mode surprises.
     direction: function () {
       // Establish the flex box first so the user's row or column choice sticks.
+      if (!pop.hidden) show("");
       ensureBox();
-      icons(DIRECTIONS, String(get("flex-direction") || "row").trim(), function (v) {
-        set("flex-direction", v);
-        return [v];
-      });
+      var current = String(get("flex-direction") || "row").trim();
+      var at = DIRECTIONS.map(function (item) { return item.v; }).indexOf(current);
+      set("flex-direction", DIRECTIONS[(at + 1) % DIRECTIONS.length].v);
+      paintCycle(DIRECTIONS, "direction", "flex-direction");
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
@@ -2270,16 +2288,18 @@ function icons(items, current, onPick, cls) {
         return [v];
       }, "grid3");
     },
+    // Wrap as a cycle button, like direction. Keep this control usable for
+    // existing `inline-flex` elements too. The mode is normalized to flex, then
+    // the value is written after the box is established; setting it in the
+    // opposite order can be lost on mode change.
     wrap: function () {
-      // Keep this control usable for existing `inline-flex` elements too. The
-      // mode is normalized to flex, then the value is written after the box is
-      // established; setting it in the opposite order can be lost on mode change.
+      if (!pop.hidden) show("");
       if (mode() !== "flex") setMode("flex");
-      icons(WRAPS, String(get("flex-wrap") || "nowrap").trim(), function (v) {
-        setMode("flex");
-        set("flex-wrap", v);
-        return [v];
-      });
+      var current = String(get("flex-wrap") || "nowrap").trim();
+      var at = WRAPS.map(function (item) { return item.v; }).indexOf(current);
+      setMode("flex");
+      set("flex-wrap", WRAPS[(at + 1) % WRAPS.length].v);
+      paintCycle(WRAPS, "wrap", "flex-wrap");
     },
     gap: function () {
       if (mode() === "grid") {
@@ -2538,6 +2558,12 @@ function decorations() {
       var item = button(className, html + '<span class="lbl">' + definition.label + "</span>", definition.label, onClick, definition.key);
       row.appendChild(item);
     });
+    // Direction and wrap are cycles, so their buttons show the element's own
+    // value instead of a plain glyph.
+    if (selectedKind === "container") {
+      paintCycle(DIRECTIONS, "direction", "flex-direction");
+      paintCycle(WRAPS, "wrap", "flex-wrap");
+    }
     if (selectedKind === "text") {
       updateFamilyLabel();
       updateSizeLabel();

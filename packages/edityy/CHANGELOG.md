@@ -6,11 +6,22 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
+### Added
+
+- The flex direction and flex wrap controls cycle on one click. Each button shows
+  the value the element has, and no list opens. (#152)
+
 ### Changed
 
 - The style dock is fixed at the bottom centre again, whatever the selected
   element does. An open control comes out over the dock. The element actions
   keep their own card at the element. (#151)
+
+### Removed
+
+- The Add element button and its Text and Container choices are gone. A click on
+  the page selects an element; it never inserts one. Shift+A still wraps selected
+  elements in a new container. (#153)
 
 ## 0.3.0 — 2026-10-13
 
