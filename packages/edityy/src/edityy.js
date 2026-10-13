@@ -238,12 +238,30 @@
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
-    // A frame drawn around an element: one violet border, transparent inside, so
-    // the element underneath is never covered or tinted. 4px is the ramp sm
-    // radius — the smallest the design allows, enough to soften the corners
-    // without turning the box into a lozenge.
-    ".frame{position:fixed;pointer-events:none;z-index:1;",
-    "box-sizing:border-box;border:2px solid #d79eac;border-radius:4px;background:transparent}",
+    // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
+    // it off the content, as an outside stroke does), with no radius. The frame
+    // is the positioning parent for the handles, and one colour dresses the
+    // whole box: the negative of what it lies on, so the line and the handles
+    // always oppose the page they cross.
+    ".frame{position:fixed;pointer-events:none;z-index:1;box-sizing:border-box;",
+    "border:1.5px solid var(--frame,#373d20);border-radius:0;background:transparent}",
+    // The handles are that line in multiples: a corner disc 5 lines across
+    // (7.5px) and an edge bar 3 lines thick (4.5px) and at most 16 lines long
+    // (24px), with round ends because the radius is half the bar.
+    ".frame-marker{position:absolute;background:var(--frame,#717744);pointer-events:auto}",
+    ".frame-marker.corner{width:7.5px;height:7.5px;border-radius:50%}",
+    ".frame-marker.edge{width:4.5px;height:min(24px,40%);border-radius:2.25px}",
+    ".frame-marker.edge.horizontal{width:min(24px,40%);height:4.5px}",
+    ".frame-marker.edge.horizontal{left:50%;transform:translateX(-50%)}",
+    ".frame-marker.edge:not(.horizontal){top:50%;transform:translateY(-50%)}",
+    ".frame.short [data-edge=left],.frame.short [data-edge=right],",
+    ".frame.narrow [data-edge=top],.frame.narrow [data-edge=bottom]{display:none}",
+    // The offsets are half the shape they centre: the disc on the corner, and the
+    // bar on the middle of the stroke, which is one line inside the frame.
+    "[data-corner=\"top left\"]{left:-3.75px;top:-3.75px}[data-corner=\"top right\"]{right:-3.75px;top:-3.75px}",
+    "[data-corner=\"bottom left\"]{left:-3.75px;bottom:-3.75px}[data-corner=\"bottom right\"]{right:-3.75px;bottom:-3.75px}",
+    "[data-edge=left]{left:-3px}[data-edge=right]{right:-3px}",
+    "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // The menu is the dock's first row now, not a fixed card of its own: a
     // position of its own would pin it inside a surface that moves as one. The
     // margin is the gap to the dock below, and a hidden menu takes its margin
@@ -291,7 +309,17 @@
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
-    '<div class="frame" id="sel" hidden></div>',
+    // The selection frame carries the four corner markers, so their
+    // positions follow the frame wherever the element moves.
+    '<div class="frame" id="sel" hidden>',
+    '<i class="frame-marker corner" data-corner="top left"></i>',
+    '<i class="frame-marker corner" data-corner="top right"></i>',
+    '<i class="frame-marker corner" data-corner="bottom left"></i>',
+    '<i class="frame-marker corner" data-corner="bottom right"></i>',
+    '<i class="frame-marker edge" data-edge="left"></i>',
+    '<i class="frame-marker edge" data-edge="right"></i>',
+    '<i class="frame-marker edge horizontal" data-edge="top"></i>',
+    '<i class="frame-marker edge horizontal" data-edge="bottom"></i></div>',
     '<div class="element-menu" id="element-menu" hidden role="toolbar" aria-label="Element actions"></div>',
     '<div class="insert" id="insert" hidden>',
     svg('<path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>'),
@@ -681,15 +709,39 @@
     tally();
   }
 
-  // The box drawn around an element. It stands off the element by 4px on every
-  // side, so the frame is unmistakably Edityy's and not the page's own edge.
-  var GAP = 4;
-  /** Pin a frame to a target rectangle. One border, four numbers. */
-  function place(frame, rect) {
-    frame.style.left = rect.left - GAP + "px";
-    frame.style.top = rect.top - GAP + "px";
-    frame.style.width = rect.width + GAP * 2 + "px";
-    frame.style.height = rect.height + GAP * 2 + "px";
+  // The agreed line weight. Half of it stands off the element, so the line
+  // straddles the element's own edge and its weight grows outwards as well as
+  // inwards. The handle shapes that line sizes are the stylesheet's.
+  var LINE = 1.5;
+
+  /** Pin a frame to a target rectangle, in the negative of the colour it covers. */
+  function place(frame, rect, el) {
+    frame.style.left = rect.left - LINE / 2 + "px";
+    frame.style.top = rect.top - LINE / 2 + "px";
+    frame.style.width = rect.width + LINE + "px";
+    frame.style.height = rect.height + LINE + "px";
+    frame.style.setProperty("--frame", negative(el));
+  }
+
+  /**
+   * The negative of the colour behind an element.
+   *
+   * Read from the nearest ancestor that paints a background, because most
+   * elements are transparent and the colour the box touches is the one behind
+   * them. A background image or a gradient is not read: a computed style holds
+   * no pixel, so an element painted that way falls through to the page's own
+   * paper, which is white, and whose negative is black.
+   */
+  function negative(el) {
+    for (var node = el; node; node = node.parentElement) {
+      var m = String(viewOf(node).getPropertyValue("background-color")).match(
+        /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
+      if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
+      return "#" + [m[1], m[2], m[3]].map(function (n) {
+        return ("0" + (255 - Math.max(0, Math.min(255, Math.round(Number(n))))).toString(16)).slice(-2);
+      }).join("");
+    }
+    return "#000000";
   }
 
   /**
@@ -770,7 +822,10 @@
     }
     extraSelectionFrames.forEach(function (frame, i) { frame.hidden = i + 1 >= count; });
     items.forEach(function (el, i) {
-      place(i === 0 ? selBox : extraSelectionFrames[i - 1], el.getBoundingClientRect());
+      var frame = i === 0 ? selBox : extraSelectionFrames[i - 1];
+      var rect = el.getBoundingClientRect();
+      frame.className = "frame" + (rect.height < 40 ? " short" : "") + (rect.width < 40 ? " narrow" : "");
+      place(frame, rect, el);
     });
   }
 
@@ -3557,7 +3612,7 @@ function decorations() {
         hideHover();
         return;
       }
-      place(hoverBox, el.getBoundingClientRect());
+      place(hoverBox, el.getBoundingClientRect(), el);
       hoverBox.hidden = false;
     });
   }

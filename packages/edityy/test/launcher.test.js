@@ -42,6 +42,7 @@ function fakeDom() {
   const el = (tag, attrs = {}, style = {}) => {
     const node = {
     tagName: tag.toUpperCase(),
+    className: attrs.class ?? "",
     style: {
       // What a browser's cssText holds: the inline declarations, as written.
       // Set directly, it is that string; otherwise it follows setProperty(), so
@@ -201,6 +202,13 @@ function fakeDom() {
         var attrs = match[2];
         var id = attrs.match(/\bid="([^"]+)"/);
         if (id && /\shidden(\s|$|=)/.test(attrs)) root.nodes[id[1]].hidden = true;
+      }
+      // The selection frame's markers, like every id above: a browser
+      // parses this markup, so register the children the payload built.
+      var frame = root.nodes["sel"];
+      if (frame) {
+        frame.children = [...String(value).matchAll(/<i\s+([^>]*)>/g)].map((m) =>
+          el("i", { class: "frame-marker", "data-corner": m[1].match(/data-corner="([^"]+)"/)?.[1] ?? "" }));
       }
     },
     get innerHTML() {
@@ -562,8 +570,8 @@ test("many pointer moves in one frame find and measure once", () => {
 test("the hover frame stands off the element", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // The frame starts 4px clear of the element, so the box is Edityy's and
-  // not the page's own edge.
+  // The line straddles the element's edge, so the frame starts 0.75px clear of
+  // it — half the approved 1.5px weight.
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
@@ -571,10 +579,10 @@ test("the hover frame stands off the element", () => {
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
   const hover = app.root.nodes.hover.style;
-  assert.equal(hover.left, "96px");
-  assert.equal(hover.top, "46px");
-  assert.equal(hover.width, "128px");
-  assert.equal(hover.height, "56px");
+  assert.equal(hover.left, "99.25px");
+  assert.equal(hover.top, "49.25px");
+  assert.equal(hover.width, "121.5px");
+  assert.equal(hover.height, "49.5px");
 });
 
 test("a text element wins over the container around it", () => {
@@ -610,7 +618,7 @@ test("shift-click adds and removes elements without a count, and Shift+Arrow doe
   assert.equal(app.root.nodes.dock.hidden, true);
   assert.equal(app.root.nodes.row.hidden, true);
   assert.equal(app.root.nodes.sel.hidden, false);
-  assert.equal(app.root.children.filter((node) => node.className === "frame" && !node.hidden).length, 1);
+  assert.equal(app.root.children.filter((node) => node.className.startsWith("frame") && !node.hidden).length, 1);
   quiet(() => app.fire("keydown", { key: "ArrowRight", shiftKey: true }));
   assert.equal(app.root.nodes.dock.hidden, true, "Shift+Arrow does not add to the selection");
   quiet(() => app.clickPage(1, 1, true));
@@ -681,11 +689,27 @@ test("an element with no text is still selectable", () => {
   assert.equal(app.root.nodes.sel.hidden, false);
 });
 
-test("the box is one continuous violet border on all four sides", () => {
+test("small selections hide only handles on their short dimensions", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // 120x48 at (100,50). The frame stands off 4px, so it covers 96..224 by
-  // 46..102: 128 wide, 56 tall.
+  const dot = text("span", "x", {}, { left: 100, top: 50, right: 116, bottom: 66, width: 16, height: 16 });
+  quiet(() => {
+    app.click();
+    app.hover(dot);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.sel.className, "frame short narrow");
+  assert.match(app.root.innerHTML, /\.frame\.short \[data-edge=left\],\.frame\.short \[data-edge=right\]/);
+  assert.match(app.root.innerHTML, /\.frame\.narrow \[data-edge=top\],\.frame\.narrow \[data-edge=bottom\]/);
+  assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/);
+});
+
+test("the bounding box is a dashed frame with four corner markers", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  // 120x48 at (100,50). The line straddles the edge, and the bar starts at the
+  // approved 1.5px, so the frame covers 99.25..220.75 by 49.25..97.75: 121.5 by
+  // 49.5.
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
@@ -694,15 +718,68 @@ test("the box is one continuous violet border on all four sides", () => {
   });
   const sel = app.root.nodes.sel;
   assert.equal(sel.hidden, false);
-  assert.equal(sel.children.length, 0, "one border, not a stack of pieces");
-  assert.equal(sel.style.left, "96px");
-  assert.equal(sel.style.top, "46px");
-  assert.equal(sel.style.width, "128px");
-  assert.equal(sel.style.height, "56px");
-  // One colour, one unbroken stroke on every side, and a corner radius.
-  assert.match(app.root.innerHTML, /border:2px solid #d79eac/, "one violet border, all four sides");
-  assert.match(app.root.innerHTML, /border-radius:4px/, "the ramp sm radius");
+  assert.equal((app.root.innerHTML.match(/class="frame-marker/g) || []).length, 8, "four corner handles and four edge handles");
+  assert.equal(sel.style.left, "99.25px");
+  assert.equal(sel.style.top, "49.25px");
+  assert.equal(sel.style.width, "121.5px");
+  assert.equal(sel.style.height, "49.5px");
+  // The design's own stroke: a dark dashed line outside the element,
+  // no corner radius, nothing painted inside it. The colour is the negative of
+  // what the box lies on, so the stylesheet only has the fallback.
+  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,#373d20\)/, "one solid frame, all four sides");
+  assert.match(app.root.innerHTML, /border-radius:0/, "no corner radius");
   assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
+  // Eight slim olive handles: four corners and four edges.
+  assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="top left"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="top right"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="bottom left"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="bottom right"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="left"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="right"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="top"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="bottom"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="left"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="right"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="top"><\/i>/);
+  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="bottom"><\/i>/);
+  // The handles are the line in multiples, each its own fixed size.
+  assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/, "corner discs five lines across");
+  assert.match(app.root.innerHTML, /\.frame-marker\.edge\{width:4\.5px;height:min\(24px,40%\);border-radius:2\.25px\}/, "edge bars three lines thick, sixteen long, ends round");
+  assert.match(app.root.innerHTML, /\.frame-marker\.edge\.horizontal\{width:min\(24px,40%\);height:4\.5px\}/, "the same bar on a top or bottom edge");
+  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,#717744\);pointer-events:auto\}/, "the handles wear the same colour as the line");
+  assert.match(app.root.innerHTML, /\[data-edge=left\]\{left:-3px\}\[data-edge=right\]\{right:-3px\}/, "vertical handles center on the side stroke");
+  assert.match(app.root.innerHTML, /\[data-edge=top\]\{top:-3px\}\[data-edge=bottom\]\{bottom:-3px\}/, "horizontal handles center on the top and bottom strokes");
+  assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");
+});
+
+test("the box wears the negative of the colour under it", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const panel = text("div", "hi", { "background-color": "rgb(16, 32, 48)" },
+    { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
+  quiet(() => {
+    app.click();
+    app.hover(panel);
+    app.clickPage();
+  });
+  const sel = app.root.nodes.sel;
+  assert.equal(sel.style.getPropertyValue("--frame"), "#efdfcf", "the inverse of rgb(16, 32, 48)");
+  // The page's own paper is white, and its negative is black.
+  const bare = text("p", "plain", {}, { left: 0, top: 0, right: 80, bottom: 20, width: 80, height: 20 });
+  quiet(() => {
+    app.hover(bare);
+    app.clickPage();
+  });
+  assert.equal(sel.style.getPropertyValue("--frame"), "#000000");
+  // A transparent element takes the colour of the nearest ancestor that paints
+  // one, because that is the colour the box actually lies on.
+  const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
+  panel.appendChild(child);
+  quiet(() => {
+    app.hover(child);
+    app.clickPage();
+  });
+  assert.equal(sel.style.getPropertyValue("--frame"), "#efdfcf");
 });
 
 /** Select a node and report how it was classified. */
@@ -1543,7 +1620,7 @@ test("the selection frame follows the element as it grows and shrinks", () => {
     // The dock writes a style, which reflows the element.
   });
   const frame = app.root.nodes.sel;
-  assert.equal(frame.style.width, "108px", "measured after the change");
+  assert.equal(frame.style.width, "101.5px", "measured after the change, one line wide");
   // Now it changes height — words wrapping onto another line, say.
   p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 140, width: 100, height: 120 });
   // input, not keydown: keydown fires before the browser has changed the
@@ -1551,8 +1628,8 @@ test("the selection frame follows the element as it grows and shrinks", () => {
   quiet(() => app.fire("input", { target: p }));
   return new Promise((done) =>
     setTimeout(() => {
-      assert.equal(frame.style.height, "128px", "the box grew with the text");
-      assert.equal(frame.style.top, "16px");
+      assert.equal(frame.style.height, "121.5px", "the box grew with the text");
+      assert.equal(frame.style.top, "19.25px");
       done();
     }, 5),
   );
@@ -1564,12 +1641,12 @@ test("the selection frame follows the page when it scrolls", () => {
   const p = selectText(app);
   p.getBoundingClientRect = () => ({ left: 10, top: 20, right: 110, bottom: 60, width: 100, height: 40 });
   quiet(() => app.hover(p), app.clickPage());
-  assert.equal(app.root.nodes.sel.style.top, "16px", "4px standoff");
+  assert.equal(app.root.nodes.sel.style.top, "19.25px", "half the 1.5px line outside the element");
   // Scrolling moves the element up the viewport; the frame is viewport-fixed and
   // has to move with it or it is left behind, pointing at nothing.
   p.getBoundingClientRect = () => ({ left: 10, top: -180, right: 110, bottom: -140, width: 100, height: 40 });
   quiet(() => app.scroll());
-  assert.equal(app.root.nodes.sel.style.top, "-184px", "the frame moved with the page");
+  assert.equal(app.root.nodes.sel.style.top, "-180.75px", "the frame moved with the page");
 });
 
 test("scrolling drops the hover frame, whose element has nothing to do with the pointer now", () => {
