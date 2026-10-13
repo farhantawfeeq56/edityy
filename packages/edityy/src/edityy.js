@@ -8,10 +8,8 @@
  *    dispatches `edityy:launcher-click` on window — the seam a host app can
  *    listen to — and toggles the editing mode below.
  *
- * 2. A temporary editing mode. The orb shrinks into the pointer, while the
- *    dock offers element creation before a selection. Choosing Text or Container
- *    previews an insertion point; clicking inserts and selects the new element.
- *    Otherwise, hovering outlines an element; clicking selects it and opens its actions.
+ * 2. A temporary editing mode. The orb shrinks into the pointer. Hovering
+ *    outlines an element; clicking selects it and opens its actions.
  *
  * Selecting an element opens its actions in a card at the element — Edit text,
  * Move, Parent, Child and Delete — and the style dock, fixed at the bottom
@@ -315,9 +313,6 @@
     '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
     svg('<path d="M88,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H96A8,8,0,0,1,88,64Zm128,56H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM56,56H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Z"/>'),
     '<span class="count" id="count" hidden></span></button>',
-    '<button type="button" class="ic solo" id="create" title="Add element" aria-label="Add element" aria-expanded="false" hidden>',
-    svg('<path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>'),
-    "</button>",
     "</div>",
     "</div>",
     "</div>",
@@ -344,7 +339,6 @@
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
-  var create = $("create");
   // The control that is open, "" for none.
   var openKey = "";
   var countBadge = $("count");
@@ -370,7 +364,6 @@
   //   { el, props: {prop: inline value before}, set: {prop: was it set at all},
   //     was: {prop: computed value before}, text: words before | null, added: [keys] }
   var changes = [];
-  var addKind = null;
   var insertion = null;
   var pointerX = null;
   var pointerY = null;
@@ -828,7 +821,7 @@
   function syncElementMenu() {
     // No `editing` check: the menu stays at the element while its words are
     // being typed into.
-    if (!active || !selected || selectedItems.length !== 1 || addKind) {
+    if (!active || !selected || selectedItems.length !== 1 || moving) {
       elementMenu.hidden = true;
       return;
     }
@@ -1396,11 +1389,8 @@ function faces() {
     }
     moving.parentElement.removeChild(moving);
     syncSelectionFrames();
-    startInsertion("move");
-  }
-
-  function startInsertion(kind) {
-    addKind = kind;
+    // The placement cursor is on: the dock yields, and the pointer picks the
+    // place the element drops into.
     elementMenu.hidden = true;
     insertion = null;
     pointerX = null;
@@ -1409,17 +1399,6 @@ function faces() {
     insertLine.hidden = true;
     hideHover();
     show("");
-  }
-
-  /** Offer the two page elements users can create. */
-  function creationOptions() {
-    options([
-      { v: "container", label: "Container", stack: "system-ui,sans-serif" },
-      { v: "text", label: "Text", stack: "system-ui,sans-serif" },
-    ], "", function (kind) {
-      if (kind !== "container" && kind !== "text") return;
-      startInsertion(kind);
-    });
   }
 
   /**
@@ -1440,7 +1419,6 @@ function faces() {
       row.children[i].setAttribute("aria-expanded", row.children[i].dataset.key === key ? "true" : "false");
     }
     review.setAttribute("aria-expanded", key === "changes" ? "true" : "false");
-    create.setAttribute("aria-expanded", key === "create" ? "true" : "false");
     if (!key) {
       pop.hidden = true;
       return;
@@ -1450,7 +1428,6 @@ function faces() {
     // other key is either one of the seven or one that the `+` just added, and
     // both are in CONTROLS by the time the row shows them.
     if (key === "+") addOne();
-    else if (key === "create") creationOptions();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
   }
@@ -2652,7 +2629,6 @@ function decorations() {
     var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
     dock.hidden = multi || (!on && !(active && !selected));
     row.hidden = !on || multi;
-    create.hidden = !on || multi;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this
     // element has been given. Tracked by which element the row was built for,
@@ -2667,19 +2643,15 @@ function decorations() {
     } else if (multi) {
       dock.hidden = true;
       show("");
-    } else if (addKind) {
+    } else if (moving) {
       dock.hidden = true;
       show("");
     } else if (!selected) {
+      // Nothing to change yet: the dock holds the edits button alone.
       dock.hidden = false;
       row.hidden = true;
-      show("create");
-    } else if (on) {
-      dock.hidden = false;
-      row.hidden = false;
-      create.hidden = false;
-      if (openKey === "create") show("");
-    } else {
+      show("");
+    } else if (!on) {
       dock.hidden = true;
       show("");
     }
@@ -3018,10 +2990,6 @@ function decorations() {
     show(review.getAttribute("aria-expanded") === "true" ? "" : "changes");
   });
 
-  create.addEventListener("click", function () {
-    show(create.getAttribute("aria-expanded") === "true" ? "" : "create");
-  });
-
   /** The edits as Markdown, for scripts and for anything that wants them. */
   window.__edityy_changes = function () {
     return markdown(report());
@@ -3250,7 +3218,6 @@ function decorations() {
       location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
     }
     changes.slice().forEach(revert);
-    addKind = null;
     insertion = null;
     moving = null;
     elementMenu.hidden = true;
@@ -3327,50 +3294,7 @@ function decorations() {
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
     hideHover();
-    if (addKind && pointerX !== null) showInsertion(pointerX, pointerY);
-  }
-  function showInsertion(x, y) {
-    if (moving) return showMoveInsertion(x, y);
-    var hit = pickAt(x, y);
-    var target = hit && hit.el;
-    if (target && target.parentElement && target.parentElement !== host) {
-      var parent = target.parentElement;
-      var children = hit.kind === "container"
-        ? Array.prototype.filter.call(target.children, function (child) { return child !== host; })
-        : [];
-      if (children.length) parent = target;
-      var siblings = children.length ? children : [target];
-      var spot = spotAmong(siblings, x, y, parent);
-      var beforeNode = spot.before;
-      if (!children.length && beforeNode === null && siblings[0].nextSibling) beforeNode = siblings[0].nextSibling;
-      insertion = { parent: parent, before: beforeNode };
-      drawLine(spot.line);
-    } else {
-      var body = document.body || document.documentElement;
-      var pageTarget = body;
-      if (target && target.parentElement && target.parentElement !== host && target !== body && target !== document.documentElement) {
-        pageTarget = target;
-      }
-      var bounds = pageTarget.getBoundingClientRect ? pageTarget.getBoundingClientRect() : { left: 0, width: window.innerWidth };
-      var children = Array.prototype.filter.call(body.children || [], function (child) { return child !== host; });
-      var next = null;
-      var lineY = y;
-      for (var i = 0; i < children.length; i++) {
-        var childRect = children[i].getBoundingClientRect();
-        if (y < childRect.top + childRect.height / 2) {
-          next = children[i];
-          lineY = childRect.top;
-          break;
-        }
-        lineY = childRect.bottom;
-      }
-      insertion = { parent: body, before: next };
-      insertLine.style.left = bounds.left + "px";
-      insertLine.style.width = bounds.width + "px";
-      insertLine.style.height = "2px";
-      insertLine.style.top = lineY + "px";
-    }
-    insertLine.hidden = false;
+    if (moving && pointerX !== null) showMoveInsertion(pointerX, pointerY);
   }
 
   function showMoveInsertion(x, y) {
@@ -3478,32 +3402,15 @@ function decorations() {
   }
 
   function insertElement(x, y) {
-    showInsertion(x, y);
+    showMoveInsertion(x, y);
     if (!insertion || !insertion.parent.insertBefore) return;
-    if (moving) {
-      insertion.parent.insertBefore(moving, insertion.before || null);
-      moving = null;
-      addKind = null;
-      insertion = null;
-      insertLine.hidden = true;
-      syncSelectionFrames();
-      syncElementMenu();
-      syncDock();
-      tally();
-      return;
-    }
-    var el = document.createElement(addKind === "text" ? "p" : "div");
-    if (addKind === "text") el.textContent = "Text";
-    else el.style.setProperty("display", "flex");
-    insertion.parent.insertBefore(el, insertion.before || null);
-    var rec = record(el);
-    rec.created = true;
-    rec.createdStyle = el.style.cssText;
-    var kindToSelect = addKind;
-    addKind = null;
+    insertion.parent.insertBefore(moving, insertion.before || null);
+    moving = null;
     insertion = null;
     insertLine.hidden = true;
-    select(el, { el: el, kind: kindToSelect });
+    syncSelectionFrames();
+    syncElementMenu();
+    syncDock();
     tally();
   }
 
@@ -3517,8 +3424,8 @@ function decorations() {
     pointerX = x;
     pointerY = y;
     inFrame("hover", function () {
-      if (addKind) {
-        showInsertion(x, y);
+      if (moving) {
+        showMoveInsertion(x, y);
         hideHover();
         return;
       }
@@ -3539,7 +3446,7 @@ function decorations() {
     // handlers must not run against an element that is mid-edit.
     e.preventDefault();
     e.stopPropagation();
-    if (addKind) {
+    if (moving) {
       insertElement(e.clientX, e.clientY);
       return;
     }
@@ -3557,37 +3464,26 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      if (addKind) {
-        if (moving) {
-          var location = record(moving).location;
-          location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
-          moving = null;
-          syncSelectionFrames();
-        }
-        addKind = null;
+      if (moving) {
+        var location = record(moving).location;
+        location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
+        moving = null;
         insertion = null;
         pointerX = null;
         pointerY = null;
         insertLine.hidden = true;
         syncSelectionFrames();
-        if (selected) {
-          syncDock();
-          syncElementMenu();
-        } else {
-          dock.hidden = false;
-          show("create");
-        }
+        syncDock();
+        syncElementMenu();
       } else if (!pop.hidden) {
         // Focus goes back to the icon that opened the control, so a keyboard user
         // is where they were rather than at the top of the page.
-        var opener = openKey === "changes" ? review : openKey === "create" ? create : slot(openKey);
-        var starting = !selected && openKey === "create";
+        var opener = openKey === "changes" ? review : slot(openKey);
         show("");
         if (opener) {
-          if (opener !== review && opener !== create) rove(opener);
+          if (opener !== review) rove(opener);
           if (opener.focus) opener.focus();
         }
-        if (starting) exit();
       } else if (editing) {
         stopEditing();
       } else exit();
