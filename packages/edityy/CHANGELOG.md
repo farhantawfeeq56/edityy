@@ -4,6 +4,13 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- The flex direction and flex wrap controls cycle on one click. Each button shows
+  the value the element has, and no list opens. (#152)
+
 ## 0.3.0 — 2026-10-13
 
 ### Added

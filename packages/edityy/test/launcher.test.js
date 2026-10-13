@@ -913,16 +913,12 @@ test("the dock opens on text and container, stays shut on media", () => {
 
   quiet(() => press(app, "alignment"));
   assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
-  quiet(() => press(app, "wrap"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 3, "flex wrap options");
-  quiet(() => press(app, "alignment"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "flex alignment grid");
   for (const fn of app.root.nodes.pop.children[0].children[2].bubbles.click.bubble) fn({});
   assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
   assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
   quiet(() => press(app, "wrap"));
-  for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
   assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
+  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
   quiet(() => press(app, "mode"));
   quiet(() => press(app, "grid"));
   const gridInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
@@ -983,7 +979,7 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.match(app.root.innerHTML, /\.element-menu\{[^}]*grid-area:menu/);
 });
 
-test("wrap and direction establish flex before applying the choice", () => {
+test("wrap and direction are cycle buttons, and establish flex first", () => {
   const { run, el } = fakeDom();
   const app = run();
   const box = el("div");
@@ -992,15 +988,30 @@ test("wrap and direction establish flex before applying the choice", () => {
     app.hover(box);
     app.clickPage();
     press(app, "mode");
-    press(app, "wrap");
   });
   assert.equal(box.style.getPropertyValue("display"), "flex");
-  assert.equal(box.style.getPropertyValue("flex-direction"), "row");
-  pickOption(app.root.nodes.pop, "Wrap");
-  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap");
+  // Each click moves to the next value, and nothing opens.
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "nowrap moves to wrap");
+  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap-reverse", "the next click moves on");
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "nowrap", "the list wraps at the end");
   quiet(() => press(app, "direction"));
-  pickOption(app.root.nodes.pop, "Column");
-  assert.equal(box.style.getPropertyValue("flex-direction"), "column");
+  assert.equal(box.style.getPropertyValue("flex-direction"), "column", "row moves to column");
+  quiet(() => press(app, "direction"));
+  assert.equal(box.style.getPropertyValue("flex-direction"), "row", "and back");
+  // The button shows the value the element already had, so the dock says which
+  // one is on without opening anything.
+  const column = el("div", {}, { display: "flex", "flex-direction": "column" });
+  quiet(() => {
+    app.hover(column);
+    app.clickPage();
+  });
+  const direction = app.root.nodes.row.children.find((b) => b.dataset.key === "direction");
+  assert.equal(direction.title, "Column");
+  assert.match(direction.innerHTML, /<svg/);
 });
 
 test("inline-flex containers expose the wrap control", () => {
@@ -1014,9 +1025,8 @@ test("inline-flex containers expose the wrap control", () => {
   });
   assert.ok(app.root.nodes.row.children.find((button) => button.dataset.key === "wrap"));
   press(app, "wrap");
-  pickOption(app.root.nodes.pop, "Wrap reverse");
   assert.equal(box.style.getPropertyValue("display"), "flex");
-  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap-reverse");
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "the click cycles the value");
 });
 
 test("one control opens at a time, under the dock, and Escape closes it", () => {
