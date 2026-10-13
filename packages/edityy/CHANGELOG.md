@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- The style dock is fixed at the bottom centre again, whatever the selected
+  element does. An open control comes out over the dock. The element actions
+  keep their own card at the element. (#151)
+
 ## 0.3.0 — 2026-10-13
 
 ### Added
