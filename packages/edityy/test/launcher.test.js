@@ -323,7 +323,9 @@ function fakeDom() {
       appended,
       launch: () => root.nodes.launch,
       action: (name) => {
-        const button = root.nodes["element-menu"].children[1].children.find((item) => item.textContent === name);
+        const button = root.nodes["element-menu"].children[1].children.find(
+          (item) => item.getAttribute("aria-label") === name,
+        );
         assert.ok(button, `no element action "${name}"`);
         for (const fn of button.bubbles.click.bubble) fn({});
       },
@@ -1300,7 +1302,7 @@ test("selecting text shows actions without editing until Edit text is chosen", (
   const p = selectText(app, false);
   assert.equal(p.getAttribute("contenteditable"), undefined);
   assert.equal(app.root.nodes["element-menu"].hidden, false);
-  assert.deepEqual(app.root.nodes["element-menu"].children[1].children.map((button) => button.textContent), ["Edit text", "Move", "Parent", "Child", "Delete"]);
+  assert.deepEqual(app.root.nodes["element-menu"].children[1].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Delete"]);
   app.action("Edit text");
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
   assert.equal(app.root.nodes["element-menu"].hidden, true);
@@ -1709,17 +1711,22 @@ test("each element keeps its own additions", () => {
   );
 });
 
-test("an icon's stroke follows the button, so an open control's icon stays visible", () => {
+test("an icon's fill follows the button, so an open control's icon stays visible", () => {
   const { run } = fakeDom();
   const app = run();
   const css = app.root.innerHTML;
-  // `*{color:...}` reaches the <path> as well as the <svg>, and a path stroked
+  selectText(app);
+  // Any dock icon: the rule under test is the wrapper every one of them comes
+  // from, not the glyph in it.
+  const glyph = app.root.nodes.row.children.find((b) => b.dataset.key === "align").innerHTML;
+  // `*{color:...}` reaches the <path> as well as the <svg>, and a path painted
   // with currentColor resolves against its OWN colour — so a universal colour
   // painted every icon the same plum, and an open control is that plum: an icon
   // the exact colour of its own background. The colour goes on :host instead.
   assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
   assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
-  assert.match(css, /\.ic svg\{[^}]*stroke:currentColor/, "and the paths are stroked from it");
+  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
+  assert.match(glyph, /fill="currentColor"/, "a Phosphor path paints itself with it");
 });
 
 test("Edityy starts with Add choices before the user selects an element", () => {
@@ -1825,7 +1832,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /<circle cx="9" cy="4"/, "three dots, drawn");
+  assert.match(plus.innerHTML, /M140,128a12,12,0,1,1-12-12/, "three dots, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the five additions, as a list under the dock.

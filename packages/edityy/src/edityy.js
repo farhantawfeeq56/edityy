@@ -43,6 +43,13 @@
 
   var root = host.attachShadow({ mode: "open" });
 
+  // One icon family: Phosphor at regular weight. Each glyph is a filled path on
+  // the 256 grid, so it brings no stroke of its own and takes the button's
+  // colour: a control that paints itself dark also paints its icon.
+  var svg = function (body) {
+    return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + body + "</svg>";
+  };
+
   // DESIGN.md is the source of truth for every value below: Primary #3a283c,
   // On-primary #f9f2ee, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
   // Blush #ecc5c9 for destructive actions. The ramp is closed — five values,
@@ -59,7 +66,7 @@
     // UI face dresses the chrome instead — the controls are Edityy's, not the page's.
     //
     // The colour goes on :host, not on *. A universal colour reaches the <path>
-    // inside an icon as well as its <svg>, and since those paths are stroked with
+    // inside an icon as well as its <svg>, and since those paths are painted with
     // currentColor they resolve against their OWN colour — which is this plum on
     // every button. An open control paints itself #3a283c, so its icon was the
     // same colour as its own background: invisible. On :host it is inherited
@@ -90,7 +97,7 @@
     "#dock[data-pop=up][data-layout=left]{grid-template-areas:\"pop pop\" \"bar menu\"}",
     ".row{display:flex;gap:2px;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;",
     "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    // Icons: hairline strokes on the ramp, filled when their control is open, so
+    // Icons: Phosphor regular in the ramp, inverted when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
     "border-radius:8px;background:transparent;color:#3a283c;cursor:pointer;",
@@ -132,7 +139,7 @@
     "background:#f9f2ee;color:#3a283c;font:500 13px/1 inherit;outline:none}",
     ".color-panel input[type=text]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
     ".color-picker{display:none}",
-    ".ic svg{width:18px;height:18px;display:block;color:inherit;stroke:currentColor}",
+    ".ic svg{width:18px;height:18px;display:block;color:inherit}",
     // Type controls are their own glyphs: a letterform says "this is about type"
     // faster than any abstract mark could. color:inherit is not optional: the
     // universal * rule above sets a colour on every element, so a glyph would
@@ -245,14 +252,15 @@
     ".element-menu-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;font-weight:500}",
     ".element-menu-tag{padding:3px 6px;border-radius:5px;background:#d79eac;color:#3a283c;font-size:10px;font-weight:600;text-transform:uppercase}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;gap:5px;border:1px solid #3a283c1a;border-radius:7px;padding:7px 9px;background:#f9f2ee;color:#3a283c;font:500 12px/1 system-ui,sans-serif;cursor:pointer}",
+    ".element-action{display:flex;align-items:center;border:1px solid #3a283c1a;border-radius:7px;padding:7px;background:#f9f2ee;color:#3a283c;font:500 12px/1 system-ui,sans-serif;cursor:pointer}",
     ".element-action:hover{background:#3a283c0f}",
     ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
     ".element-action.delete{color:#86546b}",
+    ".element-action svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
-    ".insert:after{content:'+';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
-    "width:22px;height:22px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;color:#f9f2ee;",
-    "font:600 16px/18px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #86546b}",
+    ".insert svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
+    "width:22px;height:22px;padding:2px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;",
+    "color:#f9f2ee;box-shadow:0 0 0 1px #86546b}",
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
@@ -285,7 +293,9 @@
     '<div class="frame" id="hover" hidden></div>',
     '<div class="frame" id="sel" hidden></div>',
     '<div class="element-menu" id="element-menu" hidden role="toolbar" aria-label="Element actions"></div>',
-    '<div class="insert" id="insert" hidden></div>',
+    '<div class="insert" id="insert" hidden>',
+    svg('<path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>'),
+    "</div>",
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar" id="bar">',
@@ -293,12 +303,11 @@
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
     '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
-    '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">',
-    '<path d="M6.5 5h8M6.5 9h8M6.5 13h8M3.5 5h0M3.5 9h0M3.5 13h0"/></svg>',
+    svg('<path d="M88,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H96A8,8,0,0,1,88,64Zm128,56H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM56,56H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Z"/>'),
     '<span class="count" id="count" hidden></span></button>',
     '<button type="button" class="ic solo" id="create" title="Add element" aria-label="Add element" aria-expanded="false" hidden>',
-    '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">',
-    '<path d="M9 3v12M3 9h12"/></svg></button>',
+    svg('<path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>'),
+    "</button>",
     "</div>",
     "</div>",
     "</div>",
@@ -765,11 +774,15 @@
     });
   }
 
-  function actionButton(label, action, className) {
+  function actionButton(label, action, icon, className) {
     var button = document.createElement("button");
     button.type = "button";
     button.className = "element-action" + (className ? " " + className : "");
-    button.textContent = label;
+    // Markup as a string, for the same reason the dock's button() gives: an SVG
+    // element cannot be made with createElement(). The button is its icon alone,
+    // so the name lives in aria-label and in the title a pointer shows.
+    button.innerHTML = icon;
+    button.title = label;
     button.setAttribute("aria-label", label);
     button.addEventListener("click", action);
     return button;
@@ -796,23 +809,23 @@
     var edit = actionButton("Edit text", function () {
       if (selectedKind === "text") editText(selected);
       elementMenu.hidden = true;
-    });
+    }, MENU_ICONS.edit);
     edit.disabled = selectedKind !== "text" || !isLeafText(selected);
     actions.appendChild(edit);
-    actions.appendChild(actionButton("Move", function () { startMove(); }));
+    actions.appendChild(actionButton("Move", function () { startMove(); }, MENU_ICONS.move));
     var parent = selectable(selected.parentElement) ? selected.parentElement : null;
     var parentButton = actionButton("Parent", function () {
       if (parent) select(parent, { el: parent, kind: kind(parent) });
-    });
+    }, MENU_ICONS.parent);
     parentButton.disabled = !parent;
     actions.appendChild(parentButton);
     var child = Array.prototype.filter.call(selected.children || [], selectable)[0] || null;
     var childButton = actionButton("Child", function () {
       if (child) select(child, { el: child, kind: kind(child) });
-    });
+    }, MENU_ICONS.child);
     childButton.disabled = !child;
     actions.appendChild(childButton);
-    actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, "delete"));
+    actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, MENU_ICONS.delete, "delete"));
     elementMenu.appendChild(actions);
     elementMenu.hidden = false;
     // The menu is a row of the surface: the dock's placement moves the whole of
@@ -1114,15 +1127,15 @@ function faces() {
 
   var WEIGHTS = [300, 400, 500, 600, 700, 800];
   var ALIGNS = [
-    { v: "left", label: "Align left", icon: '<path d="M3 5h12M3 9h8M3 13h12"/>' },
-    { v: "center", label: "Align centre", icon: '<path d="M3 5h12M6 9h6M3 13h12"/>' },
-    { v: "right", label: "Align right", icon: '<path d="M3 5h12M7 9h8M3 13h12"/>' },
-    { v: "justify", label: "Justify", icon: '<path d="M3 5h12M3 9h12M3 13h12"/>' },
+    { v: "left", label: "Align left", icon: '<path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,48H168a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm176,24H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm-48,40H40a8,8,0,0,0,0,16H168a8,8,0,0,0,0-16Z"/>' },
+    { v: "center", label: "Align centre", icon: '<path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64ZM64,96a8,8,0,0,0,0,16H192a8,8,0,0,0,0-16Zm152,40H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm-24,40H64a8,8,0,0,0,0,16H192a8,8,0,0,0,0-16Z"/>' },
+    { v: "right", label: "Align right", icon: '<path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64ZM216,96H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,40H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,40H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/>' },
+    { v: "justify", label: "Justify", icon: '<path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64ZM216,96H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,40H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,40H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/>' },
   ];
   var DECORATIONS = [
-    { v: "underline", label: "Underline", icon: '<path d="M5 4v5a4 4 0 0 0 8 0V4M4 15h10"/>' },
-    { v: "line-through", label: "Strikethrough", icon: '<path d="M5 6a4 4 0 0 1 8 0M12 12a4 4 0 0 1-8 0M3 9h12"/>' },
-    { v: "italic", label: "Italic", icon: '<path d="M12 4H7M9 14h5M10.5 4l-3 10"/>' },
+    { v: "underline", label: "Underline", icon: '<path d="M200,224a8,8,0,0,1-8,8H64a8,8,0,0,1,0-16H192A8,8,0,0,1,200,224Zm-72-24a64.07,64.07,0,0,0,64-64V56a8,8,0,0,0-16,0v80a48,48,0,0,1-96,0V56a8,8,0,0,0-16,0v80A64.07,64.07,0,0,0,128,200Z"/>' },
+    { v: "line-through", label: "Strikethrough", icon: '<path d="M224,128a8,8,0,0,1-8,8H175.93c9.19,7.11,16.07,17.2,16.07,32,0,13.34-7,25.7-19.75,34.79C160.33,211.31,144.61,216,128,216s-32.33-4.69-44.25-13.21C71,193.7,64,181.34,64,168a8,8,0,0,1,16,0c0,17.35,22,32,48,32s48-14.65,48-32c0-14.85-10.54-23.58-38.77-32H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM76.33,104a8,8,0,0,0,7.61-10.49A17.3,17.3,0,0,1,83.11,88c0-18.24,19.3-32,44.89-32,18.84,0,34.16,7.42,41,19.85a8,8,0,0,0,14-7.7C173.33,50.52,152.77,40,128,40,93.29,40,67.11,60.63,67.11,88a33.73,33.73,0,0,0,1.62,10.49A8,8,0,0,0,76.33,104Z"/>' },
+    { v: "italic", label: "Italic", icon: '<path d="M200,56a8,8,0,0,1-8,8H157.77L115.1,192H144a8,8,0,0,1,0,16H64a8,8,0,0,1,0-16H98.23L140.9,64H112a8,8,0,0,1,0-16h80A8,8,0,0,1,200,56Z"/>' },
   ];
 
   // Container controls are mode-specific: the dock mirrors the layout table,
@@ -1130,19 +1143,19 @@ function faces() {
   var MODES = ["flex", "grid", "absolute"];
   var MODE_LABELS = { stack: "Default", flex: "Flex", grid: "Grid", absolute: "Absolute" };
   var MODE_GLYPHS = {
-    stack: '<path d="M3 5h12M3 9h12M3 13h12"/>',
-    flex: '<rect x="2.5" y="6" width="4" height="6" rx="1"/><rect x="7" y="6" width="4" height="6" rx="1"/><rect x="11.5" y="6" width="4" height="6" rx="1"/>',
-    grid: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>',
-    absolute: '<path d="M4 4h10v10H4zM7 7h4v4H7z"/>',
+    stack: '<path d="M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-144H48A16,16,0,0,0,32,64v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V64A16,16,0,0,0,208,48Zm0,56H48V64H208v40Z"/>',
+    flex: '<path d="M104,32H64A16,16,0,0,0,48,48V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,104,32Zm0,176H64V48h40ZM192,32H152a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,192,32Zm0,176H152V48h40Z"/>',
+    grid: '<path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/>',
+    absolute: '<path d="M208,96a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96V48A16,16,0,0,0,80,32H48A16,16,0,0,0,32,48V80A16,16,0,0,0,48,96h8v64H48a16,16,0,0,0-16,16v32a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16v-8h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V176a16,16,0,0,0-16-16h-8V96ZM176,48h32V80H176ZM48,48H80V63.9a.51.51,0,0,0,0,.2V80H48ZM80,208H48V176H80v15.9a.51.51,0,0,0,0,.2V208Zm128,0H176V176h32Zm-24-48h-8a16,16,0,0,0-16,16v8H96v-8a16,16,0,0,0-16-16H72V96h8A16,16,0,0,0,96,80V72h64v8a16,16,0,0,0,16,16h8Z"/>',
   };
   var DIRECTIONS = [
-    { v: "row", label: "Row", icon: '<path d="M3 9h12M11 5l4 4-4 4"/>' },
-    { v: "column", label: "Column", icon: '<path d="M9 3v12M5 11l4 4 4-4"/>' },
+    { v: "row", label: "Row", icon: '<path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/>' },
+    { v: "column", label: "Column", icon: '<path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z"/>' },
   ];
   var WRAPS = [
-    { v: "nowrap", label: "No wrap", icon: '<path d="M3 6h12M3 12h12"/>' },
-    { v: "wrap", label: "Wrap", icon: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>' },
-    { v: "wrap-reverse", label: "Wrap reverse", icon: '<path d="M3 12h8a4 4 0 0 0 0-8H8M3 6l3-2-3-2"/>' },
+    { v: "nowrap", label: "No wrap", icon: '<path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>' },
+    { v: "wrap", label: "Wrap", icon: '<path d="M232,112a64.07,64.07,0,0,1-64,64H51.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L51.31,160H168a48,48,0,0,0,0-96H80a8,8,0,0,1,0-16h88A64.07,64.07,0,0,1,232,112Z"/>' },
+    { v: "wrap-reverse", label: "Wrap reverse", icon: '<path d="M232,144a64.07,64.07,0,0,1-64,64H80a8,8,0,0,1,0-16h88a48,48,0,0,0,0-96H51.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48A8,8,0,0,1,85.66,45.66L51.31,80H168A64.07,64.07,0,0,1,232,144Z"/>' },
   ];
   // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
   // dot in a frame so the cell itself says where the children go.
@@ -1158,22 +1171,27 @@ function faces() {
     { j: "flex-end", a: "flex-end", x: 12, y: 12, label: "Bottom right" },
   ];
   var ALIGN_GRID = ALIGN_CELLS.map(function (c) {
+    // No single Phosphor glyph says "top left": it is a frame with a dot, so it
+    // is the Phosphor square, inset to the old frame, and a Phosphor dot placed
+    // at the cell's own corner. 14.22 is 256/18, the old grid the places were on.
+    var at = function (v) { return (v * 14.222 - 28.03).toFixed(1); };
     return {
       v: c.j + ":" + c.a,
       label: c.label,
-      icon: '<rect x="3" y="3.5" width="12" height="11" rx="1"/><circle cx="' + c.x + '" cy="' + c.y + '" r="1.6" fill="currentColor" stroke="none"/>',
+      icon: '<path transform="translate(14.3 14.3) scale(.889)" d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Z"/>' +
+        '<path transform="translate(' + at(c.x) + " " + at(c.y) + ') scale(.219)" d="M232,128A104,104,0,1,1,128,24,104.13,104.13,0,0,1,232,128Z"/>',
     };
   });
   var BOX_GLYPHS = {
-    direction: '<path d="M3 9h12M11 5l4 4-4 4"/>',
-    gap: '<path d="M3 6.5h12M3 11.5h12"/>',
-    alignment: '<circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
-    wrap: '<path d="M3 6h8a4 4 0 0 1 0 8H8M3 12l3 2-3 2"/>',
-    columns: '<path d="M4 3v12M9 3v12M14 3v12"/>',
-    rows: '<path d="M3 4h12M3 9h12M3 14h12"/>',
-    grid: '<rect x="3" y="3.5" width="5" height="5" rx="1"/><rect x="10" y="3.5" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>',
-    size: '<path d="M3 9h12M9 3v12M6 6 3 9l3 3M12 6l3 3-3 3M6 3l3 3 3-3M6 15l3-3 3 3"/>',
-    position: '<path d="M3 3h12v12H3zM9 6v6M6 9h6"/>',
+    direction: '<path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>',
+    gap: '<path d="M136,40V216a8,8,0,0,1-16,0V40a8,8,0,0,1,16,0ZM96,120H35.31l18.35-18.34A8,8,0,0,0,42.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32L35.31,136H96a8,8,0,0,0,0-16Zm149.66,2.34-32-32a8,8,0,0,0-11.32,11.32L220.69,120H160a8,8,0,0,0,0,16h60.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,122.34Z"/>',
+    alignment: '<path d="M72,60A12,12,0,1,1,60,48,12,12,0,0,1,72,60Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,128,48Zm68,24a12,12,0,1,0-12-12A12,12,0,0,0,196,72ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Zm68,0a12,12,0,1,0,12,12A12,12,0,0,0,128,116Zm68,0a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,184a12,12,0,1,0,12,12A12,12,0,0,0,60,184Zm68,0a12,12,0,1,0,12,12A12,12,0,0,0,128,184Zm68,0a12,12,0,1,0,12,12A12,12,0,0,0,196,184Z"/>',
+    wrap: '<path d="M232,112a64.07,64.07,0,0,1-64,64H51.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L51.31,160H168a48,48,0,0,0,0-96H80a8,8,0,0,1,0-16h88A64.07,64.07,0,0,1,232,112Z"/>',
+    columns: '<path d="M104,32H64A16,16,0,0,0,48,48V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,104,32Zm0,176H64V48h40ZM192,32H152a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,192,32Zm0,176H152V48h40Z"/>',
+    rows: '<path d="M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-144H48A16,16,0,0,0,32,64v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V64A16,16,0,0,0,208,48Zm0,56H48V64H208v40Z"/>',
+    grid: '<path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/>',
+    size: '<path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>',
+    position: '<path d="M200,80v32a8,8,0,0,1-16,0V88H160a8,8,0,0,1,0-16h32A8,8,0,0,1,200,80ZM96,168H72V144a8,8,0,0,0-16,0v32a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16ZM232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/>',
   };
 
   // The filters, as data. Blur is the only one that takes a length; the other
@@ -1203,67 +1221,66 @@ function faces() {
     { key: "contrast", label: "Contrast", prop: "filter", min: 0, max: 300, step: 1, unit: "%", fallback: 100, write: "contrast", find: "contrast\\((\\d*\\.?\\d+)%\\)" },
   ];
 
-  // Hairline icons: two strokes, round caps, 1.5 on an 18px grid. Enough that the
-  // dock reads as one family without shipping an icon font for seven glyphs.
-  var svg = function (body) {
-    return '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"' +
-      ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + "</svg>";
-  };
   var ICONS = [
     // The selected face is text in the dock, so users can identify it without
     // opening a list. CSS truncates long family names without hiding the value.
     { key: "family", label: "Font family", glyph: "" },
     // The size editor is embedded in the dock button itself.
     { key: "size", label: "Font size", glyph: "" },
-    // A heavy A beside a light one: the weight scale is the control.
+    // A bold B: the weight scale is what the control sets.
     {
       key: "weight",
       label: "Font weight",
-      glyph:
-        '<svg viewBox="0 0 20 18" fill="none" stroke="currentColor" stroke-width="1.5"' +
-        ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-        '<path d="M2 14 5.5 4 9 14M3.3 10.5h4.4"/>' +
-        '<path d="M12.5 14 16 4 19.5 14M13.8 10.5h4.4" stroke-width="1"/></svg>',
+      glyph: svg('<path d="M178.48,115.7A44,44,0,0,0,148,40H80a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8h80a48,48,0,0,0,18.48-92.3ZM88,56h60a28,28,0,0,1,0,56H88Zm72,136H88V128h72a32,32,0,0,1,0,64Z"/>'),
     },
-    // A letterform painted in: the colour the words themselves are.
-    { key: "color", label: "Text colour", glyph: '<i class="g">A<i class="sw" id="swatch-color"></i></i>' },
+    // A letterform over a bar painted in the element's own colour: the colour the
+    // words themselves are. The bar is a readout, so it stays.
+    { key: "color", label: "Text colour", glyph: '<i class="g">' + svg('<path d="M208,56V88a8,8,0,0,1-16,0V64H136V192h24a8,8,0,0,1,0,16H96a8,8,0,0,1,0-16h24V64H64V88a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z"/>') + '<i class="sw" id="swatch-color"></i></i>' },
     // Four bars, each ending short of a different edge: what the button does.
     {
       key: "align",
       label: "Text alignment",
-      glyph: svg('<path d="M3 4.5h12M3 8h8M3 11.5h12M3 15h8"/>'),
+      glyph: svg('<path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,48H168a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm176,24H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm-48,40H40a8,8,0,0,0,0,16H168a8,8,0,0,0,0-16Z"/>'),
     },
     // Line and letter spacing belong to one typography-spacing control.
     {
       key: "spacing",
       label: "Typography spacing",
-      glyph: svg('<path d="M3 5.5h12M3 12.5h12M12 7.5v3M6.5 5 4 13M11.5 5 14 13"/>'),
+      glyph: svg('<path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM101.66,53.66,120,35.31V96a8,8,0,0,0,16,0V35.31l18.34,18.35a8,8,0,0,0,11.32-11.32l-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32Zm52.68,148.68L136,220.69V160a8,8,0,0,0-16,0v60.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/>'),
     },
-    // A with a line under it: the two decorations at once.
+    // An A over a line: the two decorations at once.
     {
       key: "decorate",
       label: "Text decoration",
-      glyph: svg('<path d="M4.5 11 7.5 4 10.5 11M5.5 8.5h4M4 14h7"/>'),
+      glyph: svg('<path d="M60.59,175.24a8,8,0,0,0,10.65-3.83L87.9,136h80.2l16.66,35.41a8,8,0,1,0,14.48-6.82l-64-136a8,8,0,0,0-14.48,0l-64,136A8,8,0,0,0,60.59,175.24ZM128,50.79,160.57,120H95.43ZM224,216a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,216Z"/>'),
     },
   ];
 
-  var PAD_GLYPH = svg('<rect x="2.5" y="2.5" width="13" height="13" rx="1.5"/><rect x="6" y="6" width="6" height="6" rx=".5" stroke-dasharray="1.5 1.5"/>');
-  var MARGIN_GLYPH = svg('<rect x="5.5" y="5.5" width="7" height="7" rx="1"/><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2"/>');
+  var MENU_ICONS = {
+    edit: svg('<path d="M184,208a8,8,0,0,1-8,8H160a40,40,0,0,1-32-16,40,40,0,0,1-32,16H80a8,8,0,0,1,0-16H96a24,24,0,0,0,24-24V136H104a8,8,0,0,1,0-16h16V80A24,24,0,0,0,96,56H80a8,8,0,0,1,0-16H96a40,40,0,0,1,32,16,40,40,0,0,1,32-16h16a8,8,0,0,1,0,16H160a24,24,0,0,0-24,24v40h16a8,8,0,0,1,0,16H136v40a24,24,0,0,0,24,24h16A8,8,0,0,1,184,208Z"/>'),
+    move: svg('<path d="M90.34,61.66a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,0l32,32a8,8,0,0,1-11.32,11.32L136,43.31V96a8,8,0,0,1-16,0V43.31L101.66,61.66A8,8,0,0,1,90.34,61.66Zm64,132.68L136,212.69V160a8,8,0,0,0-16,0v52.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm83.32-72-32-32a8,8,0,0,0-11.32,11.32L212.69,120H160a8,8,0,0,0,0,16h52.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,237.66,122.34ZM43.31,136H96a8,8,0,0,0,0-16H43.31l18.35-18.34A8,8,0,0,0,50.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32Z"/>'),
+    parent: svg('<path d="M205.66,85.66a8,8,0,0,1-11.32,0L160,51.31V128A104.11,104.11,0,0,1,56,232a8,8,0,0,1,0-16,88.1,88.1,0,0,0,88-88V51.31L109.66,85.66A8,8,0,0,1,98.34,74.34l48-48a8,8,0,0,1,11.32,0l48,48A8,8,0,0,1,205.66,85.66Z"/>'),
+    child: svg('<path d="M208,32a8,8,0,0,1-8,8,88.1,88.1,0,0,0-88,88v76.69l34.34-34.35a8,8,0,0,1,11.32,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L96,204.69V128A104.11,104.11,0,0,1,200,24,8,8,0,0,1,208,32Z"/>'),
+    delete: svg('<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"/>'),
+  };
+
+  var PAD_GLYPH = svg('<path d="M144,104V64a8,8,0,0,1,16,0V84.69l42.34-42.35a8,8,0,0,1,11.32,11.32L171.31,96H192a8,8,0,0,1,0,16H152A8,8,0,0,1,144,104Zm-40,40H64a8,8,0,0,0,0,16H84.69L42.34,202.34a8,8,0,0,0,11.32,11.32L96,171.31V192a8,8,0,0,0,16,0V152A8,8,0,0,0,104,144Zm67.31,16H192a8,8,0,0,0,0-16H152a8,8,0,0,0-8,8v40a8,8,0,0,0,16,0V171.31l42.34,42.35a8,8,0,0,0,11.32-11.32ZM104,56a8,8,0,0,0-8,8V84.69L53.66,42.34A8,8,0,0,0,42.34,53.66L84.69,96H64a8,8,0,0,0,0,16h40a8,8,0,0,0,8-8V64A8,8,0,0,0,104,56Z"/>');
+  var MARGIN_GLYPH = svg('<path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>');
   // The `+`, and the one control it opens: the five things that are not type.
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
   var ADD = [
-    { key: "shadow", label: "Shadow", glyph: svg('<rect x="3" y="6" width="9" height="9" rx="1.5"/><path d="M6 13.5h9"/>') },
-    { key: "blur", label: "Blur", glyph: svg('<circle cx="9" cy="9" r="5.5"/><path d="M6.5 4.5 4 2M11.5 4.5 14 2M3 9H.5M15 9h2.5"/>') },
-    { key: "brightness", label: "Brightness", glyph: svg('<circle cx="9" cy="9" r="3.5"/><path d="M9 2v1.5M9 14.5V16M2 9h1.5M14.5 9H16M4 4l1 1M14 4l-1 1M4 14l1-1M14 14l-1-1"/>') },
-    { key: "greyscale", label: "Greyscale", glyph: svg('<circle cx="9" cy="9" r="6"/><path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>') },
-    { key: "contrast", label: "Contrast", glyph: svg('<circle cx="9" cy="9" r="6"/><path d="M9 3v12" /><path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>') },
+    { key: "shadow", label: "Shadow", glyph: svg('<path d="M230.91,172A8,8,0,0,1,228,182.91l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,36,169.09l92,53.65,92-53.65A8,8,0,0,1,230.91,172ZM220,121.09l-92,53.65L36,121.09A8,8,0,0,0,28,134.91l96,56a8,8,0,0,0,8.06,0l96-56A8,8,0,1,0,220,121.09ZM24,80a8,8,0,0,1,4-6.91l96-56a8,8,0,0,1,8.06,0l96,56a8,8,0,0,1,0,13.82l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,24,80Zm23.88,0L128,126.74,208.12,80,128,33.26Z"/>') },
+    { key: "blur", label: "Blur", glyph: svg('<path d="M96.26,37.05A8,8,0,0,1,102,27.29a104.11,104.11,0,0,1,52,0,8,8,0,0,1-2,15.75,8.15,8.15,0,0,1-2-.26,88.09,88.09,0,0,0-44,0A8,8,0,0,1,96.26,37.05ZM53.79,55.14a104.05,104.05,0,0,0-26,45,8,8,0,0,0,15.42,4.27,88,88,0,0,1,22-38.09A8,8,0,0,0,53.79,55.14ZM43.21,151.55a8,8,0,1,0-15.42,4.28,104.12,104.12,0,0,0,26,45,8,8,0,0,0,11.41-11.22A88.14,88.14,0,0,1,43.21,151.55ZM150,213.22a88,88,0,0,1-44,0,8,8,0,1,0-4,15.49,104.11,104.11,0,0,0,52,0,8,8,0,0,0-4-15.49ZM222.65,146a8,8,0,0,0-9.85,5.58,87.91,87.91,0,0,1-22,38.08,8,8,0,1,0,11.42,11.21,104,104,0,0,0,26-45A8,8,0,0,0,222.65,146Zm-9.86-41.54a8,8,0,0,0,15.42-4.28,104,104,0,0,0-26-45,8,8,0,1,0-11.41,11.22A88,88,0,0,1,212.79,104.45Z"/>') },
+    { key: "brightness", label: "Brightness", glyph: svg('<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>') },
+    { key: "greyscale", label: "Greyscale", glyph: svg('<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,16.37a86.4,86.4,0,0,1,16,3V212.67a86.4,86.4,0,0,1-16,3Zm32,9.26a87.81,87.81,0,0,1,16,10.54V195.83a87.81,87.81,0,0,1-16,10.54ZM40,128a88.11,88.11,0,0,1,80-87.63V215.63A88.11,88.11,0,0,1,40,128Zm160,50.54V77.46a87.82,87.82,0,0,1,0,101.08Z"/>') },
+    { key: "contrast", label: "Contrast", glyph: svg('<path d="M201.54,54.46A104,104,0,0,0,54.46,201.54,104,104,0,0,0,201.54,54.46ZM184,195.87a87.16,87.16,0,0,1-16,10.5V99.31l16-16Zm-80-32.56,16-16v68.28a88.37,88.37,0,0,1-16-3ZM88,206.37a87,87,0,0,1-16.3-10.76L88,179.31Zm48-75.06,16-16v97.32a88.37,88.37,0,0,1-16,3ZM40,128A88,88,0,0,1,184.3,60.39L60.38,184.31A87.34,87.34,0,0,1,40,128Zm160,50.59V77.41a88,88,0,0,1,0,101.18Z"/>') },
 
     // Fill and border are about the box, not the words: an element has a
     // background and a border, and its text has neither — a text fill is the
     // text colour, which is in the primary dock, and text has no border at all.
-    { key: "fill", label: "Fill", glyph: svg('<path d="M3.5 8.5 9 3l5.5 5.5v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M7 15.5v-4h4v4"/>') },
-    { key: "border", label: "Border", glyph: svg('<rect x="3.5" y="3.5" width="11" height="11" rx="1.5"/><path d="M3.5 7h11"/>') },
+    { key: "fill", label: "Fill", glyph: svg('<path d="M234.53,139.07a8,8,0,0,0,3.13-13.24L122.17,10.34a8,8,0,0,0-11.31,0L70.25,51,45.65,26.34A8,8,0,0,0,34.34,37.66l24.6,24.6L15,106.17a24,24,0,0,0,0,33.94L99.89,225a24,24,0,0,0,33.94,0l78.49-78.49Zm-32.19-5.24-79.83,79.83a8,8,0,0,1-11.31,0L26.34,128.8a8,8,0,0,1,0-11.31L70.25,73.57l29.12,29.12a28,28,0,1,0,11.31-11.32L81.57,62.26l35-34.95L217.19,128l-11.72,3.9A8.09,8.09,0,0,0,202.34,133.83Zm-86.83-26.31,0,0a13.26,13.26,0,1,1-.05.06S115.51,107.53,115.51,107.52Zm123.15,56a8,8,0,0,0-13.32,0C223.57,166.23,208,190.09,208,208a24,24,0,0,0,48,0C256,190.09,240.43,166.23,238.66,163.56ZM232,216a8,8,0,0,1-8-8c0-6.8,4-16.32,8-24.08,4,7.76,8,17.34,8,24.08A8,8,0,0,1,232,216Z"/>') },
+    { key: "border", label: "Border", glyph: svg('<path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Z"/>') },
     // Space, inside the box and around it. The base controls of anything that is
     // not text, and behind the `+` for text, whose padding matters too.
     { key: "padding", label: "Padding", glyph: PAD_GLYPH },
@@ -2584,7 +2601,7 @@ function decorations() {
         alignButton.setAttribute("aria-label", align.label);
       }
     }
-    addBtn = button("ic add group-start", svg('<circle cx="9" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/>'), "Add a control", function () {
+    addBtn = button("ic add group-start", svg('<path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM128,72a12,12,0,1,0-12-12A12,12,0,0,0,128,72Zm0,112a12,12,0,1,0,12,12A12,12,0,0,0,128,184Z"/>'), "Add a control", function () {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
@@ -2917,7 +2934,7 @@ function decorations() {
       }, "");
       name.disabled = item.removed;
       name.appendChild(text(item.label + " · " + n + (n === 1 ? " edit" : " edits")));
-      var undo = button("ic", svg('<path d="M4 7h7a4 4 0 0 1 0 8H8M7 4 4 7l3 3"/>'), "Revert " + item.label, function () {
+      var undo = button("ic", svg('<path d="M208,88v88a8,8,0,0,1-16,0V88a48,48,0,0,0-96,0V204.69l34.34-34.35a8,8,0,0,1,11.32,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L80,204.69V88a64,64,0,0,1,128,0Z"/>'), "Revert " + item.label, function () {
         if (item.rec.el === editing) stopEditing();
         revert(item.rec);
         // The row belongs to the selected element, and its controls went with it.
