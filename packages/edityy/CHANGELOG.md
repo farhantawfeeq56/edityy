@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- A Next.js app that builds with webpack can import `edityy` on the server.
+  Before, the save route threw on load, saving failed with a 500 and `next build`
+  stopped. This is the default on Next.js 15, and `--webpack` on 16. (#155)
+
 ## 0.3.0 — 2026-10-13
 
 ### Added
