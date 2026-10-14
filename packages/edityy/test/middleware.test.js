@@ -1,6 +1,7 @@
 // Checks for the dev-server middleware and the HTML injection it does.
 // Run: npm test
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import { test } from "node:test";
 import { ASSET_PATH, TAG, edityy, inject, launcher } from "../src/index.js";
@@ -37,6 +38,14 @@ test("serves the launcher on the asset path", () => {
   assert.equal(res.body, launcher);
   assert.match(String(res.getHeader("content-type")), /javascript/);
   assert.equal(res.getHeader("cache-control"), "no-store");
+});
+
+test("reads the launcher by path, not in the form a bundler takes as an asset", () => {
+  // webpack makes `new URL("./x", import.meta.url)` a public URL, so a Next.js
+  // route that imports edityy threw on load and `next build` failed (#155).
+  const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /new URL\([^)]*import\.meta\.url\s*\)/);
+  assert.match(launcher, /window\.__edityy/);
 });
 
 test("injects the tag before </head> and fixes content-length", () => {

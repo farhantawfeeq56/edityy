@@ -1,10 +1,18 @@
 import { readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 
-/** The launcher payload, read once at import. */
-export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "utf8");
+/**
+ * The launcher payload, read once at import.
+ *
+ * Read by its path on disk. Do not resolve it with `new URL` against
+ * `import.meta.url`: a bundler reads that form as an asset. In a Next.js route,
+ * webpack makes it a public `/_next/…` URL, and the read throws when the route
+ * loads.
+ */
+export const launcher = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "edityy.js"), "utf8");
 
 /** Where the middleware serves the launcher and what it injects. */
 export const ASSET_PATH = "/__edityy/edityy.js";
