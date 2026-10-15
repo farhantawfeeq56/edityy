@@ -1816,7 +1816,48 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
   assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
   assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
-  assert.match(glyph, /fill="currentColor"/, "a Phosphor path paints itself with it");
+  assert.match(glyph, /fill="currentColor"/, "a Lucide path paints itself with it");
+});
+
+test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  selectText(app);
+  // A glyph that is named but missing from GLYPHS renders its own name, which is
+  // silent everywhere else: this is the one place that would catch it.
+  const drawn = (markup) => {
+    // A name with no glyph behind it renders as its own text, and an empty box
+    // renders as nothing at all: both are silent everywhere else.
+    assert.match(markup, /aria-hidden="true">\s*<[a-z]/, `nothing was drawn: ${markup}`);
+    assert.match(markup, /<(path|rect|circle|line|polyline|ellipse|polygon)[\s/]/, `no shape drawn: ${markup}`);
+    assert.match(markup, /stroke="currentColor"/, `not a Lucide glyph: ${markup}`);
+  };
+  // The family button is a name and the size button is a field: both are text by
+  // design, so only the buttons that carry an icon are checked.
+  const row = app.root.nodes.row.children.filter((b) => b.innerHTML.includes("<svg"));
+  assert.ok(row.length >= 4, "the row should be mostly icons");
+  for (const button of row) drawn(button.innerHTML);
+  // The element menu and the row's `+` are drawn the same way. The two glyphs the
+  // shadow root itself is built with are already in its markup, so they are read
+  // there: a name with no glyph behind it would sit there as its own text.
+  drawn(app.root.nodes["element-menu"].children[1].children[0].innerHTML);
+  drawn(row[row.length - 1].innerHTML);
+  assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
+
+  // The alignment grid is the one glyph that is composed here: Lucide's square
+  // with a dot of this file's own in each of the nine cells.
+  assert.match(source, /var ALIGN_FRAME = '<svg x="14\.3"[^']*viewBox="0 0 24 24"/, "the frame is the square");
+  assert.match(source, /ALIGN_FRAME \+/, "and the grid draws it");
+
+  // The container dock is the other place a glyph is picked per control.
+  const box = el("div");
+  quiet(() => {
+    app.hover(box);
+    app.clickPage();
+  });
+  assert.equal(app.root.selection().kind, "container");
+  const alignment = app.root.nodes.row.children.find((b) => b.dataset.key === "alignment");
+  drawn(alignment.innerHTML);
 });
 
 test("the dock opens with nothing selected, and offers no Add choice", () => {
@@ -1837,7 +1878,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /M140,128a12,12,0,1,1-12-12/, "three dots, drawn");
+  assert.match(plus.innerHTML, /<circle/, "three dots, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the five additions, as a list under the dock.
