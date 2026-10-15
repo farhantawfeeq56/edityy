@@ -852,9 +852,10 @@ test("the open icon stays visible on its own dark background", () => {
   const css = run().root.innerHTML;
   // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
   // colour never reaches it: without an explicit inherit the Aa is plum on plum
-  // and disappears. Both glyph kinds need it, one by letterform one by svg.
+  // and disappears. Both glyph kinds need it, one by letterform one by svg — the
+  // drawn one takes the colour down from the box the icon is drawn in.
   assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
-  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the drawn ones");
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the drawn ones");
 });
 
 test("each control is as wide as it needs to be, not a shared width", () => {
@@ -1815,7 +1816,10 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   // the exact colour of its own background. The colour goes on :host instead.
   assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
   assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
-  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
+  // Scoped to the icon the control holds: a Lucide glyph is its own svg inside that
+  // one, and a rule that reached it would draw the glyph 18 units wide in a 256 box.
+  assert.doesNotMatch(css, /\.ic svg\{/, "no rule reaches the box a glyph is drawn in");
   assert.match(glyph, /fill="currentColor"/, "a Lucide path paints itself with it");
 });
 

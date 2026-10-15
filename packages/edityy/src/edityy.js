@@ -168,7 +168,10 @@
     "background:#f9f2ee;color:#3a283c;font:500 13px/1 inherit;outline:none}",
     ".color-panel input[type=text]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
     ".color-picker{display:none}",
-    ".ic svg{width:18px;height:18px;display:block;color:inherit}",
+    // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
+    // glyph is its own svg inside this one, and sizing that too would draw it 18
+    // units wide in a 256 box. The `>` is what keeps this from reaching it.
+    ".ic>svg{width:18px;height:18px;display:block;color:inherit}",
     // Type controls are their own glyphs: a letterform says "this is about type"
     // faster than any abstract mark could. color:inherit is not optional: the
     // universal * rule above sets a colour on every element, so a glyph would
@@ -300,9 +303,9 @@
     ".element-action:hover{background:#3a283c0f}",
     ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
     ".element-action.delete{color:#86546b}",
-    ".element-action svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
+    ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
-    ".insert svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
+    ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;",
     "color:#f9f2ee;box-shadow:0 0 0 1px #86546b}",
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
