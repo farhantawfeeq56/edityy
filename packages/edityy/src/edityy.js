@@ -16,7 +16,7 @@
  * centre. An open control comes out over the dock. Text becomes editable only
  * after the user chooses Edit text; the control row changes styles and starts
  * with Text and Container options. A selected element also has type controls
- * and a `+` to add controls — shadow, blur, brightness, greyscale or contrast.
+ * and a `+` to add controls — shadow, fill, border, padding or margin.
  *
  * Every edit is an inline style: apply() writes it, remembers what was there,
  * and revert() puts it back on exit. The edits list hands them on — copied as a
@@ -32,6 +32,15 @@
 
   if (window.__edityy) return; // a shared layout can render the tag more than once
   window.__edityy = true;
+
+  // The Edit text sweep, when this payload was loaded by a tag: the dev server
+  // names the asset beside it there. A project with a bundler imports the sweep
+  // itself instead and leaves window.__edityySweep set — with no tag to read,
+  // because there is no currentScript in a module.
+  var sweepUrl = (function () {
+    var own = document.currentScript;
+    return own && own.getAttribute ? own.getAttribute("data-edityy-sweep") : null;
+  })();
 
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
@@ -50,35 +59,35 @@
     "align-justify": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18" /> <path d="M3 12h18" /> <path d="M3 19h18" /></svg>',
     "align-left": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></svg>',
     "align-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M21 12H9" /> <path d="M21 19H7" /></svg>',
-    "aperture": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="m14.31 8 5.74 9.94" /> <path d="M9.69 8h11.48" /> <path d="m7.38 12 5.74-9.94" /> <path d="M9.69 16 3.95 6.06" /> <path d="M14.31 16H2.83" /> <path d="m16.62 12-5.74 9.94" /></svg>',
     "arrow-down": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg>',
     "arrow-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></svg>',
     "arrow-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg>',
     "baseline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16" /> <path d="m6 16 6-12 6 12" /> <path d="M8 12h8" /></svg>',
-    "blend": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="7" /> <circle cx="15" cy="15" r="7" /></svg>',
+    "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>',
     "bold": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" /></svg>',
     "columns-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M12 3v18" /></svg>',
-    "contrast": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="M12 18a6 6 0 0 0 0-12v12z" /></svg>',
     "ellipsis": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg>',
     "expand": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6" /> <path d="m15 9 6-6" /> <path d="M21 16v5h-5" /> <path d="M21 8V3h-5" /> <path d="M3 16v5h5" /> <path d="m3 21 6-6" /> <path d="M3 8V3h5" /> <path d="M9 9 3 3" /></svg>',
     "frame": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="6" y2="6" /> <line x1="22" x2="2" y1="18" y2="18" /> <line x1="6" x2="6" y1="2" y2="22" /> <line x1="18" x2="18" y1="2" y2="22" /></svg>',
     "grip": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" /> <circle cx="19" cy="5" r="1" /> <circle cx="5" cy="5" r="1" /> <circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /> <circle cx="12" cy="19" r="1" /> <circle cx="19" cy="19" r="1" /> <circle cx="5" cy="19" r="1" /></svg>',
+    "grid-3x3": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M3 9h18" /> <path d="M3 15h18" /> <path d="M9 3v18" /> <path d="M15 3v18" /></svg>',
     "italic": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4" /> <line x1="14" x2="5" y1="20" y2="20" /> <line x1="15" x2="9" y1="4" y2="20" /></svg>',
     "layers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></svg>',
     "layout-grid": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></svg>',
     "list": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /></svg>',
     "maximize": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>',
+    "message-square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>',
     "move": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20" /> <path d="m15 19-3 3-3-3" /> <path d="m19 9 3 3-3 3" /> <path d="M2 12h20" /> <path d="m5 9-3 3 3 3" /> <path d="m9 5 3-3 3 3" /></svg>',
     "move-diagonal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19H5v-6" /> <path d="M13 5h6v6" /> <path d="M19 5 5 19" /></svg>',
     "move-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8 4 4-4 4" /> <path d="M2 12h20" /> <path d="m6 8-4 4 4 4" /></svg>',
     "move-vertical": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20" /> <path d="m8 18 4 4 4-4" /> <path d="m8 6 4-4 4 4" /></svg>',
     "paint-bucket": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z" /> <path d="m5 2 5 5" /> <path d="M2 13h15" /> <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z" /></svg>',
     "pencil": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>',
+    "pipette": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9" /> <path d="M3 21v-3l9-9" /> <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.6.6a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4l1-1a1 1 0 0 1 1.4 0z" /></svg>',
     "plus": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="M12 5v14" /></svg>',
     "rows-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M3 12h18" /></svg>',
     "square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /></svg>',
     "strikethrough": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4H9a3 3 0 0 0-2.83 4" /> <path d="M14 12a4 4 0 0 1 0 8H6" /> <line x1="4" x2="20" y1="12" y2="12" /></svg>',
-    "sun": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg>',
     "trash-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>',
     "type": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16" /> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /> <path d="M9 20h6" /></svg>',
     "underline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v6a6 6 0 0 0 12 0V4" /> <line x1="4" x2="20" y1="20" y2="20" /></svg>',
@@ -96,8 +105,10 @@
 
   // DESIGN.md is the source of truth for every value below: Primary #3a283c,
   // On-primary #f9f2ee, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
-  // Blush #ecc5c9 for destructive actions. The ramp is closed — five values,
-  // nothing pure black or pure white.
+  // Accent-rose #d79eac for state, Tertiary #b6758b for focus. The ramp is
+  // closed — five values, nothing pure black or pure white. The ramp has no
+  // second neutral, so a control that needs a fill on paper wears ink alpha
+  // (the #3a283c0f the hover states already use), never a grey.
   root.innerHTML = [
     "<style>",
     // all:initial and the colour on ONE rule: a second :host{color} later in the
@@ -124,8 +135,12 @@
     "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
     "display:grid;grid-template-columns:auto;grid-template-areas:\"pop\" \"bar\";",
     "justify-items:center}",
-    ".row{display:flex;gap:2px;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;",
-    "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    // Translucent paper over the mist: the layer lifts with the blur and the
+    // haze, not with an edge. The hairline it used to carry made it read as a
+    // card laid on top of the page instead of a layer uncovered from it.
+    ".row{display:flex;gap:2px;padding:4px;background:#f9f2eee0;border:1px solid transparent;border-radius:12px;",
+    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     // Icons: Lucide, in the ramp, inverted when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
@@ -134,40 +149,120 @@
     ".ic:hover{background:#3a283c0f}",
     ".ic:active{transform:scale(.92)}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
+    ".ic[aria-expanded=true]{background:#3a283c1f}",
     ".ic.add{color:#86546b}",
     ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
-    "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:600 12px/34px inherit}",
+    "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
     ".ic.group-start{margin-left:6px;position:relative}",
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:#3a283c26}",
-    ".ic.size-control{width:108px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
+    ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
     ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
-    "font:600 12px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
     ".custom-select-trigger{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
     "background:#f9f2ee;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
     "max-height:180px;overflow-y:auto;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:8px;",
     "box-shadow:0 8px 18px #3a283c1f}",
-    ".custom-option{border:0;border-radius:6px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 13px/1.2 inherit;cursor:pointer}",
+    ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
     ".custom-option:hover,.custom-option[aria-pressed=true]{background:#3a283c0f}",
-    ".size-control .custom-select{width:52px;flex:none}",
-    ".size-control .custom-select-trigger{border:0;padding:4px;font-size:11px;background:transparent}",
-    ".size-control .custom-select-menu{bottom:auto;top:calc(100% + 4px);width:64px}",
+    ".size-control .custom-select{width:26px;flex:none}",
+    ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
+    // Upward, like every other list in the dock: the size button sits 24px above
+    // the bottom of the viewport, so a list below it lands off the screen.
+    ".size-control .custom-select-menu{bottom:calc(100% + 4px);top:auto;width:64px}",
     ".weight-control{gap:8px}",
     ".weight-control>input{width:64px;flex:none}",
-    ".weight-control .custom-select{min-width:120px}",
-    ".color-button[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
-    ".color-preview{width:100%;height:24px;border-radius:7px;margin-bottom:8px;background:#86546b}",
-    ".color-panel{width:220px}",
-    ".color-panel label{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px}",
-    ".color-panel input[type=range]{width:100%}",
-    ".color-panel .color-row{display:flex;align-items:center;gap:8px}",
-    ".color-panel .color-row output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}",
-    ".color-panel input[type=text]{flex:1;min-width:0;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
-    "background:#f9f2ee;color:#3a283c;font:500 13px/1 inherit;outline:none}",
-    ".color-panel input[type=text]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
-    ".color-picker{display:none}",
+    ".weight-control .custom-select{min-width:0;width:26px;flex:none}",
+    // The arrow of a list that has a value field beside it. The arrow alone
+    // says "there is a list here"; the value is the field's, and is not said
+    // twice. Sized where it stands, and it borrows the colour of its row.
+    ".custom-select-trigger.chevron>svg{width:14px;height:14px;display:block;color:inherit}",
+    // A list off a narrow arrow is as wide as its own words, and grows towards
+    // the middle of the panel rather than past its edge.
+    ".weight-control .custom-select-menu{left:auto;right:0;width:max-content;min-width:120px}",
+    ".color-button[aria-expanded=true]{background:#3a283c1f}",
+    // The picker is HeroUI's in build and behaviour — the field with the dot,
+    // the hue rail, the value field — and every control on it is still drawn
+    // rather than borrowed from the browser, because a native range cannot
+    // carry a 20px track with a capped end. What it is not is HeroUI's in
+    // colour: its white surface, its greys and its blue ring are a second
+    // design system, and this one's palette is closed. The layer and the paper
+    // are .pop's, so only the padding and the scroll are the picker's own.
+    ".pop.color{padding:8px 8px 12px;",
+    // A short viewport still reaches the value field: the panel scrolls, as
+    // HeroUI's own popover does, rather than growing off the top of the screen.
+    "max-height:calc(100vh - 96px);overflow-y:auto;overscroll-behavior:contain}",
+    // The Controlled picker asks the popover for a tighter gap than the default,
+    // and the width is the picker's own: the panel takes the room it needs and
+    // the surface around it follows, wherever the picker stands.
+    ".color-panel{display:flex;flex-direction:column;gap:8px;width:152px}",
+    // The keyboard ring: 2px of paper, then the mid rose that carries every
+    // interaction highlight in the ramp. Drawn on the control the pointer uses,
+    // never on the hidden input.
+    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
+    // The field: saturation across, brightness up, the hue underneath both. Its
+    // layers are set from the colour on show; the dot wears the colour itself.
+    ".field{position:relative;width:100%;aspect-ratio:1/1;border-radius:16px;cursor:crosshair;touch-action:none;",
+    "box-shadow:inset 0 0 0 1px #3a283c1a}",
+    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px #3a283c1a,0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
+    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid #f9f2ee;border-radius:16px;transform:translate(-50%,-50%);",
+    "box-shadow:0 0 0 1px #3a283c1a,inset 0 0 0 1px #3a283c1a;pointer-events:none;will-change:width,height;",
+    "transition:width .15s cubic-bezier(0,0,.2,1),height .15s cubic-bezier(0,0,.2,1)}",
+    ".field[data-dragging=true] .field-thumb{width:20px;height:20px}",
+    // The sliders: one 20px track, a 10px cap at each end that carries the
+    // colour the track stops short of, and a 16px dot with the same white ring.
+    ".pick-row{display:flex;align-items:center;gap:8px;padding:0 4px}",
+    ".slider{position:relative;width:100%;touch-action:none}",
+    ".pick-row .slider{flex:1}",
+    ".track{position:relative;height:20px;margin:0 10px;",
+    "background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);",
+    "box-shadow:inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a}",
+    ".track:before,.track:after{content:\"\";position:absolute;top:0;height:100%;width:10px}",
+    // The caps carry the colours the track stops short of. On the hue slider that
+    // is red at both ends — the hue it shows is fully saturated by definition —
+    // and the alpha slider sets its own two: clear, and the colour itself.
+    ".track:before{left:-10px;border-start-start-radius:16px;border-end-start-radius:16px;",
+    "box-shadow:inset 1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    // The checkerboard is the ramp too: paper, then ink alpha. A grey pair here
+    // was the one place a colour came from outside the five values.
+    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(#f9f2ee 0% 25%,#3a283c14 0% 50%) 50%/16px 16px}",
+    ".track:after{right:-10px;border-start-end-radius:16px;border-end-end-radius:16px;",
+    "box-shadow:inset -1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    "background-color:var(--track-end,#f00)}",
+    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid #f9f2ee;border-radius:16px;transform:translate(-50%,-50%);",
+    "pointer-events:none;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
+    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
+    // The real input behind each drawn control: out of sight, out of the
+    // pointer's way, and still the thing Tab lands on.
+    "input.knob[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;opacity:.0001;pointer-events:none}",
+    // The button that opens the browser's own picker: one 32px circle, filled
+    // with ink alpha because it stands on paper and the ramp has no grey to
+    // fill it with.
+    ".icon-button{display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border:0;",
+    "border-radius:50%;padding:0;background:#3a283c0f;color:#3a283c;cursor:pointer;",
+    "transition:transform .25s ease,background-color .1s cubic-bezier(0,0,.2,1),box-shadow .1s cubic-bezier(0,0,.2,1)}",
+    ".icon-button:hover{background:#3a283c1a}",
+    ".icon-button:active{transform:scale(.97)}",
+    ".icon-button>svg{width:16px;height:16px;display:block}",
+    // The button's own input, held off-screen: the UA rule for a colour input
+    // is a 44px well, and this one is never meant to be seen at all.
+    "input.colour-picker[type=color]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}",
+    // The value, in the field a form would use: the colour as a swatch, and the
+    // words beside it.
+    // Paper fill on paper, at the 8px the input ramp asks for: the hairline is
+    // what gives it a body, the way it does every other card on a paper canvas.
+    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee}",
+    ".value-field:focus-within{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
+    ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px #3a283c1a}",
+    ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:#3a283c;",
+    "font-size:14px;font-weight:500;outline:none}",
+    // The transparency, as the number it is: one line with the value, the way a
+    // form wears a unit. The spinners are off so a three-character field holds
+    // the number and the sign, and the arrow keys still step it.
+    ".value-field .alpha{display:flex;align-items:center;flex:none;margin-inline-end:12px;color:#86546b;font-size:14px;font-weight:500}",
+    ".value-field .alpha input[type=number]{width:3ch;height:100%;border:0;padding:0;background:transparent;color:inherit;",
+    "font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;outline:none;-webkit-appearance:none;appearance:none}",
     // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
     // glyph is its own svg inside this one, and sizing that too would draw it 18
     // units wide in a 256 box. The `>` is what keeps this from reaching it.
@@ -177,9 +272,6 @@
     // universal * rule above sets a colour on every element, so a glyph would
     // stay plum on the plum of an active button and vanish.
     ".g{font-size:15px;font-weight:600;line-height:1;color:inherit;pointer-events:none}",
-    ".g.serif{font-family:Georgia,\"Times New Roman\",serif;font-weight:400;font-size:16px}",
-    ".g.heavy{font-weight:800}",
-    ".g.thin{font-size:13px}",
     // The swatch is a real control, so it takes focus and shows focus: an inline
     // <i> would be invisible to the keyboard and unreachable by the pointer.
     // The bar wears the element own colour once one is selected, and is a bare
@@ -190,9 +282,15 @@
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons. The pop is the surface's first
     // row, so an open control comes out over the dock.
-    ".pop{grid-area:pop;max-inline-size:420px;margin-bottom:8px;padding:8px;background:#f9f2ee;border:1px solid #3a283c1a;",
-    "animation:popIn .16s ease-out}",
-    "@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
+    //
+    // A floating layer, so: translucent paper (the mist), a backdrop blur to
+    // see the page through it, the diffuse ink shadow that makes it float above
+    // the layer below, and the 16px layer radius. Depth comes from those, never
+    // from an edge — without them the panel read flatter than the dock under it.
+    ".pop{grid-area:pop;max-inline-size:420px;margin-bottom:8px;padding:8px;background:#f9f2eee0;border:1px solid transparent;border-radius:16px;",
+    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;animation:popIn .16s ease-out}",
+    "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
     // whatever the site styles its scrollbars with, or a chunky default. A hairline
@@ -210,7 +308,7 @@
     "background:transparent;color:#3a283c;font:500 14px/1.2 inherit;cursor:pointer;",
     "transition:background .12s ease,color .12s ease}",
     ".opt:hover{background:#3a283c0f}",
-    ".opt[aria-pressed=true]{background:#3a283c;color:#f9f2ee}",
+    ".opt[aria-pressed=true]{background:#3a283c1f}",
     ".opts{display:flex;gap:2px;padding:2px}",
     // The alignment control lays its row out as a real 3x3 grid instead.
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
@@ -220,7 +318,7 @@
     ".pair .bar2{padding:6px}",
 
     ".field-label{white-space:nowrap}",
-    ".val{min-width:36px;text-align:right;font:600 13px/1 inherit;color:#86546b;",
+    ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:#86546b;",
     "font-variant-numeric:tabular-nums}",
     // The weight slider: a hairline track in the ramp and a solid grab dot. The
     // track has to be dark enough to see against paper — the default UA track is
@@ -235,12 +333,7 @@
     "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:#3a283c59}",
     "input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;",
     "background:#3a283c;cursor:grab}",
-    // The swatch that picks a shadow's colour. The UA renders it as a rounded
-    // rectangle with a border, which would not sit in the ramp next to the rest.
-    "input[type=color]{width:44px;height:30px;padding:0;border:1px solid #3a283c26;border-radius:8px;",
-    "background:#f9f2ee;cursor:pointer}",
-    "input[type=color]::-webkit-color-swatch-wrapper{padding:3px}",
-    "input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}",
+
     "input[type=number],input[type=search]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
     // paints them in its own light grey, which is invisible on paper.
@@ -272,14 +365,14 @@
     // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
     // it off the content, as an outside stroke does), with no radius. The frame
     // is the positioning parent for the handles, and one colour dresses the
-    // whole box: the negative of what it lies on, so the line and the handles
-    // always oppose the page they cross.
+    // whole box: the ramp value that opposes what it lies on, so the line and
+    // the handles always stand off the page they cross.
     ".frame{position:fixed;pointer-events:none;z-index:1;box-sizing:border-box;",
-    "border:1.5px solid var(--frame,#373d20);border-radius:0;background:transparent}",
+    "border:1.5px solid var(--frame,#3a283c);border-radius:0;background:transparent}",
     // The handles are that line in multiples: a corner disc 5 lines across
     // (7.5px) and an edge bar 3 lines thick (4.5px) and at most 16 lines long
     // (24px), with round ends because the radius is half the bar.
-    ".frame-marker{position:absolute;background:var(--frame,#717744);pointer-events:auto}",
+    ".frame-marker{position:absolute;background:var(--frame,#3a283c);pointer-events:auto}",
     ".frame-marker.corner{width:7.5px;height:7.5px;border-radius:50%}",
     ".frame-marker.edge{width:4.5px;height:min(24px,40%);border-radius:2.25px}",
     ".frame-marker.edge.horizontal{width:min(24px,40%);height:4.5px}",
@@ -295,15 +388,17 @@
     "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:12px;box-shadow:0 8px 24px #3a283c26;pointer-events:auto}",
-    ".element-menu-title{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;font-weight:500}",
-    ".element-menu-tag{padding:3px 6px;border-radius:5px;background:#d79eac;color:#3a283c;font-size:10px;font-weight:600;text-transform:uppercase}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2eee0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;border:1px solid #3a283c1a;border-radius:7px;padding:7px;background:#f9f2ee;color:#3a283c;font:500 12px/1 system-ui,sans-serif;cursor:pointer}",
-    ".element-action:hover{background:#3a283c0f}",
+    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer}",
+    ".element-action:hover{background:#3a283c0f;border-color:#3a283c1a}",
     ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
     ".element-action.delete{color:#86546b}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
+    ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee;color:#3a283c;font:400 16px/1.4 inherit}",
+    ".element-comment-text:focus-visible{outline:2px solid #86546b;outline-offset:1px}",
+    ".element-comment-action{flex:1;justify-content:center;padding:7px 10px}",
     ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;",
@@ -311,25 +406,26 @@
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
-    ".sides label{display:flex;flex-direction:column;gap:4px;font:600 11px/1 inherit;color:#86546b}",
+    ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:#86546b}",
     ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
     ".bar{grid-area:bar;display:flex;align-items:center;gap:6px}",
     // Every button carries its label as text and as a title; the row reads as
     // icons, so the text stays hidden and the title does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2ee;border:1px solid #3a283c1a;",
-    "border-radius:12px;box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    ".ic.solo[aria-expanded=true]{background:#3a283c;color:#f9f2ee}",
-    ".count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;",
-    "border-radius:9px;background:#86546b;color:#f9f2ee;font:600 11px/18px inherit;text-align:center}",
+    ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2eee0;border:1px solid transparent;",
+    "border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    ".ic.solo[aria-expanded=true]{background:#3a283c1f}",
+    ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
+    "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    ".note{margin:6px 10px;max-width:240px;font:500 13px/1.4 inherit;color:#86546b}",
-    ".cta{flex:1;border:0;border-radius:8px;padding:9px 12px;background:#3a283c;color:#f9f2ee;white-space:nowrap;",
-    "font:600 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
+    ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:#86546b}",
+    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#f9f2ee;white-space:nowrap;",
+    "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease}",
     ".cta:hover{background:#86546b}",
     ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
     ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
@@ -384,7 +480,6 @@
   var elementMenu = $("element-menu");
   var insertLine = $("insert");
   var dock = $("dock");
-  var bar = $("bar");
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
@@ -411,7 +506,8 @@
   var editing = null;
   // One record per touched element:
   //   { el, props: {prop: inline value before}, set: {prop: was it set at all},
-  //     was: {prop: computed value before}, text: words before | null, added: [keys] }
+  //     was: {prop: computed value before}, text: words before | null,
+  //     html: markup before | undefined, added: [keys] }
   var changes = [];
   var insertion = null;
   var pointerX = null;
@@ -435,6 +531,18 @@
     // childNodes. A container is a container either way, so the one list that
     // holds every element is the one to read.
     return !el.children.length && hasOwnText(el);
+  }
+
+  /**
+   * Elements Edit text opens on: any that hold words of their own.
+   *
+   * That includes an element whose words are split by child elements — a
+   * paragraph around a link, a heading with an <em> in it. The words are typed
+   * into where they stand, and exit puts the markup back as it was, so a child
+   * element the browser drops while the caret is in the words comes back.
+   */
+  function canEditText(el) {
+    return hasOwnText(el);
   }
 
   /**
@@ -643,22 +751,24 @@
    * a style on it. A browser that does not know the value still types, because
    * it reads an unknown value as editable.
    *
-   * Only leaf text gets a caret. An element that holds child elements as well as
-   * words is still text as far as the dock is concerned — a heading with an <em>
-   * in it takes a font size — but rewriting its text would take the <em> too.
+   * Only an element with words of its own gets a caret: one with nothing but
+   * child elements — a wrapper around a card — has nothing to type into. Child
+   * elements inside it are no bar: the words are edited in place and the markup
+   * is put back on exit, so a link inside a paragraph keeps its words.
    */
   function editText(el) {
     if (editing && editing !== el) stopEditing();
-    if (!el || !isLeafText(el)) return;
+    if (!el || !canEditText(el)) return;
     // The before value is taken WITHOUT writing it back. Assigning textContent
     // destroys the text node and builds a new one, so the browser loses the caret
-    // position and puts it at the start — which is why clicking the middle of a
-    // line always typed at the beginning. Nothing is written here; the browser
-    // mutates the node itself once it is editable. The record is told the before
-    // value so revert() can put it back, but the text is only READ: assigning it
-    // would throw the caret away.
+    // it was about to be given. Nothing is written here; the browser mutates the
+    // node itself once it is editable. The record is told the before value so
+    // revert() can put it back, but the text is only READ.
     var rec = record(el);
     if (rec.text === null) rec.text = el.textContent;
+    // The markup as well as the words, because the browser can take a child
+    // element out while the caret is in the words. This is what exit puts back.
+    if (rec.html === undefined) rec.html = el.innerHTML;
     el.setAttribute("contenteditable", "plaintext-only");
     // No focus ring. The browser draws one on any focused element, and on the
     // words being edited it lands as a second outline right on top of the frame
@@ -674,6 +784,87 @@
     el.style.setProperty("outline", "none");
     editing = el;
     if (el.focus) el.focus();
+    // The caret goes to the end of the words, wherever the click landed: a click
+    // near the start of a line must not decide where the typing begins.
+    var range = document.createRange ? document.createRange() : null;
+    var selection = window.getSelection ? window.getSelection() : null;
+    if (range && selection) {
+      range.selectNodeContents(el);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  /* ------------------------------------------------------- edit text sweep */
+
+  // The sweep was chosen from the Canvas UI docs page, apart from the colour:
+  // that page's brand cyan is this ramp's primary, because the palette is closed
+  // and the sweep is ink over the page like every other mark. Glow is off: the
+  // phosphor bloom reads as blur over the words.
+  var SWEEP = {
+    flicker: 0.15,
+    threshold: 0.6,
+    displace: 30,
+    contrast: 1.55,
+    color: "#3a283c",
+    duration: 1.4,
+    band: 0.41,
+    softness: 0.47,
+    turbulence: 0.4,
+    trail: 0.55,
+    scale: 1.5,
+    spacing: 3,
+    tint: 0.9,
+    aberration: 1.5,
+    density: 0.2,
+    fade: 1,
+    glow: 0,
+    charset: "blocks",
+  };
+  // A sweep that could not load is not asked for twice: a page with no route for
+  // the asset would fetch it on every Edit text.
+  var sweepMissing = false;
+
+  /**
+   * The sweep, or null when there is none: already loaded, or fetched now from
+   * beside this payload. `done` runs once.
+   */
+  function withSweep(done) {
+    if (window.__edityySweep) return done(window.__edityySweep);
+    if (sweepMissing || !sweepUrl) return done(null);
+    import(/* webpackIgnore: true */ sweepUrl).then(
+      function () { done(window.__edityySweep || null); },
+      function () {
+        sweepMissing = true;
+        done(null);
+      }
+    );
+  }
+
+  /**
+   * Edit text, with the sweep over the element first when it is there. The caret
+   * goes in when the sweep has finished, or at once when it cannot run: a
+   * missing effect must never cost the user the edit they asked for.
+   */
+  function sweepThenEdit(el) {
+    withSweep(function (sweep) {
+      var done = false;
+      var go = function () {
+        if (done) return;
+        done = true;
+        // The user may have selected elsewhere while the band crossed.
+        if (selected === el) editText(el);
+      };
+      if (!sweep) return go();
+      try {
+        var running = sweep(el, SWEEP);
+        if (running && running.then) running.then(go, go);
+        else go();
+      } catch {
+        go();
+      }
+    });
   }
 
   /** Give the words back to the page: no longer editable, and no caret. */
@@ -725,7 +916,13 @@
     Object.keys(rec.props).forEach(function (prop) {
       restore(rec, prop);
     });
-    if (rec.text !== null && rec.el.textContent !== rec.text) rec.el.textContent = rec.text;
+    if (rec.text !== null && rec.el.textContent !== rec.text) {
+      // From the markup when there is one: textContent alone would flatten a
+      // child element that was in the words — the link a paragraph was written
+      // around — instead of putting it back.
+      if (rec.html !== undefined) rec.el.innerHTML = rec.html;
+      else rec.el.textContent = rec.text;
+    }
     changes = changes.filter(function (other) {
       return other !== rec;
     });
@@ -738,34 +935,40 @@
   // inwards. The handle shapes that line sizes are the stylesheet's.
   var LINE = 1.5;
 
-  /** Pin a frame to a target rectangle, in the negative of the colour it covers. */
+  /** Pin a frame to a target rectangle, in the ramp value that opposes it. */
   function place(frame, rect, el) {
     frame.style.left = rect.left - LINE / 2 + "px";
     frame.style.top = rect.top - LINE / 2 + "px";
     frame.style.width = rect.width + LINE + "px";
     frame.style.height = rect.height + LINE + "px";
-    frame.style.setProperty("--frame", negative(el));
+    frame.style.setProperty("--frame", frameInk(el));
   }
 
   /**
-   * The negative of the colour behind an element.
+   * The line colour for a frame: the ramp value that stands off what is behind
+   * the element.
    *
    * Read from the nearest ancestor that paints a background, because most
    * elements are transparent and the colour the box touches is the one behind
    * them. A background image or a gradient is not read: a computed style holds
    * no pixel, so an element painted that way falls through to the page's own
-   * paper, which is white, and whose negative is black.
+   * paper, which is light.
+   *
+   * Paper on ink, ink on paper: two of the five values, chosen by the luminance
+   * of that background. The photographic negative this used to write answered
+   * with a hue from outside the palette — olive over a pale rose page — and a
+   * pure black when nothing at all was painted behind the element.
    */
-  function negative(el) {
+  function frameInk(el) {
     for (var node = el; node; node = node.parentElement) {
       var m = String(viewOf(node).getPropertyValue("background-color")).match(
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
-      return "#" + [m[1], m[2], m[3]].map(function (n) {
-        return ("0" + (255 - Math.max(0, Math.min(255, Math.round(Number(n))))).toString(16)).slice(-2);
-      }).join("");
+      var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
+      return luminance > 0.55 ? "#3a283c" : "#f9f2ee";
     }
-    return "#000000";
+    // Nothing is painted behind it: the canvas is paper, so the line is ink.
+    return "#3a283c";
   }
 
   /**
@@ -784,10 +987,13 @@
     var icon = slot("color");
     var bar = icon && icon.querySelector ? icon.querySelector("#swatch-color") : null;
     if (!bar) return;
-    var current = hex();
-    // Left transparent when the colour is a name or an rgb() we cannot express
-    // as a hex: the bar is a readout, and a readout that guesses is a lie.
-    bar.style.background = current;
+    var current = get("color").trim();
+    // The bar shows what the browser resolved the colour to, rgba() and all, so
+    // a colour with any transparency is not drawn as a solid one. Anything that
+    // is not an rgb() — a name, an hsl(), an oklch() — still falls through to
+    // the hex, and is left transparent when there is no hex to show: the bar is
+    // a readout, and a readout that guesses is a lie.
+    bar.style.background = /^rgba?\(/.test(current) ? current : hex();
   }
 
   /**
@@ -867,29 +1073,61 @@
     return button;
   }
 
+  // The element whose comment box is open, or null while the menu shows its
+  // buttons. The box and the buttons are the same card, one at a time.
+  var commentFor = null;
+  // The box element itself, so a re-place does not rebuild it and lose the words.
+  var openComment = null;
+
+  /**
+   * Is a dock control open over the dock?
+   *
+   * The popover is the usual one. The size and weight controls carry a list of
+   * their own inside the button, so that counts too — either way the dock has
+   * the screen and the element menu waits.
+   */
+  function dockOpen() {
+    if (openKey) return true;
+    var lists = row.querySelectorAll(".custom-select-menu");
+    for (var i = 0; i < lists.length; i++) {
+      if (!lists[i].hidden) return true;
+    }
+    return false;
+  }
+
   function syncElementMenu() {
-    // No `editing` check: the menu stays at the element while its words are
-    // being typed into.
-    if (!active || !selected || selectedItems.length !== 1 || moving) {
+    // An open dock control takes the screen from the menu, and a caret in the
+    // words leaves it nothing to offer: both close it until they are done.
+    if (!active || !selected || selectedItems.length !== 1 || moving || editing || dockOpen()) {
+      commentFor = null;
+      openComment = null;
       elementMenu.hidden = true;
       return;
     }
+    // The selection moved on: the box belonged to the element before.
+    if (commentFor && commentFor !== selected) {
+      commentFor = null;
+      openComment = null;
+    }
+    if (commentFor) {
+      // A refit (a scroll, a resize) must not throw the words away mid-sentence,
+      // so an open box is only placed again, and never built again.
+      if (!openComment) {
+        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+        elementMenu.appendChild(commentBox(commentFor));
+      }
+      placeElementMenu();
+      return;
+    }
+    openComment = null;
     while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
-    var heading = document.createElement("div");
-    heading.className = "element-menu-title";
-    var badge = document.createElement("span");
-    badge.className = "element-menu-tag";
-    badge.textContent = selectedKind || "element";
-    heading.appendChild(badge);
-    heading.appendChild(document.createTextNode(nameOf(selected)));
-    elementMenu.appendChild(heading);
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var edit = actionButton("Edit text", function () {
-      if (selectedKind === "text") editText(selected);
+      if (selectedKind === "text") sweepThenEdit(selected);
       elementMenu.hidden = true;
     }, svg(MENU_ICONS.edit));
-    edit.disabled = selectedKind !== "text" || !isLeafText(selected);
+    edit.disabled = !canEditText(selected);
     actions.appendChild(edit);
     actions.appendChild(actionButton("Move", function () { startMove(); }, svg(MENU_ICONS.move)));
     var parent = selectable(selected.parentElement) ? selected.parentElement : null;
@@ -904,11 +1142,19 @@
     }, svg(MENU_ICONS.child));
     childButton.disabled = !child;
     actions.appendChild(childButton);
+    actions.appendChild(actionButton("Comment", function () {
+      commentFor = selected;
+      syncElementMenu();
+    }, svg(MENU_ICONS.comment)));
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
     elementMenu.appendChild(actions);
+    placeElementMenu();
+  }
+
+  /** The menu is placed at the element: under it where the page has room, over
+   * it where it does not, and never past the viewport edge. */
+  function placeElementMenu() {
     elementMenu.hidden = false;
-    // The menu is placed at the element: under it where the page has room, over
-    // it where it does not, and never past the viewport edge.
     var rect = selected.getBoundingClientRect();
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
@@ -916,6 +1162,50 @@
     var top = rect.bottom + height + 12 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
     elementMenu.style.left = left + "px";
     elementMenu.style.top = Math.max(12, top) + "px";
+  }
+
+  /**
+   * The comment box for one element: a field, a Save button and a Cancel.
+   *
+   * Save writes the words onto the element's record, so the comment travels
+   * with the edits to the agent's Markdown and to the saved file. Emptying the
+   * field and saving takes the comment off the element again.
+   */
+  function commentBox(el) {
+    var box = document.createElement("div");
+    box.className = "element-comment";
+    var area = document.createElement("textarea");
+    area.className = "element-comment-text";
+    area.rows = 3;
+    area.placeholder = "Comment";
+    area.setAttribute("aria-label", "Comment");
+    area.value = record(el).comment || "";
+    box.appendChild(area);
+    openComment = box;
+    var actions = document.createElement("div");
+    actions.className = "element-menu-actions";
+    var save = button("element-action element-comment-action", "", "Save comment", function () {
+      var words = area.value.trim();
+      var rec = record(el);
+      if (words) rec.comment = words;
+      else delete rec.comment;
+      commentFor = null;
+      syncElementMenu();
+      tally();
+    }, "comment-save");
+    save.appendChild(text("Save"));
+    actions.appendChild(save);
+    var cancel = button("element-action element-comment-action", "", "Cancel the comment", function () {
+      commentFor = null;
+      openComment = null;
+      syncElementMenu();
+    }, "comment-cancel");
+    cancel.appendChild(text("Cancel"));
+    actions.appendChild(cancel);
+    box.appendChild(actions);
+    // A box opened by a click is ready to type into.
+    setTimeout(function () { if (area.focus) area.focus(); }, 0);
+    return box;
   }
 
   function deleteSelected() {
@@ -1278,37 +1568,12 @@ function faces() {
     wrap: "wrap-text",
     columns: "columns-2",
     rows: "rows-2",
-    grid: "layout-grid",
+    // The grid-size control sits beside the mode button, which already draws
+    // layout-grid: a ruling through the cells says "how many" instead.
+    grid: "grid-3x3",
     size: "move-diagonal",
     position: "maximize",
   };
-
-  // The filters, as data. Blur is the only one that takes a length; the other
-  // four are percentages, and no webkit prefix: every engine that matters has
-  // supported the unprefixed name for years and a second declaration per filter
-  // is one more thing to keep in step.
-  //
-  // `write` is the CSS that gets set, `find` is how the current value is read
-  // back. They cannot be the same string: `blur(Npx)` is a filter function when
-  // written, but as a pattern its parentheses are a capture group, so it matches
-  // `blur8px` and never `blur(8px)` — the value then reads as "off" and the next
-  // filter's drag throws this one away. So the parens are escaped for reading.
-  //
-  // The shipped values are the CSS defaults, so "off" is the absence of a filter
-  // rather than a set of zeroes. Adding one of these controls must not change
-  // how the element looks before the user has touched the slider.
-  // Greyscale is spelled "grayscale" here on purpose. Chrome has never
-  // implemented `greyscale()`, and one unknown function does not merely drop
-  // itself — it invalidates the whole `filter` list, so asking for greyscale
-  // silently took the blur and the brightness with it. The alias works
-  // everywhere the standard name does.
-  var FILTERS = [
-    { key: "shadow", label: "Shadow" },
-    { key: "blur", label: "Blur", prop: "filter", min: 0, max: 40, step: 0.5, unit: "px", fallback: 0, write: "blur", find: "blur\\((\\d*\\.?\\d+)px\\)" },
-    { key: "brightness", label: "Brightness", prop: "filter", min: 0, max: 300, step: 1, unit: "%", fallback: 100, write: "brightness", find: "brightness\\((\\d*\\.?\\d+)%\\)" },
-    { key: "greyscale", label: "Greyscale", prop: "filter", min: 0, max: 100, step: 1, unit: "%", fallback: 0, write: "grayscale", find: "grayscale\\((\\d*\\.?\\d+)%\\)" },
-    { key: "contrast", label: "Contrast", prop: "filter", min: 0, max: 300, step: 1, unit: "%", fallback: 100, write: "contrast", find: "contrast\\((\\d*\\.?\\d+)%\\)" },
-  ];
 
   var ICONS = [
     // The selected face is text in the dock, so users can identify it without
@@ -1350,20 +1615,17 @@ function faces() {
     move: "move",
     parent: "arrow-up",
     child: "arrow-down",
+    comment: "message-square",
     delete: "trash-2",
   };
 
   var PAD_GLYPH = "expand";
   var MARGIN_GLYPH = "move-diagonal";
-  // The `+`, and the one control it opens: the five things that are not type.
+  // The `+`, and the controls it opens: the things that are not type.
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
   var ADD = [
     { key: "shadow", label: "Shadow", glyph: "layers" },
-    { key: "blur", label: "Blur", glyph: "aperture" },
-    { key: "brightness", label: "Brightness", glyph: "sun" },
-    { key: "greyscale", label: "Greyscale", glyph: "blend" },
-    { key: "contrast", label: "Contrast", glyph: "contrast" },
 
     // Fill and border are about the box, not the words: an element has a
     // background and a border, and its text has neither — a text fill is the
@@ -1464,6 +1726,7 @@ function faces() {
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
+    var wasOpen = dockOpen();
     if (key !== openKey) release();
     openKey = key;
     // Dressed by data-key, not by position: the row is rebuilt per selection and
@@ -1472,6 +1735,14 @@ function faces() {
       row.children[i].setAttribute("aria-expanded", row.children[i].dataset.key === key ? "true" : "false");
     }
     review.setAttribute("aria-expanded", key === "changes" ? "true" : "false");
+    // The picker paints its own surface: HeroUI's white overlay, not the cream
+    // the rest of the controls sit on. Named here are the controls the picker is
+    // all of; a shadow keeps its own panel, with the picker standing in it.
+    pop.className = key === "color" || key === "fill" || key === "border" ? "pop color" : "pop";
+    // The menu comes back when the control closes, and stands down when one
+    // opens. Only on that change: a redraw of an open control leaves the menu
+    // exactly as it was.
+    if (wasOpen !== dockOpen()) syncElementMenu();
     if (!key) {
       pop.hidden = true;
       return;
@@ -1515,7 +1786,9 @@ function faces() {
     b.appendChild(text(item.label));
     // cssText rather than the property: a face stack is commas and quotes, and
     // the shorthand carries them through without the DOM re-parsing anything.
-    b.style.cssText = "font-family:" + item.stack;
+    // Only a face row has a stack: a weight or an alignment row has none, and
+    // writing the word "undefined" into a style would be a lie either way.
+    if (item.stack) b.style.cssText = "font-family:" + item.stack;
     b.setAttribute("aria-pressed", value === current ? "true" : "false");
     return b;
   }
@@ -1623,7 +1896,11 @@ function faces() {
   function updateFamilyLabel() {
     var b = slot("family");
     if (!b) return;
-    var name = faceName(get("font-family")) || "System UI";
+    var stack = get("font-family");
+    var name = faceName(stack) || "System UI";
+    // The button wears the face it names: which family is on is then a thing to
+    // see rather than a thing to read.
+    b.style.fontFamily = stack || "";
     while (b.firstChild) b.removeChild(b.firstChild);
     b.appendChild(text(name));
     b.title = "Font family: " + name;
@@ -1638,7 +1915,8 @@ function faces() {
     var input = b.querySelector && b.querySelector("input");
     if (input) input.value = String(value);
     var trigger = b.querySelector && b.querySelector(".custom-select-trigger");
-    if (trigger) trigger.textContent = value + "px";
+    // The arrow says there is a list; the field says the value. Never both.
+    if (trigger && String(trigger.className).indexOf("chevron") === -1) trigger.textContent = value + "px";
     b.title = "Font size: " + value + "px";
     b.setAttribute("aria-label", "Font size: " + value + "px");
   }
@@ -1840,21 +2118,24 @@ function icons(items, current, onPick, cls) {
     return row;
   }
 
-  /** A custom list that keeps its value editable through the paired input. */
-  function customSelect(items, current, onPick, label) {
+  /** A custom list that keeps its value editable through the paired input.
+      A `chevron` trigger is the arrow alone, for a list whose value is already
+      in the field beside it: a trigger that repeats the value says it twice. */
+  function customSelect(items, current, onPick, label, chevron) {
     var wrap = document.createElement("div");
     wrap.className = "custom-select";
     var trigger = document.createElement("button");
     trigger.type = "button";
-    trigger.className = "custom-select-trigger";
-    trigger.textContent = current;
+    trigger.className = "custom-select-trigger" + (chevron ? " chevron" : "");
+    if (chevron) trigger.innerHTML = svg("chevron-up");
+    else trigger.textContent = current;
     trigger.setAttribute("aria-label", label);
     var menu = document.createElement("div");
     menu.className = "custom-select-menu";
     menu.hidden = true;
     items.forEach(function (item) {
       var option = button("custom-option", "", item.label, function () {
-        trigger.textContent = item.label;
+        if (!chevron) trigger.textContent = item.label;
         menu.hidden = true;
         for (var i = 0; i < menu.children.length; i++) {
           menu.children[i].setAttribute("aria-pressed", menu.children[i] === option ? "true" : "false");
@@ -1868,6 +2149,7 @@ function icons(items, current, onPick, cls) {
     trigger.addEventListener("click", function (e) {
       if (e.stopPropagation) e.stopPropagation();
       menu.hidden = !menu.hidden;
+      syncElementMenu();
     });
     wrap.appendChild(trigger);
     wrap.appendChild(menu);
@@ -1890,7 +2172,15 @@ function icons(items, current, onPick, cls) {
     // Nothing to cast: four zero lengths and a colour draw nothing, so the
     // property is emptied instead and the element is left as the page had it.
     var flat = !values[0] && !values[1] && !values[2] && !values[3];
-    set("box-shadow", flat ? "" : values[0] + "px " + values[1] + "px " + values[2] + "px " + values[3] + "px " + values[4]);
+    // A shadow with no colour of its own is the words' colour: css says so, and
+    // "undefined" in the shorthand would say nothing at all.
+    set("box-shadow", flat ? "" : values[0] + "px " + values[1] + "px " + values[2] + "px " + values[3] + "px " + (values[4] || ""));
+  }
+
+  /** The colour inside the computed box-shadow, or "" when it names none. */
+  function shadowColour() {
+    var match = String(get("box-shadow") || "").match(/rgba?\([^)]*\)/);
+    return match ? match[0] : "";
   }
 
   /** One value off a computed `box-shadow`, read the way the browser wrote it. */
@@ -1902,129 +2192,362 @@ function icons(items, current, onPick, cls) {
     return isNaN(n) ? v : n;
   }
 
+  /* ---------------------------------------------------------------- colour */
+
+  // The colours a picker offers are the page's own: nothing is saved here to
+  // offer back, because a list of our colours says nothing about this site.
+
+  /** The three channels of a #rrggbb string. */
+  function rgbOf(value) {
+    return value.slice(1).match(/../g).map(function (part) { return parseInt(part, 16); });
+  }
+
   /**
-   * The four filters as one `filter` value, each at its own default unless the
-   * element already uses it.
+   * A colour a person or the browser wrote, as channels and an alpha.
    *
-   * A filter list is not additive the way a shadow's lengths are not: writing
-   * `filter: brightness(120%)` would throw away a blur the user set earlier, so
-   * every filter is rebuilt from the four the editor owns. Only those are kept —
-   * a filter the page brought along is dropped the first time a slider moves,
-   * which is a real limitation and only visible on a page that filters itself.
+   * The two families that can hold an alpha are the two understood: #rgb,
+   * #rrggbb, #rrggbbaa, and rgb() or rgba() with commas or spaces. Anything else
+   * — a name, an hsl(), an oklch() — is refused rather than guessed at, so the
+   * field that calls this can say it does not know instead of writing a colour
+   * nobody asked for. The computed style of any element is rgb() or rgba(), so
+   * this reads what the browser itself resolved.
    */
-  function filters() {
-    var out = {};
-    FILTERS.forEach(function (f) {
-      if (!f.prop) return;
-      // What this session wrote, read off the inline style, not off the cascade.
-      // getComputedStyle mid-drag is a snapshot: re-reading it while a slider is
-      // moving is how a blur gets thrown away by the next filter's drag. The
-      // inline value is exactly what we wrote, and the record keeps it revertable.
-      // A filter the page brought along lives in the cascade, so it is the
-      // fallback rather than the source.
-      var inline = selected.style.getPropertyValue(f.prop);
-      // The filter's own parentheses have to be escaped here (see FILTERS.find):
-      // unescaped they are a capture group and the pattern matches nothing.
-      var found = String(inline || get(f.prop) || "none").match(new RegExp(f.find));
-      out[f.key] = found ? Number(found[1]) : f.fallback;
-    });
-    return out;
+  function readColour(value) {
+    var text = String(value == null ? "" : value).trim().toLowerCase();
+    var hex = text.match(/^#([\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/);
+    if (hex) {
+      var digits = hex[1];
+      if (digits.length === 3) digits = digits.replace(/./g, function (c) { return c + c; });
+      return {
+        channels: rgbOf("#" + digits.slice(0, 6)),
+        alpha: digits.length === 8 ? parseInt(digits.slice(6), 16) / 255 : 1,
+      };
+    }
+    var parts = text.match(/^rgba?\(([^)]+)\)$/);
+    if (!parts) return null;
+    var list = parts[1].split(/[,\s/]+/).filter(Boolean).slice(0, 4).map(Number);
+    var channels = list.slice(0, 3);
+    if (channels.length < 3 || channels.some(function (n) { return !(n >= 0 && n <= 255); })) return null;
+    var alpha = list.length > 3 ? list[3] : 1;
+    if (!(alpha >= 0 && alpha <= 1)) return null;
+    return { channels: channels.map(Math.round), alpha: alpha };
   }
 
-  function setFilter(key, value) {
-    var f = FILTERS.filter(function (x) { return x.key === key; })[0];
-    var all = filters();
-    // A number, not the string a range input hands over: the "is it at its
-    // default" test below is a strict compare, and "0" !== 0 is true, so a
-    // filter dragged back to its default would be written out as blur(0px) and
-    // never leave the element.
-    all[key] = Number(value);
-    // A filter sitting at its default is left out of the list, so dragging one
-    // back to where it started leaves no filter behind at all.
-    var list = FILTERS.filter(function (x) { return x.prop && all[x.key] !== x.fallback; })
-      .map(function (x) { return x.write + "(" + all[x.key] + x.unit + ")"; });
-    set(f.prop, list.length ? list.join(" ") : "");
+  /**
+   * Channels as hue in degrees, saturation and brightness in percent.
+   *
+   * The three numbers the picker's controls are: hue is a slider, and the field
+   * reads saturation across and brightness up. HSB rather than HSL, because that
+   * is the pair the field draws — white to the hue across, clear to black up —
+   * and no HSL value paints that shape.
+   */
+  function toHsb(channels) {
+    var r = channels[0] / 255;
+    var g = channels[1] / 255;
+    var b = channels[2] / 255;
+    var max = Math.max(r, g, b);
+    var span = max - Math.min(r, g, b);
+    var h = 0;
+    if (span) {
+      if (max === r) h = ((g - b) / span) % 6;
+      else if (max === g) h = (b - r) / span + 2;
+      else h = (r - g) / span + 4;
+      h = (h * 60 + 360) % 360;
+    }
+    return { h: h, s: max ? (span / max) * 100 : 0, b: max * 100 };
   }
 
-  function colorControl() {
+  /** Back to channels, from the same three numbers. */
+  function fromHsb(hsb) {
+    var c = (hsb.b / 100) * (hsb.s / 100);
+    var x = c * (1 - Math.abs(((hsb.h / 60) % 2) - 1));
+    var m = hsb.b / 100 - c;
+    var at = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(hsb.h / 60) % 6];
+    return at.map(function (v) { return Math.round((v + m) * 255); });
+  }
+
+  /**
+   * The colour picker, in the shape HeroUI's controlled picker draws: the field
+   * with the dot on it, the hue slider with the browser's own picker beside it,
+   * and one line holding the hex code and the transparency as a percentage.
+   *
+   * The address is rgba. A colour with any transparency is written as
+   * rgba(r, g, b, a), the only way css can say "see through", and a solid one as
+   * #rrggbb, which is what the project's own code wants to read. Either way the
+   * property goes through set(), so undo, the edits list and Save all see the
+   * same change.
+   *
+   * `current` is the colour the property holds now — a name, an rgb(), an
+   * rgba(), or nothing — and `put(value)` is how that property is written: the
+   * text colour sets `color` and repaints the bar in the dock, a box colour sets
+   * `background-color`, a shadow rebuilds the whole shorthand.
+   *
+   * The field and the slider are drawn rather than taken from the browser: a
+   * native range cannot carry a 20px track with capped ends. Each one holds a
+   * real range input behind the drawing, so Tab reaches it and the arrow keys
+   * move it, and the dot wears the focus ring while it has the keyboard.
+   */
+  function picker(current, put) {
     var panel = document.createElement("div");
     panel.className = "color-panel";
-    var current = hex() || "#86546b";
-    var channels = current.slice(1).match(/../g).map(function (value) { return parseInt(value, 16); });
-    var preview = document.createElement("div");
-    preview.className = "color-preview";
-    var hexInput = document.createElement("input");
-    hexInput.type = "text";
-    hexInput.value = current;
-    hexInput.setAttribute("aria-label", "Hex text colour");
-    function value() {
+    // A colour that cannot be read — a name, an oklch(), nothing at all — opens
+    // the picker on the plum the dock is drawn in. Opening on black would claim
+    // the page is a colour it never wrote.
+    var read = readColour(current);
+    var channels = read ? read.channels : [134, 84, 107];
+    var hsb = toHsb(channels);
+    // A colour at zero alpha is one nobody can see, and there is nothing to pick
+    // from: the picker opens solid, so the first colour it writes shows.
+    var alpha = read && read.alpha ? read.alpha : 1;
+    var typing = false;
+
+    function hexOf() {
       return "#" + channels.map(function (channel) { return ("0" + channel.toString(16)).slice(-2); }).join("");
     }
-    function applyColour(next) {
-      if (!/^#[\da-f]{6}$/i.test(next)) return;
-      channels = next.slice(1).match(/../g).map(function (part) { return parseInt(part, 16); });
-      hexInput.value = next;
-      preview.style.background = next;
-      rows.forEach(function (row, index) { row.input.value = channels[index]; row.output.textContent = channels[index]; });
+    /** The colour as the element's css takes it. */
+    function css() {
+      if (alpha >= 1) return hexOf();
+      return "rgba(" + channels.join(", ") + ", " + Math.round(alpha * 1000) / 1000 + ")";
+    }
+    /** A colour painted over the checkerboard, so a see-through one reads as
+        one rather than as a pale solid. Paper and ink alpha, like the track's. */
+    function overCheckers(value) {
+      return "linear-gradient(" + value + ", " + value + ")," +
+        " repeating-conic-gradient(#f9f2ee 0% 25%, #3a283c14 0% 50%) 50% / 16px 16px";
+    }
+
+    /** Draw the picker from the colour it holds, and write that colour out. */
+    function write() {
+      paint();
+      put(css());
+    }
+
+    /** The field's own two numbers are the colour: read them back as channels. */
+    function fromField() {
+      channels = fromHsb(hsb);
+      write();
+    }
+
+    /** One change that is one keystroke or one pick: one step in the undo stack. */
+    function once(fn) {
       hold();
-      set("color", next);
-      paintSwatch();
+      fn();
       release();
     }
-    var rows = ["Red", "Green", "Blue"].map(function (label, index) {
-      var line = document.createElement("label");
-      line.className = "color-row";
-      line.appendChild(text(label));
+
+    /**
+     * Drag a control. The gesture keeps the pointer until it ends, so the hand
+     * may leave the control — and the panel — without the colour stopping, and
+     * the whole drag is one step in the undo stack.
+     */
+    function drag(el, place) {
+      var down = false;
+      el.addEventListener("pointerdown", function (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (el.setPointerCapture && e.pointerId !== undefined) el.setPointerCapture(e.pointerId);
+        down = true;
+        el.setAttribute("data-dragging", "true");
+        hold();
+        place(e);
+      });
+      el.addEventListener("pointermove", function (e) { if (down) place(e); });
+      function stop() {
+        el.removeAttribute("data-dragging");
+        if (!down) return;
+        down = false;
+        release();
+      }
+      el.addEventListener("pointerup", stop);
+      el.addEventListener("pointercancel", stop);
+    }
+
+    /** Where a pointer is on a control, as fractions from its top-left corner. */
+    function spot(el, e) {
+      var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      if (!rect || !rect.width || !rect.height) return null;
+      var clamp = function (n) { return Math.max(0, Math.min(1, n)); };
+      return { x: clamp((e.clientX - rect.left) / rect.width), y: clamp((e.clientY - rect.top) / rect.height) };
+    }
+
+    /**
+     * The real input behind a drawn control. Invisible and holding no pointer,
+     * but Tab reaches it and the arrow keys move it, so the drawn slider has a
+     * keyboard and a screen reader as well as a dot to drag.
+     */
+    function range(max, label, onMove) {
       var input = document.createElement("input");
       input.type = "range";
+      input.className = "knob";
       input.min = 0;
-      input.max = 255;
-      input.value = channels[index];
-      var output = document.createElement("output");
-      output.textContent = input.value;
+      input.max = max;
+      input.step = 1;
+      input.setAttribute("aria-label", label);
       input.addEventListener("input", function () {
-        channels[index] = Number(input.value);
-        output.textContent = input.value;
-        var next = value();
-        hexInput.value = next;
-        preview.style.background = next;
-        hold();
-        set("color", next);
-        paintSwatch();
+        once(function () { onMove(Number(input.value)); });
       });
-      line.appendChild(input);
-      line.appendChild(output);
-      panel.appendChild(line);
-      return { input: input, output: output };
+      return input;
+    }
+
+    /**
+     * One drawn slider: a 20px track with a cap at each end, the dot that rides
+     * it, and the input behind both. `set` takes a value and puts it in the
+     * colour; paint() puts the colour's value back into the input.
+     */
+    function rail(cls, label, max, set) {
+      var wrap = document.createElement("div");
+      wrap.className = "slider " + cls;
+      var line = document.createElement("div");
+      line.className = "track";
+      var thumb = document.createElement("span");
+      thumb.className = "track-thumb";
+      line.appendChild(thumb);
+      var input = range(max, label, set);
+      wrap.appendChild(line);
+      wrap.appendChild(input);
+      drag(line, function (e) {
+        var at = spot(line, e);
+        if (at) set(Math.round(at.x * max));
+      });
+      input.addEventListener("focus", function () { wrap.setAttribute("data-focus-visible", "true"); });
+      input.addEventListener("blur", function () { wrap.removeAttribute("data-focus-visible"); });
+      return { wrap: wrap, line: line, thumb: thumb, input: input };
+    }
+
+    // The field, with the dot on it: saturation across, brightness up.
+    var field = document.createElement("div");
+    field.className = "field";
+    field.setAttribute("aria-label", "Colour area");
+    var dot = document.createElement("span");
+    dot.className = "field-thumb";
+    field.appendChild(dot);
+    var saturation = range(100, "Saturation", function (value) { hsb.s = value; fromField(); });
+    var brightness = range(100, "Brightness", function (value) { hsb.b = value; fromField(); });
+    [saturation, brightness].forEach(function (input) {
+      // The ring a keyboard needs, drawn on the dot the pointer uses.
+      input.addEventListener("focus", function () { field.setAttribute("data-focus-visible", "true"); });
+      input.addEventListener("blur", function () { field.removeAttribute("data-focus-visible"); });
+      field.appendChild(input);
     });
-    preview.style.background = current;
-    hexInput.addEventListener("change", function () { applyColour(hexInput.value); });
-    panel.insertBefore(preview, panel.firstChild);
-    panel.insertBefore(hexInput, panel.children[1]);
+    drag(field, function (e) {
+      var at = spot(field, e);
+      if (!at) return;
+      hsb.s = at.x * 100;
+      hsb.b = (1 - at.y) * 100;
+      fromField();
+    });
+    panel.appendChild(field);
+
+    // The hue, with the browser's own picker beside it: the one control that
+    // reaches a colour no picker on this panel can draw.
+    var hue = rail("hue-slider", "Hue", 360, function (value) {
+      hsb.h = value;
+      fromField();
+    });
+    var row = document.createElement("div");
+    row.className = "pick-row";
+    row.appendChild(hue.wrap);
+    var native = document.createElement("input");
+    native.type = "color";
+    native.className = "colour-picker";
+    native.setAttribute("aria-label", "Pick a colour");
+    native.addEventListener("input", function () {
+      once(function () {
+        channels = rgbOf(native.value);
+        hsb = toHsb(channels);
+        alpha = 1;
+        write();
+      });
+    });
+    var open = document.createElement("button");
+    open.type = "button";
+    open.className = "icon-button";
+    open.title = "Pick a colour";
+    open.setAttribute("aria-label", "Pick a colour");
+    open.innerHTML = svg("pipette");
+    open.addEventListener("click", function () { if (native.click) native.click(); });
+    row.appendChild(open);
+    row.appendChild(native);
+    panel.appendChild(row);
+
+    // The value, in the field a form would use: the colour as a swatch, the
+    // words beside it, and the transparency as the percentage it is.
+    var valueField = document.createElement("label");
+    valueField.className = "value-field";
+    var chip = document.createElement("span");
+    chip.className = "chip";
+    valueField.appendChild(chip);
+    var typed = document.createElement("input");
+    typed.type = "text";
+    typed.setAttribute("aria-label", "Colour value");
+    typed.addEventListener("focus", function () { typing = true; });
+    typed.addEventListener("blur", function () { typing = false; });
+    typed.addEventListener("change", function () {
+      var read = readColour(typed.value);
+      // A value that cannot be read is put back, rather than guessed at.
+      if (!read) {
+        typed.value = hexOf();
+        return;
+      }
+      once(function () {
+        channels = read.channels;
+        hsb = toHsb(channels);
+        alpha = read.alpha;
+        write();
+      });
+    });
+    valueField.appendChild(typed);
+    var opacity = document.createElement("span");
+    opacity.className = "alpha";
+    var percent = document.createElement("input");
+    percent.type = "number";
+    percent.min = 0;
+    percent.max = 100;
+    percent.step = 1;
+    percent.setAttribute("aria-label", "Alpha");
+    percent.addEventListener("input", function () {
+      if (percent.value === "") return;
+      var value = Math.max(0, Math.min(100, Number(percent.value)));
+      once(function () {
+        alpha = value / 100;
+        write();
+      });
+    });
+    opacity.appendChild(percent);
+    opacity.appendChild(text("%"));
+    valueField.appendChild(opacity);
+    panel.appendChild(valueField);
     pop.appendChild(panel);
+
+    /** Draw every control from the colour the picker holds. */
+    function paint() {
+      var pure = "hsl(" + Math.round(hsb.h) + ",100%,50%)";
+      // The field's own layers, in the order the picker paints them: black into
+      // clear up the box, white into the hue across it, the hue itself under
+      // both. Saturation is x and brightness is y, which is that pair.
+      field.style.background =
+        "linear-gradient(to top, black, transparent)," +
+        " linear-gradient(to right, hsl(" + Math.round(hsb.h) + ",0%,100%), transparent)," +
+        " " + pure;
+      dot.style.left = hsb.s + "%";
+      dot.style.top = 100 - hsb.b + "%";
+      dot.style.backgroundColor = css();
+      saturation.value = Math.round(hsb.s);
+      brightness.value = Math.round(hsb.b);
+      hue.thumb.style.left = (hsb.h / 360) * 100 + "%";
+      hue.thumb.style.backgroundColor = pure;
+      hue.input.value = Math.round(hsb.h);
+      percent.value = Math.round(alpha * 100);
+      chip.style.background = overCheckers(css());
+      // The field holds the hex code and the percentage holds the transparency,
+      // so the words stay short enough to read in a narrow panel. Left alone
+      // while it is being typed into: a half-written colour is not a value, and
+      // writing over it would take the caret away.
+      if (!typing) typed.value = hexOf();
+    }
+
+    paint();
   }
 
-  /** A colour control for non-text additions. */
-  function colour(prop, current, onPick) {
-    var bar = document.createElement("div");
-    bar.className = "bar2";
-    var swatch = document.createElement("input");
-    swatch.type = "color";
-    // The UA hands a swatch #000 when the value it is given is not a hex, and
-    // a black box for an element whose colour is a name or an rgb() reads as a
-    // bug rather than as a value. Left as the UA default on purpose: a guess
-    // would be a colour we invented, which is the thing this control removed.
-    if (/^#[0-9a-f]{6}$/i.test(current)) swatch.value = current;
-    swatch.title = "Pick a colour";
-    swatch.setAttribute("aria-label", "Pick a colour");
-    swatch.addEventListener("input", function () {
-      hold();
-      onPick(swatch.value);
-    });
-    swatch.addEventListener("change", release);
-    bar.appendChild(swatch);
-    pop.appendChild(bar);
-  }
 
   /** Everything the payload writes goes through here, so nothing is ever lost. */
   function set(prop, value) {
@@ -2032,16 +2555,6 @@ function icons(items, current, onPick, cls) {
     apply(prop, value);
     refit();
     tally();
-  }
-
-  /**
-   * A slider for one of the four filters, from the row above: the range, the step
-   * and the unit all live with the filter they belong to, so adding a filter is
-   * one entry in FILTERS and one control that calls this.
-   */
-  function filterSlider(key) {
-    var f = FILTERS.filter(function (x) { return x.key === key; })[0];
-    slider(f.min, f.max, f.step, filters()[key], f.unit, function (v) { setFilter(key, Number(v)); });
   }
 
   // A direction, align or gap without a box is nothing: flex, unless the
@@ -2137,17 +2650,15 @@ function icons(items, current, onPick, cls) {
   }
 
   function spacingControl() {
-    var list = document.createElement("div");
-    list.className = "spacing-fields";
-    var letter = number(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) {
+    // Both rows are the shared number field, which appends to the panel itself,
+    // so there is no wrapper here: a <div> whose class matched no rule dressed
+    // nothing at all.
+    number(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) {
       set("letter-spacing", v + "px");
     }, "Letter spacing");
-    var line = number(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) {
+    number(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) {
       set("line-height", v);
     }, "Line spacing");
-    list.appendChild(letter);
-    list.appendChild(line);
-    pop.appendChild(list);
   }
 
   var CONTROLS = {
@@ -2188,7 +2699,7 @@ function icons(items, current, onPick, cls) {
         }), current, function (v) {
           input.value = v;
           set("font-weight", v);
-        }, "Font weight choices"));
+        }, "Font weight choices", true));
         pop.appendChild(row);
       }
     },
@@ -2203,7 +2714,7 @@ function icons(items, current, onPick, cls) {
       }), size, function (v) {
         set("font-size", v + "px");
         updateSizeLabel();
-      }, "Common font sizes"));
+      }, "Common font sizes", true));
     },
     spacing: spacingControl,
     align: cycleAlignment,
@@ -2213,16 +2724,19 @@ function icons(items, current, onPick, cls) {
       });
     },
     color: function () {
-      colorControl();
+      picker(get("color"), function (value) {
+        set("color", value);
+        paintSwatch();
+      });
     },
     fill: function () {
-      colour("background-color", get("background-color"), function (v) {
-        set("background-color", v);
+      picker(get("background-color"), function (value) {
+        set("background-color", value);
       });
     },
     border: function () {
-      colour("border-color", get("border-color"), function (v) {
-        set("border-color", v);
+      picker(get("border-color"), function (value) {
+        set("border-color", value);
       });
       // A colour on a border that has no width is a colour nobody sees, so the
       // width is offered too. A hairline, in the ramp: thick enough to read,
@@ -2239,7 +2753,10 @@ function icons(items, current, onPick, cls) {
           shadowOf("offset-y", 0),
           shadowOf("blur", 0),
           shadowOf("spread", 0),
-          // No colour of our own to fall back on: the page own shadow colour, or
+          // No colour of our own to fall back on: the page's own shadow colour,
+          // read out of the shorthand, or none — and a shadow with no colour is
+          // the words' colour, which is what css itself does.
+          shadowColour(),
         ];
       };
       var values = read();
@@ -2259,22 +2776,10 @@ function icons(items, current, onPick, cls) {
           shadow(values);
         });
       });
-      var swatch = document.createElement("input");
-      swatch.type = "color";
-      if (/^#[0-9a-f]{6}$/i.test(values[4])) swatch.value = values[4];
-      swatch.title = "Shadow colour";
-      swatch.addEventListener("input", function () {
-        values[4] = swatch.value;
-        hold();
+      picker(values[4], function (value) {
+        values[4] = value;
         shadow(values);
       });
-      swatch.addEventListener("change", release);
-      var bar = document.createElement("div");
-      bar.className = "bar2";
-      var name = text("Colour");
-      bar.appendChild(name);
-      bar.appendChild(swatch);
-      pop.appendChild(bar);
     },
     // Direction as a cycle button: one click moves to the next value, so no
     // control opens. Flex-only in the table, but a grid is left alone — the
@@ -2395,10 +2900,6 @@ function icons(items, current, onPick, cls) {
     },
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
-    blur: function () { filterSlider("blur"); },
-    brightness: function () { filterSlider("brightness"); },
-    greyscale: function () { filterSlider("greyscale"); },
-    contrast: function () { filterSlider("contrast"); },
   };
 
   /** What an element currently has, from the cascade or from a change we made. */
@@ -2577,7 +3078,7 @@ function decorations() {
           sizeInput.value = value;
           set("font-size", value + "px");
           updateSizeLabel();
-        }, "Common font sizes"));
+        }, "Common font sizes", true));
         sizeButton.addEventListener("click", function () {});
         row.appendChild(sizeButton);
         return;
@@ -2693,6 +3194,10 @@ function decorations() {
     // element has been given. Tracked by which element the row was built for,
     // so a re-click on the same element keeps the control that is open.
     if (on && rowFor !== selected) {
+      // A control left open belongs to the element it was opened for, so it goes
+      // with the row: its values read the new element, and its list would show
+      // the old one's. Closing it also hands the screen back to the menu.
+      show("");
       buildRow();
       rowFor = selected;
     }
@@ -2759,8 +3264,8 @@ function decorations() {
     // already says where it went.
     var moved = rec.location && rec.el !== moving && !rec.removed &&
       (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
-    return props.length || text || rec.created || rec.removed || moved
-      ? { props: props, text: text, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+    return props.length || text || rec.comment || rec.created || rec.removed || moved
+      ? { props: props, text: text, comment: rec.comment || null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
       : null;
   }
 
@@ -2843,6 +3348,7 @@ function decorations() {
         sourceIsOwn: rec.source ? rec.source.own : src ? src.own : false,
         props: d.props,
         text: d.text,
+        comment: d.comment,
         created: d.created,
         added: d.added,
         removed: d.removed,
@@ -2892,6 +3398,7 @@ function decorations() {
       if (item.removed) out.push("- Removed: " + item.label);
       if (item.moved) out.push("- Moved to: `" + (item.movedTo || "a new position") + "`");
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
+      if (item.comment) out.push("- Comment: " + JSON.stringify(item.comment));
       out.push("");
     });
     return out.join("\n");
@@ -2926,7 +3433,7 @@ function decorations() {
     items.forEach(function (item) {
       var line = document.createElement("div");
       line.className = "chg";
-      var n = item.props.length + (item.text ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0);
+      var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0);
       var name = button("opt", "", "Select " + item.label, function () {
         // A deleted element is off the page: there is nothing to frame or edit.
         if (item.removed) return;
@@ -2983,7 +3490,7 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
     });
   }
 
@@ -3115,10 +3622,10 @@ function decorations() {
           any = true;
         });
         var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
-        if (!any && !text && !rec.created && !(rec.added && rec.added.length)) return;
+        if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length)) return;
         var location = rec.location;
         var moved = location && (rec.el.parentElement !== location.parent || rec.el.nextSibling !== location.before);
-        edits.push({ selector: selectorFor(rec.el), props: props, text: text, added: rec.added || [], moved: !!moved, googleFont: rec.googleFont || null });
+        edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!moved, googleFont: rec.googleFont || null });
       });
       store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
     } catch (e) {
@@ -3163,6 +3670,7 @@ function decorations() {
         el.textContent = edit.text.after;
       }
       if (edit.added && edit.added.length) rec.added = edit.added.slice();
+      if (typeof edit.comment === "string") rec.comment = edit.comment;
       if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
     });
     enter();
@@ -3308,7 +3816,10 @@ function decorations() {
    * leaves the box a line too short and a deletion leaves it too tall. Measured
    * on the next tick, because the browser reflows the element after this event.
    */
-  function onEdit() {
+  function onEdit(e) {
+    // Our own field, so its words are not the page's: typing a comment must not
+    // count as an edit or redraw the list under the caret.
+    if (e && e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     typedAt = Date.now();
     if (editing) setTimeout(refit, 0);
     tally();
@@ -3523,7 +4034,11 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      if (moving) {
+      if (commentFor) {
+        // Back to the buttons, with the words still unsaved.
+        commentFor = null;
+        syncElementMenu();
+      } else if (moving) {
         var location = record(moving).location;
         location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
         moving = null;
