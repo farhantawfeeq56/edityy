@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { test } from "node:test";
-import { ASSET_PATH, TAG, edityy, inject, launcher } from "../src/index.js";
+import { ASSET_PATH, SWEEP_ASSET_PATH, TAG, edityy, inject, launcher } from "../src/index.js";
 
 /** A node response with just the bits the middleware touches. */
 function fakeRes({ headers = {} } = {}) {
@@ -39,6 +39,14 @@ test("serves the launcher on the asset path", () => {
   assert.equal(res.getHeader("cache-control"), "no-store");
 });
 
+test("serves the Edit text sweep, which the payload fetches on its own", () => {
+  const { res, passed } = handle(SWEEP_ASSET_PATH, fakeRes());
+  assert.equal(res.status, 200);
+  assert.match(res.body.toString(), /__edityySweep/, "it is the sweep the payload reads");
+  assert.match(String(res.getHeader("content-type")), /javascript/);
+  assert.equal(passed, false, "the request does not reach the app");
+});
+
 test("injects the tag before </head> and fixes content-length", () => {
   const html = "<!doctype html><html><head><title>x</title></head><body>hi</body></html>";
   const { res, passed } = handle(
@@ -49,7 +57,7 @@ test("injects the tag before </head> and fixes content-length", () => {
   assert.equal(passed, true);
   res.end(html);
   const out = res.body.toString();
-  assert.match(out, /<script src="\/__edityy\/edityy\.js" defer><\/script><\/head>/);
+  assert.match(out, /<script src="\/__edityy\/edityy\.js" data-edityy-sweep="\/__edityy\/ascii-sweep\.js" defer><\/script><\/head>/);
   // The real length, not the placeholder the server sent.
   assert.equal(res.getHeader("content-length"), Buffer.byteLength(out));
   assert.match(out, /<body>hi<\/body>/);
@@ -121,7 +129,7 @@ test("a streamed page gets the tag in its head, and the rest streams through", (
   assert.deepEqual(res.wire, [], "held until </head> arrives");
   res.write("ad><title>t</title></head><body>");
   assert.equal(res.wire.length, 1, "the head goes out as soon as it is complete");
-  assert.match(res.wire[0], /<script src="\/__edityy\/edityy\.js" defer><\/script><\/head><body>$/);
+  assert.match(res.wire[0], /<script src="\/__edityy\/edityy\.js" data-edityy-sweep="\/__edityy\/ascii-sweep\.js" defer><\/script><\/head><body>$/);
   res.write("<p>one</p>");
   res.end("</body></html>");
   assert.deepEqual(res.wire.slice(1), ["<p>one</p>", "</body></html>"], "after the head, nothing is held");
@@ -203,7 +211,7 @@ test("injects a body split across write() and end()", () => {
   res.end("</head><body>hi</body></html>");
 
   const out = res.body.toString();
-  assert.match(out, /<script src="\/__edityy\/edityy\.js" defer><\/script><\/head>/);
+  assert.match(out, /<script src="\/__edityy\/edityy\.js" data-edityy-sweep="\/__edityy\/ascii-sweep\.js" defer><\/script><\/head>/);
   assert.match(out, /<body>hi<\/body>/);
   assert.equal(res.getHeader("content-length"), Buffer.byteLength(out));
   // The head was held back rather than written straight to the wire.
@@ -285,7 +293,7 @@ test("inject() covers the shapes dev servers actually return", () => {
   assert.equal(
     inject("<!doctype html><html><head></head><body></body></html>")
       .toString()
-      .match(/<script src="\/__edityy\/edityy\.js" defer><\/script>/g).length,
+      .match(/<script src="\/__edityy\/edityy\.js" data-edityy-sweep="\/__edityy\/ascii-sweep\.js" defer><\/script>/g).length,
     1
   );
 });
@@ -301,7 +309,7 @@ test("inject() accepts a Buffer", () => {
 test("a nonce goes on the injected tag, so a strict CSP lets it run", () => {
   const { res } = handle("/", fakeRes({ headers: { "content-type": "text/html" } }), { nonce: "abc123" });
   res.end("<html><head></head><body></body></html>");
-  assert.match(res.body.toString(), /<script nonce="abc123" src="\/__edityy\/edityy\.js" defer><\/script>/);
+  assert.match(res.body.toString(), /<script nonce="abc123" src="\/__edityy\/edityy\.js" data-edityy-sweep="\/__edityy\/ascii-sweep\.js" defer><\/script>/);
 });
 
 test("a nonce can come from the request, for apps that make one per response", () => {

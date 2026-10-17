@@ -34,6 +34,8 @@ export interface ElementChange {
   source: string | null;
   props: PropertyChange[];
   text: { before: string; after: string } | null;
+  /** Words the user wrote about this element, or null. */
+  comment: string | null;
 }
 
 /** What the page sends to the save endpoint. */
@@ -57,6 +59,8 @@ export interface SavedChanges {
 export declare const launcher: string;
 /** The path the middleware serves the launcher on: `/__edityy/edityy.js`. */
 export declare const ASSET_PATH: "/__edityy/edityy.js";
+/** The path the middleware serves the Edit text sweep on: `/__edityy/ascii-sweep.js`. */
+export declare const SWEEP_ASSET_PATH: "/__edityy/ascii-sweep.js";
 /** The tag the middleware injects. */
 export declare const TAG: string;
 /** The path the page posts its edits to: `/__edityy/changes`. */
