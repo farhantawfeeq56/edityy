@@ -9,7 +9,6 @@ const want = [
   "LICENSE",
   "README.md",
   "package.json",
-  "src/ascii-sweep.js",
   "src/changes.js",
   "src/cli.js",
   "src/client.d.ts",

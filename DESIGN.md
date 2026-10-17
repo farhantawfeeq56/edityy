@@ -1,13 +1,13 @@
 ---
 name: Edityy
-description: Edityy — a visual editing layer for code-based websites, on warm paper, in mist-graded rose
+description: Edityy — a visual editing layer for code-based websites, on white paper, in mist-graded rose
 colors:
   primary: "#3a283c"
   secondary: "#86546b"
   tertiary: "#b6758b"
-  neutral: "#f9f2ee"
-  surface: "#f9f2ee"
-  on-primary: "#f9f2ee"
+  neutral: "#ffffff"
+  surface: "#ffffff"
+  on-primary: "#ffffff"
   muted: "#86546b"
   border: "#3a283c1a"
   accent-rose: "#d79eac"
@@ -101,7 +101,7 @@ components:
 
 Edityy sits between a codebase and a visual editing interface: a Components
 Editor for AI-assisted building and an editor for structured content like
-posts and landing copy. The UI is a warm paper canvas with plum ink
+posts and landing copy. The UI is a white paper canvas with plum ink
 headlines and rose signals. The feel is a calm workbench — quiet
 surfaces, one strong dark button, no gradients on core UI.
 
@@ -134,7 +134,7 @@ The *grade* transfers, the *hue* is the app's own.
 
 ## Colors
 
-Warm paper under plum ink, with a rose mid-tone doing the signalling.
+White paper under plum ink, with a rose mid-tone doing the signalling.
 
 - **Primary (#3a283c):** Deep plum ink. Headlines, body text, the primary
   button, the orb. Never pure black.
@@ -142,12 +142,12 @@ Warm paper under plum ink, with a rose mid-tone doing the signalling.
   muted-on-dark emphasis. Also the muted text color on light fills.
 - **Tertiary (#b6758b):** Mid rose. Signal dots, active states,
   interaction highlights — always paired with ink or paper text.
-- **Neutral (#f9f2ee):** Warm paper. The canvas and editor background,
-  softer than pure white. The app's brightest value.
-- **Surface (#f9f2ee):** Cards and instruction blocks sit on the same
+- **Neutral (#ffffff):** Paper. The canvas and editor background. The
+  app's brightest value.
+- **Surface (#ffffff):** Cards and instruction blocks sit on the same
   paper as the canvas, separated only by a hairline and by grain. Layers
   that need to lift off the canvas use a blur, not a lighter fill.
-- **On-primary (#f9f2ee):** Text and icons on plum fills.
+- **On-primary (#ffffff):** Text and icons on plum fills.
 - **Muted (#86546b):** Secondary copy, timestamps, captions on paper.
 - **Border (#3a283c1a):** Hairline dividers between panes — ~10% ink.
   Slightly heavier than a typical hairline, because grain eats contrast.
@@ -155,7 +155,7 @@ Warm paper under plum ink, with a rose mid-tone doing the signalling.
   content state (draft / review / published), always with ink text.
 
 The ramp runs paper → blush → rose → mid rose → plum. There is no sixth
-value, and nothing is pure white or pure black.
+value, and nothing is pure black.
 
 ## Typography
 
@@ -273,5 +273,5 @@ legible and it never appears as a repeating tile at a fixed scale.
   buttons or panels.
 - Do keep the orb the single entry point; don't spread controls across a
   permanent toolbar.
-- Don't introduce pure black, pure white, or a new hue — the ramp is
+- Don't introduce pure black or a new hue — the ramp is
   five values and it is closed.

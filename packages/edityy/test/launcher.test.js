@@ -496,11 +496,12 @@ test("the button is a real button with an accessible name", () => {
 test("the chrome wears its own face, not the host page's", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
-  // The package runs on other codebases, so it must not carry a font stack that
-  // would only be right on one of them. The machine's own UI face is the safe one:
-  // it exists everywhere, and the host page's typography belongs to the page.
-  assert.match(css, /font-family:system-ui,-apple-system,/, "the machine's UI face");
-  assert.doesNotMatch(css, /Plus Jakarta Sans/, "nothing named after one site");
+  // The chrome names the Edityy face, and takes the page's copy of it through
+  // --edityy-font when the page keeps it behind a hashed name. The machine's own
+  // UI face is the floor, and no webfont is fetched.
+  assert.match(css, /font-family:var\(--edityy-font,"Plus Jakarta Sans"\),system-ui,-apple-system,/,
+    "Jakarta through the chrome's hook, with the machine's UI face as the floor");
+  assert.doesNotMatch(css, /fonts\.googleapis\.com|@font-face/, "and no font is fetched");
   assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
   assert.match(css, /font:600 14px\/1\.1 inherit/, "the orb's own weight and size");
 });
@@ -666,7 +667,7 @@ test("Shift+A applies column auto layout to sibling selections and restores them
   assert.deepEqual(wrapper.children, [first, second]);
   assert.deepEqual(parent.children, [wrapper, gap]);
   assert.equal(app.root.selection().el, wrapper);
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  assert.equal(app.root.nodes.row.children[0].attributes["aria-label"], "Layout mode: Flex");
   // The prompt says what to build and what goes in it, by the places in the code.
   const prompt = app.win.__edityy_changes();
   assert.match(prompt, /- Added: a new `div` with `display: flex; flex-direction: column;`/);
@@ -775,7 +776,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.clickPage();
   });
   const sel = app.root.nodes.sel;
-  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee", "paper on a dark panel");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff", "paper on a dark panel");
   // A true negative of the page's paper would be pure black, which the ramp
   // does not have. An unpainted background is the page's own canvas: light, so
   // the line is ink.
@@ -801,7 +802,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(child);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff");
 });
 
 /** Select a node and report how it was classified. */
@@ -900,6 +901,52 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
+test("the primary dock fills on hover and on select, and draws its own tooltip", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const css = app.root.innerHTML;
+  assert.match(css, /\.ic:hover\{background:#fcfcfc\}/, "a hovered control is #fcfcfc");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:#f9f9f9\}/, "a selected control is #f9f9f9");
+  assert.match(css, /\.pop\{[^}]*background:#f9f9f9/, "the secondary dock wears the same fill");
+  quiet(() => selectText(app));
+  const row = app.root.nodes.row;
+  const tip = app.root.nodes.tip;
+  const spacing = row.children.find((b) => b.dataset.key === "spacing");
+  assert.equal(tip.hidden, true, "no tooltip to begin with");
+  for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
+  assert.equal(tip.hidden, false, "a hovered control shows one");
+  assert.equal(tip.textContent, "Typography spacing", "in the words of its own label");
+  quiet(() => press(app, "spacing"));
+  assert.equal(tip.hidden, true, "the open panel hides it");
+  quiet(() => press(app, "spacing"));
+  for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
+  assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("the secondary dock centres on its control and corners at the row's ends", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const row = app.root.nodes.row;
+  const dock = app.root.nodes.dock;
+  const pop = app.root.nodes.pop;
+  dock.getBoundingClientRect = () => ({ left: 100, top: 700, width: 400, height: 50 });
+  row.children.forEach((b, i) => {
+    b.getBoundingClientRect = () => ({ left: 100 + i * 40, top: 700, width: 34, height: 34 });
+  });
+  pop.offsetWidth = 200;
+  quiet(() => press(app, "family"));
+  assert.equal(pop.style.left, "0px", "the first control is the left corner");
+  quiet(() => press(app, "family"));
+  quiet(() => press(app, "color"));
+  // The colour control's centre is 137px into the dock, so the 200px panel
+  // starts 37px to the left of the dock.
+  assert.equal(pop.style.left, "37px", "a middle control sets the centre");
+  quiet(() => press(app, "color"));
+  quiet(() => press(app, "+"));
+  assert.equal(pop.style.left, "200px", "the last control is the right corner");
+});
+
 test("the dock opens on text and container, stays shut on media", () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -909,7 +956,7 @@ test("the dock opens on text and container, stays shut on media", () => {
     app.clickPage();
   });
   assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Default");
+  assert.equal(app.root.nodes.row.children[0].attributes["aria-label"], "Layout mode: Default");
   assert.deepEqual(
     app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "direction", "gap", "alignment", "+"],
@@ -998,10 +1045,9 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.match(row.children.find((b) => b.dataset.key === "spacing").innerHTML, /<svg/);
   assert.match(app.root.innerHTML, /#dock\{position:fixed;left:50%;bottom:24px;transform:translateX\(-50%\)/,
     "fixed at the bottom centre, whatever the element does");
-  // The surface's rows: an open control over the icon row. The grid areas give
-  // that order; the markup puts the pop first, which is why the areas and not
-  // the tags decide.
-  assert.match(app.root.innerHTML, /grid-template-areas:"pop" "bar"/,
+  // The open control sits above the icon row, and the row places it from the
+  // control that opened it.
+  assert.match(app.root.innerHTML, /\.pop\{[^}]*position:absolute[^}]*bottom:calc\(100% \+ 8px\)/,
     "the control opens over the dock");
   // The menu is its own card at the element, not a row of the dock.
   assert.match(app.root.innerHTML, /\.element-menu\{position:fixed/);
@@ -1038,7 +1084,7 @@ test("wrap and direction are cycle buttons, and establish flex first", () => {
     app.clickPage();
   });
   const direction = app.root.nodes.row.children.find((b) => b.dataset.key === "direction");
-  assert.equal(direction.title, "Column");
+  assert.equal(direction.attributes["aria-label"], "Column");
   assert.match(direction.innerHTML, /<svg/);
 });
 
@@ -1457,42 +1503,6 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(inMenu("Save comment"), undefined, "the buttons are back");
   assert.doesNotMatch(app.win.__edityy_changes(), /never saved/);
-});
-
-test("Edit text waits for the sweep, and edits anyway when it cannot run", async () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  let swept = null;
-  let release = null;
-  app.win.__edityySweep = (el, options) => {
-    swept = { el, options };
-    return new Promise((resolve) => (release = resolve));
-  };
-  app.action("Edit text");
-  assert.equal(p.getAttribute("contenteditable"), undefined, "no caret while the band crosses");
-  assert.equal(swept.el, p, "the sweep plays over the selected element");
-  // The values the sweep was chosen with, from the Canvas UI docs page, apart
-  // from the colour: that page's brand cyan is this ramp's primary.
-  assert.deepEqual(
-    { color: swept.options.color, charset: swept.options.charset, duration: swept.options.duration, band: swept.options.band },
-    { color: "#3a283c", charset: "blocks", duration: 1.4, band: 0.41 },
-  );
-  release();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(p.getAttribute("contenteditable"), "plaintext-only", "the caret goes in after");
-});
-
-test("a sweep that fails still gives the caret", async () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  app.win.__edityySweep = () => Promise.reject(new Error("no webgl"));
-  app.action("Edit text");
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
 });
 
 test("selecting text makes the words editable where they sit", () => {
@@ -2665,6 +2675,5 @@ test("the dock is fixed at the bottom centre, and the menu sits at the element",
   quiet(() => press(app, "spacing"));
   assert.equal(app.root.nodes.pop.hidden, false, "the control is open");
   assert.equal(dock.style.left, "", "the dock holds its one place");
-  assert.equal(app.root.nodes.pop.style.left, "",
-    "the control carries no coordinates of its own: it is the surface's first row");
-});
+  assert.match(app.root.nodes.pop.style.left, /px$/,
+    "the control places the panel from its own centre");});

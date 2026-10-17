@@ -4,6 +4,14 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Removed
+
+- Edit text no longer plays the Canvas UI ASCII sweep. The caret goes in at
+  once, and the launcher no longer fetches a second file. A cyclic dock control
+  changes the element with no animation. (#179)
+
 ## 0.3.1 — 2026-10-17
 
 ### Added

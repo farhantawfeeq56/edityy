@@ -83,17 +83,13 @@ it: they print `Unrecognized key(s) in object: 'instrumentationClientInject'`,
 ignore it, and show no launcher.
 
 The launcher script is bundled into the page rather than served from
-`ASSET_PATH`, so nothing extra is requested at runtime. The Edit text sweep is
-bundled with it, for the same reason: a project with a bundler has no route to
-fetch it from. If you would rather
+`ASSET_PATH`, so nothing extra is requested at runtime. If you would rather
 serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
 `launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
 private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`. Use this
 approach also on Next.js before 15.3, which has no `instrumentation-client` file.
-That route serves the launcher alone, so Edit text starts at once with no sweep;
-add a second route for `/__edityy/ascii-sweep.js` if you want the sweep there.
 
 To save edits to the project from Next.js, add the route in
 [Save edits to the project](#save-edits-to-the-project).
@@ -175,12 +171,10 @@ It reads from the directory it is started in. Pass `--root <dir>` to read from a
 
 ## What it does
 
-The middleware does three things:
+The middleware does two things:
 
 1. serves `/__edityy/edityy.js` — the launcher script — from your own dev server;
-2. serves `/__edityy/ascii-sweep.js` — the Edit text sweep — beside it, and fetches
-   it only when a user first chooses Edit text;
-3. injects `<script src="/__edityy/edityy.js" data-edityy-sweep="/__edityy/ascii-sweep.js" defer>`, which names both, into the HTML that server returns.
+2. injects `<script src="/__edityy/edityy.js" defer>` into the HTML that server returns.
 
 Because the tag is a relative URL, it follows whatever port your dev server is
 on and there is nothing to keep in sync.
@@ -202,7 +196,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
 - Font size and font weight are one value each: a field you type an exact number into, and an arrow that opens the common values. A value from the list writes the field; it is never shown twice.
 - Every colour is picked in the same picker — the text colour, a fill, a border and a shadow: a saturation and brightness field with a dot to drag, the hue slider with the browser's own colour picker beside it, and one line holding the hex code and the transparency as a percentage. The field also takes `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()`. A colour with any transparency is written as `rgba(r, g, b, a)`; a solid one stays `#rrggbb`. The dot and the slider are reachable by keyboard, and the dock's colour bar shows the colour the browser resolved, alpha included. The picker stands on HeroUI's white overlay where it is the whole control; inside the shadow's own panel it takes that panel's paper.
 - The dock stays in one place at the bottom centre. It does not follow the element, and an open control comes out over it. While a control or one of the lists inside a button is open, the element actions stand down; they come back when it closes.
-- Words are typed into where they stand (`contenteditable="plaintext-only"`). An element whose words are split by a child element — a paragraph around a link — is editable too: the words are changed in place, and the markup goes back as it was when you leave the mode. The caret starts at the end of the words, not where the click landed. Edit text plays the Canvas UI ASCII sweep over the element first: the copy is swept, not the page's own element, and the caret goes in when the sweep ends. The sweep is a separate file the launcher fetches on first use, so a page that never edits text never downloads it.
+- Words are typed into where they stand (`contenteditable="plaintext-only"`). An element whose words are split by a child element — a paragraph around a link — is editable too: the words are changed in place, and the markup goes back as it was when you leave the mode. The caret starts at the end of the words, not where the click landed.
 - The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over both. The button in the dock shows the family name in that family. Nothing loads with the page:
   - The first open of the control fetches the catalog of names (about 35 KB) from `api.fontsource.org`, once for each page visit.
   - The list draws 40 rows at most. One request to `fonts.googleapis.com` gets a sample of those rows' names, so each row shows in its own face.
@@ -218,9 +212,8 @@ The script is idempotent, so a page that renders the tag more than once still mo
 edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) middleware
 ```
 
-- `tag` defaults to `<script src="/__edityy/edityy.js" data-edityy-sweep="/__edityy/ascii-sweep.js" defer></script>`,
-  which is how the launcher finds the sweep. Pass your own if you need a different attribute set;
-  a tag without `data-edityy-sweep` gets no sweep, and Edit text starts at once.
+- `tag` defaults to `<script src="/__edityy/edityy.js" defer></script>`. Pass your own if you need a different
+  attribute set.
 - `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
   function `(req, res) => string` when your app makes a new nonce for each response.
 - `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
@@ -228,7 +221,7 @@ edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) m
 - `allowedHosts` names more hosts the save endpoint takes, besides `localhost` and IP addresses.
   A leading dot also takes the subdomains; `true` takes every host.
 
-Also exported: `ASSET_PATH`, `SWEEP_ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
+Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
 for injecting into an HTML string yourself, `changesRoute({ root, allowedHosts })` (the save
 endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
 `CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that

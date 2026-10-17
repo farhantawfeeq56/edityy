@@ -56,14 +56,12 @@
   },
   "sideEffects": [
     "./src/edityy.js",
-    "./src/client.js",
-    "./src/ascii-sweep.js"
+    "./src/client.js"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
-    "build:sweep": "node scripts/build-sweep.mjs"
+    "test": "node --test test/*.test.js"
   }
 }
