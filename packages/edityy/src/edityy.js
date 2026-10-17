@@ -106,6 +106,10 @@
     // sheet would win, but `all:initial` resets colour itself, so a :host{color}
     // written before it is wiped and every icon goes back to its own plum.
     ":host{all:initial;color:#3a283c}",
+    // The motion, after interior.dev: things arrive on a long ease-out and leave
+    // on a short ease-in, so the way in is felt and the way out is not waited for.
+    // Custom properties are not reset by all:initial.
+    ":host{--arrive:cubic-bezier(.23,1,.32,1);--leave:cubic-bezier(.4,0,1,1)}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
     // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
@@ -128,15 +132,28 @@
     "display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{display:flex;gap:2px;padding:4px;background:#ffffff;border:1px solid transparent;border-radius:12px;",
+    ".row{position:relative;display:flex;gap:2px;padding:4px;background:#ffffff;border:1px solid transparent;border-radius:12px;",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    // One hover fill for the whole row, not one per icon: it travels from the
+    // control the pointer left to the one it is on, so the eye follows a single
+    // thing instead of watching fills blink on and off. A pseudo-element, so it
+    // is never one of row.children. It fades in where it first lands, and moves
+    // only once it is on show (data-glide=warm).
+    ".row:before{content:\"\";position:absolute;left:0;top:4px;height:34px;width:var(--glide-w,34px);border-radius:8px;",
+    "background:#3a283c0a;pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
+    ".row[data-glide]:before{opacity:1;transition:opacity .1s var(--arrive)}",
+    ".row[data-glide=warm]:before{transition:opacity .1s var(--arrive),transform .26s var(--arrive),width .26s var(--arrive)}",
+    ".row>*{position:relative}",
+    ".row .ic:hover{background:transparent}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
     "border-radius:8px;background:transparent;color:#3a283c;cursor:pointer;",
-    "transition:background .13s ease,color .13s ease,transform .13s ease}",
+    // The press goes down fast and comes back slower: the hand is quick, the
+    // release settles.
+    "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
     ".ic:hover{background:#fcfcfc}",
-    ".ic:active{transform:scale(.92)}",
+    ".ic:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
     ".ic[aria-expanded=true]{background:#f9f9f9}",
     ".ic.add{color:#86546b}",
@@ -278,8 +295,10 @@
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
     ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:#f9f9f9;border:1px solid transparent;border-radius:16px;",
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;animation:popIn .16s ease-out}",
-    "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
+    // It grows out of the control that opened it: placePop() puts the
+    // transform-origin on that control's centre, at the panel's bottom edge.
+    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
+    "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
     // whatever the site styles its scrollbars with, or a chunky default. A hairline
@@ -295,8 +314,9 @@
     ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
     "border-radius:8px;padding:7px 10px;",
     "background:transparent;color:#3a283c;font:500 14px/1.2 inherit;cursor:pointer;",
-    "transition:background .12s ease,color .12s ease}",
+    "transition:background .12s ease,color .12s ease,transform .2s var(--arrive)}",
     ".opt:hover{background:#3a283c0f}",
+    ".opt:active{transform:scale(.98);transition-duration:.12s,.12s,.08s}",
     ".opt[aria-pressed=true]{background:#3a283c1f}",
     ".opts{display:flex;gap:2px;padding:2px}",
     // The alignment control lays its row out as a real 3x3 grid instead.
@@ -379,7 +399,9 @@
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#ffffffe0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer}",
+    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer;",
+    "transition:background .12s ease,border-color .12s ease,transform .2s var(--arrive)}",
+    ".element-action:active{transform:scale(.96);transition-duration:.12s,.12s,.08s}",
     ".element-action:hover{background:#3a283c0f;border-color:#3a283c1a}",
     ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
     ".element-action.delete{color:#86546b}",
@@ -392,7 +414,7 @@
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid #ffffff;border-radius:50%;background:#86546b;",
     "color:#ffffff;box-shadow:0 0 0 1px #86546b}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
     ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:#86546b}",
@@ -410,7 +432,8 @@
     // because the browser own title is slow and cannot wear the ramp.
     ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
     "background:#3a283c;color:#ffffff;font:500 12px/1.2 inherit;white-space:nowrap;",
-    "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
+    "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;transform-origin:50% 100%}",
+    ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
@@ -419,8 +442,12 @@
     ".chg .ic{width:30px;height:30px;flex:none}",
     ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:#86546b}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#ffffff;white-space:nowrap;",
-    "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease}",
+    "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".cta:hover{background:#86546b}",
+    ".cta:active:not(:disabled){transform:translateY(1px);transition-duration:.13s,.08s}",
+    // The words of a button that answers (Copied, Saved) change in place: the
+    // old words leave, the new ones rise in, and the button does not move.
+    ".say{display:inline-block}",
     ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
     ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
     ".cta.ghost:hover{background:#3a283c0f}",
@@ -1081,14 +1108,19 @@
   /** The menu is placed at the element: under it where the page has room, over
    * it where it does not, and never past the viewport edge. */
   function placeElementMenu() {
+    var appearing = elementMenu.hidden;
     elementMenu.hidden = false;
     var rect = selected.getBoundingClientRect();
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
     var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var top = rect.bottom + height + 12 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
+    var below = rect.bottom + height + 12 <= window.innerHeight;
+    var top = below ? rect.bottom + 8 : rect.top - height - 8;
     elementMenu.style.left = left + "px";
     elementMenu.style.top = Math.max(12, top) + "px";
+    // It comes out of the element: down from it when it is below, up from it
+    // when it is above. Only when it appears; a refit on scroll just places it.
+    if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
   }
 
   /**
@@ -1581,6 +1613,78 @@ function faces() {
     return b;
   }
 
+  /* ---------------------------------------------------------------- motion */
+
+  // The curves on :host, for the animations started from here.
+  var ARRIVE = "cubic-bezier(.23,1,.32,1)";
+  var LEAVE = "cubic-bezier(.4,0,1,1)";
+
+  /** May this element animate? Not when the user asks for less motion, and not
+   * in a browser without the Web Animations API, where it just changes. */
+  function moves(el) {
+    if (!el || typeof el.animate !== "function") return false;
+    var q = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)");
+    return !(q && q.matches);
+  }
+
+  /** Run `fn` in the next frame, or now where there are no frames. */
+  function nextFrame(fn) {
+    if (typeof window.requestAnimationFrame !== "function") return fn();
+    window.requestAnimationFrame(fn);
+  }
+
+  /**
+   * Bring a surface in that was hidden: it fades up and grows the last few
+   * percent from `origin`. `base` is the transform the surface already wears, so
+   * the animation ends exactly where the CSS puts it.
+   */
+  function rise(el, base, dy, origin) {
+    if (!moves(el)) return;
+    base = base || "";
+    var from = (base + " translateY(" + dy + "px) scale(.96)").trim();
+    el.style.transformOrigin = origin || "";
+    el.animate(
+      [{ opacity: 0, transform: from }, { opacity: 1, transform: base || "none" }],
+      { duration: 220, easing: ARRIVE }
+    );
+  }
+
+  /**
+   * Change the words on a button that answers a click (Copied, Saved). The old
+   * words leave quickly and the new ones rise into the same place, so the button
+   * itself never jumps.
+   */
+  function relabel(b, words) {
+    var old = b.firstChild;
+    if (!moves(b) || !old || typeof old.animate !== "function") {
+      b.textContent = words;
+      return;
+    }
+    var ticket = (b._relabel = (b._relabel || 0) + 1);
+    old.animate(
+      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-4px)" }],
+      { duration: 100, easing: LEAVE, fill: "forwards" }
+    ).onfinish = function () {
+      // A later relabel owns the button now: leave its words alone.
+      if (b._relabel !== ticket) return;
+      var next = say(words);
+      b.textContent = "";
+      b.appendChild(next);
+      next.animate(
+        [{ opacity: 0, transform: "translateY(6px)", filter: "blur(2px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }],
+        { duration: 220, easing: ARRIVE }
+      );
+    };
+  }
+
+  /** A button's words in their own box, so they can move without the button. */
+  function say(words) {
+    var span = document.createElement("span");
+    span.className = "say";
+    span.textContent = words;
+    return span;
+  }
+
   /** A run of label text, as a text node. Anything that is not markup. */
   function text(value) {
     return document.createTextNode(value);
@@ -1652,7 +1756,9 @@ function faces() {
   function show(key) {
     // The panel rises under the control the pointer is on: the tooltip would
     // stand on top of it.
-    hideTip();
+    hideTip(true);
+    // A panel that closes fades out instead of going in one frame.
+    var leave = !key && !pop.hidden && !dock.hidden && pop.firstChild && moves(pop) ? ghostOf(pop) : null;
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);
@@ -1675,6 +1781,7 @@ function faces() {
     if (wasOpen !== dockOpen()) syncElementMenu();
     if (!key) {
       pop.hidden = true;
+      if (leave) leave();
       return;
     }
     pop.hidden = false;
@@ -1703,9 +1810,45 @@ function faces() {
     var box = target.getBoundingClientRect();
     var width = pop.offsetWidth || 0;
     var items = row.children;
-    if (target === items[0]) pop.style.left = "0px";
-    else if (target === items[items.length - 1]) pop.style.left = Math.max(0, dockBox.width - width) + "px";
-    else pop.style.left = box.left - dockBox.left + box.width / 2 - width / 2 + "px";
+    var left = box.left - dockBox.left + box.width / 2 - width / 2;
+    if (target === items[0]) left = 0;
+    else if (target === items[items.length - 1]) left = Math.max(0, dockBox.width - width);
+    pop.style.left = left + "px";
+    // The panel grows out of its control, wherever the panel itself lands.
+    pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
+  }
+
+  /**
+   * A copy of the open panel, to fade out over the dock while the real one is
+   * emptied. The panel is rebuilt from nothing each time it opens, so its
+   * leaving has to be played on a copy. Call the result once the panel is empty.
+   */
+  function ghostOf(panel) {
+    var ghost = panel.cloneNode(true);
+    var lists = panel.querySelectorAll(".list");
+    var tops = [];
+    for (var i = 0; i < lists.length; i++) tops.push(lists[i].scrollTop);
+    var top = panel.scrollTop;
+    return function () {
+      ghost.removeAttribute("id");
+      var named = ghost.querySelectorAll("[id]");
+      for (var j = 0; j < named.length; j++) named[j].removeAttribute("id");
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.style.pointerEvents = "none";
+      ghost.style.animation = "none";
+      dock.insertBefore(ghost, panel);
+      // The copy starts at the top: put each list back where the user left it.
+      ghost.scrollTop = top;
+      var copies = ghost.querySelectorAll(".list");
+      for (var k = 0; k < copies.length && k < tops.length; k++) copies[k].scrollTop = tops[k];
+      ghost.animate(
+        [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(4px) scale(.97)" }],
+        { duration: 130, easing: LEAVE, fill: "forwards" }
+      );
+      setTimeout(function () {
+        if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      }, 160);
+    };
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
@@ -3101,36 +3244,195 @@ function decorations() {
     return null;
   }
 
-  /** Draw the tooltip over a control, in the words of its own label. */
-  function showTip(button) {
-    var words = button.getAttribute && button.getAttribute("aria-label");
-    if (!words || !button.getBoundingClientRect) return;
-    tip.textContent = words;
-    tip.hidden = false;
-    var box = button.getBoundingClientRect();
-    tip.style.left = box.left + box.width / 2 + "px";
-    tip.style.top = box.top - 8 + "px";
-    tip.style.transform = "translate(-50%,-100%)";
+  // The tooltips of the row are one group, after interior.dev. The first one
+  // waits, so a pointer that only crosses the dock on its way to the page does
+  // not light it up. Once one has shown, the group is warm: the next one opens
+  // at once and slides over from the last, until the group has been quiet for a
+  // moment. A closing tooltip waits too, so the 2px gap between two icons does
+  // not close it and open it again.
+  var TIP_OPEN = 200;
+  var TIP_CLOSE = 120;
+  var TIP_WARM = 400;
+  var TIP_REST = "translate(-50%,-100%)";
+  var tipFor = null; // the control the tooltip is over, while it is on show
+  var tipAt = null; // the control the pointer or the focus is on
+  var tipBlocked = null; // a control whose panel just opened: no tooltip over it
+  var tipWarm = false;
+  var tipX = null; // where the last tooltip stood, so the next knows its way
+  var tipOpening = 0;
+  var tipClosing = 0;
+  var tipCooling = 0;
+  var tipLeaving = null;
+
+  /** Ask for the tooltip over a control; `now` skips the wait, for the keyboard. */
+  function showTip(button, now) {
+    tipAt = button;
+    if (button === tipBlocked) return;
+    clearTimeout(tipClosing);
+    clearTimeout(tipCooling);
+    if (button === tipFor) return;
+    clearTimeout(tipOpening);
+    if (now === true || tipWarm) return drawTip(button);
+    tipOpening = setTimeout(function () { drawTip(button); }, TIP_OPEN);
   }
 
-  function hideTip() {
-    tip.hidden = true;
+  /** Draw the tooltip over a control, in the words of its own label. */
+  function drawTip(button) {
+    var words = button.getAttribute && button.getAttribute("aria-label");
+    if (!words || !button.getBoundingClientRect) return;
+    var box = button.getBoundingClientRect();
+    var x = box.left + box.width / 2;
+    var shown = !!tipFor && !tipLeaving;
+    var warm = tipWarm;
+    var from = tipX;
+    var travel = from === null ? 0 : x > from ? 1 : x < from ? -1 : 0;
+    if (tipLeaving) {
+      tipLeaving.cancel();
+      tipLeaving = null;
+    }
+    tipFor = button;
+    tipWarm = true;
+    tipX = x;
+    tip.hidden = false;
+    tip.style.left = x + "px";
+    tip.style.top = box.top - 8 + "px";
+    tip.style.transform = TIP_REST;
+    if (!moves(tip)) {
+      tip.textContent = words;
+      return;
+    }
+    var label = document.createElement("span");
+    label.textContent = words;
+    tip.textContent = "";
+    tip.appendChild(label);
+    var slide = [{ opacity: 0, transform: "translateX(" + travel * 14 + "px)" }, { opacity: 1, transform: "none" }];
+    if (shown && from !== null) {
+      // On show already: the box travels from the last control to this one,
+      // and the new words come in from the side it travelled from.
+      tip.animate(
+        [{ transform: "translate(calc(-50% + " + (from - x) + "px),-100%)" }, { transform: TIP_REST }],
+        { duration: 260, easing: ARRIVE }
+      );
+      label.animate(slide, { duration: 200, easing: ARRIVE });
+    } else if (warm) {
+      // Closed a moment ago: no second rise, only a quick fade in place.
+      tip.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: ARRIVE });
+      label.animate(slide, { duration: 200, easing: ARRIVE });
+    } else {
+      // The first of the group rises out of the control, a little blurred.
+      tip.animate(
+        [
+          { opacity: 0, transform: TIP_REST + " translateY(7px) scale(.9)", filter: "blur(4px)" },
+          { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
+        ],
+        { duration: 240, easing: ARRIVE }
+      );
+      label.animate([{ opacity: 0, transform: "translateY(9px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: ARRIVE });
+    }
+  }
+
+  /**
+   * Let the tooltip go. With `now` it goes at once and the group cools: a panel
+   * opened under it, and the control that opened it gets no tooltip until the
+   * pointer has left it.
+   */
+  function hideTip(now) {
+    clearTimeout(tipOpening);
+    if (now === true) {
+      tipBlocked = tipAt;
+      clearTimeout(tipClosing);
+      clearTimeout(tipCooling);
+      tipWarm = false;
+      tipX = null;
+      if (tipLeaving) tipLeaving.cancel();
+      tipLeaving = null;
+      tipFor = null;
+      tip.hidden = true;
+      return;
+    }
+    if (!tipFor) return;
+    clearTimeout(tipClosing);
+    tipClosing = setTimeout(closeTip, TIP_CLOSE);
+  }
+
+  function closeTip() {
+    tipFor = null;
+    clearTimeout(tipCooling);
+    tipCooling = setTimeout(function () {
+      tipWarm = false;
+      tipX = null;
+    }, TIP_WARM);
+    if (!moves(tip)) {
+      tip.hidden = true;
+      return;
+    }
+    var out = tip.animate(
+      [
+        { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
+        { opacity: 0, transform: TIP_REST + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
+      ],
+      { duration: 120, easing: LEAVE, fill: "forwards" }
+    );
+    tipLeaving = out;
+    out.onfinish = function () {
+      if (tipLeaving !== out) return;
+      tipLeaving = null;
+      tip.hidden = true;
+      out.cancel();
+    };
+  }
+
+  /** Is `node` inside the row? The gaps between icons are the row too. */
+  function inRow(node) {
+    while (node) {
+      if (node === row) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  /** Move the row's one hover fill under a control. */
+  function glideTo(button) {
+    row.style.setProperty("--glide-x", (button.offsetLeft || 0) + "px");
+    row.style.setProperty("--glide-w", (button.offsetWidth || 34) + "px");
+    if (row.dataset.glide !== undefined) return;
+    // It fades in where it lands, and only travels from the next control on.
+    row.dataset.glide = "";
+    nextFrame(function () {
+      if (row.dataset.glide !== undefined) row.dataset.glide = "warm";
+    });
+  }
+
+  function glideOff() {
+    delete row.dataset.glide;
   }
 
   // The row is rebuilt as the selection moves, so the hint is delegated: one
   // listener covers every control that will ever be in the row.
   row.addEventListener("pointerover", function (e) {
     var button = controlOf(e.target);
-    if (button) showTip(button);
+    if (!button) return;
+    glideTo(button);
+    showTip(button);
   });
   row.addEventListener("pointerout", function (e) {
-    if (!controlOf(e.relatedTarget)) hideTip();
+    var to = controlOf(e.relatedTarget);
+    if (to !== tipBlocked) tipBlocked = null;
+    if (!to) {
+      tipAt = null;
+      hideTip();
+    }
+    if (!inRow(e.relatedTarget)) glideOff();
   });
   row.addEventListener("focusin", function (e) {
     var button = controlOf(e.target);
-    if (button) showTip(button);
+    if (button) showTip(button, true);
   });
-  row.addEventListener("focusout", hideTip);
+  row.addEventListener("focusout", function () {
+    tipAt = null;
+    tipBlocked = null;
+    hideTip();
+  });
 
   /** Which optional controls this element has been given, in the order added. */
   function addedTo(el) {
@@ -3173,6 +3475,7 @@ function decorations() {
       across a re-click on the same element, which is the click that starts a drag. */
   function syncDock() {
     if (editing) return;
+    var dockWasHidden = dock.hidden;
     var multi = selectedItems.length > 1;
     var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
     dock.hidden = multi || (!on && !(active && !selected));
@@ -3207,6 +3510,7 @@ function decorations() {
       dock.hidden = true;
       show("");
     }
+    if (dockWasHidden && !dock.hidden) rise(dock, "translateX(-50%)", 8, "50% 100%");
   }
 
   /* --------------------------------------------------------- element menu */
@@ -3396,8 +3700,19 @@ function decorations() {
   function tally() {
     keepSoon();
     var n = report().length;
+    var was = countBadge.hidden ? 0 : Number(countBadge.textContent) || 0;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
+    // The number answers the edit that changed it: it pops in when it first
+    // appears, and gives a small beat when it changes after that.
+    if (n && n !== was && moves(countBadge)) {
+      countBadge.animate(
+        was
+          ? [{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }]
+          : [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "scale(1)" }],
+        { duration: was ? 260 : 220, easing: ARRIVE }
+      );
+    }
     // An open list shows the edits, so redraw it when they change. Do not redraw
     // it while the user types: a redraw on each key resets the scroll position of
     // the list.
@@ -3452,20 +3767,20 @@ function decorations() {
     actions.className = "bar2";
     var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
       copyText(markdown(report()), function (ok) {
-        copy.textContent = ok ? "Copied" : "Copy failed";
-        setTimeout(function () { copy.textContent = "Copy for an agent"; }, 1600);
+        relabel(copy, ok ? "Copied" : "Copy failed");
+        setTimeout(function () { relabel(copy, "Copy for an agent"); }, 1600);
       });
     }, "copy");
-    copy.appendChild(text("Copy for an agent"));
+    copy.appendChild(say("Copy for an agent"));
     copy.disabled = !items.length;
     actions.appendChild(copy);
     var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
       saveEdits(function (message) {
-        save.textContent = message;
-        setTimeout(function () { save.textContent = "Save to project"; }, 2400);
+        relabel(save, message);
+        setTimeout(function () { relabel(save, "Save to project"); }, 2400);
       });
     }, "save");
-    save.appendChild(text("Save to project"));
+    save.appendChild(say("Save to project"));
     save.disabled = !items.length;
     actions.appendChild(save);
     pop.appendChild(actions);
