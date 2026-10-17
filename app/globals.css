@@ -31,6 +31,13 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/* The Edityy editor chrome is a shadow root and names the Edityy face itself.
+   next/font keeps Jakarta behind a hashed family name, so hand the chrome the
+   real one through its hook. Custom properties cross the shadow boundary. */
+:root {
+  --edityy-font: var(--font-jakarta);
+}
+
 body {
   font-family: var(--font-sans);
   background: #f9f2ee;

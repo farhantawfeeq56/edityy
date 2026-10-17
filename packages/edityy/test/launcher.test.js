@@ -496,9 +496,11 @@ test("the button is a real button with an accessible name", () => {
 test("the chrome wears its own face, not the host page's", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
-  // The chrome names the Edityy face. It loads no webfont, so a page without it
-  // falls back to the machine's own UI face, which exists everywhere.
-  assert.match(css, /font-family:"Plus Jakarta Sans",system-ui,-apple-system,/, "Jakarta, with the machine's UI face as the floor");
+  // The chrome names the Edityy face, and takes the page's copy of it through
+  // --edityy-font when the page keeps it behind a hashed name. The machine's own
+  // UI face is the floor, and no webfont is fetched.
+  assert.match(css, /font-family:var\(--edityy-font,"Plus Jakarta Sans"\),system-ui,-apple-system,/,
+    "Jakarta through the chrome's hook, with the machine's UI face as the floor");
   assert.doesNotMatch(css, /fonts\.googleapis\.com|@font-face/, "and no font is fetched");
   assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
   assert.match(css, /font:600 14px\/1\.1 inherit/, "the orb's own weight and size");

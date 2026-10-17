@@ -116,9 +116,10 @@
     // written before it is wiped and every icon goes back to its own plum.
     ":host{all:initial;color:#3a283c}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
-    // chrome wears Plus Jakarta Sans, the Edityy face, with the machine own UI
-    // face as the floor. No webfont loads: a page that already has the face (the
-    // Edityy site does) gets it, and every other page falls back cleanly.
+    // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
+    // copy behind a hashed name (next/font does) names it once on --edityy-font,
+    // and the chrome picks it up: custom properties cross the shadow boundary.
+    // The machine own UI face is the floor, and no webfont loads here.
     //
     // The colour goes on :host, not on *. A universal colour reaches the <path>
     // inside an icon as well as its <svg>, and since those paths are painted with
@@ -126,7 +127,7 @@
     // every button. An open control paints itself #3a283c, so its icon was the
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
-    "*{box-sizing:border-box;font-family:\"Plus Jakarta Sans\",system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
+    "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
     // The dock is one surface in one place: fixed at the bottom centre, whatever
     // the element and the page do. A column, because an open control comes out
