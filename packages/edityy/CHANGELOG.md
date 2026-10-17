@@ -53,6 +53,12 @@ All notable changes to the `edityy` package. The format follows
   the page selects an element; it never inserts one. Shift+A still wraps selected
   elements in a new container. (#153)
 
+### Fixed
+
+- A Next.js app that builds with webpack can import `edityy` on the server.
+  Before, the save route threw on load, saving failed with a 500 and `next build`
+  stopped. This is the default on Next.js 15, and `--webpack` on 16. (#155)
+
 ## 0.3.0 — 2026-10-13
 
 ### Added

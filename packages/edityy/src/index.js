@@ -1,20 +1,30 @@
 import { readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 
-/** The launcher payload, read once at import. */
-export const launcher = readFileSync(new URL("./edityy.js", import.meta.url), "utf8");
+/**
+ * The launcher payload, read once at import.
+ *
+ * Read by its path on disk. Do not resolve it with `new URL` against
+ * `import.meta.url`: a bundler reads that form as an asset. In a Next.js route,
+ * webpack makes it a public `/_next/…` URL, and the read throws when the route
+ * loads.
+ */
+export const launcher = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "edityy.js"), "utf8");
 
 /**
  * The Edit text sweep, read the first time it is asked for. It is its own file
  * because it carries React and a WebGL effect, and the launcher fetches it the
  * first time a user chooses Edit text rather than loading it with every page.
  * Lazy, so the CLI and the MCP server, which only import this file, never read it.
+ *
+ * Read by its path on disk, for the same reason as the launcher above.
  */
 let sweep = null;
 function sweepAsset() {
-  if (sweep === null) sweep = readFileSync(new URL("./ascii-sweep.js", import.meta.url), "utf8");
+  if (sweep === null) sweep = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ascii-sweep.js"), "utf8");
   return sweep;
 }
 
