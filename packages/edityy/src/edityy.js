@@ -134,11 +134,9 @@
     // behind it.
     "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
     "display:flex;flex-direction:column;align-items:center}",
-    // Translucent paper over the mist: the layer lifts with the blur and the
-    // haze, not with an edge. The hairline it used to carry made it read as a
-    // card laid on top of the page instead of a layer uncovered from it.
-    ".row{display:flex;gap:2px;padding:4px;background:#f9f2eee0;border:1px solid transparent;border-radius:12px;",
-    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    // A solid white surface. Depth comes from the shadow, not an edge: the
+    // hairline it used to carry made it read as a card laid on the page.
+    ".row{display:flex;gap:2px;padding:4px;background:#ffffff;border:1px solid transparent;border-radius:12px;",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
@@ -412,8 +410,8 @@
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2eee0;border:1px solid transparent;",
-    "border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    ".ic.solo{position:relative;width:44px;height:44px;background:#ffffff;border:1px solid transparent;",
+    "border-radius:12px;",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
     ".ic.solo[aria-expanded=true]{background:#f9f9f9}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
@@ -1746,6 +1744,9 @@ function faces() {
    * it and can never leave a stale listener behind.
    */
   function show(key) {
+    // The panel rises under the control the pointer is on: the tooltip would
+    // stand on top of it.
+    hideTip();
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
     // so it has to be copied before anything is removed from under it.
     while (pop.firstChild) pop.removeChild(pop.firstChild);

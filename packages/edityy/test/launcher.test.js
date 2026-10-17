@@ -915,6 +915,9 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
   assert.equal(tip.hidden, false, "a hovered control shows one");
   assert.equal(tip.textContent, "Typography spacing", "in the words of its own label");
+  quiet(() => press(app, "spacing"));
+  assert.equal(tip.hidden, true, "the open panel hides it");
+  quiet(() => press(app, "spacing"));
   for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
   assert.equal(tip.hidden, true, "and it goes when the pointer does");
 });
