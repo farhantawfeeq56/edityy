@@ -33,15 +33,6 @@
   if (window.__edityy) return; // a shared layout can render the tag more than once
   window.__edityy = true;
 
-  // The Edit text sweep, when this payload was loaded by a tag: the dev server
-  // names the asset beside it there. A project with a bundler imports the sweep
-  // itself instead and leaves window.__edityySweep set — with no tag to read,
-  // because there is no currentScript in a module.
-  var sweepUrl = (function () {
-    var own = document.currentScript;
-    return own && own.getAttribute ? own.getAttribute("data-edityy-sweep") : null;
-  })();
-
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
   // A full-viewport host that ignores pointer events: the cursor and the frames
@@ -801,93 +792,7 @@
     }
   }
 
-  /* ------------------------------------------------------- edit text sweep */
-
-  // The sweep was chosen from the Canvas UI docs page, apart from the colour:
-  // that page's brand cyan is this ramp's primary, because the palette is closed
-  // and the sweep is ink over the page like every other mark. Glow is off: the
-  // phosphor bloom reads as blur over the words.
-  var SWEEP = {
-    flicker: 0.15,
-    threshold: 0.6,
-    displace: 30,
-    contrast: 1.55,
-    color: "#3a283c",
-    duration: 1.4,
-    band: 0.41,
-    softness: 0.47,
-    turbulence: 0.4,
-    trail: 0.55,
-    scale: 1.5,
-    spacing: 3,
-    tint: 0.9,
-    aberration: 1.5,
-    density: 0.2,
-    fade: 1,
-    glow: 0,
-    charset: "blocks",
-  };
-  // A sweep that could not load is not asked for twice: a page with no route for
-  // the asset would fetch it on every Edit text.
-  var sweepMissing = false;
-
-  /**
-   * The sweep, or null when there is none: already loaded, or fetched now from
-   * beside this payload. `done` runs once.
-   */
-  function withSweep(done) {
-    if (window.__edityySweep) return done(window.__edityySweep);
-    if (sweepMissing || !sweepUrl) return done(null);
-    import(/* webpackIgnore: true */ sweepUrl).then(
-      function () { done(window.__edityySweep || null); },
-      function () {
-        sweepMissing = true;
-        done(null);
-      }
-    );
-  }
-
-  /**
-   * Edit text, with the sweep over the element first when it is there. The caret
-   * goes in when the sweep has finished, or at once when it cannot run: a
-   * missing effect must never cost the user the edit they asked for.
-   */
-  function sweepThenEdit(el) {
-    withSweep(function (sweep) {
-      var done = false;
-      var go = function () {
-        if (done) return;
-        done = true;
-        // The user may have selected elsewhere while the band crossed.
-        if (selected === el) editText(el);
-      };
-      if (!sweep) return go();
-      try {
-        var running = sweep(el, SWEEP);
-        if (running && running.then) running.then(go, go);
-        else go();
-      } catch {
-        go();
-      }
-    });
-  }
-
-  /**
-   * The ASCII sweep from the old state of an element to the new one, for a
-   * cyclic control that opens no secondary dock. Fire and forget: the change is
-   * already applied, and a missing effect must not cost the change.
-   */
-  function sweepCycle(el, from) {
-    if (!el || !from) return;
-    withSweep(function (sweep) {
-      if (!sweep) return;
-      try {
-        sweep(el, SWEEP, from);
-      } catch {
-        /* the element already shows the new value */
-      }
-    });
-  }
+  /* ------------------------------------------------------------ edit text */
 
   /** Give the words back to the page: no longer editable, and no caret. */
   function stopEditing() {
@@ -1146,7 +1051,7 @@
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var edit = actionButton("Edit text", function () {
-      if (selectedKind === "text") sweepThenEdit(selected);
+      if (selectedKind === "text") editText(selected);
       elementMenu.hidden = true;
     }, svg(MENU_ICONS.edit));
     edit.disabled = !canEditText(selected);
@@ -2042,13 +1947,11 @@ function faces() {
     var current = get("text-align") || "left";
     var at = ALIGNS.map(function (item) { return item.v; }).indexOf(current);
     var next = ALIGNS[(at + 1) % ALIGNS.length];
-    var from = selected && selected.outerHTML;
     set("text-align", next.v);
     var b = slot("align");
     if (!b) return;
     b.innerHTML = svg(next.icon);
     b.setAttribute("aria-label", next.label);
-    sweepCycle(selected, from);
   }
 
   /** Move the tick in an open control to whatever was just picked. */
@@ -2708,12 +2611,10 @@ function icons(items, current, onPick, cls) {
 
   var CONTROLS = {
     mode: function () {
-      var from = selected && selected.outerHTML;
       var at = MODES.indexOf(mode());
       setMode(MODES[(at + 1) % MODES.length]);
       buildRow();
       show("");
-      sweepCycle(selected, from);
     },
     family: function () {
       familyControl();
@@ -2834,13 +2735,11 @@ function icons(items, current, onPick, cls) {
     direction: function () {
       // Establish the flex box first so the user's row or column choice sticks.
       if (!pop.hidden) show("");
-      var from = selected && selected.outerHTML;
       ensureBox();
       var current = String(get("flex-direction") || "row").trim();
       var at = DIRECTIONS.map(function (item) { return item.v; }).indexOf(current);
       set("flex-direction", DIRECTIONS[(at + 1) % DIRECTIONS.length].v);
       paintCycle(DIRECTIONS, "direction", "flex-direction");
-      sweepCycle(selected, from);
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
@@ -2878,14 +2777,12 @@ function icons(items, current, onPick, cls) {
     // opposite order can be lost on mode change.
     wrap: function () {
       if (!pop.hidden) show("");
-      var from = selected && selected.outerHTML;
       if (mode() !== "flex") setMode("flex");
       var current = String(get("flex-wrap") || "nowrap").trim();
       var at = WRAPS.map(function (item) { return item.v; }).indexOf(current);
       setMode("flex");
       set("flex-wrap", WRAPS[(at + 1) % WRAPS.length].v);
       paintCycle(WRAPS, "wrap", "flex-wrap");
-      sweepCycle(selected, from);
     },
     gap: function () {
       if (mode() === "grid") {

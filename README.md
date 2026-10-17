@@ -29,8 +29,8 @@ your codebase → your dev server → edityy middleware → the page, with a lau
 ```
 
 The middleware serves `/__edityy/edityy.js` and injects a relative `<script>` tag into the HTML your dev server already
-returns. It serves the Edit text sweep beside it, and the launcher fetches that one only when you first edit text. A
-relative URL means it follows whatever port you are on, so there is nothing to configure and no port to keep in sync.
+returns. A relative URL means it follows whatever port you are on, so there is nothing to configure and no port to keep
+in sync.
 
 The launcher itself mounts a host element that is fixed to the viewport, ignores pointer events, and renders inside an
 **open shadow root** — so your page's CSS cannot restyle it and it cannot leak styles back out.

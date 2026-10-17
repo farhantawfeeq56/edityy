@@ -1505,42 +1505,6 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   assert.doesNotMatch(app.win.__edityy_changes(), /never saved/);
 });
 
-test("Edit text waits for the sweep, and edits anyway when it cannot run", async () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  let swept = null;
-  let release = null;
-  app.win.__edityySweep = (el, options) => {
-    swept = { el, options };
-    return new Promise((resolve) => (release = resolve));
-  };
-  app.action("Edit text");
-  assert.equal(p.getAttribute("contenteditable"), undefined, "no caret while the band crosses");
-  assert.equal(swept.el, p, "the sweep plays over the selected element");
-  // The values the sweep was chosen with, from the Canvas UI docs page, apart
-  // from the colour: that page's brand cyan is this ramp's primary.
-  assert.deepEqual(
-    { color: swept.options.color, charset: swept.options.charset, duration: swept.options.duration, band: swept.options.band },
-    { color: "#3a283c", charset: "blocks", duration: 1.4, band: 0.41 },
-  );
-  release();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(p.getAttribute("contenteditable"), "plaintext-only", "the caret goes in after");
-});
-
-test("a sweep that fails still gives the caret", async () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  app.win.__edityySweep = () => Promise.reject(new Error("no webgl"));
-  app.action("Edit text");
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
-});
-
 test("selecting text makes the words editable where they sit", () => {
   const { run } = fakeDom();
   const app = run();

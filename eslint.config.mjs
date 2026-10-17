@@ -15,9 +15,6 @@ const eslintConfig = defineConfig([
     ".vinext/**",
     ".wrangler/**",
     "next-env.d.ts",
-    // Built from packages/edityy/sweep by `npm run build:sweep`. Minified React,
-    // so there is nothing here for a linter to read.
-    "packages/edityy/src/ascii-sweep.js",
   ]),
 ]);
 
