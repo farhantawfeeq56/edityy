@@ -104,7 +104,7 @@
   };
 
   // DESIGN.md is the source of truth for every value below: Primary #3a283c,
-  // On-primary #f9f2ee, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
+  // On-primary #ffffff, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
   // Accent-rose #d79eac for state, Tertiary #b6758b for focus. The ramp is
   // closed — five values, nothing pure black or pure white. The ramp has no
   // second neutral, so a control that needs a fill on paper wears ink alpha
@@ -159,9 +159,9 @@
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
     ".custom-select-trigger{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
-    "background:#f9f2ee;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
+    "background:#ffffff;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
-    "max-height:180px;overflow-y:auto;padding:4px;background:#f9f2ee;border:1px solid #3a283c1a;border-radius:8px;",
+    "max-height:180px;overflow-y:auto;padding:4px;background:#ffffff;border:1px solid #3a283c1a;border-radius:8px;",
     "box-shadow:0 8px 18px #3a283c1f}",
     ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
     ".custom-option:hover,.custom-option[aria-pressed=true]{background:#3a283c0f}",
@@ -199,13 +199,13 @@
     // The keyboard ring: 2px of paper, then the mid rose that carries every
     // interaction highlight in the ramp. Drawn on the control the pointer uses,
     // never on the hidden input.
-    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
+    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
     // The field: saturation across, brightness up, the hue underneath both. Its
     // layers are set from the colour on show; the dot wears the colour itself.
     ".field{position:relative;width:100%;aspect-ratio:1/1;border-radius:16px;cursor:crosshair;touch-action:none;",
     "box-shadow:inset 0 0 0 1px #3a283c1a}",
-    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px #3a283c1a,0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
-    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid #f9f2ee;border-radius:16px;transform:translate(-50%,-50%);",
+    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px #3a283c1a,0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
+    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
     "box-shadow:0 0 0 1px #3a283c1a,inset 0 0 0 1px #3a283c1a;pointer-events:none;will-change:width,height;",
     "transition:width .15s cubic-bezier(0,0,.2,1),height .15s cubic-bezier(0,0,.2,1)}",
     ".field[data-dragging=true] .field-thumb{width:20px;height:20px}",
@@ -225,13 +225,13 @@
     "box-shadow:inset 1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
     // The checkerboard is the ramp too: paper, then ink alpha. A grey pair here
     // was the one place a colour came from outside the five values.
-    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(#f9f2ee 0% 25%,#3a283c14 0% 50%) 50%/16px 16px}",
+    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(#ffffff 0% 25%,#3a283c14 0% 50%) 50%/16px 16px}",
     ".track:after{right:-10px;border-start-end-radius:16px;border-end-end-radius:16px;",
     "box-shadow:inset -1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
     "background-color:var(--track-end,#f00)}",
-    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid #f9f2ee;border-radius:16px;transform:translate(-50%,-50%);",
+    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
     "pointer-events:none;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
-    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px #f9f2ee,0 0 0 4px #b6758b}",
+    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
     // The real input behind each drawn control: out of sight, out of the
     // pointer's way, and still the thing Tab lands on.
     "input.knob[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;opacity:.0001;pointer-events:none}",
@@ -251,7 +251,7 @@
     // words beside it.
     // Paper fill on paper, at the 8px the input ramp asks for: the hairline is
     // what gives it a body, the way it does every other card on a paper canvas.
-    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee}",
+    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff}",
     ".value-field:focus-within{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
     ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px #3a283c1a}",
     ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:#3a283c;",
@@ -335,7 +335,7 @@
     "input[type=number],input[type=search]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
     // paints them in its own light grey, which is invisible on paper.
-    "background:#f9f2ee;-webkit-text-fill-color:#3a283c;color:#3a283c;",
+    "background:#ffffff;-webkit-text-fill-color:#3a283c;color:#3a283c;",
     "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;",
     "transition:border-color .13s ease,box-shadow .13s ease}",
     "input[type=number]:focus,input[type=search]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
@@ -349,7 +349,7 @@
     // point rather than one control swapping in for another.
     "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#f9f2ee;",
+    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#ffffff;",
     "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;",
     // transform only: a scale from the centre and a translate to the pointer are
     // the same property, so the shrink and the travel animate as one move. The
@@ -386,7 +386,7 @@
     "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#f9f2eee0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#ffffffe0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
     ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer}",
     ".element-action:hover{background:#3a283c0f;border-color:#3a283c1a}",
@@ -394,13 +394,13 @@
     ".element-action.delete{color:#86546b}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid #3a283c1a;border-radius:8px;background:#f9f2ee;color:#3a283c;font:400 16px/1.4 inherit}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff;color:#3a283c;font:400 16px/1.4 inherit}",
     ".element-comment-text:focus-visible{outline:2px solid #86546b;outline-offset:1px}",
     ".element-comment-action{flex:1;justify-content:center;padding:7px 10px}",
     ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
-    "width:22px;height:22px;padding:2px;border:2px solid #f9f2ee;border-radius:50%;background:#86546b;",
-    "color:#f9f2ee;box-shadow:0 0 0 1px #86546b}",
+    "width:22px;height:22px;padding:2px;border:2px solid #ffffff;border-radius:50%;background:#86546b;",
+    "color:#ffffff;box-shadow:0 0 0 1px #86546b}",
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
@@ -418,7 +418,7 @@
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp.
     ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
-    "background:#3a283c;color:#f9f2ee;font:500 12px/1.2 inherit;white-space:nowrap;",
+    "background:#3a283c;color:#ffffff;font:500 12px/1.2 inherit;white-space:nowrap;",
     "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
@@ -427,7 +427,7 @@
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
     ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:#86546b}",
-    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#f9f2ee;white-space:nowrap;",
+    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#ffffff;white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease}",
     ".cta:hover{background:#86546b}",
     ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
@@ -987,7 +987,7 @@
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
       var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? "#3a283c" : "#f9f2ee";
+      return luminance > 0.55 ? "#3a283c" : "#ffffff";
     }
     // Nothing is painted behind it: the canvas is paper, so the line is ink.
     return "#3a283c";
@@ -2358,7 +2358,7 @@ function icons(items, current, onPick, cls) {
         one rather than as a pale solid. Paper and ink alpha, like the track's. */
     function overCheckers(value) {
       return "linear-gradient(" + value + ", " + value + ")," +
-        " repeating-conic-gradient(#f9f2ee 0% 25%, #3a283c14 0% 50%) 50% / 16px 16px";
+        " repeating-conic-gradient(#ffffff 0% 25%, #3a283c14 0% 50%) 50% / 16px 16px";
     }
 
     /** Draw the picker from the colour it holds, and write that colour out. */

@@ -776,7 +776,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.clickPage();
   });
   const sel = app.root.nodes.sel;
-  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee", "paper on a dark panel");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff", "paper on a dark panel");
   // A true negative of the page's paper would be pure black, which the ramp
   // does not have. An unpainted background is the page's own canvas: light, so
   // the line is ink.
@@ -802,7 +802,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(child);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff");
 });
 
 /** Select a node and report how it was classified. */

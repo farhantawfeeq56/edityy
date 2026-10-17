@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 /* Paper + plum + rose palette, graded like the reference frame: washed
-   highlights, faded shadows, nothing pure black or pure white. The neutral
+   highlights, faded shadows, nothing pure black. The neutral
    ramp IS the design: every neutral-* class in the app resolves to one of
    these, so the tokens are the whole change. */
 @theme inline {
-  --color-neutral-50: #f9f2ee;
-  --color-neutral-100: #f9f2ee;
+  --color-neutral-50: #ffffff;
+  --color-neutral-100: #ffffff;
   --color-neutral-200: #3a283c1a;
   --color-neutral-300: #3a283c26;
   --color-neutral-400: #3a283c59;
@@ -40,7 +40,7 @@
 
 body {
   font-family: var(--font-sans);
-  background: #f9f2ee;
+  background: #ffffff;
   color: #3a283c;
 }
 
