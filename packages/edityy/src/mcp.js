@@ -29,9 +29,9 @@ const TOOLS = [
     name: "get_visual_changes",
     description:
       "Read the visual edits the user made on their running site with Edityy and saved to the project. " +
-      "Returns each edited element with a CSS selector, its source location when known, and every " +
-      "property and text change as before → after. Apply them to the source code, then call " +
-      "clear_visual_changes.",
+      "Returns each edited element with a CSS selector, its source location when known, every " +
+      "property and text change as before → after, and any comment the user wrote about it. " +
+      "Apply them to the source code, then call clear_visual_changes.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {

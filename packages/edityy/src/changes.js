@@ -41,9 +41,10 @@ function str(value, name, max, fallback = "") {
 /**
  * The changes, cut down to the fields an agent needs, or a 400 SaveError.
  *
- * Each change is `{ label, selector, source, props, text, added, removed, moved }`,
+ * Each change is `{ label, selector, source, props, text, comment, added, removed, moved }`,
  * the shape the launcher sends. A prop is `{ prop, before, after }`, and a
  * `font-family` prop has `googleFont` when the user picked a Google font.
+ * `comment` is a note the user wrote about the element.
  * `added` is `{ tag, style, wraps }` for an element the user added: its tag,
  * the inline style it was made with, and the selectors of the elements it was
  * put around.
@@ -78,6 +79,7 @@ export function checkChanges(changes) {
         return out;
       }),
       text,
+      comment: str(change.comment, "comment", MAX_TEXT, null),
       added: checkAdded(change.added),
       removed: change.removed === true,
       moved: change.moved === true,
@@ -155,6 +157,7 @@ export function markdownFor(changes, page) {
       if (change.added.wraps.length) out.push(`- Wraps: ${change.added.wraps.map(code).join(", ")}`);
     }
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
+    if (change.comment) out.push(`- Comment: ${line(JSON.stringify(change.comment))}`);
     if (change.removed) out.push("- Removed: this element");
     if (change.moved) out.push(`- Moved to: ${code(change.movedTo || "a new position")}`);
     out.push("");
