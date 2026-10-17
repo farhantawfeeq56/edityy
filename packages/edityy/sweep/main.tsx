@@ -48,13 +48,13 @@ function panel(html: string): ReactNode {
 }
 
 /**
- * One sweep of an element, from its copy to the same copy: the ASCII band
+ * One sweep of an element, from its old state to the new one: the ASCII band
  * crosses the element and the glow fades, and the element itself never moves.
  *
- * Starts on the first panel and turns to the second on the next frame, because
+ * Starts on the old panel and turns to the new one on the next frame, because
  * the turn is what starts the sweep.
  */
-function Sweep({ html, options, onDone }: { html: string; options: SweepOptions; onDone: () => void }) {
+function Sweep({ from, to, options, onDone }: { from: string; to: string; options: SweepOptions; onDone: () => void }) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setIndex(1));
@@ -65,14 +65,14 @@ function Sweep({ html, options, onDone }: { html: string; options: SweepOptions;
     {
       ...options,
       index,
-      alternate: panel(html),
+      alternate: panel(to),
       onSweepEnd: onDone,
       // The size, always: every child of the effect's root is absolutely
       // positioned, so its height is otherwise zero and the whole sweep draws
       // into a one-pixel box.
       style: { width: "100%", height: "100%" },
     },
-    panel(html),
+    panel(from),
   );
 }
 
@@ -80,8 +80,11 @@ function Sweep({ html, options, onDone }: { html: string; options: SweepOptions;
  * Play the sweep over one element and answer when it has finished, so the caller
  * can put the caret in the element after it. Answers at once when the effect
  * cannot run: the caller treats that as "no sweep" and goes on.
+ *
+ * `from` is the element's markup before the change, when the sweep shows a
+ * change. Without it, both panels show the element as it is now.
  */
-export function sweep(target: HTMLElement, options: SweepOptions): Promise<void> {
+export function sweep(target: HTMLElement, options: SweepOptions, from?: string): Promise<void> {
   const parent = target.parentElement;
   if (!parent || !document.body) return Promise.resolve();
   if (!canSweep()) {
@@ -149,7 +152,7 @@ export function sweep(target: HTMLElement, options: SweepOptions): Promise<void>
       }, 0);
     };
     const timer = window.setTimeout(finish, SAFETY_MS);
-    root.render(createElement(Sweep, { html, options, onDone: finish }));
+    root.render(createElement(Sweep, { from: from || html, to: html, options, onDone: finish }));
   });
 }
 
@@ -159,6 +162,6 @@ window.__edityySweep = sweep;
 
 declare global {
   interface Window {
-    __edityySweep?: (target: HTMLElement, options: SweepOptions) => Promise<void>;
+    __edityySweep?: (target: HTMLElement, options: SweepOptions, from?: string) => Promise<void>;
   }
 }
