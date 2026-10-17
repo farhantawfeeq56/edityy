@@ -11,6 +11,12 @@
  * mounts on evaluation and sets `window.__edityy`, so it stays idempotent when a
  * project also injects ASSET_PATH the old way.
  *
+ * The sweep is imported first, because it sets `window.__edityySweep` and the
+ * payload reads it as it mounts. A project with a bundler has no dev-server
+ * route for the sweep asset, so this import is how the sweep reaches the Edit
+ * text action here.
+ *
  * Browser-only by contract — instrumentation-client modules run on the client.
  */
+import "./ascii-sweep.js";
 import "./edityy.js";

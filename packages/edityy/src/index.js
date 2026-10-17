@@ -14,9 +14,24 @@ import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
  */
 export const launcher = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "edityy.js"), "utf8");
 
-/** Where the middleware serves the launcher and what it injects. */
+/**
+ * The Edit text sweep, read the first time it is asked for. It is its own file
+ * because it carries React and a WebGL effect, and the launcher fetches it the
+ * first time a user chooses Edit text rather than loading it with every page.
+ * Lazy, so the CLI and the MCP server, which only import this file, never read it.
+ *
+ * Read by its path on disk, for the same reason as the launcher above.
+ */
+let sweep = null;
+function sweepAsset() {
+  if (sweep === null) sweep = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ascii-sweep.js"), "utf8");
+  return sweep;
+}
+
+/** Where the middleware serves the launcher and the sweep, and what it injects. */
 export const ASSET_PATH = "/__edityy/edityy.js";
-export const TAG = `<script src="${ASSET_PATH}" defer></script>`;
+export const SWEEP_ASSET_PATH = "/__edityy/ascii-sweep.js";
+export const TAG = `<script src="${ASSET_PATH}" data-edityy-sweep="${SWEEP_ASSET_PATH}" defer></script>`;
 
 /** Where the page sends its edits, and the file they are written to. */
 export const CHANGES_PATH = "/__edityy/changes";
@@ -74,6 +89,12 @@ export function edityy(options = {}) {
       if (pathname === ASSET_PATH) {
         res.writeHead?.(200, JS);
         res.end?.(launcher);
+        return;
+      }
+
+      if (pathname === SWEEP_ASSET_PATH) {
+        res.writeHead?.(200, JS);
+        res.end?.(sweepAsset());
         return;
       }
 

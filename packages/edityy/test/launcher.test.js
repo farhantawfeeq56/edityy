@@ -159,6 +159,20 @@ function fakeDom() {
       bucket.splice(bucket.indexOf(fn), 1);
     },
     getBoundingClientRect: () => attrs.rect ?? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 },
+    // The stub has no selector engine. One query is answered — a class name,
+    // found by walking the children it built — which is the only shape the
+    // payload asks for: whether a control's own list is open.
+    querySelectorAll: (selector) => {
+      if (!selector.startsWith(".")) return [];
+      const cls = selector.slice(1);
+      const found = [];
+      const walk = (n) => (n.children ?? []).forEach((c) => {
+        if (String(c.className).split(/\s+/).includes(cls)) found.push(c);
+        walk(c);
+      });
+      walk(node);
+      return found;
+    },
     composedPath: () => attrs.path ?? [],
     };
     node.bubbles = {};
@@ -331,7 +345,7 @@ function fakeDom() {
       appended,
       launch: () => root.nodes.launch,
       action: (name) => {
-        const button = root.nodes["element-menu"].children[1].children.find(
+        const button = root.nodes["element-menu"].children[0].children.find(
           (item) => item.getAttribute("aria-label") === name,
         );
         assert.ok(button, `no element action "${name}"`);
@@ -671,7 +685,9 @@ test("Shift+A without a selection does not open an action menu", () => {
     app.click();
     app.fire("keydown", { key: "A", shiftKey: true, preventDefault() {}, stopPropagation() {} });
   });
-  assert.equal(app.root.nodes.pop.hidden, false, "the initial creation options remain available");
+  assert.equal(app.root.nodes.dock.hidden, false, "the dock is still up");
+  assert.equal(app.root.nodes.row.hidden, true, "no controls: nothing is selected");
+  assert.equal(app.root.nodes.pop.hidden, true, "and no list opens");
 });
 
 test("an element with no text is still selectable", () => {
@@ -704,7 +720,7 @@ test("small selections hide only handles on their short dimensions", () => {
   assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/);
 });
 
-test("the bounding box is a dashed frame with four corner markers", () => {
+test("the bounding box is one solid frame with four corner markers", () => {
   const { run, text } = fakeDom();
   const app = run();
   // 120x48 at (100,50). The line straddles the edge, and the bar starts at the
@@ -723,13 +739,13 @@ test("the bounding box is a dashed frame with four corner markers", () => {
   assert.equal(sel.style.top, "49.25px");
   assert.equal(sel.style.width, "121.5px");
   assert.equal(sel.style.height, "49.5px");
-  // The design's own stroke: a dark dashed line outside the element,
-  // no corner radius, nothing painted inside it. The colour is the negative of
-  // what the box lies on, so the stylesheet only has the fallback.
-  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,#373d20\)/, "one solid frame, all four sides");
+  // The design's own stroke: a dark solid line outside the element, no corner
+  // radius, nothing painted inside it. The colour is a ramp value chosen by the
+  // luminance behind the box, so the stylesheet only has the ink fallback.
+  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,#3a283c\)/, "one solid frame, all four sides");
   assert.match(app.root.innerHTML, /border-radius:0/, "no corner radius");
   assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
-  // Eight slim olive handles: four corners and four edges.
+  // Eight handles: four corners and four edges.
   assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="top left"><\/i>/);
   assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="top right"><\/i>/);
   assert.match(app.root.innerHTML, /<i class="frame-marker corner" data-corner="bottom left"><\/i>/);
@@ -738,21 +754,17 @@ test("the bounding box is a dashed frame with four corner markers", () => {
   assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="right"><\/i>/);
   assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="top"><\/i>/);
   assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="bottom"><\/i>/);
-  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="left"><\/i>/);
-  assert.match(app.root.innerHTML, /<i class="frame-marker edge" data-edge="right"><\/i>/);
-  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="top"><\/i>/);
-  assert.match(app.root.innerHTML, /<i class="frame-marker edge horizontal" data-edge="bottom"><\/i>/);
   // The handles are the line in multiples, each its own fixed size.
   assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/, "corner discs five lines across");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\{width:4\.5px;height:min\(24px,40%\);border-radius:2\.25px\}/, "edge bars three lines thick, sixteen long, ends round");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\.horizontal\{width:min\(24px,40%\);height:4\.5px\}/, "the same bar on a top or bottom edge");
-  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,#717744\);pointer-events:auto\}/, "the handles wear the same colour as the line");
+  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,#3a283c\);pointer-events:auto\}/, "the handles wear the same colour as the line");
   assert.match(app.root.innerHTML, /\[data-edge=left\]\{left:-3px\}\[data-edge=right\]\{right:-3px\}/, "vertical handles center on the side stroke");
   assert.match(app.root.innerHTML, /\[data-edge=top\]\{top:-3px\}\[data-edge=bottom\]\{bottom:-3px\}/, "horizontal handles center on the top and bottom strokes");
   assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");
 });
 
-test("the box wears the negative of the colour under it", () => {
+test("the box wears the ramp value that opposes the colour under it", () => {
   const { run, text } = fakeDom();
   const app = run();
   const panel = text("div", "hi", { "background-color": "rgb(16, 32, 48)" },
@@ -763,14 +775,24 @@ test("the box wears the negative of the colour under it", () => {
     app.clickPage();
   });
   const sel = app.root.nodes.sel;
-  assert.equal(sel.style.getPropertyValue("--frame"), "#efdfcf", "the inverse of rgb(16, 32, 48)");
-  // The page's own paper is white, and its negative is black.
+  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee", "paper on a dark panel");
+  // A true negative of the page's paper would be pure black, which the ramp
+  // does not have. An unpainted background is the page's own canvas: light, so
+  // the line is ink.
   const bare = text("p", "plain", {}, { left: 0, top: 0, right: 80, bottom: 20, width: 80, height: 20 });
   quiet(() => {
     app.hover(bare);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#000000");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c");
+  // A light background keeps the line in ink rather than inventing a hue.
+  const paper = text("div", "hi", { "background-color": "rgb(249, 242, 238)" },
+    { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
+  quiet(() => {
+    app.hover(paper);
+    app.clickPage();
+  });
+  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c", "ink on paper");
   // A transparent element takes the colour of the nearest ancestor that paints
   // one, because that is the colour the box actually lies on.
   const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
@@ -779,7 +801,7 @@ test("the box wears the negative of the colour under it", () => {
     app.hover(child);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#efdfcf");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#f9f2ee");
 });
 
 /** Select a node and report how it was classified. */
@@ -850,9 +872,10 @@ test("the open icon stays visible on its own dark background", () => {
   const css = run().root.innerHTML;
   // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
   // colour never reaches it: without an explicit inherit the Aa is plum on plum
-  // and disappears. Both glyph kinds need it, one by letterform one by svg.
+  // and disappears. Both glyph kinds need it, one by letterform one by svg — the
+  // drawn one takes the colour down from the box the icon is drawn in.
   assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
-  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the drawn ones");
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the drawn ones");
 });
 
 test("each control is as wide as it needs to be, not a shared width", () => {
@@ -903,6 +926,10 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "grid", "gap", "alignment", "+"]);
   assert.equal(box.style.getPropertyValue("display"), "grid");
+  // The mode button is already the grid: the size control next to it must not
+  // draw the same glyph, or the row reads as two of the same button.
+  const [modeButton, gridButton] = app.root.nodes.row.children;
+  assert.notEqual(modeButton.innerHTML, gridButton.innerHTML, "the grid-size control draws its own glyph");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "bounds", "size", "+"]);
@@ -913,16 +940,12 @@ test("the dock opens on text and container, stays shut on media", () => {
 
   quiet(() => press(app, "alignment"));
   assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
-  quiet(() => press(app, "wrap"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 3, "flex wrap options");
-  quiet(() => press(app, "alignment"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "flex alignment grid");
   for (const fn of app.root.nodes.pop.children[0].children[2].bubbles.click.bubble) fn({});
   assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
   assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
   quiet(() => press(app, "wrap"));
-  for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
   assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
+  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
   quiet(() => press(app, "mode"));
   quiet(() => press(app, "grid"));
   const gridInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
@@ -973,17 +996,18 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(row.children.find((b) => b.dataset.key === "family").firstChild.nodeValue, "System UI");
   assert.equal(row.children.find((b) => b.dataset.key === "size").children[0].value, 16);
   assert.match(row.children.find((b) => b.dataset.key === "spacing").innerHTML, /<svg/);
-  assert.match(app.root.innerHTML, /#dock\{[^}]*position:fixed/, "fixed, so it follows the element as the page scrolls");
-  // One surface: the menu is the dock's first row, the controls under it, and
-  // the open control under those. The grid areas give that order; the markup
-  // puts the pop first, which is why the areas and not the tags decide.
-  assert.match(app.root.innerHTML, /grid-template-areas:"menu" "bar" "pop"/,
-    "menu, then the dock, then the open control");
-  // The menu hangs off the surface rather than floating on its own.
-  assert.match(app.root.innerHTML, /\.element-menu\{[^}]*grid-area:menu/);
+  assert.match(app.root.innerHTML, /#dock\{position:fixed;left:50%;bottom:24px;transform:translateX\(-50%\)/,
+    "fixed at the bottom centre, whatever the element does");
+  // The surface's rows: an open control over the icon row. The grid areas give
+  // that order; the markup puts the pop first, which is why the areas and not
+  // the tags decide.
+  assert.match(app.root.innerHTML, /grid-template-areas:"pop" "bar"/,
+    "the control opens over the dock");
+  // The menu is its own card at the element, not a row of the dock.
+  assert.match(app.root.innerHTML, /\.element-menu\{position:fixed/);
 });
 
-test("wrap and direction establish flex before applying the choice", () => {
+test("wrap and direction are cycle buttons, and establish flex first", () => {
   const { run, el } = fakeDom();
   const app = run();
   const box = el("div");
@@ -992,15 +1016,30 @@ test("wrap and direction establish flex before applying the choice", () => {
     app.hover(box);
     app.clickPage();
     press(app, "mode");
-    press(app, "wrap");
   });
   assert.equal(box.style.getPropertyValue("display"), "flex");
-  assert.equal(box.style.getPropertyValue("flex-direction"), "row");
-  pickOption(app.root.nodes.pop, "Wrap");
-  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap");
+  // Each click moves to the next value, and nothing opens.
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "nowrap moves to wrap");
+  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap-reverse", "the next click moves on");
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "nowrap", "the list wraps at the end");
   quiet(() => press(app, "direction"));
-  pickOption(app.root.nodes.pop, "Column");
-  assert.equal(box.style.getPropertyValue("flex-direction"), "column");
+  assert.equal(box.style.getPropertyValue("flex-direction"), "column", "row moves to column");
+  quiet(() => press(app, "direction"));
+  assert.equal(box.style.getPropertyValue("flex-direction"), "row", "and back");
+  // The button shows the value the element already had, so the dock says which
+  // one is on without opening anything.
+  const column = el("div", {}, { display: "flex", "flex-direction": "column" });
+  quiet(() => {
+    app.hover(column);
+    app.clickPage();
+  });
+  const direction = app.root.nodes.row.children.find((b) => b.dataset.key === "direction");
+  assert.equal(direction.title, "Column");
+  assert.match(direction.innerHTML, /<svg/);
 });
 
 test("inline-flex containers expose the wrap control", () => {
@@ -1014,9 +1053,8 @@ test("inline-flex containers expose the wrap control", () => {
   });
   assert.ok(app.root.nodes.row.children.find((button) => button.dataset.key === "wrap"));
   press(app, "wrap");
-  pickOption(app.root.nodes.pop, "Wrap reverse");
   assert.equal(box.style.getPropertyValue("display"), "flex");
-  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap-reverse");
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "the click cycles the value");
 });
 
 test("one control opens at a time, under the dock, and Escape closes it", () => {
@@ -1379,10 +1417,82 @@ test("selecting text shows actions without editing until Edit text is chosen", (
   const p = selectText(app, false);
   assert.equal(p.getAttribute("contenteditable"), undefined);
   assert.equal(app.root.nodes["element-menu"].hidden, false);
-  assert.deepEqual(app.root.nodes["element-menu"].children[1].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Delete"]);
+  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Delete"]);
   app.action("Edit text");
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
   assert.equal(app.root.nodes["element-menu"].hidden, true);
+});
+
+test("a comment is written on the element and reaches the agent's Markdown", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const menu = app.root.nodes["element-menu"];
+  const pressButton = (target) => {
+    for (const fn of target.bubbles.click.bubble) fn({});
+  };
+  const inMenu = (label) => menu.children[0].children
+    .flatMap((child) => (child.children.length ? child.children : [child]))
+    .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  selectText(app);
+  app.action("Comment");
+  const area = menu.children[0].children[0];
+  assert.equal(area.getAttribute("aria-label"), "Comment", "the box opens a field to write in");
+  area.value = "  make this bigger  ";
+  pressButton(inMenu("Save comment"));
+  assert.deepEqual(menu.children[0].children.map((b) => b.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Delete"], "the buttons are back");
+  assert.match(app.win.__edityy_changes(), /- Comment: "make this bigger"/);
+  // Reopening shows what was written, and an emptied field takes it off again.
+  app.action("Comment");
+  assert.equal(menu.children[0].children[0].value, "make this bigger");
+  // A scroll re-places the box, it must not rebuild it and take the words.
+  menu.children[0].children[0].value = "half written";
+  app.scroll();
+  assert.equal(menu.children[0].children[0].value, "half written");
+  menu.children[0].children[0].value = "";
+  pressButton(inMenu("Save comment"));
+  assert.doesNotMatch(app.win.__edityy_changes(), /Comment/);
+  // Escape backs out of the box without saving.
+  app.action("Comment");
+  menu.children[0].children[0].value = "never saved";
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(inMenu("Save comment"), undefined, "the buttons are back");
+  assert.doesNotMatch(app.win.__edityy_changes(), /never saved/);
+});
+
+test("Edit text waits for the sweep, and edits anyway when it cannot run", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  let swept = null;
+  let release = null;
+  app.win.__edityySweep = (el, options) => {
+    swept = { el, options };
+    return new Promise((resolve) => (release = resolve));
+  };
+  app.action("Edit text");
+  assert.equal(p.getAttribute("contenteditable"), undefined, "no caret while the band crosses");
+  assert.equal(swept.el, p, "the sweep plays over the selected element");
+  // The values the sweep was chosen with, from the Canvas UI docs page, apart
+  // from the colour: that page's brand cyan is this ramp's primary.
+  assert.deepEqual(
+    { color: swept.options.color, charset: swept.options.charset, duration: swept.options.duration, band: swept.options.band },
+    { color: "#3a283c", charset: "blocks", duration: 1.4, band: 0.41 },
+  );
+  release();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only", "the caret goes in after");
+});
+
+test("a sweep that fails still gives the caret", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  app.win.__edityySweep = () => Promise.reject(new Error("no webgl"));
+  app.action("Edit text");
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
 });
 
 test("selecting text makes the words editable where they sit", () => {
@@ -1440,7 +1550,7 @@ test("element actions navigate, delete reversibly, and disable unavailable targe
     app.hover(selected);
     app.clickPage();
   });
-  assert.equal(app.root.nodes["element-menu"].children[1].children[2].disabled, false);
+  assert.equal(app.root.nodes["element-menu"].children[0].children[2].disabled, false);
   app.action("Child");
   assert.equal(app.root.selection().el, child);
   app.action("Parent");
@@ -1461,11 +1571,11 @@ test("element actions navigate, delete reversibly, and disable unavailable targe
   assert.deepEqual(parent.children, [selected, sibling], "exit restores the deleted element before its sibling");
 });
 
-test("an element with child elements disables Edit text, because typing would take them", () => {
+test("an element whose words are split by a child element is editable, and exit puts the child back", () => {
   const { run, el } = fakeDom();
   const app = run();
-  // A heading holding an <em>: text to the dock, but its words are not leaf text
-  // and setText() would rewrite textContent and lose the emphasis.
+  // A heading holding an <em>: text to the dock, and editable, because the words
+  // are edited in place and the markup is put back when the mode is left.
   const heading = el("h1");
   const em = el("em");
   em.childNodes = [{ nodeType: 3, nodeValue: "there" }];
@@ -1474,14 +1584,50 @@ test("an element with child elements disables Edit text, because typing would ta
   heading.children = [em];
   em.parentElement = heading;
   heading.textContent = "Be there";
+  heading.innerHTML = "Be <em>there</em>";
   quiet(() => {
     app.click();
     app.hover(heading);
     app.clickPage();
   });
   assert.equal(app.root.selection().kind, "text", "still text, so the dock opens");
-  assert.equal(app.root.nodes["element-menu"].children[1].children[0].disabled, true);
-  assert.equal(heading.getAttribute("contenteditable"), undefined, "but the words are not rewritten");
+  const edit = app.root.nodes["element-menu"].children[0].children[0];
+  assert.equal(edit.disabled, false, "Edit text is offered");
+  app.action("Edit text");
+  assert.equal(heading.getAttribute("contenteditable"), "plaintext-only");
+  // The words change and the browser drops the <em> with them. Both are set
+  // here because this stub keeps textContent and innerHTML apart, where a real
+  // DOM derives the first from the second.
+  heading.textContent = "Be gone";
+  heading.innerHTML = "Be gone";
+  app.fire("keydown", { key: "Escape" });
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(heading.innerHTML, "Be <em>there</em>", "the child element comes back");
+});
+
+test("the caret goes to the end of the words, not where the click landed", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const p = el("p", { text: "hello there" });
+  p.childNodes = [{ nodeType: 3, nodeValue: "hello there" }];
+  const placed = [];
+  app.doc.createRange = () => ({
+    selectNodeContents: (node) => placed.push(["contents", node]),
+    collapse: (toEnd) => placed.push(["collapse", toEnd]),
+  });
+  app.win.getSelection = () => ({
+    removeAllRanges: () => placed.push(["clear"]),
+    addRange: () => placed.push(["add"]),
+  });
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  app.action("Edit text");
+  assert.deepEqual(placed, [["contents", p], ["collapse", false], ["clear"], ["add"]]);
 });
 
 test("the words being edited get no second ring on top of Edityy's own frame", () => {
@@ -1663,22 +1809,49 @@ test("scrolling drops the hover frame, whose element has nothing to do with the 
   assert.equal(app.root.nodes.hover.hidden, true);
 });
 
-test("text colour uses the dock button without opening a second surface", () => {
+test("text colour opens the picker, and writes rgba when it is see-through", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
   const colorButton = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
   const pop = app.root.nodes.pop;
+  const fire = (node, type, event = {}) => {
+    for (const fn of node.bubbles[type]?.bubble ?? []) fn(event);
+  };
   for (const fn of colorButton.bubbles.click.bubble) fn({});
-  const swatch = all(pop).find((node) => node.type === "range");
-  assert.ok(swatch, "a custom colour palette opens");
-  swatch.value = "134";
-  for (const fn of swatch.bubbles.input.bubble) fn({});
-  assert.equal(p.style.getPropertyValue("color"), "#86546b");
-  // The text fill IS the text colour; fill is the box behind it.
-  assert.equal(p.style.getPropertyValue("background-color"), "", "the background is not touched");
+  assert.equal(pop.className, "pop color", "the picker paints its own surface");
+  const panel = pop.children[0];
+  const byLabel = (label) => all(panel).find((n) => n.getAttribute?.("aria-label") === label);
+  // A colour typed into the value field, and a value that cannot be read.
+  const typed = byLabel("Colour value");
+  typed.value = "#325578";
+  fire(typed, "change");
+  assert.equal(p.style.getPropertyValue("color"), "#325578");
+  assert.equal(p.style.getPropertyValue("background-color"), "", "the text fill is the text colour, and the box behind it is not");
+  typed.value = "not a colour";
+  fire(typed, "change");
+  assert.equal(p.style.getPropertyValue("color"), "#325578", "what cannot be read changes nothing");
+  // The hue is a real range input behind the drawing, so the keyboard has it.
+  const hue = byLabel("Hue");
+  hue.value = "0";
+  fire(hue, "input");
+  assert.match(p.style.getPropertyValue("color"), /^#[0-9a-f]{6}$/, "the hue writes a colour");
+  assert.notEqual(p.style.getPropertyValue("color"), "#325578");
+  // The field is dragged, and its bottom edge is brightness 0.
+  const field = all(panel).find((n) => String(n.className) === "field");
+  field.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 });
+  fire(field, "pointerdown", { clientX: 50, clientY: 100 });
+  assert.equal(p.style.getPropertyValue("color"), "#000000", "brightness 0 is black");
+  // Any transparency is written as rgba: a hex cannot say it.
+  const alpha = byLabel("Alpha");
+  alpha.value = "50";
+  fire(alpha, "input");
+  assert.equal(p.style.getPropertyValue("color"), "rgba(0, 0, 0, 0.5)");
+  alpha.value = "100";
+  fire(alpha, "input");
+  assert.equal(p.style.getPropertyValue("color"), "#000000", "and solid again it is a hex");
   for (const fn of colorButton.bubbles.click.bubble) fn({});
-  assert.equal(app.root.nodes.pop.hidden, true, "clicking colour again closes the palette");
+  assert.equal(pop.hidden, true, "clicking colour again closes the picker");
 });
 
 test("fill and border are the box, and are behind the + rather than in the dock", () => {
@@ -1728,14 +1901,16 @@ test("a border colour comes with a width, or it is a colour nobody sees", () => 
   assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
 });
 
-test("no colour of ours is offered, because a site has never heard of our palette", () => {
+test("no colour of ours stands in for one the page never wrote", () => {
   const { run } = fakeDom();
   const app = run();
   selectText(app);
   quiet(() => press(app, "color"));
   const open = pop(app);
-  assert.equal(all(open).filter((n) => n.type === "range").length, 3, "RGB sliders are custom");
-  assert.equal(all(open).filter((n) => n.type === "color").length, 0, "the default picker is not used");
+  // The picker draws its own controls. The range inputs behind them are the
+  // keyboard's, and the one native picker is the button beside the hue.
+  assert.equal(all(open).filter((n) => String(n.className) === "knob").length, 3, "a drawn slider each: saturation, brightness, hue");
+  assert.equal(all(open).filter((n) => n.type === "color").length, 1, "and one native picker, opened from the button");
   const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
   // Nothing invents a colour to fall back on: an element whose colour is a name
   // or an rgb() leaves the UA default alone rather than showing a colour of ours.
@@ -1767,23 +1942,23 @@ test("each element keeps its own additions", () => {
   const first = selectText(app);
   quiet(() => {
     press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
+    pickOption(app.root.nodes.pop, "Shadow");
   });
   const second = app.el("h1", { text: "Second" });
   app.hover(second);
   app.clickPage();
   quiet(() => {
     press(app, "+");
-    pickOption(app.root.nodes.pop, "Contrast");
+    pickOption(app.root.nodes.pop, "Border");
   });
   const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(keys(), ["contrast", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
+  assert.deepEqual(keys(), ["border", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
 
   app.hover(first);
   app.clickPage();
   assert.deepEqual(
     keys(),
-    ["blur", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
+    ["shadow", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
     "the first element keeps only its own",
   );
 });
@@ -1802,104 +1977,63 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   // the exact colour of its own background. The colour goes on :host instead.
   assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
   assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
-  assert.match(css, /\.ic svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
-  assert.match(glyph, /fill="currentColor"/, "a Phosphor path paints itself with it");
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
+  // Scoped to the icon the control holds: a Lucide glyph is its own svg inside that
+  // one, and a rule that reached it would draw the glyph 18 units wide in a 256 box.
+  assert.doesNotMatch(css, /\.ic svg\{/, "no rule reaches the box a glyph is drawn in");
+  assert.match(glyph, /fill="currentColor"/, "a Lucide path paints itself with it");
 });
 
-test("Edityy starts with Add choices before the user selects an element", () => {
+test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  selectText(app);
+  // A glyph that is named but missing from GLYPHS renders its own name, which is
+  // silent everywhere else: this is the one place that would catch it.
+  const drawn = (markup) => {
+    // A name with no glyph behind it renders as its own text, and an empty box
+    // renders as nothing at all: both are silent everywhere else.
+    assert.match(markup, /aria-hidden="true">\s*<[a-z]/, `nothing was drawn: ${markup}`);
+    assert.match(markup, /<(path|rect|circle|line|polyline|ellipse|polygon)[\s/]/, `no shape drawn: ${markup}`);
+    assert.match(markup, /stroke="currentColor"/, `not a Lucide glyph: ${markup}`);
+  };
+  // The family button is a name and the size button is a field: both are text by
+  // design, so only the buttons that carry an icon are checked.
+  const row = app.root.nodes.row.children.filter((b) => b.innerHTML.includes("<svg"));
+  assert.ok(row.length >= 4, "the row should be mostly icons");
+  for (const button of row) drawn(button.innerHTML);
+  // The element menu and the row's `+` are drawn the same way. The two glyphs the
+  // shadow root itself is built with are already in its markup, so they are read
+  // there: a name with no glyph behind it would sit there as its own text.
+  drawn(app.root.nodes["element-menu"].children[0].children[0].innerHTML);
+  drawn(row[row.length - 1].innerHTML);
+  assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
+
+  // The alignment grid is the one glyph that is composed here: Lucide's square
+  // with a dot of this file's own in each of the nine cells.
+  assert.match(source, /var ALIGN_FRAME = '<svg x="14\.3"[^']*viewBox="0 0 24 24"/, "the frame is the square");
+  assert.match(source, /ALIGN_FRAME \+/, "and the grid draws it");
+
+  // The container dock is the other place a glyph is picked per control.
+  const box = el("div");
+  quiet(() => {
+    app.hover(box);
+    app.clickPage();
+  });
+  assert.equal(app.root.selection().kind, "container");
+  const alignment = app.root.nodes.row.children.find((b) => b.dataset.key === "alignment");
+  drawn(alignment.innerHTML);
+});
+
+test("the dock opens with nothing selected, and offers no Add choice", () => {
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
   assert.equal(app.root.selection(), null);
-  assert.equal(app.root.nodes.dock.hidden, false);
-  assert.equal(app.root.nodes.row.hidden, true);
-  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
-});
-
-test("Add mode previews and inserts an element at the chosen location", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const parent = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
-  const target = el("section", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
-  target.computed = { display: "block" };
-  parent.appendChild(target);
-  quiet(() => {
-    app.click();
-    for (const fn of app.root.nodes.pop.children[0].children[1].bubbles.click.bubble) fn({});
-    app.hover(target);
-    app.move(40, 55);
-  });
-
-  assert.equal(app.root.nodes.dock.hidden, true, "the selection dock yields to the insertion cursor");
-  assert.equal(app.root.nodes.insert.hidden, false);
-  assert.equal(app.root.nodes.insert.style.top, "60px", "the indicator previews after the target");
-  app.clickPage(40, 55);
-  const created = parent.children[1];
-  assert.equal(created.tagName, "P");
-  assert.equal(created.textContent, "Text");
-  assert.equal(app.root.selection().el, created);
-  assert.equal(app.root.selection().kind, "text");
-  assert.equal(app.root.nodes.dock.hidden, false);
-  assert.equal(app.root.nodes.row.hidden, false);
-  assert.equal(app.root.nodes.pop.hidden, true);
-  assert.equal(app.root.nodes.count.textContent, "1");
-
-  quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(parent.children.includes(created), false, "exit reverts the created element");
-});
-
-test("container insertion previews between its children", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const outer = el("body");
-  const container = el("main", { rect: { left: 10, top: 0, right: 310, bottom: 200, width: 300, height: 200 } });
-  outer.appendChild(container);
-  const first = el("p", { rect: { left: 20, top: 20, right: 200, bottom: 60, width: 180, height: 40 } });
-  const second = el("p", { rect: { left: 20, top: 80, right: 200, bottom: 120, width: 180, height: 40 } });
-  container.computed = { display: "block" };
-  first.computed = { display: "block" };
-  second.computed = { display: "block" };
-  container.appendChild(first);
-  container.appendChild(second);
-  container.childNodes = [first, second];
-  quiet(() => {
-    app.click();
-    for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
-    app.hover(container);
-    app.move(100, 55);
-  });
-  assert.equal(app.root.nodes.insert.style.top, "70px", "the indicator previews halfway between the children");
-  app.clickPage(100, 55);
-  assert.equal(container.children[1].tagName, "DIV");
-  assert.equal(app.root.selection().el, container.children[1]);
-});
-
-test("the selected-element Add action uses the same insertion flow", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const parent = el("main");
-  const target = el("section");
-  const sibling = el("aside");
-  parent.appendChild(target);
-  parent.appendChild(sibling);
-  quiet(() => {
-    app.click();
-    app.hover(target);
-    app.clickPage();
-  });
-  const add = app.root.nodes.create;
-  for (const fn of add.bubbles.click.bubble) fn({});
-  assert.deepEqual(app.root.nodes.pop.children[0].children.map((choice) => choice.title), ["Container", "Text"]);
-  for (const fn of app.root.nodes.pop.children[0].children[0].bubbles.click.bubble) fn({});
-  app.hover(sibling);
-  app.move(10, 1);
-  app.clickPage(10, 1);
-  const created = parent.children[2];
-  assert.equal(created.tagName, "DIV");
-  assert.equal(created.style.getPropertyValue("display"), "flex");
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
-  assert.equal(app.root.selection().el, created);
-  assert.equal(app.root.selection().kind, "container");
+  assert.equal(app.root.nodes.dock.hidden, false, "the dock is up before a selection");
+  assert.equal(app.root.nodes.row.hidden, true, "with no controls: nothing is selected");
+  assert.equal(app.root.nodes.pop.hidden, true, "and no list opens on its own");
+  assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
 
 test("the dock ends in a + that adds a control to the row", () => {
@@ -1909,19 +2043,19 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /M140,128a12,12,0,1,1-12-12/, "three dots, drawn");
+  assert.match(plus.innerHTML, /<circle/, "three dots, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
-  // What it offers is the five additions, as a list under the dock.
+  // What it offers is the additions, as a list under the dock.
   const pop = app.root.nodes.pop;
   assert.deepEqual(
     pop.children[0].children.map((b) => b.title),
-    ["Shadow", "Blur", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"],
+    ["Shadow", "Fill", "Border", "Padding", "Margin"],
   );
   // Picking one puts it in the row, and opens the control that was just picked.
-  quiet(() => pickOption(pop, "Blur"));
+  quiet(() => pickOption(pop, "Shadow"));
   assert.equal(row.children.length, before + 1);
-  const added = row.children.find((b) => b.dataset.key === "blur");
+  const added = row.children.find((b) => b.dataset.key === "shadow");
   assert.ok(added, "the new icon is in the row");
   assert.equal(added.getAttribute("aria-expanded"), "true", "and its control is open");
   assert.ok(added.innerHTML.startsWith("<svg"), "drawn like every other icon");
@@ -1933,55 +2067,13 @@ test("a control can only be added once", () => {
   selectText(app);
   quiet(() => {
     press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
+    pickOption(app.root.nodes.pop, "Shadow");
     press(app, "+");
   });
   const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
-  // Blur is gone because this element has it; the two new box controls are still
-  // on offer, since only Blur was ever added.
-  assert.deepEqual(names, ["Shadow", "Brightness", "Greyscale", "Contrast", "Fill", "Border", "Padding", "Margin"]);
-});
-
-test("a filter slider writes the filter, and leaves the others alone", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Brightness");
-  });
-  drag(pop(app), 0, 180);
-  assert.match(p.style.getPropertyValue("filter"), /brightness\(180%\)/);
-  assert.doesNotMatch(p.style.getPropertyValue("filter"), /blur\(/, "nothing else invented");
-});
-
-test("a decimal filter survives being read back, because half a pixel is a step", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
-  });
-  drag(pop(app), 0, 4);
-  drag(pop(app), 0, 0.5);
-  assert.equal(p.style.getPropertyValue("filter"), "blur(0.5px)", "an integer-only read loses this");
-});
-
-test("a filter back at its default leaves no filter behind", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Greyscale");
-  });
-  drag(pop(app), 0, 100);
-  assert.match(p.style.getPropertyValue("filter"), /grayscale\(100%\)/);
-  // A string, as a range input reports it: "0" !== 0, so a filter dragged home
-  // would be written as grayscale(0%) and never leave.
-  drag(pop(app), 0, "0");
-  assert.equal(p.style.getPropertyValue("filter"), "", "the filter is gone, not zero");
+  // Shadow is gone because this element has it; the box controls are still
+  // on offer, since only Shadow was ever added.
+  assert.deepEqual(names, ["Fill", "Border", "Padding", "Margin"]);
 });
 
 test("a shadow is written as one shorthand, because the offsets have no longhand", () => {
@@ -2007,42 +2099,20 @@ test("a shadow is written as one shorthand, because the offsets have no longhand
   assert.equal(p.style.getPropertyValue("box-shadow"), "", "no shadow left behind");
 });
 
-test("two filters coexist, because one drag must not throw the other away", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const p = selectText(app);
-  quiet(() => {
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
-    drag(pop(app), 0, 8);
-    press(app, "+");
-    pickOption(app.root.nodes.pop, "Greyscale");
-    drag(pop(app), 0, 100);
-  });
-  // The stub hands back the inline value verbatim, where a browser would hand
-  // back "none" for the filter that is not there yet — which is the case this
-  // has to survive.
-  assert.match(p.style.getPropertyValue("filter"), /blur\(8px\)/);
-  // Spelled "grayscale", not "greyscale": Chrome never implemented the standard
-  // name, and one unknown function invalidates the whole list — asking for it
-  // would take the blur down with it.
-  assert.match(p.style.getPropertyValue("filter"), /grayscale\(100%\)/);
-});
-
 test("every change is still undone on exit", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
   quiet(() => {
     press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
+    pickOption(app.root.nodes.pop, "Padding");
     drag(pop(app), 0, 12);
   });
-  assert.match(p.style.getPropertyValue("filter"), /blur\(12px\)/);
+  assert.equal(p.style.getPropertyValue("padding-top"), "12px");
   press(app, "+");
   quiet(() => app.fire("keydown", { key: "Escape" })); // the control
   quiet(() => app.fire("keydown", { key: "Escape" })); // then the mode
-  assert.equal(p.style.getPropertyValue("filter"), "", "the page is back as it was");
+  assert.equal(p.style.getPropertyValue("padding-top"), "", "the page is back as it was");
 });
 
 
@@ -2202,13 +2272,17 @@ test("one drag is one step, however many inputs it fires", async () => {
   const p = selectText(app);
   quiet(() => {
     press(app, "+");
-    pickOption(app.root.nodes.pop, "Blur");
+    pickOption(app.root.nodes.pop, "Border");
   });
-  for (const v of [2, 4, 6, 8]) drag(pop(app), 0, v);
+  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
+  for (const v of [2, 4, 6, 8]) {
+    width.value = String(v);
+    for (const fn of width.bubbles.input.bubble) fn({});
+  }
   await tick();
-  assert.match(p.style.getPropertyValue("filter"), /blur\(8px\)/);
+  assert.equal(p.style.getPropertyValue("border-width"), "8px");
   key(app, "z", { metaKey: true });
-  assert.equal(p.style.getPropertyValue("filter"), "", "straight back to no filter");
+  assert.equal(p.style.getPropertyValue("border-width"), "", "straight back to no border");
 });
 
 test("a border's width and style are undone together", async () => {
@@ -2219,7 +2293,9 @@ test("a border's width and style are undone together", async () => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  const width = fields(pop(app)).find((n) => n.type === "range");
+  // The border's own width slider, not the picker's hidden knobs.
+  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
+  assert.ok(width, "the width slider is in the border control");
   width.value = "3";
   for (const fn of width.bubbles.input.bubble) fn({});
   await tick();
@@ -2510,9 +2586,8 @@ test("Escape on an open control puts focus back on its icon", () => {
 test("reduced motion stops the dock and control animations", () => {
   const { run } = fakeDom();
   const app = run();
-  // The dock keeps its slide between elements; the popover keeps its fade.
+  // The dock stays where it is, so only the popover animates.
   assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}\.pop\{animation:none\}/);
-  assert.match(app.root.innerHTML, /#dock\{[^}]*transition:left/);
 });
 
 test("Save to project posts the edits as JSON to the dev server", async () => {
@@ -2569,86 +2644,27 @@ test("an edit drops the hover frame, which was measured at the old size", () => 
   assert.equal(p.style.getPropertyValue("font-size"), "72px");
 });
 
-test("the menu and the dock are one surface at the element", () => {
+test("the dock is fixed at the bottom centre, and the menu sits at the element", () => {
   const { run } = fakeDom();
   const app = run();
   const dock = app.root.nodes.dock;
   const menu = app.root.nodes["element-menu"];
-  assert.equal(menu.parentElement, dock, "the menu is the dock's first row from the start");
   selectText(app);
-  assert.equal(dock.hidden, false, "a selection opens the surface");
-  assert.equal(menu.hidden, false, "the menu is part of it, not a card beside it");
-  assert.equal(dock.dataset.layout, "stack", "the dock sits under the menu");
-  // The surface is placed at the element, and only the dock carries
-  // coordinates: the menu and the open control hold none of their own.
-  assert.equal(dock.style.left, "12px", "the dock is placed at the element");
-  assert.equal(dock.style.top, "28px", "under it, where there is room");
-  assert.equal(menu.style.getPropertyValue("left"), "");
-  // An open control grows the surface and comes out under the dock.
+  assert.equal(dock.hidden, false, "a selection opens the dock");
+  assert.equal(menu.hidden, false, "the menu is its own card");
+  assert.notEqual(menu.parentElement, dock, "the menu is not a row of the dock");
+  // One place for every selection: the sheet puts the dock at the bottom centre,
+  // and the dock holds no coordinates of its own.
+  assert.equal(dock.style.left, "");
+  assert.equal(dock.style.top, "");
+  // The menu is placed at the element: under it where the page has room.
+  assert.equal(menu.style.left, "12px", "clamped into view");
+  assert.equal(menu.style.top, "28px", "under the element");
+  // A scroll and an open control move the dock nowhere, and re-place the menu.
+  quiet(() => app.scroll());
   quiet(() => press(app, "spacing"));
   assert.equal(app.root.nodes.pop.hidden, false, "the control is open");
-  assert.equal(dock.style.top, "28px", "the surface is placed again with it open");
-  assert.equal(app.root.nodes.pop.style.getPropertyValue("left"), "",
-    "the control carries no coordinates of its own: it is the dock's last row");
-});
-
-test("with no room under the dock the control opens over the menu", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const dock = app.root.nodes.dock;
-  // Measured as a browser would: a two-row menu, a one-row dock, a tall list.
-  app.root.nodes["element-menu"].offsetHeight = 140;
-  app.root.nodes.bar.offsetHeight = 44;
-  const p = selectText(app);
-  // The pair sits under the element while no control is open.
-  const at = (bottom) => {
-    p.getBoundingClientRect = () => ({ left: 10, top: bottom - 20, right: 110, bottom, width: 100, height: 20 });
-    quiet(() => app.scroll());
-  };
-  at(500);
-  assert.equal(dock.style.top, "508px", "the menu is under the element");
-  assert.equal(dock.dataset.pop, "down");
-  // The control has no room under the dock, so it opens over the menu: the pair
-  // keeps its place under the element and the surface grows the other way.
-  app.root.nodes.pop.offsetHeight = 248;
-  quiet(() => press(app, "family"));
-  assert.equal(dock.dataset.pop, "up", "the control opens over the menu");
-  assert.equal(dock.style.top, "252px", "248 + the gap leaves the menu where it was");
-  assert.equal(app.root.nodes.pop.style.getPropertyValue("left"), "",
-    "the control is still a row of the surface, not a placed card");
-  // The pair itself moves over the element when the page leaves it no room
-  // under it, and the control opens over the menu there.
-  at(700);
-  assert.equal(dock.dataset.layout, "stack");
-  assert.equal(dock.dataset.pop, "up", "still over the menu, now over the element too");
-  assert.equal(dock.style.top, "224px", "the surface grows upwards from the pair");
-});
-
-test("with no room under the element the dock moves beside the menu", () => {
-  const { run } = fakeDom();
-  const app = run();
-  const dock = app.root.nodes.dock;
-  const p = selectText(app);
-  // The stub measures every element at 300px; the dock is shortened to keep
-  // the menu the taller of the two, which is what makes the side layout fit.
-  app.root.nodes.bar.offsetHeight = 40;
-  // An element low on the page: the menu-over-dock stack no longer fits under
-  // it, but the menu-over-menu-and-dock pair does.
-  const at = (left, bottom) => {
-    p.getBoundingClientRect = () => ({ left, top: bottom - 20, right: left + 100, bottom, width: 100, height: 20 });
-    quiet(() => app.scroll());
-  };
-  at(0, 460);
-  assert.equal(dock.dataset.layout, "side", "the dock sits to the right of the menu");
-  assert.equal(dock.style.left, "12px", "the surface stays at the element");
-  // The dock goes left when the element has no room on its right.
-  at(1100, 460);
-  assert.equal(dock.dataset.layout, "left", "the dock sits to the left of the menu");
-  assert.equal(dock.style.left, "640px", "clamped so the surface stays in view");
-  // With nothing selected there is no element to point at, and the surface goes
-  // where the dock always went.
-  app.hover(null);
-  quiet(() => app.clickPage());
-  assert.equal(dock.style.left, "50%", "centred at the bottom");
-  assert.equal(dock.style.bottom, "24px");
+  assert.equal(dock.style.left, "", "the dock holds its one place");
+  assert.equal(app.root.nodes.pop.style.left, "",
+    "the control carries no coordinates of its own: it is the surface's first row");
 });

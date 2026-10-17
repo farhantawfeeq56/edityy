@@ -4,7 +4,54 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.3.1 — 2026-10-17
+
+### Added
+
+- The flex direction and flex wrap controls cycle on one click. Each button shows
+  the value the element has, and no list opens. (#152)
+- Edit text plays the Canvas UI ASCII sweep over the element before the caret goes
+  in. The effect is its own file, served beside the launcher and fetched the first
+  time a user asks to edit text. Only the band is drawn over the page, so the
+  words keep their own rendering everywhere the band is not. A page without it, or
+  a browser without WebGL2, edits text as it did before. (#162)
+- The element actions carry a Comment action. It opens a field for a note about
+  the element, and the note travels with the edits: it is in
+  `.edityy/changes.json`, in the Markdown the agent reads, and in the MCP tool
+  result. A change without a note keeps `comment: null`. (#174)
+
+### Changed
+
+- Every colour is picked in HeroUI's picker: the text colour, a fill, a border
+  and a shadow. It is a saturation and brightness field with a dot to drag, the
+  hue slider with the browser's own picker beside it, and one line holding the
+  hex code and the transparency as a percentage. A colour with any transparency
+  is written as `rgba(r, g, b, a)`, and a solid one stays `#rrggbb`. The native
+  swatch the fill, border and shadow controls used is gone. Where the picker is
+  the whole control it wears HeroUI's white overlay; every other control keeps
+  the dock's cream. (#171)
+- Font size and font weight are one value each: the field beside the arrow holds it,
+  the arrow opens the common values, and a pick writes the field instead of a
+  second readout. The list of sizes opens upwards, over the dock, where the button
+  is in view. (#170)
+- The font family button in the dock draws its name in the family it names, and
+  the name is set at the size the dock uses. (#170)
+- An open dock control takes the screen from the element actions: the card at the
+  element closes while a control or a list inside one is open, and comes back when
+  it closes. Moving to another element closes the control that belonged to the
+  last one. (#166)
+- Edit text opens on an element whose words are split by a child element — a
+  paragraph around a link — and the caret starts at the end of the words. Leaving
+  the mode puts the markup back, child element included. (#165)
+- The style dock is fixed at the bottom centre again, whatever the selected
+  element does. An open control comes out over the dock. The element actions
+  keep their own card at the element. (#151)
+
+### Removed
+
+- The Add element button and its Text and Container choices are gone. A click on
+  the page selects an element; it never inserts one. Shift+A still wraps selected
+  elements in a new container. (#153)
 
 ### Fixed
 

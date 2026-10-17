@@ -1,6 +1,6 @@
 {
   "name": "edityy",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A visual editing layer for code-based websites. Drop the launcher into a dev server you already run.",
   "license": "MIT",
   "author": "Farhan Tawfeeq <webdesignbyft@gmail.com>",
@@ -56,12 +56,14 @@
   },
   "sideEffects": [
     "./src/edityy.js",
-    "./src/client.js"
+    "./src/client.js",
+    "./src/ascii-sweep.js"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:sweep": "node scripts/build-sweep.mjs"
   }
 }
