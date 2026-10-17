@@ -127,35 +127,35 @@
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
-    "[hidden]{display:none!important}", // also for #dock, whose display:grid would beat it
+    "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
     // The dock is one surface in one place: fixed at the bottom centre, whatever
-    // the element and the page do. A grid, because an open control comes out
+    // the element and the page do. A column, because an open control comes out
     // over the icon row. Below the pointer's z-index so the dot is never hidden
     // behind it.
     "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
-    "display:grid;grid-template-columns:auto;grid-template-areas:\"pop\" \"bar\";",
-    "justify-items:center}",
+    "display:flex;flex-direction:column;align-items:center}",
     // Translucent paper over the mist: the layer lifts with the blur and the
     // haze, not with an edge. The hairline it used to carry made it read as a
     // card laid on top of the page instead of a layer uncovered from it.
     ".row{display:flex;gap:2px;padding:4px;background:#f9f2eee0;border:1px solid transparent;border-radius:12px;",
     "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    // Icons: Lucide, in the ramp, inverted when their control is open, so
+    // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
     "border-radius:8px;background:transparent;color:#3a283c;cursor:pointer;",
     "transition:background .13s ease,color .13s ease,transform .13s ease}",
-    ".ic:hover{background:#3a283c0f}",
+    ".ic:hover{background:#fcfcfc}",
     ".ic:active{transform:scale(.92)}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:#3a283c1f}",
+    ".ic[aria-expanded=true]{background:#f9f9f9}",
     ".ic.add{color:#86546b}",
     ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
     "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
     ".ic.group-start{margin-left:6px;position:relative}",
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:#3a283c26}",
     ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
+    ".ic.size-control:focus-within{background:#f9f9f9}",
     ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
@@ -181,7 +181,7 @@
     // A list off a narrow arrow is as wide as its own words, and grows towards
     // the middle of the panel rather than past its edge.
     ".weight-control .custom-select-menu{left:auto;right:0;width:max-content;min-width:120px}",
-    ".color-button[aria-expanded=true]{background:#3a283c1f}",
+    ".color-button[aria-expanded=true]{background:#f9f9f9}",
     // The picker is HeroUI's in build and behaviour — the field with the dot,
     // the hue rail, the value field — and every control on it is still drawn
     // rather than borrowed from the browser, because a native range cannot
@@ -280,15 +280,14 @@
     ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
-    // with dead paper either side of the icons. The pop is the surface's first
-    // row, so an open control comes out over the dock.
+    // with dead paper either side of the icons. The pop is out of the flow, so
+    // an open control comes out over the dock.
     //
-    // A floating layer, so: translucent paper (the mist), a backdrop blur to
-    // see the page through it, the diffuse ink shadow that makes it float above
-    // the layer below, and the 16px layer radius. Depth comes from those, never
-    // from an edge — without them the panel read flatter than the dock under it.
-    ".pop{grid-area:pop;max-inline-size:420px;margin-bottom:8px;padding:8px;background:#f9f2eee0;border:1px solid transparent;border-radius:16px;",
-    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    // A floating layer, so: the same fill as its selected control, the diffuse
+    // ink shadow that makes it float above the layer below, and the 16px layer
+    // radius. Depth comes from those, never from an edge — without them the panel
+    // read flatter than the dock under it.
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:#f9f9f9;border:1px solid transparent;border-radius:16px;",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;animation:popIn .16s ease-out}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
@@ -409,14 +408,19 @@
     ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:#86546b}",
     ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
-    ".bar{grid-area:bar;display:flex;align-items:center;gap:6px}",
-    // Every button carries its label as text and as a title; the row reads as
-    // icons, so the text stays hidden and the title does the talking.
+    ".bar{display:flex;align-items:center;gap:6px}",
+    // Every button carries its label for the keyboard; the row reads as icons,
+    // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
     ".ic.solo{position:relative;width:44px;height:44px;background:#f9f2eee0;border:1px solid transparent;",
     "border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
     "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    ".ic.solo[aria-expanded=true]{background:#3a283c1f}",
+    ".ic.solo[aria-expanded=true]{background:#f9f9f9}",
+    // The tooltip of a control in the primary dock: ink on paper, drawn here
+    // because the browser own title is slow and cannot wear the ramp.
+    ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
+    "background:#3a283c;color:#f9f2ee;font:500 12px/1.2 inherit;white-space:nowrap;",
+    "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
@@ -461,6 +465,7 @@
     "</div>",
     "</div>",
     "</div>",
+    '<div class="tip" id="tip" role="tooltip" hidden></div>',
   ].join("");
 
   var $ = function (id) {
@@ -483,6 +488,7 @@
   var row = $("row");
   var pop = $("pop");
   var review = $("review");
+  var tip = $("tip");
   // The control that is open, "" for none.
   var openKey = "";
   var countBadge = $("count");
@@ -863,6 +869,23 @@
         else go();
       } catch {
         go();
+      }
+    });
+  }
+
+  /**
+   * The ASCII sweep from the old state of an element to the new one, for a
+   * cyclic control that opens no secondary dock. Fire and forget: the change is
+   * already applied, and a missing effect must not cost the change.
+   */
+  function sweepCycle(el, from) {
+    if (!el || !from) return;
+    withSweep(function (sweep) {
+      if (!sweep) return;
+      try {
+        sweep(el, SWEEP, from);
+      } catch {
+        /* the element already shows the new value */
       }
     });
   }
@@ -1754,6 +1777,28 @@ function faces() {
     if (key === "+") addOne();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
+    placePop(key);
+  }
+
+  /**
+   * Put the secondary dock where its control is.
+   *
+   * The first control of the row sends it to the left corner, the last to the
+   * right corner. Any other control puts the centre of the dock on the centre
+   * of the control. Measured, because the panel is as wide as its own content.
+   */
+  function placePop(key) {
+    if (!pop.hidden) pop.style.left = "0px";
+    if (pop.hidden || !key) return;
+    var target = key === "changes" ? review : slot(key);
+    if (!target || !target.getBoundingClientRect) return;
+    var dockBox = dock.getBoundingClientRect();
+    var box = target.getBoundingClientRect();
+    var width = pop.offsetWidth || 0;
+    var items = row.children;
+    if (target === items[0]) pop.style.left = "0px";
+    else if (target === items[items.length - 1]) pop.style.left = Math.max(0, dockBox.width - width) + "px";
+    else pop.style.left = box.left - dockBox.left + box.width / 2 - width / 2 + "px";
   }
 
   /** The options a single control can choose from, with a tick on the current one. */
@@ -1903,7 +1948,6 @@ function faces() {
     b.style.fontFamily = stack || "";
     while (b.firstChild) b.removeChild(b.firstChild);
     b.appendChild(text(name));
-    b.title = "Font family: " + name;
     b.setAttribute("aria-label", "Font family: " + name);
   }
 
@@ -1917,7 +1961,6 @@ function faces() {
     var trigger = b.querySelector && b.querySelector(".custom-select-trigger");
     // The arrow says there is a list; the field says the value. Never both.
     if (trigger && String(trigger.className).indexOf("chevron") === -1) trigger.textContent = value + "px";
-    b.title = "Font size: " + value + "px";
     b.setAttribute("aria-label", "Font size: " + value + "px");
   }
 
@@ -1973,7 +2016,7 @@ function faces() {
     var info = weightInfo();
     b.disabled = info.kind === "none";
     b.setAttribute("aria-disabled", b.disabled ? "true" : "false");
-    b.title = b.disabled ? "Font weight is not available" : "Font weight";
+    b.setAttribute("aria-label", b.disabled ? "Font weight is not available" : "Font weight");
   }
 
   /**
@@ -1988,7 +2031,6 @@ function faces() {
     var b = item && slot(key);
     if (!b) return;
     b.innerHTML = svg(item.icon) + '<span class="lbl">' + item.label + "</span>";
-    b.title = item.label;
     b.setAttribute("aria-label", item.label);
   }
 
@@ -1998,12 +2040,13 @@ function faces() {
     var current = get("text-align") || "left";
     var at = ALIGNS.map(function (item) { return item.v; }).indexOf(current);
     var next = ALIGNS[(at + 1) % ALIGNS.length];
+    var from = selected && selected.outerHTML;
     set("text-align", next.v);
     var b = slot("align");
     if (!b) return;
     b.innerHTML = svg(next.icon);
-    b.title = next.label;
     b.setAttribute("aria-label", next.label);
+    sweepCycle(selected, from);
   }
 
   /** Move the tick in an open control to whatever was just picked. */
@@ -2663,10 +2706,12 @@ function icons(items, current, onPick, cls) {
 
   var CONTROLS = {
     mode: function () {
+      var from = selected && selected.outerHTML;
       var at = MODES.indexOf(mode());
       setMode(MODES[(at + 1) % MODES.length]);
       buildRow();
       show("");
+      sweepCycle(selected, from);
     },
     family: function () {
       familyControl();
@@ -2787,11 +2832,13 @@ function icons(items, current, onPick, cls) {
     direction: function () {
       // Establish the flex box first so the user's row or column choice sticks.
       if (!pop.hidden) show("");
+      var from = selected && selected.outerHTML;
       ensureBox();
       var current = String(get("flex-direction") || "row").trim();
       var at = DIRECTIONS.map(function (item) { return item.v; }).indexOf(current);
       set("flex-direction", DIRECTIONS[(at + 1) % DIRECTIONS.length].v);
       paintCycle(DIRECTIONS, "direction", "flex-direction");
+      sweepCycle(selected, from);
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
@@ -2829,12 +2876,14 @@ function icons(items, current, onPick, cls) {
     // opposite order can be lost on mode change.
     wrap: function () {
       if (!pop.hidden) show("");
+      var from = selected && selected.outerHTML;
       if (mode() !== "flex") setMode("flex");
       var current = String(get("flex-wrap") || "nowrap").trim();
       var at = WRAPS.map(function (item) { return item.v; }).indexOf(current);
       setMode("flex");
       set("flex-wrap", WRAPS[(at + 1) % WRAPS.length].v);
       paintCycle(WRAPS, "wrap", "flex-wrap");
+      sweepCycle(selected, from);
     },
     gap: function () {
       if (mode() === "grid") {
@@ -3054,7 +3103,6 @@ function decorations() {
         var sizeButton = document.createElement("button");
         sizeButton.type = "button";
         sizeButton.className = "ic size-control";
-        sizeButton.title = definition.label;
         sizeButton.setAttribute("aria-label", definition.label);
         sizeButton.dataset.key = "size";
         var sizeInput = document.createElement("input");
@@ -3109,7 +3157,6 @@ function decorations() {
       var alignButton = slot("align");
       if (alignButton) {
         alignButton.innerHTML = svg(align.icon);
-        alignButton.title = align.label;
         alignButton.setAttribute("aria-label", align.label);
       }
     }
@@ -3117,6 +3164,8 @@ function decorations() {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
+    // The drawn tooltip is the only hint: a native title would open beside it.
+    for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
     rove(row.children[0]);
   }
 
@@ -3143,6 +3192,46 @@ function decorations() {
     if (e.preventDefault) e.preventDefault();
     if (e.stopPropagation) e.stopPropagation();
   });
+
+  /** The primary-dock control a pointer or the keyboard is on, if any. */
+  function controlOf(node) {
+    while (node && node !== row) {
+      if (node.dataset && node.dataset.key) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  /** Draw the tooltip over a control, in the words of its own label. */
+  function showTip(button) {
+    var words = button.getAttribute && button.getAttribute("aria-label");
+    if (!words || !button.getBoundingClientRect) return;
+    tip.textContent = words;
+    tip.hidden = false;
+    var box = button.getBoundingClientRect();
+    tip.style.left = box.left + box.width / 2 + "px";
+    tip.style.top = box.top - 8 + "px";
+    tip.style.transform = "translate(-50%,-100%)";
+  }
+
+  function hideTip() {
+    tip.hidden = true;
+  }
+
+  // The row is rebuilt as the selection moves, so the hint is delegated: one
+  // listener covers every control that will ever be in the row.
+  row.addEventListener("pointerover", function (e) {
+    var button = controlOf(e.target);
+    if (button) showTip(button);
+  });
+  row.addEventListener("pointerout", function (e) {
+    if (!controlOf(e.relatedTarget)) hideTip();
+  });
+  row.addEventListener("focusin", function (e) {
+    var button = controlOf(e.target);
+    if (button) showTip(button);
+  });
+  row.addEventListener("focusout", hideTip);
 
   /** Which optional controls this element has been given, in the order added. */
   function addedTo(el) {

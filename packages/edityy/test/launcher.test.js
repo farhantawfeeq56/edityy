@@ -666,7 +666,7 @@ test("Shift+A applies column auto layout to sibling selections and restores them
   assert.deepEqual(wrapper.children, [first, second]);
   assert.deepEqual(parent.children, [wrapper, gap]);
   assert.equal(app.root.selection().el, wrapper);
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Flex");
+  assert.equal(app.root.nodes.row.children[0].attributes["aria-label"], "Layout mode: Flex");
   // The prompt says what to build and what goes in it, by the places in the code.
   const prompt = app.win.__edityy_changes();
   assert.match(prompt, /- Added: a new `div` with `display: flex; flex-direction: column;`/);
@@ -900,6 +900,49 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
+test("the primary dock fills on hover and on select, and draws its own tooltip", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const css = app.root.innerHTML;
+  assert.match(css, /\.ic:hover\{background:#fcfcfc\}/, "a hovered control is #fcfcfc");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:#f9f9f9\}/, "a selected control is #f9f9f9");
+  assert.match(css, /\.pop\{[^}]*background:#f9f9f9/, "the secondary dock wears the same fill");
+  quiet(() => selectText(app));
+  const row = app.root.nodes.row;
+  const tip = app.root.nodes.tip;
+  const spacing = row.children.find((b) => b.dataset.key === "spacing");
+  assert.equal(tip.hidden, true, "no tooltip to begin with");
+  for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
+  assert.equal(tip.hidden, false, "a hovered control shows one");
+  assert.equal(tip.textContent, "Typography spacing", "in the words of its own label");
+  for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
+  assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("the secondary dock centres on its control and corners at the row's ends", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const row = app.root.nodes.row;
+  const dock = app.root.nodes.dock;
+  const pop = app.root.nodes.pop;
+  dock.getBoundingClientRect = () => ({ left: 100, top: 700, width: 400, height: 50 });
+  row.children.forEach((b, i) => {
+    b.getBoundingClientRect = () => ({ left: 100 + i * 40, top: 700, width: 34, height: 34 });
+  });
+  pop.offsetWidth = 200;
+  quiet(() => press(app, "family"));
+  assert.equal(pop.style.left, "0px", "the first control is the left corner");
+  quiet(() => press(app, "family"));
+  quiet(() => press(app, "color"));
+  // The colour control's centre is 137px into the dock, so the 200px panel
+  // starts 37px to the left of the dock.
+  assert.equal(pop.style.left, "37px", "a middle control sets the centre");
+  quiet(() => press(app, "color"));
+  quiet(() => press(app, "+"));
+  assert.equal(pop.style.left, "200px", "the last control is the right corner");
+});
+
 test("the dock opens on text and container, stays shut on media", () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -909,7 +952,7 @@ test("the dock opens on text and container, stays shut on media", () => {
     app.clickPage();
   });
   assert.equal(app.root.nodes.dock.hidden, false, "a container gets the dock too");
-  assert.equal(app.root.nodes.row.children[0].title, "Layout mode: Default");
+  assert.equal(app.root.nodes.row.children[0].attributes["aria-label"], "Layout mode: Default");
   assert.deepEqual(
     app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "direction", "gap", "alignment", "+"],
@@ -998,10 +1041,9 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.match(row.children.find((b) => b.dataset.key === "spacing").innerHTML, /<svg/);
   assert.match(app.root.innerHTML, /#dock\{position:fixed;left:50%;bottom:24px;transform:translateX\(-50%\)/,
     "fixed at the bottom centre, whatever the element does");
-  // The surface's rows: an open control over the icon row. The grid areas give
-  // that order; the markup puts the pop first, which is why the areas and not
-  // the tags decide.
-  assert.match(app.root.innerHTML, /grid-template-areas:"pop" "bar"/,
+  // The open control sits above the icon row, and the row places it from the
+  // control that opened it.
+  assert.match(app.root.innerHTML, /\.pop\{[^}]*position:absolute[^}]*bottom:calc\(100% \+ 8px\)/,
     "the control opens over the dock");
   // The menu is its own card at the element, not a row of the dock.
   assert.match(app.root.innerHTML, /\.element-menu\{position:fixed/);
@@ -1038,7 +1080,7 @@ test("wrap and direction are cycle buttons, and establish flex first", () => {
     app.clickPage();
   });
   const direction = app.root.nodes.row.children.find((b) => b.dataset.key === "direction");
-  assert.equal(direction.title, "Column");
+  assert.equal(direction.attributes["aria-label"], "Column");
   assert.match(direction.innerHTML, /<svg/);
 });
 
@@ -2665,6 +2707,5 @@ test("the dock is fixed at the bottom centre, and the menu sits at the element",
   quiet(() => press(app, "spacing"));
   assert.equal(app.root.nodes.pop.hidden, false, "the control is open");
   assert.equal(dock.style.left, "", "the dock holds its one place");
-  assert.equal(app.root.nodes.pop.style.left, "",
-    "the control carries no coordinates of its own: it is the surface's first row");
-});
+  assert.match(app.root.nodes.pop.style.left, /px$/,
+    "the control places the panel from its own centre");});
