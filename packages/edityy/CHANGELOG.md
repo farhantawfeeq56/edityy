@@ -6,6 +6,16 @@ All notable changes to the `edityy` package. The format follows
 
 ## Unreleased
 
+### Changed
+
+- The editor chrome uses the interaction rules of interior.dev. The dock
+  tooltips are one group: the first tooltip opens after 200ms, and the next one
+  opens at once and moves to its control. One hover fill moves along the dock
+  row. A panel grows from its control and fades out when it closes. The copy and
+  save buttons change their words in place, and the edits count pops when it
+  changes. The dock and the element menu move in when they appear. Reduced
+  motion stops all of this motion. (#181)
+
 ### Removed
 
 - Edit text no longer plays the Canvas UI ASCII sweep. The caret goes in at

@@ -901,11 +901,11 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
-test("the primary dock fills on hover and on select, and draws its own tooltip", () => {
+test("the primary dock fills on hover and on select, and draws its own tooltip", async () => {
   const { run } = fakeDom();
   const app = run();
   const css = app.root.innerHTML;
-  assert.match(css, /\.ic:hover\{background:#fcfcfc\}/, "a hovered control is #fcfcfc");
+  assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
   assert.match(css, /\.ic\[aria-expanded=true\]\{background:#f9f9f9\}/, "a selected control is #f9f9f9");
   assert.match(css, /\.pop\{[^}]*background:#f9f9f9/, "the secondary dock wears the same fill");
   quiet(() => selectText(app));
@@ -914,7 +914,10 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const spacing = row.children.find((b) => b.dataset.key === "spacing");
   assert.equal(tip.hidden, true, "no tooltip to begin with");
   for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
-  assert.equal(tip.hidden, false, "a hovered control shows one");
+  assert.notEqual(row.dataset.glide, undefined, "the fill comes in under the control");
+  assert.equal(tip.hidden, true, "a pointer that only crosses the dock lights nothing");
+  await new Promise((r) => setTimeout(r, 220));
+  assert.equal(tip.hidden, false, "a control the pointer stays on shows one");
   assert.equal(tip.textContent, "Typography spacing", "in the words of its own label");
   quiet(() => press(app, "spacing"));
   assert.equal(tip.hidden, true, "the open panel hides it");
