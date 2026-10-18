@@ -1,29 +1,32 @@
 @import "tailwindcss";
 
-/* Paper + plum + rose palette, graded like the reference frame: washed
+/* Cobalt on white paper, graded like the reference frame: washed
    highlights, faded shadows, nothing pure black. The neutral
    ramp IS the design: every neutral-* class in the app resolves to one of
-   these, so the tokens are the whole change. */
-@theme inline {
+   these, so the tokens are the whole change.
+
+   The theme is NOT inline on purpose: utilities emit var(--color-*), and the
+   --edityy-* hooks below hand the same tokens to the injected editor chrome. */
+@theme {
   --color-neutral-50: #ffffff;
   --color-neutral-100: #ffffff;
-  --color-neutral-200: #3a283c1a;
-  --color-neutral-300: #3a283c26;
-  --color-neutral-400: #3a283c59;
-  --color-neutral-500: #86546b;
-  --color-neutral-600: #86546b;
-  --color-neutral-700: #86546b;
-  --color-neutral-800: #86546b;
-  --color-neutral-900: #3a283c;
+  --color-neutral-200: #16233a1a;
+  --color-neutral-300: #16233a26;
+  --color-neutral-400: #16233a59;
+  --color-neutral-500: #465a78;
+  --color-neutral-600: #465a78;
+  --color-neutral-700: #465a78;
+  --color-neutral-800: #465a78;
+  --color-neutral-900: #16233a;
 
-  /* mid rose drives action and the "running" signal, always with ink text */
-  --color-rose-500: #b6758b;
-  --color-rose-900: #3a283c;
+  /* cobalt drives action and the "running" signal, always with ink text */
+  --color-rose-500: #2f5fa8;
+  --color-rose-900: #16233a;
 
   /* the three tile pastels, cycled across the space deck */
-  --color-blush: #ecc5c9;
-  --color-rose: #d79eac;
-  --color-plum: #3a283c;
+  --color-blush: #d8e3f4;
+  --color-rose: #b6cbe8;
+  --color-plum: #16233a;
 
   /* --font-jakarta is set by next/font/local on <html>; the rest is the
      pre-swap fallback so the first paint never reflows into a different face. */
@@ -33,29 +36,27 @@
 
 /* The Edityy editor chrome is a shadow root and names the Edityy face itself.
    next/font keeps Jakarta behind a hashed family name, so hand the chrome the
-   real one through its hook. Custom properties cross the shadow boundary. */
+   real one through its hook. Custom properties cross the shadow boundary — and
+   the chrome reads its five colours from the same tokens, so the dock, the
+   menus and the hover box wear this palette and not their own. */
 :root {
   --edityy-font: var(--font-jakarta);
+  --edityy-ink: var(--color-neutral-900);
+  --edityy-paper: var(--color-neutral-50);
+  --edityy-muted: var(--color-neutral-600);
+  --edityy-accent: var(--color-rose-500);
+  --edityy-rose: var(--color-rose);
 }
 
 body {
   font-family: var(--font-sans);
-  background: #ffffff;
-  color: #3a283c;
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-900);
 }
 
 ::selection {
-  background: #d79eac;
-  color: #3a283c;
-}
-
-/* Page titles: one display statement per view, at the ramp's 600. */
-h1 {
-  font-family: var(--font-sans);
-  font-size: 2.75rem;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -1.76px;
+  background: var(--color-rose);
+  color: var(--color-plum);
 }
 
 /* Analog grain. The one thing that makes the ramp read as graded rather than

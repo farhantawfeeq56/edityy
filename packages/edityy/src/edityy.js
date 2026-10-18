@@ -94,22 +94,41 @@
     return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + glyph + "</svg>";
   };
 
-  // DESIGN.md is the source of truth for every value below: Primary #3a283c,
-  // On-primary #ffffff, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
-  // Accent-rose #d79eac for state, Tertiary #b6758b for focus. The ramp is
-  // closed — five values, nothing pure black or pure white. The ramp has no
-  // second neutral, so a control that needs a fill on paper wears ink alpha
-  // (the #3a283c0f the hover states already use), never a grey.
+  // DESIGN.md is the source of truth for the five values below: Primary
+  // #16233a, On-primary #ffffff, Secondary #465a78, Muted #465a78, hairline
+  // #16233a1a, Accent-rose #b6cbe8 for state, Tertiary #2f5fa8 for focus. The
+  // ramp is closed — five values, nothing pure black or pure white. The ramp
+  // has no second neutral, so a control that needs a fill on paper wears ink
+  // alpha (the ink 6% below), never a grey.
+  //
+  // The sheet paints itself from the variables on the first :host rule, so a
+  // page that sets --edityy-ink and its neighbours repaints the whole chrome.
+  // Every one of them falls back to its DESIGN.md value.
   root.innerHTML = [
     "<style>",
     // all:initial and the colour on ONE rule: a second :host{color} later in the
     // sheet would win, but `all:initial` resets colour itself, so a :host{color}
-    // written before it is wiped and every icon goes back to its own plum.
-    ":host{all:initial;color:#3a283c}",
+    // written before it is wiped and every icon goes back to its own ink.
+    ":host{all:initial;color:var(--ink)}",
     // The motion, after interior.dev: things arrive on a long ease-out and leave
     // on a short ease-in, so the way in is felt and the way out is not waited for.
     // Custom properties are not reset by all:initial.
     ":host{--arrive:cubic-bezier(.23,1,.32,1);--leave:cubic-bezier(.4,0,1,1)}",
+    // The five values, and the steps drawn from them. The numbers on an ink or
+    // a rose step are its alpha percentage: colour-mix against transparent
+    // keeps the alpha and the colour, so a step holds whatever the ink is.
+    ":host{--ink:var(--edityy-ink,#16233a);--paper:var(--edityy-paper,#ffffff);--muted:var(--edityy-muted,#465a78);",
+    "--accent:var(--edityy-accent,#2f5fa8);--rose:var(--edityy-rose,#b6cbe8);",
+    "--ink-4:color-mix(in srgb,var(--ink) 4%,transparent);--ink-6:color-mix(in srgb,var(--ink) 6%,transparent);",
+    "--ink-8:color-mix(in srgb,var(--ink) 8%,transparent);--ink-10:color-mix(in srgb,var(--ink) 10%,transparent);",
+    "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
+    "--ink-20:color-mix(in srgb,var(--ink) 20%,transparent);--ink-25:color-mix(in srgb,var(--ink) 25%,transparent);",
+    "--ink-35:color-mix(in srgb,var(--ink) 35%,transparent);--ink-40:color-mix(in srgb,var(--ink) 40%,transparent);",
+    "--rose-30:color-mix(in srgb,var(--rose) 30%,transparent);--rose-40:color-mix(in srgb,var(--rose) 40%,transparent);",
+    "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
+    // A control that is open, and one under the pointer: paper stepped once
+    // towards ink, so the step holds whatever the paper is.
+    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper))}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
     // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
@@ -118,8 +137,8 @@
     //
     // The colour goes on :host, not on *. A universal colour reaches the <path>
     // inside an icon as well as its <svg>, and since those paths are painted with
-    // currentColor they resolve against their OWN colour — which is this plum on
-    // every button. An open control paints itself #3a283c, so its icon was the
+    // currentColor they resolve against their OWN colour — which is this ink on
+    // every button. An open control paints itself var(--ink), so its icon was the
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
@@ -132,15 +151,15 @@
     "display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{position:relative;display:flex;gap:2px;padding:4px;background:#ffffff;border:1px solid transparent;border-radius:12px;",
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    ".row{position:relative;display:flex;gap:2px;padding:4px;background:var(--paper);border:1px solid transparent;border-radius:12px;",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
     // is never one of row.children. It fades in where it first lands, and moves
     // only once it is on show (data-glide=warm).
     ".row:before{content:\"\";position:absolute;left:0;top:4px;height:34px;width:var(--glide-w,34px);border-radius:8px;",
-    "background:#3a283c0a;pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
+    "background:var(--ink-4);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity .1s var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity .1s var(--arrive),transform .26s var(--arrive),width .26s var(--arrive)}",
     ".row>*{position:relative}",
@@ -148,31 +167,31 @@
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
-    "border-radius:8px;background:transparent;color:#3a283c;cursor:pointer;",
+    "border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;",
     // The press goes down fast and comes back slower: the hand is quick, the
     // release settles.
     "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
-    ".ic:hover{background:#fcfcfc}",
+    ".ic:hover{background:var(--fill-hover)}",
     ".ic:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:#f9f9f9}",
-    ".ic.add{color:#86546b}",
+    ".ic[aria-expanded=true]{background:var(--fill-open)}",
+    ".ic.add{color:var(--muted)}",
     ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
     "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
     ".ic.group-start{margin-left:6px;position:relative}",
-    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:#3a283c26}",
+    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
     ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
-    ".ic.size-control:focus-within{background:#f9f9f9}",
+    ".ic.size-control:focus-within{background:var(--fill-open)}",
     ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
-    ".custom-select-trigger{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
-    "background:#ffffff;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
+    ".custom-select-trigger{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
+    "background:var(--paper);color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer}",
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
-    "max-height:180px;overflow-y:auto;padding:4px;background:#ffffff;border:1px solid #3a283c1a;border-radius:8px;",
-    "box-shadow:0 8px 18px #3a283c1f}",
-    ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
-    ".custom-option:hover,.custom-option[aria-pressed=true]{background:#3a283c0f}",
+    "max-height:180px;overflow-y:auto;padding:4px;background:var(--paper);border:1px solid var(--ink-10);border-radius:8px;",
+    "box-shadow:0 8px 18px var(--ink-12)}",
+    ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--ink);text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
+    ".custom-option:hover,.custom-option[aria-pressed=true]{background:var(--ink-6)}",
     ".size-control .custom-select{width:26px;flex:none}",
     ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
     // Upward, like every other list in the dock: the size button sits 24px above
@@ -188,7 +207,7 @@
     // A list off a narrow arrow is as wide as its own words, and grows towards
     // the middle of the panel rather than past its edge.
     ".weight-control .custom-select-menu{left:auto;right:0;width:max-content;min-width:120px}",
-    ".color-button[aria-expanded=true]{background:#f9f9f9}",
+    ".color-button[aria-expanded=true]{background:var(--fill-open)}",
     // The picker is HeroUI's in build and behaviour — the field with the dot,
     // the hue rail, the value field — and every control on it is still drawn
     // rather than borrowed from the browser, because a native range cannot
@@ -204,17 +223,17 @@
     // and the width is the picker's own: the panel takes the room it needs and
     // the surface around it follows, wherever the picker stands.
     ".color-panel{display:flex;flex-direction:column;gap:8px;width:152px}",
-    // The keyboard ring: 2px of paper, then the mid rose that carries every
+    // The keyboard ring: 2px of paper, then the cobalt that carries every
     // interaction highlight in the ramp. Drawn on the control the pointer uses,
     // never on the hidden input.
-    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
+    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // The field: saturation across, brightness up, the hue underneath both. Its
     // layers are set from the colour on show; the dot wears the colour itself.
     ".field{position:relative;width:100%;aspect-ratio:1/1;border-radius:16px;cursor:crosshair;touch-action:none;",
-    "box-shadow:inset 0 0 0 1px #3a283c1a}",
-    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px #3a283c1a,0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
-    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
-    "box-shadow:0 0 0 1px #3a283c1a,inset 0 0 0 1px #3a283c1a;pointer-events:none;will-change:width,height;",
+    "box-shadow:inset 0 0 0 1px var(--ink-10)}",
+    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px var(--ink-10),0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
+    "box-shadow:0 0 0 1px var(--ink-10),inset 0 0 0 1px var(--ink-10);pointer-events:none;will-change:width,height;",
     "transition:width .15s cubic-bezier(0,0,.2,1),height .15s cubic-bezier(0,0,.2,1)}",
     ".field[data-dragging=true] .field-thumb{width:20px;height:20px}",
     // The sliders: one 20px track, a 10px cap at each end that carries the
@@ -224,22 +243,22 @@
     ".pick-row .slider{flex:1}",
     ".track{position:relative;height:20px;margin:0 10px;",
     "background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);",
-    "box-shadow:inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a}",
+    "box-shadow:inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10)}",
     ".track:before,.track:after{content:\"\";position:absolute;top:0;height:100%;width:10px}",
     // The caps carry the colours the track stops short of. On the hue slider that
     // is red at both ends — the hue it shows is fully saturated by definition —
     // and the alpha slider sets its own two: clear, and the colour itself.
     ".track:before{left:-10px;border-start-start-radius:16px;border-end-start-radius:16px;",
-    "box-shadow:inset 1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    "box-shadow:inset 1px 0 0 var(--ink-10),inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10);",
     // The checkerboard is the ramp too: paper, then ink alpha. A grey pair here
     // was the one place a colour came from outside the five values.
-    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(#ffffff 0% 25%,#3a283c14 0% 50%) 50%/16px 16px}",
+    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(var(--paper) 0% 25%,var(--ink-8) 0% 50%) 50%/16px 16px}",
     ".track:after{right:-10px;border-start-end-radius:16px;border-end-end-radius:16px;",
-    "box-shadow:inset -1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    "box-shadow:inset -1px 0 0 var(--ink-10),inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10);",
     "background-color:var(--track-end,#f00)}",
-    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
-    "pointer-events:none;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
-    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
+    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
+    "pointer-events:none;box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12)}",
+    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // The real input behind each drawn control: out of sight, out of the
     // pointer's way, and still the thing Tab lands on.
     "input.knob[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;opacity:.0001;pointer-events:none}",
@@ -247,9 +266,9 @@
     // with ink alpha because it stands on paper and the ramp has no grey to
     // fill it with.
     ".icon-button{display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border:0;",
-    "border-radius:50%;padding:0;background:#3a283c0f;color:#3a283c;cursor:pointer;",
+    "border-radius:50%;padding:0;background:var(--ink-6);color:var(--ink);cursor:pointer;",
     "transition:transform .25s ease,background-color .1s cubic-bezier(0,0,.2,1),box-shadow .1s cubic-bezier(0,0,.2,1)}",
-    ".icon-button:hover{background:#3a283c1a}",
+    ".icon-button:hover{background:var(--ink-10)}",
     ".icon-button:active{transform:scale(.97)}",
     ".icon-button>svg{width:16px;height:16px;display:block}",
     // The button's own input, held off-screen: the UA rule for a colour input
@@ -259,15 +278,15 @@
     // words beside it.
     // Paper fill on paper, at the 8px the input ramp asks for: the hairline is
     // what gives it a body, the way it does every other card on a paper canvas.
-    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff}",
-    ".value-field:focus-within{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
-    ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px #3a283c1a}",
-    ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:#3a283c;",
+    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper)}",
+    ".value-field:focus-within{border-color:var(--muted);box-shadow:0 0 0 3px var(--rose-30)}",
+    ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--ink-10)}",
+    ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:var(--ink);",
     "font-size:14px;font-weight:500;outline:none}",
     // The transparency, as the number it is: one line with the value, the way a
     // form wears a unit. The spinners are off so a three-character field holds
     // the number and the sign, and the arrow keys still step it.
-    ".value-field .alpha{display:flex;align-items:center;flex:none;margin-inline-end:12px;color:#86546b;font-size:14px;font-weight:500}",
+    ".value-field .alpha{display:flex;align-items:center;flex:none;margin-inline-end:12px;color:var(--muted);font-size:14px;font-weight:500}",
     ".value-field .alpha input[type=number]{width:3ch;height:100%;border:0;padding:0;background:transparent;color:inherit;",
     "font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;outline:none;-webkit-appearance:none;appearance:none}",
     // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
@@ -277,14 +296,14 @@
     // Type controls are their own glyphs: a letterform says "this is about type"
     // faster than any abstract mark could. color:inherit is not optional: the
     // universal * rule above sets a colour on every element, so a glyph would
-    // stay plum on the plum of an active button and vanish.
+    // stay ink on the ink of an active button and vanish.
     ".g{font-size:15px;font-weight:600;line-height:1;color:inherit;pointer-events:none}",
     // The swatch is a real control, so it takes focus and shows focus: an inline
     // <i> would be invisible to the keyboard and unreachable by the pointer.
     // The bar wears the element own colour once one is selected, and is a bare
     // outline until then: an empty swatch is honest about knowing nothing, where
-    // a swatch painted in our plum would claim the site is that colour.
-    ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
+    // a swatch painted in our ink would claim the site is that colour.
+    ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-25)}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons. The pop is out of the flow, so
@@ -294,30 +313,30 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:#f9f9f9;border:1px solid transparent;border-radius:16px;",
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--fill-open);border:1px solid transparent;border-radius:16px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
     // whatever the site styles its scrollbars with, or a chunky default. A hairline
     // in the ramp, inset so it never sits on the text, and no buttons.
-    "scrollbar-width:thin;scrollbar-color:#3a283c40 transparent;padding-right:4px}",
+    "scrollbar-width:thin;scrollbar-color:var(--ink-25) transparent;padding-right:4px}",
     ".list::-webkit-scrollbar{width:6px}",
     ".list::-webkit-scrollbar-track{background:transparent}",
-    ".list::-webkit-scrollbar-thumb{background:#3a283c40;border-radius:6px}",
-    ".list::-webkit-scrollbar-thumb:hover{background:#3a283c66}",
+    ".list::-webkit-scrollbar-thumb{background:var(--ink-25);border-radius:6px}",
+    ".list::-webkit-scrollbar-thumb:hover{background:var(--ink-40)}",
     // One row per option: a face shows itself, an alignment shows its own lines.
     // width:max-content, not 100%: a row is as wide as its own label, so a short
     // name does not stretch the list and a long one is not clipped.
     ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
     "border-radius:8px;padding:7px 10px;",
-    "background:transparent;color:#3a283c;font:500 14px/1.2 inherit;cursor:pointer;",
+    "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer;",
     "transition:background .12s ease,color .12s ease,transform .2s var(--arrive)}",
-    ".opt:hover{background:#3a283c0f}",
+    ".opt:hover{background:var(--ink-6)}",
     ".opt:active{transform:scale(.98);transition-duration:.12s,.12s,.08s}",
-    ".opt[aria-pressed=true]{background:#3a283c1f}",
+    ".opt[aria-pressed=true]{background:var(--ink-12)}",
     ".opts{display:flex;gap:2px;padding:2px}",
     // The alignment control lays its row out as a real 3x3 grid instead.
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
@@ -327,32 +346,32 @@
     ".pair .bar2{padding:6px}",
 
     ".field-label{white-space:nowrap}",
-    ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:#86546b;",
+    ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:var(--muted);",
     "font-variant-numeric:tabular-nums}",
     // The weight slider: a hairline track in the ramp and a solid grab dot. The
     // track has to be dark enough to see against paper — the default UA track is
     // a light grey that vanishes on this background.
     "input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;",
-    "border-radius:2px;background:#3a283c59;outline:none}",
-    "input[type=range]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:#3a283c59}",
+    "border-radius:2px;background:var(--ink-35);outline:none}",
+    "input[type=range]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:var(--ink-35)}",
     "input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;",
-    "margin-top:-6px;border-radius:50%;background:#3a283c;cursor:grab;",
-    "box-shadow:0 1px 2px #3a283c40}",
-    "input[type=range]:focus-visible{box-shadow:0 0 0 3px #d79eac66}",
-    "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:#3a283c59}",
+    "margin-top:-6px;border-radius:50%;background:var(--ink);cursor:grab;",
+    "box-shadow:0 1px 2px var(--ink-25)}",
+    "input[type=range]:focus-visible{box-shadow:0 0 0 3px var(--rose-40)}",
+    "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:var(--ink-35)}",
     "input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;",
-    "background:#3a283c;cursor:grab}",
+    "background:var(--ink);cursor:grab}",
 
-    "input[type=number],input[type=search]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
+    "input[type=number],input[type=search]{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
     // paints them in its own light grey, which is invisible on paper.
-    "background:#ffffff;-webkit-text-fill-color:#3a283c;color:#3a283c;",
+    "background:var(--paper);-webkit-text-fill-color:var(--ink);color:var(--ink);",
     "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;",
     "transition:border-color .13s ease,box-shadow .13s ease}",
-    "input[type=number]:focus,input[type=search]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
+    "input[type=number]:focus,input[type=search]:focus{border-color:var(--muted);box-shadow:0 0 0 3px var(--rose-30)}",
     // The search over the family list sits on top of it, a little apart.
     "input[type=search]{margin-bottom:6px;padding:8px 10px;font-variant-numeric:normal}",
-    "input[type=search]::placeholder{-webkit-text-fill-color:#86546b;color:#86546b}",
+    "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
     // One element, both states. Anchored bottom-right while the mode is off, moved
@@ -360,14 +379,14 @@
     // point rather than one control swapping in for another.
     "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#ffffff;",
-    "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;",
+    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:var(--paper);",
+    "background:var(--ink);box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);",
     // transform only: a scale from the centre and a translate to the pointer are
     // the same property, so the shrink and the travel animate as one move. The
     // default centre origin is what makes the dot land exactly under the pointer.
     "transition:transform .3s cubic-bezier(.2,.8,.2,1),background .15s}",
-    "#launch:hover{background:#86546b}",
-    "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
+    "#launch:hover{background:var(--muted)}",
+    "#launch:focus-visible{outline:2px solid var(--ink);outline-offset:3px}",
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
@@ -377,11 +396,13 @@
     // whole box: the ramp value that opposes what it lies on, so the line and
     // the handles always stand off the page they cross.
     ".frame{position:fixed;pointer-events:none;z-index:1;box-sizing:border-box;",
-    "border:1.5px solid var(--frame,#3a283c);border-radius:0;background:transparent}",
+    // The colour of a frame is the palette's own, so it reads as one of the
+    // chrome's five values: --ink until place() sets the contrast colour.
+    "border:1.5px solid var(--frame,var(--ink));border-radius:0;background:transparent}",
     // The handles are that line in multiples: a corner disc 5 lines across
     // (7.5px) and an edge bar 3 lines thick (4.5px) and at most 16 lines long
     // (24px), with round ends because the radius is half the bar.
-    ".frame-marker{position:absolute;background:var(--frame,#3a283c);pointer-events:auto}",
+    ".frame-marker{position:absolute;background:var(--frame,var(--ink));pointer-events:auto}",
     ".frame-marker.corner{width:7.5px;height:7.5px;border-radius:50%}",
     ".frame-marker.edge{width:4.5px;height:min(24px,40%);border-radius:2.25px}",
     ".frame-marker.edge.horizontal{width:min(24px,40%);height:4.5px}",
@@ -397,60 +418,60 @@
     "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#ffffffe0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer;",
+    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:var(--ink);font:500 14px/1 inherit;cursor:pointer;",
     "transition:background .12s ease,border-color .12s ease,transform .2s var(--arrive)}",
     ".element-action:active{transform:scale(.96);transition-duration:.12s,.12s,.08s}",
-    ".element-action:hover{background:#3a283c0f;border-color:#3a283c1a}",
-    ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
-    ".element-action.delete{color:#86546b}",
+    ".element-action:hover{background:var(--ink-6);border-color:var(--ink-10)}",
+    ".element-action:focus-visible{outline:2px solid var(--muted);outline-offset:2px}",
+    ".element-action.delete{color:var(--muted)}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff;color:#3a283c;font:400 16px/1.4 inherit}",
-    ".element-comment-text:focus-visible{outline:2px solid #86546b;outline-offset:1px}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit}",
+    ".element-comment-text:focus-visible{outline:2px solid var(--muted);outline-offset:1px}",
     ".element-comment-action{flex:1;justify-content:center;padding:7px 10px}",
-    ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
+    ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
-    "width:22px;height:22px;padding:2px;border:2px solid #ffffff;border-radius:50%;background:#86546b;",
-    "color:#ffffff;box-shadow:0 0 0 1px #86546b}",
+    "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
+    "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
     // Four sides in a row, each a small field under its name.
     ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
-    ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:#86546b}",
+    ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:var(--muted)}",
     ".sides input[type=number]{padding:7px 6px}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:44px;height:44px;background:#ffffff;border:1px solid transparent;",
+    ".ic.solo{position:relative;width:44px;height:44px;background:var(--paper);border:1px solid transparent;",
     "border-radius:12px;",
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    ".ic.solo[aria-expanded=true]{background:#f9f9f9}",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
+    ".ic.solo[aria-expanded=true]{background:var(--fill-open)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp.
     ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
-    "background:#3a283c;color:#ffffff;font:500 12px/1.2 inherit;white-space:nowrap;",
-    "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;transform-origin:50% 100%}",
+    "background:var(--ink);color:var(--paper);font:500 12px/1.2 inherit;white-space:nowrap;",
+    "box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);transform-origin:50% 100%}",
     ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
-    "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
+    "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:#86546b}",
-    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#ffffff;white-space:nowrap;",
+    ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:var(--muted)}",
+    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
-    ".cta:hover{background:#86546b}",
+    ".cta:hover{background:var(--muted)}",
     ".cta:active:not(:disabled){transform:translateY(1px);transition-duration:.13s,.08s}",
     // The words of a button that answers (Copied, Saved) change in place: the
     // old words leave, the new ones rise in, and the button does not move.
     ".say{display:inline-block}",
-    ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
-    ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
-    ".cta.ghost:hover{background:#3a283c0f}",
+    ".cta:disabled{opacity:.4;cursor:default;background:var(--ink)}",
+    ".cta.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-20)}",
+    ".cta.ghost:hover{background:var(--ink-6)}",
     ".cta.ghost:disabled{background:transparent}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
@@ -908,10 +929,10 @@
    * no pixel, so an element painted that way falls through to the page's own
    * paper, which is light.
    *
-   * Paper on ink, ink on paper: two of the five values, chosen by the luminance
-   * of that background. The photographic negative this used to write answered
-   * with a hue from outside the palette — olive over a pale rose page — and a
-   * pure black when nothing at all was painted behind the element.
+   * Paper on ink, ink on paper: two of the five palette values, chosen by the
+   * luminance of that background. The photographic negative this used to write
+   * answered with a hue from outside the palette — olive over a pale rose page —
+   * and a pure black when nothing at all was painted behind the element.
    */
   function frameInk(el) {
     for (var node = el; node; node = node.parentElement) {
@@ -919,10 +940,10 @@
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
       var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? "#3a283c" : "#ffffff";
+      return luminance > 0.55 ? chromeColour("--ink", "#16233a") : chromeColour("--paper", "#ffffff");
     }
     // Nothing is painted behind it: the canvas is paper, so the line is ink.
-    return "#3a283c";
+    return chromeColour("--ink", "#16233a");
   }
 
   /**
@@ -2382,7 +2403,7 @@ function icons(items, current, onPick, cls) {
     var panel = document.createElement("div");
     panel.className = "color-panel";
     // A colour that cannot be read — a name, an oklch(), nothing at all — opens
-    // the picker on the plum the dock is drawn in. Opening on black would claim
+    // the picker on the ink the dock is drawn in. Opening on black would claim
     // the page is a colour it never wrote.
     var read = readColour(current);
     var channels = read ? read.channels : [134, 84, 107];
@@ -3008,6 +3029,15 @@ function icons(items, current, onPick, cls) {
         return view ? view.getPropertyValue(prop) : "";
       },
     };
+  }
+
+  /**
+   * A colour the chrome paints itself with, read from its own custom properties
+   * so the frame wears the palette the page handed the chrome (the --edityy-*
+   * hooks). Unset, or a page that hands over nothing, gives the DESIGN.md value.
+   */
+  function chromeColour(prop, fallback) {
+    return String(viewOf(host).getPropertyValue(prop)).trim() || fallback;
   }
 
   /** The same, as a number, with a sensible default when it cannot be read. */

@@ -741,9 +741,10 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.equal(sel.style.width, "121.5px");
   assert.equal(sel.style.height, "49.5px");
   // The design's own stroke: a dark solid line outside the element, no corner
-  // radius, nothing painted inside it. The colour is a ramp value chosen by the
-  // luminance behind the box, so the stylesheet only has the ink fallback.
-  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,#3a283c\)/, "one solid frame, all four sides");
+  // radius, nothing painted inside it. The colour is the palette ink or paper,
+  // chosen by the luminance behind the box, so the stylesheet only has the
+  // ink fallback.
+  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,var\(--ink\)\)/, "one solid frame, all four sides");
   assert.match(app.root.innerHTML, /border-radius:0/, "no corner radius");
   assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
   // Eight handles: four corners and four edges.
@@ -759,7 +760,7 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/, "corner discs five lines across");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\{width:4\.5px;height:min\(24px,40%\);border-radius:2\.25px\}/, "edge bars three lines thick, sixteen long, ends round");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\.horizontal\{width:min\(24px,40%\);height:4\.5px\}/, "the same bar on a top or bottom edge");
-  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,#3a283c\);pointer-events:auto\}/, "the handles wear the same colour as the line");
+  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,var\(--ink\)\);pointer-events:auto\}/, "the handles wear the same colour as the line");
   assert.match(app.root.innerHTML, /\[data-edge=left\]\{left:-3px\}\[data-edge=right\]\{right:-3px\}/, "vertical handles center on the side stroke");
   assert.match(app.root.innerHTML, /\[data-edge=top\]\{top:-3px\}\[data-edge=bottom\]\{bottom:-3px\}/, "horizontal handles center on the top and bottom strokes");
   assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");
@@ -785,7 +786,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(bare);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a");
   // A light background keeps the line in ink rather than inventing a hue.
   const paper = text("div", "hi", { "background-color": "rgb(249, 242, 238)" },
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
@@ -793,7 +794,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(paper);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c", "ink on paper");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a", "ink on paper");
   // A transparent element takes the colour of the nearest ancestor that paints
   // one, because that is the colour the box actually lies on.
   const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
@@ -871,8 +872,8 @@ const fields = (el) =>
 test("the open icon stays visible on its own dark background", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
-  // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
-  // colour never reaches it: without an explicit inherit the Aa is plum on plum
+  // `*{color:#16233a}` matches the glyph itself, so an active button's paper
+  // colour never reaches it: without an explicit inherit the Aa is ink on ink
   // and disappears. Both glyph kinds need it, one by letterform one by svg — the
   // drawn one takes the colour down from the box the icon is drawn in.
   assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
@@ -897,7 +898,7 @@ test("the scrolling list brings its own scrollbar", () => {
   // the host page styles its scrollbars with.
   assert.match(css, /\.list\{[^}]*overflow-y:auto/, "it scrolls");
   assert.match(css, /\.list\{[^}]*scrollbar-width:thin/, "a hairline, not the UA default");
-  assert.match(css, /\.list\{[^}]*scrollbar-color:#3a283c40 transparent/, "on the ramp");
+  assert.match(css, /\.list\{[^}]*scrollbar-color:var\(--ink-25\) transparent/, "on the ramp");
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
@@ -906,8 +907,8 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const app = run();
   const css = app.root.innerHTML;
   assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
-  assert.match(css, /\.ic\[aria-expanded=true\]\{background:#f9f9f9\}/, "a selected control is #f9f9f9");
-  assert.match(css, /\.pop\{[^}]*background:#f9f9f9/, "the secondary dock wears the same fill");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--fill-open\)\}/, "a selected control wears the open fill");
+  assert.match(css, /\.pop\{[^}]*background:var\(--fill-open\)/, "the secondary dock wears the same fill");
   quiet(() => selectText(app));
   const row = app.root.nodes.row;
   const tip = app.root.nodes.tip;
@@ -1927,7 +1928,7 @@ test("no colour of ours stands in for one the page never wrote", () => {
   const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
   // Nothing invents a colour to fall back on: an element whose colour is a name
   // or an rgb() leaves the UA default alone rather than showing a colour of ours.
-  assert.doesNotMatch(source, /swatch\.value = .*#3a283c/, "no plum standing in for an unknown colour");
+  assert.doesNotMatch(source, /swatch\.value = .*#3a283c/, "no ink standing in for an unknown colour");
 });
 
 test("the text-colour glyph wears the element own colour, not one of ours", () => {
@@ -1938,9 +1939,9 @@ test("the text-colour glyph wears the element own colour, not one of ours", () =
   app.hover(p);
   app.clickPage();
   const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
-  // The bar under the A is a readout of this site. Painting it plum on every
+  // The bar under the A is a readout of this site. Painting it ink on every
   // site claims the site is that colour.
-  assert.doesNotMatch(icon.innerHTML, /background:#3a283c/, "no colour baked into the glyph");
+  assert.doesNotMatch(icon.innerHTML, /background:#16233a/, "no colour baked into the glyph");
   // There is nowhere left to read a hex: style.color and getComputedStyle both
   // answer rgb(), so the only route back to a hex is converting what the page
   // wrote — which is arithmetic, not invention.
@@ -1986,10 +1987,10 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   const glyph = app.root.nodes.row.children.find((b) => b.dataset.key === "align").innerHTML;
   // `*{color:...}` reaches the <path> as well as the <svg>, and a path painted
   // with currentColor resolves against its OWN colour — so a universal colour
-  // painted every icon the same plum, and an open control is that plum: an icon
+  // painted every icon the same ink, and an open control is that ink: an icon
   // the exact colour of its own background. The colour goes on :host instead.
-  assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
-  assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
+  assert.doesNotMatch(css, /\*\{[^}]*color:#16233a/, "no universal colour to leak onto the paths");
+  assert.match(css, /:host\{all:initial;color:var\(--ink\)\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
   assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
   // Scoped to the icon the control holds: a Lucide glyph is its own svg inside that
   // one, and a rule that reached it would draw the glyph 18 units wide in a 256 box.
