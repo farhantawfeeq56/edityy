@@ -476,12 +476,17 @@
     // both ways far more often than not, so a tied pair is ONE field: top follows
     // the same value as bottom, and left the same as right.
     ".sides{display:flex;flex-direction:column;gap:6px;padding:0 6px 6px}",
-    ".sides-pair{display:grid;grid-template-columns:58px 58px 34px;gap:6px;align-items:end}",
-    ".sides-pair>label{display:flex;flex-direction:column;gap:4px;color:var(--muted)}",
+    ".sides-pair{display:grid;grid-template-columns:76px 76px 34px;gap:6px;align-items:center}",
+    // A field is one chip: the glyph and the number on the same line, in the border
+    // a text field would wear.
+    ".sides-pair>label{display:flex;align-items:center;gap:4px;height:30px;padding:0 6px;",
+    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted)}",
+    ".sides-pair>label:focus-within{border-color:var(--muted)}",
     // The one field of a tied pair takes the room of the two it stands for.
     ".sides-pair>label.wide{grid-column:1/3}",
-    ".sides-pair label>svg{width:16px;height:16px;display:block}",
-    ".sides-pair input[type=number]{padding:7px 6px}",
+    ".sides-pair label>svg{width:14px;height:14px;flex:none;display:block}",
+    ".sides-pair input[type=number]{width:100%;min-width:0;height:100%;border:0;border-radius:0;padding:0;background:transparent}",
+    ".sides-pair input[type=number]:focus{box-shadow:none}",
     // A field that is put away is not drawn at all, and is not a grid cell either.
     ".sides [hidden]{display:none}",
     ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
