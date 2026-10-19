@@ -20,6 +20,9 @@ All notable changes to the `edityy` package. The format follows
   resolved track list, so a grid written with `repeat()` or with its tracks
   written out shows the count it has. An absolute element wears its top, right,
   bottom and left offsets in the row, one field for each side. (#187)
+- The nine marks of the alignment control are drawn on the 24 grid, at the stroke
+  and the box of every other glyph. Each dot fits inside its cell and does not
+  touch the frame. (#188)
 
 ### Removed
 

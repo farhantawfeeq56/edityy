@@ -1534,34 +1534,34 @@ function faces() {
     { v: "wrap-reverse", label: "Wrap reverse", icon: "wrap-text" },
   ];
   // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
-  // dot in a frame so the cell itself says where the children go.
+  // dot in a frame so the cell itself says where the children go. The frame is
+  // the 24 grid every other glyph is drawn on, so its cells are centred at 6, 12
+  // and 18.
   var ALIGN_CELLS = [
     { j: "flex-start", a: "flex-start", x: 6, y: 6, label: "Top left" },
-    { j: "center", a: "flex-start", x: 9, y: 6, label: "Top center" },
-    { j: "flex-end", a: "flex-start", x: 12, y: 6, label: "Top right" },
-    { j: "flex-start", a: "center", x: 6, y: 9, label: "Middle left" },
-    { j: "center", a: "center", x: 9, y: 9, label: "Center" },
-    { j: "flex-end", a: "center", x: 12, y: 9, label: "Middle right" },
-    { j: "flex-start", a: "flex-end", x: 6, y: 12, label: "Bottom left" },
-    { j: "center", a: "flex-end", x: 9, y: 12, label: "Bottom center" },
-    { j: "flex-end", a: "flex-end", x: 12, y: 12, label: "Bottom right" },
+    { j: "center", a: "flex-start", x: 12, y: 6, label: "Top center" },
+    { j: "flex-end", a: "flex-start", x: 18, y: 6, label: "Top right" },
+    { j: "flex-start", a: "center", x: 6, y: 12, label: "Middle left" },
+    { j: "center", a: "center", x: 12, y: 12, label: "Center" },
+    { j: "flex-end", a: "center", x: 18, y: 12, label: "Middle right" },
+    { j: "flex-start", a: "flex-end", x: 6, y: 18, label: "Bottom left" },
+    { j: "center", a: "flex-end", x: 12, y: 18, label: "Bottom center" },
+    { j: "flex-end", a: "flex-end", x: 18, y: 18, label: "Bottom right" },
   ];
-  // The frame the grid's nine cells sit in: Lucide's square, at the box the grid
-  // was drawn around. The dot placed in each cell is this file's own.
-  var ALIGN_FRAME = '<svg x="14.3" y="14.3" width="227.6" height="227.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /></svg>';
+  // No single Lucide glyph says "top left": it is Lucide's square with a dot in
+  // one cell. Both sit on the 24 grid, at the stroke and the box of every other
+  // glyph, so the set reads as one family.
+  var ALIGN_FRAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" />';
 
   var ALIGN_GRID = ALIGN_CELLS.map(function (c) {
-    // No single Lucide glyph says "top left": it is a frame with a dot, so it is
-    // the square, inset to the frame, and a dot placed at the cell's own corner.
-    // 14.22 is 256/18, the old grid the places were on.
-    var at = function (v) { return (v * 14.222 - 28.03).toFixed(1); };
     return {
       v: c.j + ":" + c.a,
       label: c.label,
       icon: ALIGN_FRAME +
-        '<path transform="translate(' + at(c.x) + " " + at(c.y) + ') scale(.219)" d="M232,128A104,104,0,1,1,128,24,104.13,104.13,0,0,1,232,128Z"/>',
+        '<circle cx="' + c.x + '" cy="' + c.y + '" r="1.5" fill="currentColor" stroke="none" /></svg>',
     };
   });
+
   var BOX_GLYPHS = {
     direction: "move-horizontal",
     gap: "unfold-horizontal",

@@ -2067,9 +2067,10 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
   assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
 
   // The alignment grid is the one glyph that is composed here: Lucide's square
-  // with a dot of this file's own in each of the nine cells.
-  assert.match(source, /var ALIGN_FRAME = '<svg x="14\.3"[^']*viewBox="0 0 24 24"/, "the frame is the square");
-  assert.match(source, /ALIGN_FRAME \+/, "and the grid draws it");
+  // with a dot of this file's own in one of the nine cells, drawn on the same 24
+  // grid and at the same stroke as every other glyph.
+  assert.match(source, /var ALIGN_FRAME = '<svg viewBox="0 0 24 24"[^']*stroke-width="2"[^']*<rect width="18" height="18" x="3" y="3" rx="2"/, "the frame is the square");
+  assert.match(source, /ALIGN_FRAME \+\s*'<circle cx=/, "and the grid draws its dot");
 
   // The container dock is the other place a glyph is picked per control.
   const box = el("div");
