@@ -20,9 +20,18 @@ All notable changes to the `edityy` package. The format follows
   resolved track list, so a grid written with `repeat()` or with its tracks
   written out shows the count it has. An absolute element wears its top, right,
   bottom and left offsets in the row, one field for each side. (#187)
-- The nine marks of the alignment control are drawn on the 24 grid, at the stroke
-  and the box of every other glyph. Each dot fits inside its cell and does not
-  touch the frame. (#188)
+- The alignment control is a 3 x 3 grid of empty cells. The cell is the
+  control, and the cell that is picked is filled. (#188)
+- A shadow on words is written as `text-shadow`, so the letters carry it and the
+  block does not. Its four lengths are number fields in a 2 x 2 grid, with a
+  glyph where "Blur" and "Spread" stood, and the colour under them. A text
+  shadow offers no spread, because CSS has none for it. (#189)
+
+### Fixed
+
+- A number field printed its value twice: once in the field and once beside it,
+  where a unit stood. The field says the number, and no unit stands beside it.
+  (#190)
 
 ### Removed
 

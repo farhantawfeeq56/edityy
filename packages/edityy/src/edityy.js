@@ -55,6 +55,8 @@
     "arrow-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg>',
     "baseline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16" /> <path d="m6 16 6-12 6 12" /> <path d="M8 12h8" /></svg>',
     "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>',
+    // A drop: the softest edge there is, for the shadow's blur.
+    "droplet": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg>',
     "bold": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" /></svg>',
     "columns-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M12 3v18" /></svg>',
     "ellipsis": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg>',
@@ -349,14 +351,26 @@
     ".opt:active{transform:scale(.98);transition-duration:.12s,.12s,.08s}",
     ".opt[aria-pressed=true]{background:var(--ink-12)}",
     ".opts{display:flex;gap:2px;padding:2px}",
-    // The alignment control lays its row out as a real 3x3 grid instead.
+    // The alignment control lays its row out as a real 3x3 grid instead. A cell
+    // is the control: empty until it is picked, and filled once it is, so the
+    // panel shows where the children go without a mark in every cell.
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
+    ".grid3>.ic{background:var(--ink-4)}",
+    ".grid3>.ic:hover{background:var(--ink-10)}",
+    ".grid3>.ic[aria-pressed=true]{background:var(--ink)}",
     ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
     ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+    // Two fields to a line, so a shadow is read as a pair of pairs rather than
+    // four rows: the offsets, then the two lengths of the edge.
+    ".shadow-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 2px;padding:0 0 4px}",
+    ".shadow-grid .bar2{gap:6px;padding:6px 4px}",
     ".pair{display:flex;flex-direction:column;gap:2px;padding:2px 0}",
     ".pair .bar2{padding:6px}",
 
     ".field-label{white-space:nowrap}",
+    // A glyph may stand where a word would: a shadow's blur and spread are
+    // marked, not named, so the four fields fit two lines.
+    ".field-label>svg{width:14px;height:14px;display:block}",
     ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:var(--muted);",
     "font-variant-numeric:tabular-nums}",
     // The weight slider: a hairline track in the ramp and a solid grab dot. The
@@ -1533,34 +1547,20 @@ function faces() {
     { v: "wrap", label: "Wrap", icon: "wrap-text" },
     { v: "wrap-reverse", label: "Wrap reverse", icon: "wrap-text" },
   ];
-  // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
-  // dot in a frame so the cell itself says where the children go. The frame is
-  // the 24 grid every other glyph is drawn on, so its cells are centred at 6, 12
-  // and 18.
+  // Alignment as one 3x3 grid: each cell is a justify/align pair, and the cell
+  // is the whole control. The list is in the order of the grid, so the labels
+  // run left to right along each row.
   var ALIGN_CELLS = [
-    { j: "flex-start", a: "flex-start", x: 6, y: 6, label: "Top left" },
-    { j: "center", a: "flex-start", x: 12, y: 6, label: "Top center" },
-    { j: "flex-end", a: "flex-start", x: 18, y: 6, label: "Top right" },
-    { j: "flex-start", a: "center", x: 6, y: 12, label: "Middle left" },
-    { j: "center", a: "center", x: 12, y: 12, label: "Center" },
-    { j: "flex-end", a: "center", x: 18, y: 12, label: "Middle right" },
-    { j: "flex-start", a: "flex-end", x: 6, y: 18, label: "Bottom left" },
-    { j: "center", a: "flex-end", x: 12, y: 18, label: "Bottom center" },
-    { j: "flex-end", a: "flex-end", x: 18, y: 18, label: "Bottom right" },
+    { v: "flex-start:flex-start", label: "Top left" },
+    { v: "center:flex-start", label: "Top center" },
+    { v: "flex-end:flex-start", label: "Top right" },
+    { v: "flex-start:center", label: "Middle left" },
+    { v: "center:center", label: "Center" },
+    { v: "flex-end:center", label: "Middle right" },
+    { v: "flex-start:flex-end", label: "Bottom left" },
+    { v: "center:flex-end", label: "Bottom center" },
+    { v: "flex-end:flex-end", label: "Bottom right" },
   ];
-  // No single Lucide glyph says "top left": it is Lucide's square with a dot in
-  // one cell. Both sit on the 24 grid, at the stroke and the box of every other
-  // glyph, so the set reads as one family.
-  var ALIGN_FRAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" />';
-
-  var ALIGN_GRID = ALIGN_CELLS.map(function (c) {
-    return {
-      v: c.j + ":" + c.a,
-      label: c.label,
-      icon: ALIGN_FRAME +
-        '<circle cx="' + c.x + '" cy="' + c.y + '" r="1.5" fill="currentColor" stroke="none" /></svg>',
-    };
-  });
 
   var BOX_GLYPHS = {
     direction: "move-horizontal",
@@ -2148,9 +2148,9 @@ function faces() {
     }
   }
 
-  /** A row of icon buttons, for alignment and decoration. */
   /**
- * A row of icon buttons, for alignment and decoration.
+ * A row of buttons, for alignment and decoration. A button may hold a glyph or
+ * be an empty cell: the alignment grid is nine cells, and the cell is the mark.
  *
  * `onPick` returns the options that are now on, as a list, and the ticks follow
  * it: one item for a control that only allows one, several for decoration, which
@@ -2160,7 +2160,7 @@ function icons(items, current, onPick, cls) {
     var list = document.createElement("div");
     list.className = cls ? "opts " + cls : "opts";
     var rows = items.map(function (item) {
-      var b = button("ic", svg(item.icon), item.label || item.v, function () {
+      var b = button("ic", item.icon ? svg(item.icon) : "", item.label || item.v, function () {
         // Stays open like every other control: these are things you try twice,
         // and the tick moves so you can see which one is on.
         release();
@@ -2212,14 +2212,17 @@ function icons(items, current, onPick, cls) {
     return row;
   }
 
-  /** A number field, for size and tracking. */
-  function number(min, max, step, current, unit, onInput, label, parent) {
+  /** A number field, for size and tracking. A label that is markup draws a
+      glyph where the word would stand. The field says the number; a unit is the
+      dock's own business, not a word beside every value. */
+  function number(min, max, step, current, onInput, label, parent) {
     var row = document.createElement("div");
     row.className = "bar2";
     if (label) {
       var caption = document.createElement("span");
       caption.className = "field-label";
-      caption.textContent = label;
+      if (label.charAt(0) === "<") caption.innerHTML = label;
+      else caption.textContent = label;
       row.appendChild(caption);
     }
     var input = document.createElement("input");
@@ -2228,20 +2231,14 @@ function icons(items, current, onPick, cls) {
     input.max = max;
     input.step = step;
     input.value = current;
-    var out = document.createElement("span");
-    out.className = "val";
-    out.textContent = unit;
     input.addEventListener("input", function () {
       // Blank while typing is not a value; wait for the field to be usable.
       if (input.value === "") return;
-      var v = Number(input.value);
-      out.textContent = v + unit;
       hold();
-      onInput(v);
+      onInput(Number(input.value));
     });
     input.addEventListener("change", release);
     row.appendChild(input);
-    row.appendChild(out);
     (parent || pop).appendChild(row);
     return row;
   }
@@ -2311,29 +2308,34 @@ function icons(items, current, onPick, cls) {
    *
    * [x, y, blur, spread, colour], with x/y/blur/spread absent meaning 0 — the
    * same defaults getComputedStyle hands back for a "none" shadow.
+   *
+   * The words of the selection are shadowed with text-shadow, and a box with
+   * box-shadow: a shadow on a paragraph is the letters' own, not the block's.
+   * A text shadow has no spread, so the fourth length is left out there.
    */
   function shadow(values) {
-    // Nothing to cast: four zero lengths and a colour draw nothing, so the
+    var text = selectedKind === "text";
+    // Nothing to cast: the lengths are zero and a colour draws nothing, so the
     // property is emptied instead and the element is left as the page had it.
-    var flat = !values[0] && !values[1] && !values[2] && !values[3];
+    var flat = !values[0] && !values[1] && !values[2] && (text || !values[3]);
+    var parts = [values[0] + "px", values[1] + "px", values[2] + "px"];
+    if (!text && values[3]) parts.push(values[3] + "px");
     // A shadow with no colour of its own is the words' colour: css says so, and
     // "undefined" in the shorthand would say nothing at all.
-    set("box-shadow", flat ? "" : values[0] + "px " + values[1] + "px " + values[2] + "px " + values[3] + "px " + (values[4] || ""));
+    if (values[4]) parts.push(values[4]);
+    set(text ? "text-shadow" : "box-shadow", flat ? "" : parts.join(" "));
   }
 
-  /** The colour inside the computed box-shadow, or "" when it names none. */
-  function shadowColour() {
-    var match = String(get("box-shadow") || "").match(/rgba?\([^)]*\)/);
-    return match ? match[0] : "";
-  }
-
-  /** One value off a computed `box-shadow`, read the way the browser wrote it. */
-  function shadowOf(prop, fallback) {
-    var v = get("box-shadow-" + prop).trim();
-    if (!v) return fallback;
-    var n = parseFloat(v);
-    // A colour, or anything the shorthand spelled: handed back as it stands.
-    return isNaN(n) ? v : n;
+  /**
+   * The computed shadow of the selection, as the four lengths and the colour.
+   * A shadow is one shorthand, so it is read as one: the colour is the rgba()
+   * it names, and the lengths are the px it spells.
+   */
+  function shadowParts() {
+    var value = String(get(selectedKind === "text" ? "text-shadow" : "box-shadow") || "").trim();
+    var colour = (value.match(/rgba?\([^)]*\)/) || [""])[0];
+    var lengths = (value.replace(/rgba?\([^)]*\)/, "").match(/-?[\d.]+px/g) || []).map(parseFloat);
+    return [lengths[0] || 0, lengths[1] || 0, lengths[2] || 0, lengths[3] || 0, colour];
   }
 
   /* ---------------------------------------------------------------- colour */
@@ -2797,10 +2799,10 @@ function icons(items, current, onPick, cls) {
     // Both rows are the shared number field, which appends to the panel itself,
     // so there is no wrapper here: a <div> whose class matched no rule dressed
     // nothing at all.
-    number(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) {
+    number(-4, 16, 0.1, num("letter-spacing", 0), function (v) {
       set("letter-spacing", v + "px");
     }, "Letter spacing");
-    number(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) {
+    number(0.8, 3, 0.05, num("line-height", 1.3), function (v) {
       set("line-height", v);
     }, "Line spacing");
   }
@@ -2880,34 +2882,26 @@ function icons(items, current, onPick, cls) {
       });
     },
     shadow: function () {
-      var read = function () {
-        return [
-          shadowOf("offset-x", 0),
-          shadowOf("offset-y", 0),
-          shadowOf("blur", 0),
-          shadowOf("spread", 0),
-          // No colour of our own to fall back on: the page's own shadow colour,
-          // read out of the shorthand, or none — and a shadow with no colour is
-          // the words' colour, which is what css itself does.
-          shadowColour(),
-        ];
-      };
-      var values = read();
-      // Four sliders, one per length, laid out as a list rather than one row of
-      // four: a row of four drags is four narrow targets for a control judged by
-      // eye, and a shadow is read down a column anyway.
-      [
+      var text = selectedKind === "text";
+      var values = shadowParts();
+      // Two fields to a line: the offsets, then the lengths of the edge. A glyph
+      // stands where "Blur" and "Spread" would, so four fields fit two lines and
+      // the colour keeps a line of its own.
+      var fields = [
         { i: 0, label: "X", min: -40, max: 40 },
         { i: 1, label: "Y", min: -40, max: 40 },
-        { i: 2, label: "Blur", min: 0, max: 80 },
-        { i: 3, label: "Spread", min: -40, max: 40 },
-      ].forEach(function (field) {
-        slider(field.min, field.max, 1, values[field.i], "px", function (v) {
-          // A number, not the string the input hands over: "0" is truthy, so the
-          // check for a shadow worth writing would never fire.
-          values[field.i] = Number(v);
+        { i: 2, label: svg("droplet"), min: 0, max: 80 },
+      ];
+      // A text shadow has no spread: the letters cast it, not the box.
+      if (!text) fields.push({ i: 3, label: svg("maximize"), min: -40, max: 40 });
+      var grid = document.createElement("div");
+      grid.className = "shadow-grid";
+      pop.appendChild(grid);
+      fields.forEach(function (field) {
+        number(field.min, field.max, 1, values[field.i], function (v) {
+          values[field.i] = v;
           shadow(values);
-        });
+        }, field.label, grid);
       });
       picker(values[4], function (value) {
         values[4] = value;
@@ -2934,7 +2928,7 @@ function icons(items, current, onPick, cls) {
       var main = alignValue(get("justify-content"), "flex-start");
       var cross = alignValue(get("align-items"), "flex-start");
       var current = direction === "column" ? cross + ":" + main : main + ":" + cross;
-      icons(ALIGN_GRID, current, function (v) {
+      icons(ALIGN_CELLS, current, function (v) {
         var parts = v.split(":");
         if (direction === "column") {
           set("align-items", parts[0]);

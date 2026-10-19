@@ -1067,10 +1067,15 @@ test("the dock opens on text and container, stays shut on media", () => {
     ["mode", "direction", "wrap", "alignment", "gap", "+"]);
 
   quiet(() => press(app, "alignment"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
-  for (const fn of app.root.nodes.pop.children[0].children[2].bubbles.click.bubble) fn({});
+  const cells = app.root.nodes.pop.children[0].children;
+  assert.equal(cells.length, 9, "alignment is a 3x3 grid");
+  assert.equal(cells.some((b) => b.innerHTML.includes("<svg")), false, "a cell is the control, not a mark in a frame");
+  assert.equal(cells[0].attributes["aria-pressed"], "true", "the cell that is on is filled");
+  for (const fn of cells[2].bubbles.click.bubble) fn({});
   assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
   assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
+  assert.equal(cells[2].attributes["aria-pressed"], "true", "the fill moves to the cell that was picked");
+  assert.equal(cells[0].attributes["aria-pressed"], "false", "and the cell it left is empty again");
   quiet(() => press(app, "wrap"));
   assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
   assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
@@ -2066,11 +2071,10 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
   drawn(row[row.length - 1].innerHTML);
   assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
 
-  // The alignment grid is the one glyph that is composed here: Lucide's square
-  // with a dot of this file's own in one of the nine cells, drawn on the same 24
-  // grid and at the same stroke as every other glyph.
-  assert.match(source, /var ALIGN_FRAME = '<svg viewBox="0 0 24 24"[^']*stroke-width="2"[^']*<rect width="18" height="18" x="3" y="3" rx="2"/, "the frame is the square");
-  assert.match(source, /ALIGN_FRAME \+\s*'<circle cx=/, "and the grid draws its dot");
+  // The alignment control is nine cells with no glyph in them: the cell is the
+  // mark, and the one that is picked is filled.
+  assert.match(source, /var ALIGN_CELLS = \[\s*\{ v: "flex-start:flex-start", label: "Top left" \}/, "the nine cells are named once");
+  assert.doesNotMatch(source, /ALIGN_GRID|ALIGN_FRAME/, "no mark is drawn inside a cell");
 
   // The container dock is the other place a glyph is picked per control.
   const box = el("div");
@@ -2134,7 +2138,7 @@ test("a control can only be added once", () => {
   assert.deepEqual(names, ["Fill", "Border", "Padding", "Margin"]);
 });
 
-test("a shadow is written as one shorthand, because the offsets have no longhand", () => {
+test("a shadow is one shorthand, and the words wear their own", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
@@ -2142,19 +2146,50 @@ test("a shadow is written as one shorthand, because the offsets have no longhand
     press(app, "+");
     pickOption(app.root.nodes.pop, "Shadow");
   });
-  const bars = app.root.nodes.pop.children;
-  assert.equal(bars.length, 5, "four lengths and a colour");
-  // Strings, as a range input reports them: "0" is truthy, so a shadow that
-  // casts nothing would be written as 0px 0px 0px 0px and never clear.
-  drag(pop(app), 1, "10"); // y offset
-  drag(pop(app), 2, "24"); // blur
+  const grid = pop(app).children[0];
+  assert.equal(grid.children.length, 3, "x, y and blur: words have no spread");
+  const fieldValue = (i, value) => {
+    const input = grid.children[i].children[1];
+    input.value = value;
+    for (const fn of input.bubbles.input.bubble) fn({});
+  };
+  fieldValue(1, "10"); // y offset
+  fieldValue(2, "24"); // blur
+  // The number lives in the field, and nothing is written beside it: no unit to
+  // read twice, no value said a second time.
+  assert.equal(grid.children[1].children.length, 2, "a label and a field, with no unit beside them");
+  assert.equal(grid.children[1].children[0].textContent, "Y");
+  // A shadow on words is the letters' own: text-shadow, not the block's box.
+  assert.equal(p.style.getPropertyValue("text-shadow"), "0px 10px 24px", "x, y, blur and the colour to come");
+  assert.equal(p.style.getPropertyValue("box-shadow"), "", "the box is left alone");
   // Five invented properties would draw nothing at all: CSS has no
   // box-shadow-offset-x outside an @property registration.
-  assert.match(p.style.getPropertyValue("box-shadow"), /10px 24px/, "x, y, blur, spread, colour");
   assert.equal(p.style.getPropertyValue("box-shadow-offset-x"), "", "and no invented longhand");
-  // Back to nothing: four zeroes and a colour cast nothing, so nothing is written.
-  for (const i of [0, 1, 2, 3]) drag(pop(app), i, "0");
-  assert.equal(p.style.getPropertyValue("box-shadow"), "", "no shadow left behind");
+  // Back to nothing: zero lengths cast nothing, so nothing is written.
+  for (const i of [0, 1, 2]) fieldValue(i, "0");
+  assert.equal(p.style.getPropertyValue("text-shadow"), "", "no shadow left behind");
+});
+
+test("a box shadow keeps its spread, and opens on the one the page has", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  box.computed = { "box-shadow": "rgba(22, 35, 58, 0.25) 2px 4px 8px 6px" };
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Shadow");
+  });
+  const grid = pop(app).children[0];
+  assert.equal(grid.children.length, 4, "the offsets, the blur and the spread");
+  assert.equal(grid.children[1].children[1].value, 4, "the shadow the page has is read off its shorthand");
+  assert.equal(grid.children[3].children[1].value, 6, "spread included");
+  const input = grid.children[3].children[1];
+  input.value = "10";
+  for (const fn of input.bubbles.input.bubble) fn({});
+  assert.match(box.style.getPropertyValue("box-shadow"), /^2px 4px 8px 10px /, "spread sits before the colour");
 });
 
 test("every change is still undone on exit", () => {
