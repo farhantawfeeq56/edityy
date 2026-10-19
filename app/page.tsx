@@ -76,7 +76,6 @@ const glyphs: Record<string, string> = {
   type: "M5 6h14M12 6v13M9 19h6",
   code: "M9 8l-5 4 5 4M15 8l5 4-5 4",
   agent: "M12 4l1.9 4.3L18 10l-4.1 1.7L12 16l-1.9-4.3L6 10l4.1-1.7z",
-  list: "M5 7h14M5 12h14M5 17h10",
 };
 
 const promptSample = `# Visual edits from Edityy
@@ -133,104 +132,6 @@ function Install({ note }: { note?: string }) {
       </div>
       {note ? <p className="text-[0.8125rem] text-neutral-600">{note}</p> : null}
     </div>
-  );
-}
-
-// A still of the product: a page in a browser frame, one paragraph selected, and
-// the dock over the bottom edge. Markup and CSS only — no screenshot to go stale.
-function Preview() {
-  return (
-    <figure className="relative mx-auto mt-16 max-w-[56rem] sm:mt-20">
-      <div
-        aria-hidden="true"
-        className="absolute -inset-x-8 -bottom-4 top-12 -z-10 rounded-[2.5rem] bg-blush/70 blur-2xl"
-      />
-      <div
-        aria-hidden="true"
-        className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_1px_rgba(22,35,58,0.05),0_32px_64px_-32px_rgba(22,35,58,0.28)]"
-      >
-        <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-2.5">
-          <div className="flex gap-1.5">
-            <span className="size-2 rounded-full bg-neutral-300" />
-            <span className="size-2 rounded-full bg-neutral-300" />
-            <span className="size-2 rounded-full bg-neutral-300" />
-          </div>
-          <span className="mx-auto rounded-full border border-neutral-200 px-3 py-1 font-mono text-[0.625rem] text-neutral-600">
-            localhost:5173
-          </span>
-          <span className="hidden items-center gap-1.5 rounded-full bg-blush px-2 py-1 text-[0.625rem] font-medium text-neutral-900 sm:flex">
-            <span className="size-1.5 rounded-full bg-rose-500" />
-            Edityy
-          </span>
-        </div>
-
-        <div className="relative px-6 pb-28 pt-8 sm:px-12 sm:pb-32 sm:pt-12">
-          <div className="flex items-center justify-between">
-            <span className="text-[0.8125rem] font-semibold tracking-[-0.02em]">Harbour</span>
-            <div className="flex items-center gap-4 text-[0.6875rem] text-neutral-600">
-              <span>Work</span>
-              <span>Studio</span>
-              <span className="hidden sm:inline">Journal</span>
-            </div>
-          </div>
-
-          <div className="mt-10 sm:mt-14">
-            <p className="text-[0.625rem] font-medium uppercase tracking-[0.16em] text-neutral-600">Field notes</p>
-            <p className="mt-3 max-w-[24rem] text-[1.375rem] font-semibold leading-[1.2] tracking-[-0.03em] sm:text-[1.75rem]">
-              A quiet morning on the water.
-            </p>
-
-            <div className="relative mt-5 inline-block max-w-[26rem]">
-              <p className="text-[0.8125rem] leading-[1.7] text-neutral-600">
-                The fog holds the far shore until ten. The boats leave when it lifts, and the water gives the tide
-                back.
-              </p>
-              <span className="absolute -inset-2 rounded-[6px] border border-rose-500" />
-              {["-top-2 -left-2", "-top-2 -right-2", "-bottom-2 -left-2", "-bottom-2 -right-2"].map((at) => (
-                <span key={at} className={`absolute size-[5px] rounded-[1px] bg-rose-500 ${at}`} />
-              ))}
-              <span className="absolute -top-8 left-0 rounded-[4px] bg-rose-500 px-1.5 py-[3px] text-[0.5625rem] font-medium tracking-wide text-white">
-                Paragraph
-              </span>
-            </div>
-
-            <div className="mt-8 flex max-w-[26rem] gap-4">
-              <div className="size-16 shrink-0 rounded-lg bg-blush" />
-              <div className="flex-1 space-y-2 pt-1">
-                <span className="block h-1.5 w-full rounded-full bg-neutral-200" />
-                <span className="block h-1.5 w-4/5 rounded-full bg-neutral-200" />
-                <span className="block h-1.5 w-2/3 rounded-full bg-neutral-200" />
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-neutral-200 bg-white/85 p-1.5 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_12px_28px_-14px_rgba(22,35,58,0.3)] backdrop-blur-md">
-            <span className="flex size-7 items-center justify-center rounded-full text-[0.625rem] font-semibold">Aa</span>
-            <span className="flex size-7 items-center justify-center rounded-full">
-              <span className="size-2.5 rounded-full bg-rose-500" />
-            </span>
-            <span className="flex size-7 items-center justify-center rounded-full">
-              <span className="size-3 rounded-[2px] border border-neutral-600" />
-            </span>
-            <span className="flex size-7 flex-col items-center justify-center gap-[3px] rounded-full">
-              <span className="h-px w-3 bg-neutral-600" />
-              <span className="h-px w-3 bg-neutral-600" />
-              <span className="h-px w-3 bg-neutral-600" />
-            </span>
-            <span className="mx-0.5 h-4 w-px bg-neutral-200" />
-            <span className="relative flex size-7 items-center justify-center rounded-full bg-neutral-900 text-white">
-              <Icon name="list" className="size-3.5" />
-              <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-rose-500 text-[0.5rem] font-semibold text-white">
-                3
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
-      <figcaption className="mt-4 text-center text-[0.8125rem] text-neutral-600">
-        The launcher opens the dock on the element you pick. Nothing is written to your code.
-      </figcaption>
-    </figure>
   );
 }
 
@@ -307,11 +208,9 @@ export default function Home() {
               View the source
             </a>
           </p>
-
-          <Preview />
         </section>
 
-        <section id="how" className="scroll-mt-28 border-t border-neutral-200 pt-16 sm:pt-20">
+        <section id="how" className="scroll-mt-28 pt-40">
           <Eyebrow>How it works</Eyebrow>
           <h2 className="mt-4 max-w-[30rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
             One install, then the page answers to you.
@@ -370,7 +269,7 @@ export default function Home() {
               <div aria-hidden="true" className="rounded-xl border border-white/10 bg-white/[0.04] p-1">
                 <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-white/50">
                   <span className="size-1.5 rounded-full bg-rose-500" />
-                  copied as a prompt
+                  copied as a prompt to use with your coding agents
                 </div>
                 <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-white/80">
                   {promptSample}
