@@ -2580,7 +2580,7 @@ test("an arrow on one of our own controls is the control's", () => {
   assert.equal(app.root.selection().el, t.img);
 });
 
-test("padding moves all four sides at once, or one side on its own", async () => {
+test("padding moves all four sides at once, or one pair at a time", async () => {
   const { run, el } = fakeDom();
   const app = run();
   const box = el("div");
@@ -2591,28 +2591,54 @@ test("padding moves all four sides at once, or one side on its own", async () =>
     press(app, "+");
     pickOption(app.root.nodes.pop, "Padding");
   });
-  const all = fields(pop(app));
-  const range = all.find((n) => n.type === "range");
+  const type = (input, value) => {
+    input.value = value;
+    for (const fn of input.bubbles.input.bubble) fn({});
+    for (const fn of input.bubbles.change.bubble) fn({});
+  };
+  const link = (name) => {
+    const toggle = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === name);
+    assert.ok(toggle, `no link "${name}"`);
+    for (const fn of toggle.bubbles.click.bubble) fn({});
+    return toggle;
+  };
+  // A field of a pair that is put away is not a control the user can see.
+  const shownFields = () => fields(pop(app)).filter((n) => n.type === "number" && !n.parentElement?.hidden);
+  const range = fields(pop(app)).find((n) => n.type === "range");
   range.value = "24";
   for (const fn of range.bubbles.input.bubble) fn({});
   for (const fn of range.bubbles.change.bubble) fn({});
   for (const side of ["top", "right", "bottom", "left"]) {
     assert.equal(box.style.getPropertyValue("padding-" + side), "24px", side);
   }
-  const numbers = all.filter((n) => n.type === "number");
-  assert.deepEqual(numbers.map((n) => n.value), ["24", "24", "24", "24"], "the fields follow the slider");
-  assert.equal(numbers[1].getAttribute("aria-label"), "Right padding");
+  const tied = shownFields();
+  assert.deepEqual(tied.map((n) => n.getAttribute("aria-label")), ["Top and bottom padding", "Left and right padding"], "one field per pair, and no field per side");
+  assert.deepEqual(tied.map((n) => n.value), ["24", "24"], "the fields follow the slider");
   await tick();
 
-  numbers[1].value = "8";
-  for (const fn of numbers[1].bubbles.input.bubble) fn({});
-  for (const fn of numbers[1].bubbles.change.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("padding-right"), "8px");
-  assert.equal(box.style.getPropertyValue("padding-left"), "24px");
+  // One field of a tied pair writes both of its sides.
+  type(tied[0], "8");
+  assert.equal(box.style.getPropertyValue("padding-top"), "8px");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8px", "its pair follows");
+  assert.equal(box.style.getPropertyValue("padding-left"), "24px", "the other pair stays");
+  assert.equal(tied[1].value, "24", "and the field beside it is untouched");
+  await tick();
+
+  // The link breaks the pair into a field per side.
+  assert.equal(link("Top and bottom padding together").getAttribute("aria-pressed"), "false");
+  const apart = shownFields();
+  assert.deepEqual(apart.map((n) => n.getAttribute("aria-label")), ["Top padding", "Bottom padding", "Left and right padding"], "the pair is two fields now");
+  assert.deepEqual(apart.map((n) => n.value), ["8", "8", "24"], "and both of them say what the pair said");
+  type(apart[1], "12");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "12px");
+  assert.equal(box.style.getPropertyValue("padding-top"), "8px", "only the side that was typed into");
   await tick();
 
   key(app, "z", { metaKey: true });
-  assert.equal(box.style.getPropertyValue("padding-right"), "24px", "one side undoes alone");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8px", "one side undoes alone");
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "24px", "the tied pair undoes as one");
+  assert.equal(box.style.getPropertyValue("padding-top"), "24px");
   key(app, "z", { metaKey: true });
   assert.equal(box.style.getPropertyValue("padding-top"), "", "and the four sides undo together");
 });

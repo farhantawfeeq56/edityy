@@ -51,6 +51,7 @@
     "align-left": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></svg>',
     "align-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M21 12H9" /> <path d="M21 19H7" /></svg>',
     "arrow-down": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg>',
+    "arrow-left": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg>',
     "arrow-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></svg>',
     "arrow-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg>',
     "baseline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16" /> <path d="m6 16 6-12 6 12" /> <path d="M8 12h8" /></svg>',
@@ -66,6 +67,7 @@
     "italic": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4" /> <line x1="14" x2="5" y1="20" y2="20" /> <line x1="15" x2="9" y1="4" y2="20" /></svg>',
     "layers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></svg>',
     "layout-grid": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></svg>',
+    "link": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>',
     "list": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /></svg>',
     "maximize": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>',
     "message-square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>',
@@ -84,6 +86,7 @@
     "type": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16" /> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /> <path d="M9 20h6" /></svg>',
     "underline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v6a6 6 0 0 0 12 0V4" /> <line x1="4" x2="20" y1="20" y2="20" /></svg>',
     "undo-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>',
+    "unlink": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /> <path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /> <line x1="8" x2="8" y1="2" y2="5" /> <line x1="2" x2="5" y1="8" y2="8" /> <line x1="16" x2="16" y1="19" y2="22" /> <line x1="19" x2="22" y1="16" y2="16" /></svg>',
     "unfold-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12h6" /> <path d="M8 12H2" /> <path d="M12 2v2" /> <path d="M12 8v2" /> <path d="M12 14v2" /> <path d="M12 20v2" /> <path d="m19 15 3-3-3-3" /> <path d="m5 9-3 3 3 3" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
@@ -469,10 +472,21 @@
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
     "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
     "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
-    // Four sides in a row, each a small field under its name.
-    ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
-    ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:var(--muted)}",
-    ".sides input[type=number]{padding:7px 6px}",
+    // Two pairs of sides, each pair with the link that ties it. A box is even
+    // both ways far more often than not, so a tied pair is ONE field: top follows
+    // the same value as bottom, and left the same as right.
+    ".sides{display:flex;flex-direction:column;gap:6px;padding:0 6px 6px}",
+    ".sides-pair{display:grid;grid-template-columns:58px 58px 34px;gap:6px;align-items:end}",
+    ".sides-pair>label{display:flex;flex-direction:column;gap:4px;color:var(--muted)}",
+    // The one field of a tied pair takes the room of the two it stands for.
+    ".sides-pair>label.wide{grid-column:1/3}",
+    ".sides-pair label>svg{width:16px;height:16px;display:block}",
+    ".sides-pair input[type=number]{padding:7px 6px}",
+    // A field that is put away is not drawn at all, and is not a grid cell either.
+    ".sides [hidden]{display:none}",
+    ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
+    ".sides .side-link:hover{background:var(--ink-6)}",
+    ".sides .side-link[aria-pressed=true]{background:var(--ink-12);color:var(--ink)}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px}",
     // Every button carries its label for the keyboard; the row reads as icons,
@@ -2184,18 +2198,22 @@ function icons(items, current, onPick, cls) {
   function slider(min, max, step, current, unit, onInput, label, parent) {
     var row = document.createElement("div");
     row.className = "bar2";
-    if (label) {
-      var caption = document.createElement("span");
-      caption.className = "field-label";
-      caption.textContent = label;
-      row.appendChild(caption);
-    }
     var input = document.createElement("input");
     input.type = "range";
     input.min = min;
     input.max = max;
     input.step = step;
     input.value = current;
+    if (label) {
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      // A label that names a glyph draws it, like the number field: the words
+      // stay on the input, where a screen reader reads them.
+      if (typeof label === "string") caption.textContent = label;
+      else caption.innerHTML = svg(label.glyph);
+      input.setAttribute("aria-label", typeof label === "string" ? label : label.label);
+      row.appendChild(caption);
+    }
     var out = document.createElement("span");
     out.className = "val";
     out.textContent = current + unit;
@@ -2756,43 +2774,99 @@ function icons(items, current, onPick, cls) {
   }
 
   /**
-   * Four sides of padding or margin: one slider for all four at once, and a
-   * field per side for one at a time. Written as the longhands, so the edits list
-   * says which side changed and an undo puts back exactly the four that moved.
+   * Four sides of padding or margin: one slider for all four at once, and one
+   * field per pair of sides. Left and right take the same value, and so do top
+   * and bottom: a box is even both ways far more often than not, so a tied pair
+   * is one field, not two. The link beside a pair breaks it, and each side then
+   * takes a value of its own. Written as the longhands, so the edits list says
+   * which side changed and an undo puts back exactly the four that moved.
    */
   function sides(prop, min, max) {
-    var names = [["top", "Top"], ["right", "Right"], ["bottom", "Bottom"], ["left", "Left"]];
-    var values = names.map(function (n) { return num(prop + "-" + n[0], 0); });
-    var inputs = [];
-    slider(min, max, 1, values[0], "px", function (v) {
-      names.forEach(function (n, i) {
-        set(prop + "-" + n[0], v + "px");
-        inputs[i].value = String(v);
-      });
+    var PAIRS = [
+      { sides: ["top", "bottom"], labels: ["Top", "Bottom"], glyphs: ["arrow-up", "arrow-down"], both: "move-vertical" },
+      { sides: ["left", "right"], labels: ["Left", "Right"], glyphs: ["arrow-left", "arrow-right"], both: "move-horizontal" },
+    ];
+    var values = {};
+    var fields = [];
+    ["top", "right", "bottom", "left"].forEach(function (side) {
+      values[side] = num(prop + "-" + side, 0);
     });
-    var grid = document.createElement("div");
-    grid.className = "sides";
-    names.forEach(function (n, i) {
+    slider(min, max, 1, values.top, "px", function (v) {
+      ["top", "right", "bottom", "left"].forEach(function (side) {
+        set(prop + "-" + side, v + "px");
+      });
+      fields.forEach(function (field) { field.input.value = String(v); });
+    });
+    /** One field: the sides it writes, its glyph, and its name for a reader. */
+    function field(row, group, glyph, name) {
       var cell = document.createElement("label");
-      cell.appendChild(text(n[1]));
+      if (group.length > 1) cell.className = "wide";
+      cell.innerHTML = svg(glyph);
       var input = document.createElement("input");
       input.type = "number";
       input.min = min;
       input.max = max;
       input.step = 1;
-      input.value = values[i];
-      input.setAttribute("aria-label", n[1] + " " + prop);
+      input.value = values[group[0]];
+      input.setAttribute("aria-label", name + " " + prop);
       input.addEventListener("input", function () {
         if (input.value === "") return; // blank while typing is not a value
         hold();
-        set(prop + "-" + n[0], Number(input.value) + "px");
+        group.forEach(function (side) { set(prop + "-" + side, Number(input.value) + "px"); });
       });
       input.addEventListener("change", release);
-      inputs.push(input);
       cell.appendChild(input);
-      grid.appendChild(cell);
+      row.appendChild(cell);
+      var made = { cell: cell, input: input };
+      fields.push(made);
+      return made;
+    }
+    var panel = document.createElement("div");
+    panel.className = "sides";
+    PAIRS.forEach(function (pair) {
+      // A pair the stylesheet already sets apart opens as a broken pair.
+      var tied = values[pair.sides[0]] === values[pair.sides[1]];
+      var row = document.createElement("div");
+      row.className = "sides-pair";
+      panel.appendChild(row);
+      var both = field(row, pair.sides, pair.both, pair.labels[0] + " and " + pair.labels[1].toLowerCase());
+      var left = field(row, [pair.sides[0]], pair.glyphs[0], pair.labels[0]);
+      var right = field(row, [pair.sides[1]], pair.glyphs[1], pair.labels[1]);
+      var link = document.createElement("button");
+      link.type = "button";
+      link.className = "icon-button side-link";
+      link.title = both.input.getAttribute("aria-label") + " together";
+      link.setAttribute("aria-label", link.title);
+      row.appendChild(link);
+      function show() {
+        both.cell.hidden = !tied;
+        left.cell.hidden = tied;
+        right.cell.hidden = tied;
+        link.setAttribute("aria-pressed", tied ? "true" : "false");
+        link.innerHTML = svg(tied ? "link" : "unlink");
+      }
+      show();
+      // A tied pair is one field, so what is typed into it moves both sides, and
+      // the two fields it stands for already say the same thing when it breaks.
+      both.input.addEventListener("input", function () {
+        left.input.value = both.input.value;
+        right.input.value = both.input.value;
+      });
+      link.addEventListener("click", function () {
+        tied = !tied;
+        if (tied) {
+          // Back together: the first side is the value both of them take.
+          var value = left.input.value || "0";
+          var moved = String(right.input.value) !== value;
+          right.input.value = value;
+          both.input.value = value;
+          if (moved) set(prop + "-" + pair.sides[1], value + "px");
+          release();
+        }
+        show();
+      });
     });
-    pop.appendChild(grid);
+    pop.appendChild(panel);
   }
 
   function spacingControl() {
@@ -2961,10 +3035,10 @@ function icons(items, current, onPick, cls) {
         pop.appendChild(pair);
         slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
           set("column-gap", v + "px");
-        }, "Column gap", pair);
+        }, { glyph: "columns-2", label: "Column gap" }, pair);
         slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
           set("row-gap", v + "px");
-        }, "Row gap", pair);
+        }, { glyph: "rows-2", label: "Row gap" }, pair);
         return;
       }
       slider(0, 48, 1, num("gap", 0), "px", function (v) {

@@ -26,6 +26,12 @@ All notable changes to the `edityy` package. The format follows
   block does not. Its four lengths are number fields in a 2 x 2 grid, with a
   glyph where "Blur" and "Spread" stood, and the colour under them. A text
   shadow offers no spread, because CSS has none for it. (#189)
+- The padding and margin panel has one field for the left and right pair, and
+  one field for the top and bottom pair: a box is even both ways far more often
+  than not. Each pair shows two arrows, and its one value is written to both
+  sides. A link button beside the pair breaks it into a field per side, each
+  with one arrow. A pair that the stylesheet already sets apart opens broken. The
+  Grid gap sliders wear glyphs in place of "Column gap" and "Row gap". (#191)
 
 ### Fixed
 
