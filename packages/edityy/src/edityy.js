@@ -420,17 +420,25 @@
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:var(--ink);font:500 14px/1 inherit;cursor:pointer;",
-    "transition:background .12s ease,border-color .12s ease,transform .2s var(--arrive)}",
-    ".element-action:active{transform:scale(.96);transition-duration:.12s,.12s,.08s}",
-    ".element-action:hover{background:var(--ink-6);border-color:var(--ink-10)}",
-    ".element-action:focus-visible{outline:2px solid var(--muted);outline-offset:2px}",
+    // An action wears what a control in the dock wears: the same 34px square, the
+    // same 8px radius, the same hover fill and the same press. The row's fill
+    // travels under the pointer, which one square cannot do, so the fill is the
+    // one it lands in.
+    ".element-action{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:8px;padding:0;",
+    "background:transparent;color:var(--ink);font:500 14px/1 inherit;cursor:pointer;",
+    "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
+    ".element-action:hover{background:var(--ink-4)}",
+    ".element-action:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
+    ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
+    ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-action.delete{color:var(--muted)}",
-    ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
+    ".element-action>svg{width:18px;height:18px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
     ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit}",
     ".element-comment-text:focus-visible{outline:2px solid var(--muted);outline-offset:1px}",
-    ".element-comment-action{flex:1;justify-content:center;padding:7px 10px}",
+    // The two buttons of the comment box carry words, so they take the width
+    // they are given rather than the square an action is.
+    ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
