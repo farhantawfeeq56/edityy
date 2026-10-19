@@ -244,10 +244,9 @@ over-round cards into bubbles.
   border. Used for editor panels and agent-instruction blocks.
 - **Muted section:** Neutral fill, ink text, 16px radius, 40px padding.
 - **Input:** one chip holds the glyph and the value: hairline border, paper
-  fill, 8px radius, and as wide as the digits plus one more. Hover adds ink,
-  focus takes the open fill and draws the chip's rectangle in ink, and a press
-  goes to `scale(.96)` and back. It is the shape of every value field in the
-  editor.
+  fill, 8px radius, and as wide as the digits plus one more. The border is
+  there at rest; hover adds ink, focus takes the open fill, and a press goes to
+  `scale(.96)` and back. It is the shape of every value field in the editor.
 - **Badges:** pastel fill (rose / blush), ink text, pill radius. Used for
   content state.
 - **Divider:** border-ink 1px line. **Signal dots:** 12px pills in cobalt

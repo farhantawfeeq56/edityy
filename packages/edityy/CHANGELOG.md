@@ -55,15 +55,22 @@ All notable changes to the `edityy` package. The format follows
   type one more, so no field is wider than its value. A dock count field no
   longer takes the padding of a panel field, so it is the width it says it is.
   The search and the comment box keep the width their words need. (#193)
-- A focused field draws its rectangle in ink, in the dock and in every panel.
-  The dock's size and count chips have no edge at rest, so a value you can type
-  into now looks like the box it is. The cobalt ring is not on a field: a text
-  field answers that ring to a pointer too, so a click drew a blue edge around a
-  field that had done nothing. The cobalt ring stays on the buttons and the
-  lists, where only the keyboard draws it. (#193)
+- The dock's size and count chips are a box before the pointer arrives: the
+  same hairline a panel field wears, and the open fill while it holds the caret.
+  The cobalt ring is not on a field: a text field answers that ring to a pointer
+  too, so a click drew a blue edge around a field that had done nothing. The
+  cobalt ring stays on the buttons and the lists, where only the keyboard draws
+  it. (#193)
 
 ### Fixed
 
+- The `+` list wears the chrome face. It drew its words in the machine UI face,
+  because each row carried a font stack of its own. (#194)
+- A pointer over an option of the size list no longer moves the row's hover fill
+  to the left end of the row, where the font family chip stands. An option is
+  part of the list that came out of its chip, not a control of the row. (#194)
+- The foot of the family list says "Search for more fonts", with no count in
+  front of it, in a 12px line where it stood at 16px. (#194)
 - A number field printed its value twice: once in the field and once beside it,
   where a unit stood. The field says the number, and no unit stands beside it.
   (#190)

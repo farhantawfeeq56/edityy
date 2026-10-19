@@ -184,15 +184,15 @@
     "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
     ".ic.group-start{margin-left:6px;position:relative}",
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
-    ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
-    // A field under the caret draws its own rectangle, in ink: a dock chip has no
-    // edge at rest, and a value you can type into must look like a box. Inset, so
-    // the rectangle sits on the chip it belongs to and nothing around it moves.
-    ".ic.size-control:focus-within{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink)}",
+    ".ic.size-control{width:86px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px;",
+    // The rectangle is there before the pointer arrives: a chip that holds a value
+    // is a box, at rest and under the caret alike.
+    "border:1px solid var(--ink-15)}",
+    ".ic.size-control:focus-within{background:var(--fill-open)}",
     // A count the dock wears in its own row: the grid's columns × rows, and the
     // four offsets of an element that is placed absolutely.
-    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px}",
-    ".dock-count:focus-within{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink)}",
+    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px;border:1px solid var(--ink-15)}",
+    ".dock-count:focus-within{background:var(--fill-open)}",
     ".ic.dock-count input{width:4ch;height:32px;border:0;padding:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".dock-count input::placeholder{color:var(--muted);opacity:1}",
@@ -392,7 +392,7 @@
     "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
     "transition:background-color .13s ease,border-color .13s ease,transform .2s var(--arrive)}",
     ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
-    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open);border-color:var(--ink)}",
+    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open)}",
     // A chip that is wider than the dock's 34px square cannot take the dock's .94
     // without moving many times as far, so it takes the scale that moves the same
     // few pixels: down in .08s, back in .2s.
@@ -416,7 +416,7 @@
     "input[type=search]{width:100%;margin-bottom:6px;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
     "background:var(--paper);font-variant-numeric:normal;transition:background-color .13s ease,border-color .13s ease}",
     "input[type=search]:hover{background:var(--fill-hover)}",
-    "input[type=search]:focus{background:var(--fill-open);border-color:var(--ink)}",
+    "input[type=search]:focus{background:var(--fill-open)}",
     // The cobalt ring is the keyboard's, on the buttons and the lists that take the
     // keyboard. A field does not wear it: a text field answers :focus-visible to a
     // pointer too, so a click would draw a ring that says nothing happened.
@@ -487,7 +487,7 @@
     ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
     "transition:background-color .13s ease,border-color .13s ease}",
     ".element-comment-text:hover{background:var(--fill-hover)}",
-    ".element-comment-text:focus{background:var(--fill-open);border-color:var(--ink)}",
+    ".element-comment-text:focus{background:var(--fill-open)}",
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
@@ -530,7 +530,7 @@
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:var(--muted)}",
+    ".note{margin:6px 10px;max-width:240px;font:400 12px/1.4 inherit;color:var(--muted)}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".cta:hover{background:var(--muted)}",
@@ -2044,7 +2044,7 @@ function faces() {
       previewFaces(drawn);
       if (failed) say("Google Fonts did not load. Close and open this control to try again.");
       else if (!google) say("Loading Google Fonts…");
-      else if (more) say(more + " more fonts. Type a name to find them.");
+      else if (more) say("Search for more fonts");
       else if (!rows.length) say("No font has that name.");
       else say("");
     }
@@ -3600,14 +3600,14 @@ function decorations() {
   row.addEventListener("pointerover", function (e) {
     var button = controlOf(e.target);
     if (!button) return;
-    glideTo(button);
-    // The list part of a control says what it is. A tip over the chevron or over
-    // its options only says the control's name a second time.
+    // The list that comes out of a chip belongs to that chip: an option is not a
+    // control of the row, so it neither moves the row's fill nor names itself.
     if (inList(e.target)) {
       tipAt = null;
       hideTip(true);
       return;
     }
+    glideTo(button);
     showTip(button);
   });
   row.addEventListener("pointerout", function (e) {
@@ -3680,7 +3680,7 @@ function decorations() {
     // gone: an icon that is there cannot be added twice.
     options(
       ADD.filter(function (item) { return !icon(item.key); })
-          .map(function (item) { return { v: item.key, label: item.label, stack: "system-ui,sans-serif" }; }),
+          .map(function (item) { return { v: item.key, label: item.label }; }),
       "",
       function (key) {
         var item = ADD.filter(function (a) { return a.key === key; })[0];
