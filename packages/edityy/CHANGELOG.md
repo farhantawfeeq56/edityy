@@ -55,11 +55,12 @@ All notable changes to the `edityy` package. The format follows
   type one more, so no field is wider than its value. A dock count field no
   longer takes the padding of a panel field, so it is the width it says it is.
   The search and the comment box keep the width their words need. (#193)
-- A focused field wears the soft rose halo again, in the dock and in every
-  panel. It does not wear the cobalt ring: a text field answers that ring to a
-  pointer too, so a click drew a blue edge around a field that had done nothing.
-  The cobalt ring stays on the buttons and the lists, where only the keyboard
-  draws it. (#193)
+- A focused field draws its rectangle in ink, in the dock and in every panel.
+  The dock's size and count chips have no edge at rest, so a value you can type
+  into now looks like the box it is. The cobalt ring is not on a field: a text
+  field answers that ring to a pointer too, so a click drew a blue edge around a
+  field that had done nothing. The cobalt ring stays on the buttons and the
+  lists, where only the keyboard draws it. (#193)
 
 ### Fixed
 

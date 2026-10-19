@@ -132,10 +132,7 @@
     "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
     // A control that is open, and one under the pointer: paper stepped once
     // towards ink, so the step holds whatever the paper is.
-    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper));",
-    // The halo a field wears while it holds the caret. Soft, in the state rose, so
-    // a field says it is ready for typing without shouting over its value.
-    "--halo:0 0 0 3px var(--rose-30)}",
+    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper))}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
     // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
@@ -188,11 +185,14 @@
     ".ic.group-start{margin-left:6px;position:relative}",
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
     ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
-    ".ic.size-control:focus-within{background:var(--fill-open);box-shadow:var(--halo)}",
+    // A field under the caret draws its own rectangle, in ink: a dock chip has no
+    // edge at rest, and a value you can type into must look like a box. Inset, so
+    // the rectangle sits on the chip it belongs to and nothing around it moves.
+    ".ic.size-control:focus-within{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink)}",
     // A count the dock wears in its own row: the grid's columns × rows, and the
     // four offsets of an element that is placed absolutely.
     ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px}",
-    ".dock-count:focus-within{background:var(--fill-open);box-shadow:var(--halo)}",
+    ".dock-count:focus-within{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink)}",
     ".ic.dock-count input{width:4ch;height:32px;border:0;padding:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".dock-count input::placeholder{color:var(--muted);opacity:1}",
@@ -392,7 +392,7 @@
     "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
     "transition:background-color .13s ease,border-color .13s ease,transform .2s var(--arrive)}",
     ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
-    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
+    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open);border-color:var(--ink)}",
     // A chip that is wider than the dock's 34px square cannot take the dock's .94
     // without moving many times as far, so it takes the scale that moves the same
     // few pixels: down in .08s, back in .2s.
@@ -416,7 +416,7 @@
     "input[type=search]{width:100%;margin-bottom:6px;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
     "background:var(--paper);font-variant-numeric:normal;transition:background-color .13s ease,border-color .13s ease}",
     "input[type=search]:hover{background:var(--fill-hover)}",
-    "input[type=search]:focus{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
+    "input[type=search]:focus{background:var(--fill-open);border-color:var(--ink)}",
     // The cobalt ring is the keyboard's, on the buttons and the lists that take the
     // keyboard. A field does not wear it: a text field answers :focus-visible to a
     // pointer too, so a click would draw a ring that says nothing happened.
@@ -487,7 +487,7 @@
     ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
     "transition:background-color .13s ease,border-color .13s ease}",
     ".element-comment-text:hover{background:var(--fill-hover)}",
-    ".element-comment-text:focus{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
+    ".element-comment-text:focus{background:var(--fill-open);border-color:var(--ink)}",
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
