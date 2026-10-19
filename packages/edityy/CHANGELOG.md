@@ -32,6 +32,16 @@ All notable changes to the `edityy` package. The format follows
   sides. A link button beside the pair breaks it into a field per side, each
   with one arrow. A pair that the stylesheet already sets apart opens broken. The
   Grid gap sliders wear glyphs in place of "Column gap" and "Row gap". (#191)
+- Every slider in the dock is a number field: the weight of a variable face, the
+  gap, the column and row gap, and a border's width. A number is typed, not
+  dragged. The padding and margin panel keeps its two pair fields, and no slider
+  stands above them. (#192)
+- The typography spacing panel wears a glyph where a word stood: sideways arrows
+  for the letters, up and down arrows for the lines. The word stays on the field,
+  where a screen reader reads it, like the shadow's blur and spread. (#192)
+- A list row that shows its own words keeps no title. Hovering "Shadow" in the
+  `+` list showed "Shadow" a second time, in a browser tooltip. The row keeps its
+  accessible name. (#192)
 
 ### Fixed
 

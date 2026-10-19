@@ -831,20 +831,23 @@ const press = (app, key) => {
   return icon;
 };
 
-/** Pick a named row out of the open control. */
+/** Pick a named row out of the open control. A row that shows its own words
+    wears them as its accessible name, not as a title repeating them. */
 const pickOption = (pop, title) => {
-  const row = pop.children.flatMap((c) => c.children).find((b) => b.title === title);
+  const row = pop.children.flatMap((c) => c.children).find((b) => b.getAttribute?.("aria-label") === title);
   assert.ok(row, `no option "${title}" in the open control`);
+  assert.ok(!row.title, "a row that says its own name keeps no second tooltip");
   for (const fn of row.bubbles.click.bubble) fn({});
   return row;
 };
 
-/** Move the popover's nth slider to a value, as a user would drag it. */
-const drag = (open, index, value) => {
-  const input = open.children[index].children[0];
-  assert.ok(input, `no slider at ${index}`);
-  input.value = value;
+/** Type a number into a named field of the open control. */
+const typeInto = (pop, name, value) => {
+  const input = all(pop).find((n) => n.getAttribute?.("aria-label") === name);
+  assert.ok(input, `no field "${name}" in the open control`);
+  input.value = String(value);
   for (const fn of input.bubbles.input.bubble) fn({});
+  for (const fn of input.bubbles.change.bubble) fn({});
   return input;
 };
 
@@ -1034,7 +1037,7 @@ test("the dock opens on text and container, stays shut on media", () => {
   for (const fn of gridInputs()[1].bubbles.input.bubble) fn({});
   assert.equal(box.style.getPropertyValue("grid-template-rows"), "", "a blank count is auto");
   quiet(() => press(app, "gap"));
-  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "range");
+  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
   assert.equal(gapInputs.length, 2, "row and column gaps share one control");
   gapInputs[0].value = "16";
   for (const fn of gapInputs[0].bubbles.input.bubble) fn({});
@@ -1310,7 +1313,7 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   quiet(() => press(app, "family")); // close
   await reopen();
   assert.equal(requests.length, 2, "the retry");
-  const rows = () => pop.children[1].children.map((b) => b.title);
+  const rows = () => pop.children[1].children.map((b) => b.getAttribute("aria-label"));
   assert.deepEqual(rows().slice(5), ["Inter", "Lora"], "the catalog after the page's faces, and no icon fonts");
   assert.equal(links().length, 1, "one preview request for all the rows drawn");
   assert.match(links()[0].href, /family=Inter&family=Lora&text=/);
@@ -1951,13 +1954,13 @@ test("a border colour comes with a width, or it is a colour nobody sees", () => 
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  // A colour on a zero-width border paints nothing at all.
-  // The width slider is the second row: the colour bar is the first.
-  drag(pop(app), 1, 2);
+  // A colour on a zero-width border paints nothing at all. The width is a
+  // field, and the colour bar stands above it.
+  typeInto(pop(app), "Border width", 2);
   assert.equal(p.style.getPropertyValue("border-width"), "2px");
   assert.equal(p.style.getPropertyValue("border-style"), "solid", "a width with no style is still nothing");
 
-  drag(pop(app), 1, 0);
+  typeInto(pop(app), "Border width", 0);
   assert.equal(p.style.getPropertyValue("border-width"), "0px");
   assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
 });
@@ -2111,7 +2114,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   // What it offers is the additions, as a list under the dock.
   const pop = app.root.nodes.pop;
   assert.deepEqual(
-    pop.children[0].children.map((b) => b.title),
+    pop.children[0].children.map((b) => b.getAttribute("aria-label")),
     ["Shadow", "Fill", "Border", "Padding", "Margin"],
   );
   // Picking one puts it in the row, and opens the control that was just picked.
@@ -2132,7 +2135,7 @@ test("a control can only be added once", () => {
     pickOption(app.root.nodes.pop, "Shadow");
     press(app, "+");
   });
-  const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
+  const names = app.root.nodes.pop.children[0].children.map((b) => b.getAttribute("aria-label"));
   // Shadow is gone because this element has it; the box controls are still
   // on offer, since only Shadow was ever added.
   assert.deepEqual(names, ["Fill", "Border", "Padding", "Margin"]);
@@ -2199,8 +2202,8 @@ test("every change is still undone on exit", () => {
   quiet(() => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Padding");
-    drag(pop(app), 0, 12);
   });
+  typeInto(pop(app), "Top and bottom padding", 12);
   assert.equal(p.style.getPropertyValue("padding-top"), "12px");
   press(app, "+");
   quiet(() => app.fire("keydown", { key: "Escape" })); // the control
@@ -2367,7 +2370,8 @@ test("one drag is one step, however many inputs it fires", async () => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
+  const width = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === "Border width");
+  assert.ok(width, "the width field is in the border control");
   for (const v of [2, 4, 6, 8]) {
     width.value = String(v);
     for (const fn of width.bubbles.input.bubble) fn({});
@@ -2386,9 +2390,9 @@ test("a border's width and style are undone together", async () => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  // The border's own width slider, not the picker's hidden knobs.
-  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
-  assert.ok(width, "the width slider is in the border control");
+  // The border's own width field, not the picker's alpha.
+  const width = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === "Border width");
+  assert.ok(width, "the width field is in the border control");
   width.value = "3";
   for (const fn of width.bubbles.input.bubble) fn({});
   await tick();
@@ -2604,16 +2608,17 @@ test("padding moves all four sides at once, or one pair at a time", async () => 
   };
   // A field of a pair that is put away is not a control the user can see.
   const shownFields = () => fields(pop(app)).filter((n) => n.type === "number" && !n.parentElement?.hidden);
-  const range = fields(pop(app)).find((n) => n.type === "range");
-  range.value = "24";
-  for (const fn of range.bubbles.input.bubble) fn({});
-  for (const fn of range.bubbles.change.bubble) fn({});
+  const tied = shownFields();
+  assert.deepEqual(tied.map((n) => n.getAttribute("aria-label")), ["Top and bottom padding", "Left and right padding"], "one field per pair, and no field per side");
+  assert.equal(fields(pop(app)).some((n) => n.type === "range"), false, "the fields are the control: no bar beside them");
+  // Each pair writes its two sides, and the other pair does not move.
+  type(tied[0], "24");
+  assert.equal(box.style.getPropertyValue("padding-left"), "", "the other pair is left where it was");
+  await tick();
+  type(tied[1], "24");
   for (const side of ["top", "right", "bottom", "left"]) {
     assert.equal(box.style.getPropertyValue("padding-" + side), "24px", side);
   }
-  const tied = shownFields();
-  assert.deepEqual(tied.map((n) => n.getAttribute("aria-label")), ["Top and bottom padding", "Left and right padding"], "one field per pair, and no field per side");
-  assert.deepEqual(tied.map((n) => n.value), ["24", "24"], "the fields follow the slider");
   await tick();
 
   // One field of a tied pair writes both of its sides.
@@ -2640,7 +2645,8 @@ test("padding moves all four sides at once, or one pair at a time", async () => 
   assert.equal(box.style.getPropertyValue("padding-bottom"), "24px", "the tied pair undoes as one");
   assert.equal(box.style.getPropertyValue("padding-top"), "24px");
   key(app, "z", { metaKey: true });
-  assert.equal(box.style.getPropertyValue("padding-top"), "", "and the four sides undo together");
+  assert.equal(box.style.getPropertyValue("padding-left"), "", "the other pair undoes as one too");
+  assert.equal(box.style.getPropertyValue("padding-top"), "24px", "and leaves the first pair alone");
 });
 
 test("margin can go negative, and is reverted on exit", () => {

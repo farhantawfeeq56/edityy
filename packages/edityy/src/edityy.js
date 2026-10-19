@@ -372,23 +372,9 @@
 
     ".field-label{white-space:nowrap}",
     // A glyph may stand where a word would: a shadow's blur and spread are
-    // marked, not named, so the four fields fit two lines.
+    // marked, not named, so the four fields fit two lines, and so are the two
+    // typography spacings.
     ".field-label>svg{width:14px;height:14px;display:block}",
-    ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:var(--muted);",
-    "font-variant-numeric:tabular-nums}",
-    // The weight slider: a hairline track in the ramp and a solid grab dot. The
-    // track has to be dark enough to see against paper — the default UA track is
-    // a light grey that vanishes on this background.
-    "input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;",
-    "border-radius:2px;background:var(--ink-35);outline:none}",
-    "input[type=range]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:var(--ink-35)}",
-    "input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;",
-    "margin-top:-6px;border-radius:50%;background:var(--ink);cursor:grab;",
-    "box-shadow:0 1px 2px var(--ink-25)}",
-    "input[type=range]:focus-visible{box-shadow:0 0 0 3px var(--rose-40)}",
-    "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:var(--ink-35)}",
-    "input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;",
-    "background:var(--ink);cursor:grab}",
 
     "input[type=number],input[type=search]{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:9px 10px;",
     // -webkit-text-fill-color is what actually makes the digits appear: the UA
@@ -1935,6 +1921,9 @@ function faces() {
     // The label is added rather than passed in, because a face name is text and
     // text is a node — there is no markup to parse it out of.
     b.appendChild(text(item.label));
+    // The row says its own name, so a title would say it twice: the second time
+    // as a browser tooltip under the row the pointer is already on.
+    b.title = "";
     // cssText rather than the property: a face stack is commas and quotes, and
     // the shorthand carries them through without the DOM re-parsing anything.
     // Only a face row has a stack: a weight or an alignment row has none, and
@@ -2199,53 +2188,20 @@ function icons(items, current, onPick, cls) {
     return mark;
   }
 
-  /** A slider with a live readout, for weight and line height. */
-  function slider(min, max, step, current, unit, onInput, label, parent) {
-    var row = document.createElement("div");
-    row.className = "bar2";
-    var input = document.createElement("input");
-    input.type = "range";
-    input.min = min;
-    input.max = max;
-    input.step = step;
-    input.value = current;
-    if (label) {
-      var caption = document.createElement("span");
-      caption.className = "field-label";
-      // A label that names a glyph draws it, like the number field: the words
-      // stay on the input, where a screen reader reads them.
-      if (typeof label === "string") caption.textContent = label;
-      else caption.innerHTML = svg(label.glyph);
-      input.setAttribute("aria-label", typeof label === "string" ? label : label.label);
-      row.appendChild(caption);
-    }
-    var out = document.createElement("span");
-    out.className = "val";
-    out.textContent = current + unit;
-    // Live: the element changes under the pointer, so there is nothing to commit.
-    input.addEventListener("input", function () {
-      out.textContent = input.value + unit;
-      hold();
-      onInput(input.value);
-    });
-    input.addEventListener("change", release);
-    row.appendChild(input);
-    row.appendChild(out);
-    (parent || pop).appendChild(row);
-    return row;
-  }
-
-  /** A number field, for size and tracking. A label that is markup draws a
-      glyph where the word would stand. The field says the number; a unit is the
-      dock's own business, not a word beside every value. */
+  /**
+   * A number field, for size, tracking, gaps and the rest. A label may be a
+   * glyph instead of the word: the glyph stands where the word would, and the
+   * word stays on the input, where a screen reader reads it. The field says the
+   * number; a unit is the dock's own business, not a word beside every value.
+   */
   function number(min, max, step, current, onInput, label, parent) {
     var row = document.createElement("div");
     row.className = "bar2";
     if (label) {
       var caption = document.createElement("span");
       caption.className = "field-label";
-      if (label.charAt(0) === "<") caption.innerHTML = label;
-      else caption.textContent = label;
+      if (typeof label === "string") caption.textContent = label;
+      else caption.innerHTML = svg(label.glyph);
       row.appendChild(caption);
     }
     var input = document.createElement("input");
@@ -2254,6 +2210,7 @@ function icons(items, current, onPick, cls) {
     input.max = max;
     input.step = step;
     input.value = current;
+    if (label) input.setAttribute("aria-label", typeof label === "string" ? label : label.label);
     input.addEventListener("input", function () {
       // Blank while typing is not a value; wait for the field to be usable.
       if (input.value === "") return;
@@ -2301,6 +2258,8 @@ function icons(items, current, onPick, cls) {
         onPick(item.value);
       }, String(item.value));
       option.appendChild(text(item.label));
+      // Named by its own row: no second tooltip saying the same word.
+      option.title = "";
       option.setAttribute("aria-pressed", String(item.value) === String(current) ? "true" : "false");
       menu.appendChild(option);
     });
@@ -2779,12 +2738,12 @@ function icons(items, current, onPick, cls) {
   }
 
   /**
-   * Four sides of padding or margin: one slider for all four at once, and one
-   * field per pair of sides. Left and right take the same value, and so do top
-   * and bottom: a box is even both ways far more often than not, so a tied pair
-   * is one field, not two. The link beside a pair breaks it, and each side then
-   * takes a value of its own. Written as the longhands, so the edits list says
-   * which side changed and an undo puts back exactly the four that moved.
+   * Four sides of padding or margin, as one field per pair of sides. Left and
+   * right take the same value, and so do top and bottom: a box is even both ways
+   * far more often than not, so a tied pair is one field, not two. The link
+   * beside a pair breaks it, and each side then takes a value of its own.
+   * Written as the longhands, so the edits list says which side changed and an
+   * undo puts back exactly the sides that moved.
    */
   function sides(prop, min, max) {
     var PAIRS = [
@@ -2792,15 +2751,8 @@ function icons(items, current, onPick, cls) {
       { sides: ["left", "right"], labels: ["Left", "Right"], glyphs: ["arrow-left", "arrow-right"], both: "move-horizontal" },
     ];
     var values = {};
-    var fields = [];
     ["top", "right", "bottom", "left"].forEach(function (side) {
       values[side] = num(prop + "-" + side, 0);
-    });
-    slider(min, max, 1, values.top, "px", function (v) {
-      ["top", "right", "bottom", "left"].forEach(function (side) {
-        set(prop + "-" + side, v + "px");
-      });
-      fields.forEach(function (field) { field.input.value = String(v); });
     });
     /** One field: the sides it writes, its glyph, and its name for a reader. */
     function field(row, group, glyph, name) {
@@ -2822,9 +2774,7 @@ function icons(items, current, onPick, cls) {
       input.addEventListener("change", release);
       cell.appendChild(input);
       row.appendChild(cell);
-      var made = { cell: cell, input: input };
-      fields.push(made);
-      return made;
+      return { cell: cell, input: input };
     }
     var panel = document.createElement("div");
     panel.className = "sides";
@@ -2877,13 +2827,14 @@ function icons(items, current, onPick, cls) {
   function spacingControl() {
     // Both rows are the shared number field, which appends to the panel itself,
     // so there is no wrapper here: a <div> whose class matched no rule dressed
-    // nothing at all.
+    // nothing at all. A glyph stands where the words would: sideways for the
+    // letters, up and down for the lines.
     number(-4, 16, 0.1, num("letter-spacing", 0), function (v) {
       set("letter-spacing", v + "px");
-    }, "Letter spacing");
+    }, { glyph: "move-horizontal", label: "Letter spacing" });
     number(0.8, 3, 0.05, num("line-height", 1.3), function (v) {
       set("line-height", v);
-    }, "Line spacing");
+    }, { glyph: "move-vertical", label: "Line spacing" });
   }
 
   var CONTROLS = {
@@ -2899,7 +2850,9 @@ function icons(items, current, onPick, cls) {
     weight: function () {
       var info = weightInfo();
       if (info.kind === "variable") {
-        slider(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), "", function (v) { set("font-weight", v); });
+        number(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), function (v) {
+          set("font-weight", v);
+        }, { glyph: "bold", label: "Font weight" });
       } else if (info.kind === "fixed") {
         var current = num("font-weight", info.values[0]);
         // One field, drawn like the size control in the dock: the number and a
@@ -2955,10 +2908,10 @@ function icons(items, current, onPick, cls) {
       // A colour on a border that has no width is a colour nobody sees, so the
       // width is offered too. A hairline, in the ramp: thick enough to read,
       // thin enough not to shout.
-      slider(0, 12, 1, num("border-width", 0), "px", function (v) {
+      number(0, 120, 1, num("border-width", 0), function (v) {
         set("border-width", v + "px");
         set("border-style", v ? "solid" : "");
-      });
+      }, { glyph: "square", label: "Border width" });
     },
     shadow: function () {
       var text = selectedKind === "text";
@@ -2969,10 +2922,10 @@ function icons(items, current, onPick, cls) {
       var fields = [
         { i: 0, label: "X", min: -40, max: 40 },
         { i: 1, label: "Y", min: -40, max: 40 },
-        { i: 2, label: svg("droplet"), min: 0, max: 80 },
+        { i: 2, label: { glyph: "droplet", label: "Blur" }, min: 0, max: 80 },
       ];
       // A text shadow has no spread: the letters cast it, not the box.
-      if (!text) fields.push({ i: 3, label: svg("maximize"), min: -40, max: 40 });
+      if (!text) fields.push({ i: 3, label: { glyph: "maximize", label: "Spread" }, min: -40, max: 40 });
       var grid = document.createElement("div");
       grid.className = "shadow-grid";
       pop.appendChild(grid);
@@ -3038,18 +2991,18 @@ function icons(items, current, onPick, cls) {
         var pair = document.createElement("div");
         pair.className = "pair";
         pop.appendChild(pair);
-        slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
+        number(0, 160, 1, num("column-gap", 0), function (v) {
           set("column-gap", v + "px");
         }, { glyph: "columns-2", label: "Column gap" }, pair);
-        slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
+        number(0, 160, 1, num("row-gap", 0), function (v) {
           set("row-gap", v + "px");
         }, { glyph: "rows-2", label: "Row gap" }, pair);
         return;
       }
-      slider(0, 48, 1, num("gap", 0), "px", function (v) {
+      number(0, 160, 1, num("gap", 0), function (v) {
         set("gap", v + "px");
         ensureBox();
-      });
+      }, { glyph: "unfold-horizontal", label: "Gap" });
     },
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
