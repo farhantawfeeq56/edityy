@@ -1004,6 +1004,9 @@ test("the dock opens on text and container, stays shut on media", () => {
     "existing containers retain their default controls"
   );
   const box = app.root.selection().el;
+  // A computed template arrives already expanded, with its line names kept: the
+  // count is the list of tracks, not the repeat() the page may have written.
+  box.computed = { "grid-template-columns": "[left] 1fr [mid] 1fr [right]", "grid-template-rows": "none" };
 
   // The mode cycle omits Stack and starts at Flex.
   quiet(() => press(app, "mode"));
@@ -1012,16 +1015,53 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(box.style.getPropertyValue("display"), "flex");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "grid", "gap", "alignment", "+"]);
+    ["mode", "grid", "gap", "+"], "a grid wears its counts in the row");
   assert.equal(box.style.getPropertyValue("display"), "grid");
-  // The mode button is already the grid: the size control next to it must not
-  // draw the same glyph, or the row reads as two of the same button.
-  const [modeButton, gridButton] = app.root.nodes.row.children;
-  assert.notEqual(modeButton.innerHTML, gridButton.innerHTML, "the grid-size control draws its own glyph");
+  // The size is the pair of counts in the row itself, with nothing to open; a
+  // grid that names no tracks of its own says "auto".
+  const gridInputs = () => fields(app.root.nodes.row.children.find((b) => b.dataset.key === "grid"));
+  assert.equal(gridInputs().length, 2, "columns and rows share one field");
+  assert.equal(gridInputs()[0].value, "2", "columns read off the resolved track list");
+  assert.equal(gridInputs()[1].value, "", "a grid that names no rows of its own is auto");
+  assert.equal(gridInputs()[1].placeholder, "auto");
+  gridInputs()[0].value = "3";
+  for (const fn of gridInputs()[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-columns"), "repeat(3, minmax(0, 1fr))");
+  gridInputs()[1].value = "2";
+  for (const fn of gridInputs()[1].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-rows"), "repeat(2, minmax(0, 1fr))");
+  gridInputs()[1].value = "";
+  for (const fn of gridInputs()[1].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-rows"), "", "a blank count is auto");
+  quiet(() => press(app, "gap"));
+  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "range");
+  assert.equal(gapInputs.length, 2, "row and column gaps share one control");
+  gapInputs[0].value = "16";
+  for (const fn of gapInputs[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("column-gap"), "16px");
+  gapInputs[1].value = "12";
+  for (const fn of gapInputs[1].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("row-gap"), "12px");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "bounds", "size", "+"]);
+    ["mode", "top", "right", "bottom", "left", "+"], "each offset has its own field");
   assert.equal(box.style.getPropertyValue("position"), "absolute");
+  // The offsets are fields in the row, with nothing to open, and a side that
+  // names no offset says "auto".
+  const offsetInputs = () => ["top", "right", "bottom", "left"].map((key) =>
+    fields(app.root.nodes.row.children.find((b) => b.dataset.key === key))[0]);
+  assert.equal(offsetInputs().every(Boolean), true, "top, right, bottom and left");
+  assert.equal(offsetInputs()[0].value, "", "a side with no offset is auto");
+  assert.equal(offsetInputs()[2].placeholder, "auto");
+  offsetInputs()[0].value = "24";
+  for (const fn of offsetInputs()[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("top"), "24px");
+  offsetInputs()[3].value = "-40";
+  for (const fn of offsetInputs()[3].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("left"), "-40px");
+  offsetInputs()[0].value = "";
+  for (const fn of offsetInputs()[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("top"), "", "a blank side is auto");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
     ["mode", "direction", "wrap", "alignment", "gap", "+"]);
@@ -1034,41 +1074,6 @@ test("the dock opens on text and container, stays shut on media", () => {
   quiet(() => press(app, "wrap"));
   assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
   assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
-  quiet(() => press(app, "mode"));
-  quiet(() => press(app, "grid"));
-  const gridInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
-  assert.equal(gridInputs.length, 2, "columns and rows share one control");
-  gridInputs[0].value = "3";
-  for (const fn of gridInputs[0].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("grid-template-columns"), "repeat(3, minmax(0, 1fr))");
-  gridInputs[1].value = "4";
-  for (const fn of gridInputs[1].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("grid-template-rows"), "repeat(4, minmax(0, 1fr))");
-  quiet(() => press(app, "gap"));
-  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "range");
-  assert.equal(gapInputs.length, 2, "row and column gaps share one control");
-  gapInputs[0].value = "16";
-  for (const fn of gapInputs[0].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("column-gap"), "16px");
-  gapInputs[1].value = "12";
-  for (const fn of gapInputs[1].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("row-gap"), "12px");
-  quiet(() => press(app, "alignment"));
-  for (const fn of app.root.nodes.pop.children[0].children[8].bubbles.click.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("justify-items"), "end", "grid horizontal alignment");
-  assert.equal(box.style.getPropertyValue("align-items"), "flex-end", "grid vertical alignment");
-  quiet(() => press(app, "mode"));
-  quiet(() => press(app, "bounds"));
-  assert.equal(app.root.nodes.pop.children.length, 4, "absolute edges");
-  quiet(() => press(app, "size"));
-  const sizeInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
-  assert.equal(sizeInputs.length, 2, "width and height share one control");
-  sizeInputs[0].value = "320";
-  for (const fn of sizeInputs[0].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("width"), "320px");
-  sizeInputs[1].value = "180";
-  for (const fn of sizeInputs[1].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("height"), "180px");
   quiet(() => press(app, "mode"));
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");

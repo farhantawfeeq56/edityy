@@ -61,7 +61,6 @@
     "expand": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6" /> <path d="m15 9 6-6" /> <path d="M21 16v5h-5" /> <path d="M21 8V3h-5" /> <path d="M3 16v5h5" /> <path d="m3 21 6-6" /> <path d="M3 8V3h5" /> <path d="M9 9 3 3" /></svg>',
     "frame": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="6" y2="6" /> <line x1="22" x2="2" y1="18" y2="18" /> <line x1="6" x2="6" y1="2" y2="22" /> <line x1="18" x2="18" y1="2" y2="22" /></svg>',
     "grip": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" /> <circle cx="19" cy="5" r="1" /> <circle cx="5" cy="5" r="1" /> <circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /> <circle cx="12" cy="19" r="1" /> <circle cx="19" cy="19" r="1" /> <circle cx="5" cy="19" r="1" /></svg>',
-    "grid-3x3": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M3 9h18" /> <path d="M3 15h18" /> <path d="M9 3v18" /> <path d="M15 3v18" /></svg>',
     "italic": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4" /> <line x1="14" x2="5" y1="20" y2="20" /> <line x1="15" x2="9" y1="4" y2="20" /></svg>',
     "layers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></svg>',
     "layout-grid": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></svg>',
@@ -182,6 +181,18 @@
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
     ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
     ".ic.size-control:focus-within{background:var(--fill-open)}",
+    // A count the dock wears in its own row: the grid's columns × rows, and the
+    // four offsets of an element that is placed absolutely.
+    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px}",
+    ".dock-count:focus-within{background:var(--fill-open)}",
+    ".dock-count input{width:4ch;height:32px;border:0;background:transparent;color:inherit;",
+    "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    ".dock-count input::placeholder{color:var(--muted);opacity:1}",
+    ".dock-count .times{color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;line-height:1}",
+    // The letter of an absolute side, so four numbers in a row still say which
+    // side is which without a label over every one of them.
+    ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:10px;",
+    "font-weight:500;line-height:1;letter-spacing:.04em}",
     ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
@@ -763,7 +774,10 @@
     });
     refit();
     tally();
-    // An open control shows the value it read when it opened, so it is redrawn.
+    // The row wears the element's own values — a grid's counts, an absolute
+    // element's offsets — so a reverted selection is drawn again. An open
+    // control shows the value it read when it opened, so it is redrawn too.
+    if (selected && target.rec.el === selected) buildRow();
     if (openKey && openKey !== "+") show(openKey);
   }
 
@@ -1553,13 +1567,6 @@ function faces() {
     gap: "unfold-horizontal",
     alignment: "grip",
     wrap: "wrap-text",
-    columns: "columns-2",
-    rows: "rows-2",
-    // The grid-size control sits beside the mode button, which already draws
-    // layout-grid: a ruling through the cells says "how many" instead.
-    grid: "grid-3x3",
-    size: "move-diagonal",
-    position: "maximize",
   };
 
   var ICONS = [
@@ -2842,19 +2849,6 @@ function icons(items, current, onPick, cls) {
         pop.appendChild(row);
       }
     },
-    size: function () {
-      var size = num("font-size", 16);
-      var row = number(8, 200, 1, size, "px", function (v) {
-        set("font-size", v + "px");
-        updateSizeLabel();
-      });
-      row.appendChild(customSelect([12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72, 96].map(function (value) {
-        return { value: value, label: value + "px" };
-      }), size, function (v) {
-        set("font-size", v + "px");
-        updateSizeLabel();
-      }, "Common font sizes", true));
-    },
     spacing: spacingControl,
     align: cycleAlignment,
     decorate: function () {
@@ -2934,24 +2928,15 @@ function icons(items, current, onPick, cls) {
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
-      var currentMode = mode();
-      var direction = currentMode === "stack"
+      var direction = mode() === "stack"
         ? "column"
         : String(get("flex-direction") || "row").trim();
-      var current;
-      if (currentMode === "grid") {
-        current = alignValue(get("justify-items"), "start") + ":" + alignValue(get("align-items"), "start");
-      } else {
-        var main = alignValue(get("justify-content"), "flex-start");
-        var cross = alignValue(get("align-items"), "flex-start");
-        current = direction === "column" ? cross + ":" + main : main + ":" + cross;
-      }
+      var main = alignValue(get("justify-content"), "flex-start");
+      var cross = alignValue(get("align-items"), "flex-start");
+      var current = direction === "column" ? cross + ":" + main : main + ":" + cross;
       icons(ALIGN_GRID, current, function (v) {
         var parts = v.split(":");
-        if (currentMode === "grid") {
-          set("justify-items", parts[0] === "flex-start" ? "start" : parts[0] === "flex-end" ? "end" : parts[0]);
-          set("align-items", parts[1]);
-        } else if (direction === "column") {
+        if (direction === "column") {
           set("align-items", parts[0]);
           set("justify-content", parts[1]);
         } else {
@@ -2991,50 +2976,6 @@ function icons(items, current, onPick, cls) {
       slider(0, 48, 1, num("gap", 0), "px", function (v) {
         set("gap", v + "px");
         ensureBox();
-      });
-    },
-    grid: function () {
-      var columns = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
-      var rows = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
-      if (mode() !== "grid") setMode("grid");
-      var pair = document.createElement("div");
-      pair.className = "pair";
-      pop.appendChild(pair);
-      number(1, 12, 1, columns ? Number(columns[1]) : 1, "", function (v) {
-        set("grid-template-columns", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Columns", pair);
-      number(1, 12, 1, rows ? Number(rows[1]) : 1, "", function (v) {
-        set("grid-template-rows", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Rows", pair);
-    },
-    size: function () {
-      var pair = document.createElement("div");
-      pair.className = "pair";
-      pop.appendChild(pair);
-      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width", pair);
-      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height", pair);
-    },
-    bounds: function () {
-      ["top", "right", "bottom", "left"].forEach(function (prop) {
-        var row = document.createElement("div");
-        row.className = "bar2";
-        var label = document.createElement("span");
-        label.className = "field-label";
-        label.textContent = prop.charAt(0).toUpperCase() + prop.slice(1);
-        row.appendChild(label);
-        var input = document.createElement("input");
-        input.type = "number";
-        input.min = -1000;
-        input.max = 1000;
-        input.step = 1;
-        input.value = num(prop, 0);
-        input.addEventListener("input", function () {
-          if (input.value !== "") set(prop, Number(input.value) + "px");
-        });
-        row.appendChild(input);
-        var unit = text("px");
-        row.appendChild(unit);
-        pop.appendChild(row);
       });
     },
     padding: function () { sides("padding", 0, 160); },
@@ -3149,18 +3090,117 @@ function decorations() {
       { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
       { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
     ],
+    // A grid's size is the counts themselves in the row, as columns × rows, and
+    // it offers no alignment: the cells of a grid are placed by the grid.
     grid: [
-      { key: "grid", label: "Grid size", glyph: BOX_GLYPHS.grid },
+      { key: "grid", label: "Columns × rows", glyph: "" },
       { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
-      { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
     ],
+    // An element that is placed by its own offsets wears all four in the row.
     absolute: [
-      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: BOX_GLYPHS.position },
-      { key: "size", label: "Size", glyph: BOX_GLYPHS.size },
+      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: "" },
     ],
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
+
+  /**
+   * How many tracks a grid-template value names. A computed value has already
+   * expanded repeat(), so it arrives as the list itself; a value that still
+   * names a repeat counts what the repeat names, a line name in brackets is not
+   * a track, and "none" means the grid names none of its own.
+   */
+  function trackCount(value) {
+    var seen = String(value || "").trim();
+    if (!seen || seen === "none") return 0;
+    var count = 0;
+    var word = "";
+    var depth = 0;
+    function flush() {
+      var repeat = word && word.charAt(0) !== "[" && word.match(/^repeat\(\s*(\d+)/i);
+      count += repeat ? Number(repeat[1]) : word && word.charAt(0) !== "[" ? 1 : 0;
+      word = "";
+    }
+    for (var i = 0; i < seen.length; i++) {
+      var ch = seen.charAt(i);
+      if (ch === "(") depth++;
+      else if (ch === ")" && depth) depth--;
+      // A space inside a function belongs to the track: minmax(0, 1fr).
+      if (!depth && (ch === " " || ch === "\t" || ch === "\n")) flush();
+      else word += ch;
+    }
+    flush();
+    return count;
+  }
+
+  /**
+   * A grid's size, worn in the row as the counts themselves: columns × rows,
+   * with "auto" where the grid names no tracks of its own. Nothing to open.
+   */
+  function gridCountField() {
+    var field = button("ic dock-count", "", "Columns × rows", function () {}, "grid");
+    ["grid-template-columns", "grid-template-rows"].forEach(function (prop, i) {
+      if (i) {
+        var times = document.createElement("span");
+        times.className = "times";
+        times.textContent = "×";
+        field.appendChild(times);
+      }
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = 1;
+      input.max = 12;
+      input.step = 1;
+      input.value = String(trackCount(get(prop)) || "");
+      input.placeholder = "auto";
+      input.setAttribute("aria-label", prop === "grid-template-columns" ? "Columns" : "Rows");
+      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
+      input.addEventListener("input", function () {
+        hold();
+        // A blank field is auto: the grid names no tracks of its own.
+        if (input.value === "") return set(prop, "");
+        var tracks = Math.round(Number(input.value));
+        if (!(tracks >= 1)) return;
+        set(prop, "repeat(" + tracks + ", minmax(0, 1fr))");
+      });
+      input.addEventListener("change", release);
+      field.appendChild(input);
+    });
+    return field;
+  }
+
+  /**
+   * The absolute offsets, worn in the row: top, right, bottom and left, each a
+   * field of its own with its own letter, so the hover fill and the hint name
+   * the one side the pointer is on. A side that names no offset says "auto".
+   */
+  function boundsFields() {
+    return [["top", "T"], ["right", "R"], ["bottom", "B"], ["left", "L"]].map(function (axis) {
+      var prop = axis[0];
+      var field = button("ic dock-count", '<span class="axis">' + axis[1] + "</span>", prop.charAt(0).toUpperCase() + prop.slice(1), function () {}, prop);
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = -1000;
+      input.max = 1000;
+      input.step = 1;
+      var at = Math.round(parseFloat(get(prop)));
+      input.value = isNaN(at) ? "" : String(at);
+      input.placeholder = "auto";
+      input.setAttribute("aria-label", prop.charAt(0).toUpperCase() + prop.slice(1));
+      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
+      input.addEventListener("input", function () {
+        hold();
+        // A blank side is auto: the element sits where the page puts it.
+        if (input.value === "") return set(prop, "");
+        var offset = Number(input.value);
+        if (isNaN(offset)) return;
+        set(prop, offset + "px");
+      });
+      input.addEventListener("change", release);
+      field.appendChild(input);
+      return field;
+    });
+  }
 
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
@@ -3180,6 +3220,14 @@ function decorations() {
     }
     definitions.forEach(function (definition) {
       var isText = selectedKind === "text";
+      if (!isText && definition.key === "grid") {
+        row.appendChild(gridCountField());
+        return;
+      }
+      if (!isText && definition.key === "bounds") {
+        boundsFields().forEach(function (field) { row.appendChild(field); });
+        return;
+      }
       // The table holds a name per control, and svg() draws it. Two of them hold no
       // icon at all — the family is text and the size is a field — and the colour
       // control is its chip alone, with no glyph over it.

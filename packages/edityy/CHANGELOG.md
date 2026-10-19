@@ -15,9 +15,17 @@ All notable changes to the `edityy` package. The format follows
   save buttons change their words in place, and the edits count pops when it
   changes. The dock and the element menu move in when they appear. Reduced
   motion stops all of this motion. (#181)
+- A grid wears its columns and rows in the dock row as `columns × rows`, with
+  `auto` where the grid names no tracks of that axis. The count is read from the
+  resolved track list, so a grid written with `repeat()` or with its tracks
+  written out shows the count it has. An absolute element wears its top, right,
+  bottom and left offsets in the row, one field for each side. (#187)
 
 ### Removed
 
+- A grid no longer offers the Alignment control. The Grid size control, and the
+  width and height control of an absolute element, are gone: their values are
+  fields in the dock row. (#187)
 - Edit text no longer plays the Canvas UI ASCII sweep. The caret goes in at
   once, and the launcher no longer fetches a second file. A cyclic dock control
   changes the element with no animation. (#179)
