@@ -42,6 +42,24 @@ All notable changes to the `edityy` package. The format follows
 - A list row that shows its own words keeps no title. Hovering "Shadow" in the
   `+` list showed "Shadow" a second time, in a browser tooltip. The row keeps its
   accessible name. (#192)
+- Every field is one chip and answers the pointer the same way: a hairline and
+  paper at rest, a touch of ink under the pointer, and the open fill with a
+  darker hairline while it holds the caret. A number in a panel is as wide as
+  its own digits, so it no longer spans the panel; the dock's own fields keep
+  the width they are drawn at. (#192)
+- Every value in a panel sits in one chip with the glyph that names it: the two
+  typography spacings, the gap, the border width, the shadow lengths, the colour
+  value, the weight and the padding and margin sides. A chip presses like the
+  size chip in the dock: down in .08s, back in .2s, and it takes the open fill
+  while it holds the caret. A number is as wide as its digits and the room to
+  type one more, so no field is wider than its value. A dock count field no
+  longer takes the padding of a panel field, so it is the width it says it is.
+  The search and the comment box keep the width their words need. (#193)
+- A focused field wears the soft rose halo again, in the dock and in every
+  panel. It does not wear the cobalt ring: a text field answers that ring to a
+  pointer too, so a click drew a blue edge around a field that had done nothing.
+  The cobalt ring stays on the buttons and the lists, where only the keyboard
+  draws it. (#193)
 
 ### Fixed
 

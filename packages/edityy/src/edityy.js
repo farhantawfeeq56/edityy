@@ -132,7 +132,10 @@
     "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
     // A control that is open, and one under the pointer: paper stepped once
     // towards ink, so the step holds whatever the paper is.
-    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper))}",
+    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper));",
+    // The halo a field wears while it holds the caret. Soft, in the state rose, so
+    // a field says it is ready for typing without shouting over its value.
+    "--halo:0 0 0 3px var(--rose-30)}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
     // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
@@ -185,12 +188,12 @@
     ".ic.group-start{margin-left:6px;position:relative}",
     ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
     ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
-    ".ic.size-control:focus-within{background:var(--fill-open)}",
+    ".ic.size-control:focus-within{background:var(--fill-open);box-shadow:var(--halo)}",
     // A count the dock wears in its own row: the grid's columns × rows, and the
     // four offsets of an element that is placed absolutely.
     ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px}",
-    ".dock-count:focus-within{background:var(--fill-open)}",
-    ".dock-count input{width:4ch;height:32px;border:0;background:transparent;color:inherit;",
+    ".dock-count:focus-within{background:var(--fill-open);box-shadow:var(--halo)}",
+    ".ic.dock-count input{width:4ch;height:32px;border:0;padding:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".dock-count input::placeholder{color:var(--muted);opacity:1}",
     ".dock-count .times{color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;line-height:1}",
@@ -198,11 +201,15 @@
     // side is which without a label over every one of them.
     ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:10px;",
     "font-weight:500;line-height:1;letter-spacing:.04em}",
-    ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
+    ".ic.size-control input{width:48px;height:32px;border:0;padding:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
     ".custom-select-trigger{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
-    "background:var(--paper);color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer}",
+    "background:var(--paper);color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;",
+    "transition:background-color .13s ease,border-color .13s ease}",
+    ".custom-select-trigger:hover{background:var(--fill-hover)}",
+    ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted);",
+    "outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
     "max-height:180px;overflow-y:auto;padding:4px;background:var(--paper);border:1px solid var(--ink-10);border-radius:8px;",
     "box-shadow:0 8px 18px var(--ink-12)}",
@@ -214,10 +221,9 @@
     // the bottom of the viewport, so a list below it lands off the screen.
     ".size-control .custom-select-menu{bottom:calc(100% + 4px);top:auto;width:64px}",
     // The weight field is the size control in the dock, at the width of a field:
-    // the number and a bare chevron inside one bordered field, so the list is not
-    // a second box standing beside the value.
-    ".pop .weight-control{gap:2px;padding:0 6px 0 4px}",
-    ".pop .weight-control>input{width:auto;flex:1;min-width:0;height:100%;border:0;padding:0 8px;background:transparent;box-shadow:none}",
+    // the number and a bare chevron in one chip, so the list is not a second box
+    // standing beside the value.
+    ".pop .weight-control{width:auto;gap:2px}",
     ".pop .weight-control .custom-select{width:26px;flex:none;min-width:0}",
     ".pop .weight-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px;color:var(--muted)}",
     ".pop .weight-control .custom-select-trigger:hover{color:var(--ink)}",
@@ -297,17 +303,17 @@
     "input.colour-picker[type=color]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}",
     // The value, in the field a form would use: the colour as a swatch, and the
     // words beside it.
-    // Paper fill on paper, at the 8px the input ramp asks for: the hairline is
-    // what gives it a body, the way it does every other card on a paper canvas.
-    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper)}",
-    ".value-field:focus-within{border-color:var(--muted);box-shadow:0 0 0 3px var(--rose-30)}",
-    ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--ink-10)}",
-    ".value-field input[type=text]{flex:1;min-width:7ch;height:100%;border:0;padding:8px;background:transparent;color:var(--ink);",
+    // The colour's field is the chip every other value wears: the swatch where a
+    // glyph stands, the hex after it, and the transparency where a unit would be.
+    // It spans the picker, and the picker is its width.
+    ".value-field{width:100%}",
+    ".value-field .chip{width:16px;height:16px;flex:none;border-radius:8px;box-shadow:inset 0 0 0 1px var(--ink-10)}",
+    ".value-field input[type=text]{flex:1;min-width:7ch;height:100%;border:0;padding:0 4px;background:transparent;color:var(--ink);",
     "font-size:14px;font-weight:500;outline:none}",
     // The transparency, as the number it is: one line with the value, the way a
     // form wears a unit. The spinners are off so a three-character field holds
     // the number and the sign, and the arrow keys still step it.
-    ".value-field .alpha{display:flex;align-items:center;flex:none;margin-inline-end:12px;color:var(--muted);font-size:14px;font-weight:500}",
+    ".value-field .alpha{display:flex;align-items:center;flex:none;color:var(--muted);font-size:14px;font-weight:500}",
     ".value-field .alpha input[type=number]{width:3ch;height:100%;border:0;padding:0;background:transparent;color:inherit;",
     "font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;outline:none;-webkit-appearance:none;appearance:none}",
     // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
@@ -361,30 +367,60 @@
     ".grid3>.ic{background:var(--ink-4)}",
     ".grid3>.ic:hover{background:var(--ink-10)}",
     ".grid3>.ic[aria-pressed=true]{background:var(--ink)}",
-    ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
-    ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
+    // One field to a line. A row that holds a value wears `fld` too: the chip
+    // sets its own height and padding, and this rule only the flow around it.
+    ".bar2{display:flex;align-items:center;gap:10px;padding:4px}",
     // Two fields to a line, so a shadow is read as a pair of pairs rather than
-    // four rows: the offsets, then the two lengths of the edge.
-    ".shadow-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 2px;padding:0 0 4px}",
-    ".shadow-grid .bar2{gap:6px;padding:6px 4px}",
-    ".pair{display:flex;flex-direction:column;gap:2px;padding:2px 0}",
-    ".pair .bar2{padding:6px}",
+    // four rows: the offsets, then the two lengths of the edge. Each chip is as
+    // wide as its own digits, so the columns are as wide as the chips.
+    ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px 2px;padding:2px 0}",
+    ".pair{display:flex;flex-direction:column;gap:6px;padding:2px 0}",
 
     ".field-label{white-space:nowrap}",
     // A glyph may stand where a word would: a shadow's blur and spread are
     // marked, not named, so the four fields fit two lines, and so are the two
     // typography spacings.
     ".field-label>svg{width:14px;height:14px;display:block}",
+    // One chip holds one value: the glyph that names it and the field on one
+    // line, as the size and count chips in the dock hold theirs. Every chip
+    // answers the pointer in the same three steps, in the dock's own times: ink
+    // under the pointer, the open fill and a darker hairline while it holds the
+    // caret, and a press that goes down fast and comes back slower. The value is
+    // as wide as its digits and the room to type one more, so no field is wider
+    // than what it holds.
+    ".fld,.sides-pair>label,.value-field,.pop .weight-control{display:flex;align-items:center;gap:6px;height:30px;padding:0 6px;",
+    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
+    "transition:background-color .13s ease,border-color .13s ease,transform .2s var(--arrive)}",
+    ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
+    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
+    // A chip that is wider than the dock's 34px square cannot take the dock's .94
+    // without moving many times as far, so it takes the scale that moves the same
+    // few pixels: down in .08s, back in .2s.
+    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96);transition-duration:.13s,.13s,.08s}",
+    ".fld input[type=number],.sides-pair input[type=number],.value-field input[type=number],.pop .weight-control>input{width:5ch;min-width:0;height:100%;border:0;border-radius:0;padding:0;background:transparent;color:var(--ink);",
+    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;box-shadow:none}",
+    // The chip is the thing that answers, so the field inside it never lights, and
+    // never wears a ring of its own.
+    ".fld input[type=number]:hover,.fld input[type=number]:focus,.fld input[type=number]:focus-visible,",
+    ".sides-pair input[type=number]:hover,.sides-pair input[type=number]:focus,.sides-pair input[type=number]:focus-visible,",
+    ".value-field input[type=number]:hover,.value-field input[type=number]:focus,.value-field input[type=number]:focus-visible",
+    "{background:transparent;border-color:transparent;box-shadow:none}",
 
-    "input[type=number],input[type=search]{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:9px 10px;",
-    // -webkit-text-fill-color is what actually makes the digits appear: the UA
-    // paints them in its own light grey, which is invisible on paper.
-    "background:var(--paper);-webkit-text-fill-color:var(--ink);color:var(--ink);",
-    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;",
-    "transition:border-color .13s ease,box-shadow .13s ease}",
-    "input[type=number]:focus,input[type=search]:focus{border-color:var(--muted);box-shadow:0 0 0 3px var(--rose-30)}",
-    // The search over the family list sits on top of it, a little apart.
-    "input[type=search]{margin-bottom:6px;padding:8px 10px;font-variant-numeric:normal}",
+    // The base every field stands on: the digits, the paint, and no spinner. No
+    // rule here draws a box: the chip is the box. A dock chip that took a border
+    // and 9px of padding from this rule was never the width it said it was.
+    "input[type=number],input[type=search]{-webkit-text-fill-color:var(--ink);color:var(--ink);",
+    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;border:0;padding:0;background:transparent}",
+    // A field that holds words cannot be as wide as its value, so the search keeps
+    // the panel's width. It takes the same hover and the same focus as a chip.
+    "input[type=search]{width:100%;margin-bottom:6px;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
+    "background:var(--paper);font-variant-numeric:normal;transition:background-color .13s ease,border-color .13s ease}",
+    "input[type=search]:hover{background:var(--fill-hover)}",
+    "input[type=search]:focus{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
+    // The cobalt ring is the keyboard's, on the buttons and the lists that take the
+    // keyboard. A field does not wear it: a text field answers :focus-visible to a
+    // pointer too, so a click would draw a ring that says nothing happened.
+    ".ic:focus-visible{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
@@ -448,8 +484,10 @@
     ".element-action.delete{color:var(--muted)}",
     ".element-action>svg{width:18px;height:18px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit}",
-    ".element-comment-text:focus-visible{outline:2px solid var(--muted);outline-offset:1px}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
+    "transition:background-color .13s ease,border-color .13s ease}",
+    ".element-comment-text:hover{background:var(--fill-hover)}",
+    ".element-comment-text:focus{background:var(--fill-open);border-color:var(--muted);box-shadow:var(--halo)}",
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
@@ -457,22 +495,15 @@
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
     "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
     // Two pairs of sides, each pair with the link that ties it. A box is even
     // both ways far more often than not, so a tied pair is ONE field: top follows
     // the same value as bottom, and left the same as right.
     ".sides{display:flex;flex-direction:column;gap:6px;padding:0 6px 6px}",
     ".sides-pair{display:grid;grid-template-columns:76px 76px 34px;gap:6px;align-items:center}",
-    // A field is one chip: the glyph and the number on the same line, in the border
-    // a text field would wear.
-    ".sides-pair>label{display:flex;align-items:center;gap:4px;height:30px;padding:0 6px;",
-    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted)}",
-    ".sides-pair>label:focus-within{border-color:var(--muted)}",
     // The one field of a tied pair takes the room of the two it stands for.
     ".sides-pair>label.wide{grid-column:1/3}",
     ".sides-pair label>svg{width:14px;height:14px;flex:none;display:block}",
-    ".sides-pair input[type=number]{width:100%;min-width:0;height:100%;border:0;border-radius:0;padding:0;background:transparent}",
-    ".sides-pair input[type=number]:focus{box-shadow:none}",
     // A field that is put away is not drawn at all, and is not a grid cell either.
     ".sides [hidden]{display:none}",
     ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
@@ -2195,8 +2226,11 @@ function icons(items, current, onPick, cls) {
    * number; a unit is the dock's own business, not a word beside every value.
    */
   function number(min, max, step, current, onInput, label, parent) {
-    var row = document.createElement("div");
-    row.className = "bar2";
+    // The row is one chip, and the chip is the field: the glyph and the number
+    // inside one hairline, the way the dock's size control holds both. It is a
+    // label, so a press anywhere on the chip lands in the number and presses it.
+    var row = document.createElement("label");
+    row.className = "bar2 fld";
     if (label) {
       var caption = document.createElement("span");
       caption.className = "field-label";
@@ -3533,6 +3567,18 @@ function decorations() {
     return false;
   }
 
+  /**
+   * Is `node` the list part of a control: its chevron, or the options under it?
+   * The list says what it is, so it opens no tooltip of its own.
+   */
+  function inList(node) {
+    while (node && node !== row) {
+      if (String(node.className || "").indexOf("custom-select") !== -1) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
   /** Move the row's one hover fill under a control. */
   function glideTo(button) {
     row.style.setProperty("--glide-x", (button.offsetLeft || 0) + "px");
@@ -3555,6 +3601,13 @@ function decorations() {
     var button = controlOf(e.target);
     if (!button) return;
     glideTo(button);
+    // The list part of a control says what it is. A tip over the chevron or over
+    // its options only says the control's name a second time.
+    if (inList(e.target)) {
+      tipAt = null;
+      hideTip(true);
+      return;
+    }
     showTip(button);
   });
   row.addEventListener("pointerout", function (e) {
@@ -3568,7 +3621,7 @@ function decorations() {
   });
   row.addEventListener("focusin", function (e) {
     var button = controlOf(e.target);
-    if (button) showTip(button, true);
+    if (button && !inList(e.target)) showTip(button, true);
   });
   row.addEventListener("focusout", function () {
     tipAt = null;
