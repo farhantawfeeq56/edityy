@@ -873,11 +873,10 @@ test("the open icon stays visible on its own dark background", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
   // `*{color:#16233a}` matches the glyph itself, so an active button's paper
-  // colour never reaches it: without an explicit inherit the Aa is ink on ink
-  // and disappears. Both glyph kinds need it, one by letterform one by svg — the
-  // drawn one takes the colour down from the box the icon is drawn in.
-  assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
-  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the drawn ones");
+  // colour never reaches it: without an explicit inherit the glyph is ink on
+  // ink and disappears. The drawn one takes the colour down from the box the
+  // icon is drawn in.
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "the drawn glyphs");
 });
 
 test("each control is as wide as it needs to be, not a shared width", () => {
@@ -925,6 +924,44 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   quiet(() => press(app, "spacing"));
   for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
   assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("the element menu's actions draw the dock's tooltip, in their own words", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const tip = app.root.nodes.tip;
+  const menu = app.root.nodes["element-menu"];
+  selectText(app);
+  const move = menu.children[0].children.find((b) => b.getAttribute("aria-label") === "Move");
+  assert.equal(move.getAttribute("title"), undefined, "no native title beside the drawn tip");
+  assert.equal(tip.hidden, true, "nothing is shown to begin with");
+  for (const fn of menu.bubbles.pointerover.bubble) fn({ target: move });
+  assert.equal(tip.hidden, true, "the first of the group waits");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(tip.hidden, false, "an action the pointer stays on shows one");
+  assert.equal(tip.textContent, "Move", "in the words of that action");
+  for (const fn of menu.bubbles.pointerout.bubble) fn({ target: move, relatedTarget: null });
+  await new Promise((resolve) => setTimeout(resolve, 140));
+  assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("one thing is open at a time, so two panels never stand on each other", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const pop = app.root.nodes.pop;
+  selectText(app);
+  const select = all(app.root.nodes.row.children.find((b) => b.dataset.key === "size"))
+    .find((node) => String(node.className) === "custom-select");
+  const trigger = all(select).find((node) => String(node.className).startsWith("custom-select-trigger"));
+  const list = all(select).find((node) => String(node.className) === "custom-select-menu");
+  quiet(() => press(app, "spacing"));
+  assert.equal(pop.hidden, false, "a control is open");
+  for (const fn of trigger.bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, true, "the list in the row closes the control it would stand on");
+  assert.equal(list.hidden, false, "and stands alone");
+  quiet(() => press(app, "spacing"));
+  assert.equal(pop.hidden, false, "a control opens");
+  assert.equal(list.hidden, true, "and the list closes with it");
 });
 
 test("the secondary dock centres on its control and corners at the row's ends", () => {
@@ -1946,7 +1983,8 @@ test("the text-colour glyph wears the element own colour, not one of ours", () =
   // answer rgb(), so the only route back to a hex is converting what the page
   // wrote — which is arithmetic, not invention.
   p.style.setProperty("color", "rgb(0, 105, 92)");
-  assert.match(icon.innerHTML, /id="swatch-color"/, "a bar that shows the element own colour");
+  assert.match(icon.innerHTML, /id="swatch-color"/, "a chip that shows the element own colour");
+  assert.doesNotMatch(icon.innerHTML, /<svg/, "the colour alone, with no glyph over it");
 });
 
 
@@ -1966,13 +2004,13 @@ test("each element keeps its own additions", () => {
     pickOption(app.root.nodes.pop, "Border");
   });
   const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(keys(), ["border", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
+  assert.deepEqual(keys(), ["family", "size", "weight", "color", "align", "spacing", "decorate", "border", "+"], "a control that arrives from the + lands beside it");
 
   app.hover(first);
   app.clickPage();
   assert.deepEqual(
     keys(),
-    ["shadow", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
+    ["family", "size", "weight", "color", "align", "spacing", "decorate", "shadow", "+"],
     "the first element keeps only its own",
   );
 });
@@ -2057,7 +2095,7 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /<circle/, "three dots, drawn");
+  assert.match(plus.innerHTML, /<path d="M5 12h14"/, "a plus, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the additions, as a list under the dock.

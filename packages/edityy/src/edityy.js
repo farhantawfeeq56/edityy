@@ -197,16 +197,21 @@
     // Upward, like every other list in the dock: the size button sits 24px above
     // the bottom of the viewport, so a list below it lands off the screen.
     ".size-control .custom-select-menu{bottom:calc(100% + 4px);top:auto;width:64px}",
-    ".weight-control{gap:8px}",
-    ".weight-control>input{width:64px;flex:none}",
-    ".weight-control .custom-select{min-width:0;width:26px;flex:none}",
+    // The weight field is the size control in the dock, at the width of a field:
+    // the number and a bare chevron inside one bordered field, so the list is not
+    // a second box standing beside the value.
+    ".pop .weight-control{gap:2px;padding:0 6px 0 4px}",
+    ".pop .weight-control>input{width:auto;flex:1;min-width:0;height:100%;border:0;padding:0 8px;background:transparent;box-shadow:none}",
+    ".pop .weight-control .custom-select{width:26px;flex:none;min-width:0}",
+    ".pop .weight-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px;color:var(--muted)}",
+    ".pop .weight-control .custom-select-trigger:hover{color:var(--ink)}",
     // The arrow of a list that has a value field beside it. The arrow alone
     // says "there is a list here"; the value is the field's, and is not said
     // twice. Sized where it stands, and it borrows the colour of its row.
     ".custom-select-trigger.chevron>svg{width:14px;height:14px;display:block;color:inherit}",
-    // A list off a narrow arrow is as wide as its own words, and grows towards
+    // A list off a bare arrow is as wide as its own words, and grows towards
     // the middle of the panel rather than past its edge.
-    ".weight-control .custom-select-menu{left:auto;right:0;width:max-content;min-width:120px}",
+    ".pop .weight-control .custom-select-menu{left:auto;right:0;bottom:calc(100% + 6px);width:max-content;min-width:140px}",
     ".color-button[aria-expanded=true]{background:var(--fill-open)}",
     // The picker is HeroUI's in build and behaviour — the field with the dot,
     // the hue rail, the value field — and every control on it is still drawn
@@ -222,7 +227,7 @@
     // The Controlled picker asks the popover for a tighter gap than the default,
     // and the width is the picker's own: the panel takes the room it needs and
     // the surface around it follows, wherever the picker stands.
-    ".color-panel{display:flex;flex-direction:column;gap:8px;width:152px}",
+    ".color-panel{display:flex;flex-direction:column;gap:8px;width:176px}",
     // The keyboard ring: 2px of paper, then the cobalt that carries every
     // interaction highlight in the ramp. Drawn on the control the pointer uses,
     // never on the hidden input.
@@ -281,7 +286,7 @@
     ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper)}",
     ".value-field:focus-within{border-color:var(--muted);box-shadow:0 0 0 3px var(--rose-30)}",
     ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--ink-10)}",
-    ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:var(--ink);",
+    ".value-field input[type=text]{flex:1;min-width:7ch;height:100%;border:0;padding:8px;background:transparent;color:var(--ink);",
     "font-size:14px;font-weight:500;outline:none}",
     // The transparency, as the number it is: one line with the value, the way a
     // form wears a unit. The spinners are off so a three-character field holds
@@ -293,17 +298,12 @@
     // glyph is its own svg inside this one, and sizing that too would draw it 18
     // units wide in a 256 box. The `>` is what keeps this from reaching it.
     ".ic>svg{width:18px;height:18px;display:block;color:inherit}",
-    // Type controls are their own glyphs: a letterform says "this is about type"
-    // faster than any abstract mark could. color:inherit is not optional: the
-    // universal * rule above sets a colour on every element, so a glyph would
-    // stay ink on the ink of an active button and vanish.
-    ".g{font-size:15px;font-weight:600;line-height:1;color:inherit;pointer-events:none}",
-    // The swatch is a real control, so it takes focus and shows focus: an inline
-    // <i> would be invisible to the keyboard and unreachable by the pointer.
-    // The bar wears the element own colour once one is selected, and is a bare
-    // outline until then: an empty swatch is honest about knowing nothing, where
-    // a swatch painted in our ink would claim the site is that colour.
-    ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-25)}",
+    // The text colour is the colour alone: a chip painted in the element own
+    // colour. The chip is a real element so it takes focus and shows focus: a
+    // background on the button could not be read out by anything, and an empty
+    // chip is honest about knowing nothing, where one painted in our ink would
+    // claim the site is that colour.
+    ".sw{display:block;width:18px;height:18px;border-radius:6px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-20)}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons. The pop is out of the flow, so
@@ -947,26 +947,26 @@
   }
 
   /**
-   * Paint the text-colour glyph with the colour the element actually has.
+   * Paint the text-colour chip with the colour the element actually has.
    *
-   * Read from the element rather than painted in: the bar under the A is a
-   * readout of this site, and a fixed colour on it would be a lie about every
-   * site that is not ours. Left transparent when the element has no hex colour
-   * of its own — a name or an rgb() is a real colour, and the bar is honest
-   * about not being able to show it rather than guessing.
+   * Read from the element rather than painted in: the chip is a readout of this
+   * site, and a fixed colour on it would be a lie about every site that is not
+   * ours. Left transparent when the element has no hex colour of its own — a
+   * name or an rgb() is a real colour, and the chip is honest about not being
+   * able to show it rather than guessing.
    */
   function paintSwatch() {
     if (!selected) return;
-    // Found by walking the row rather than by id: the bar is markup inside the
+    // Found by walking the row rather than by id: the chip is markup inside the
     // icon's own innerHTML, not an element of its own.
     var icon = slot("color");
     var bar = icon && icon.querySelector ? icon.querySelector("#swatch-color") : null;
     if (!bar) return;
     var current = get("color").trim();
-    // The bar shows what the browser resolved the colour to, rgba() and all, so
+    // The chip shows what the browser resolved the colour to, rgba() and all, so
     // a colour with any transparency is not drawn as a solid one. Anything that
     // is not an rgb() — a name, an hsl(), an oklch() — still falls through to
-    // the hex, and is left transparent when there is no hex to show: the bar is
+    // the hex, and is left transparent when there is no hex to show: the chip is
     // a readout, and a readout that guesses is a lie.
     bar.style.background = /^rgba?\(/.test(current) ? current : hex();
   }
@@ -1040,9 +1040,8 @@
     button.className = "element-action" + (className ? " " + className : "");
     // Markup as a string, for the same reason the dock's button() gives: an SVG
     // element cannot be made with createElement(). The button is its icon alone,
-    // so the name lives in aria-label and in the title a pointer shows.
+    // so the name lives in aria-label, and the drawn tooltip speaks it.
     button.innerHTML = icon;
-    button.title = label;
     button.setAttribute("aria-label", label);
     button.addEventListener("click", action);
     return button;
@@ -1567,9 +1566,8 @@ function faces() {
       label: "Font weight",
       glyph: "bold",
     },
-    // A letterform over a bar painted in the element's own colour: the colour the
-    // words themselves are. The bar is a readout, so it stays.
-    { key: "color", label: "Text colour", glyph: "type" },
+    // The colour control is the colour itself: a chip, and nothing over it.
+    { key: "color", label: "Text colour", glyph: "" },
     // Four bars, each ending short of a different edge: what the button does.
     {
       key: "align",
@@ -1778,6 +1776,9 @@ function faces() {
     // The panel rises under the control the pointer is on: the tooltip would
     // stand on top of it.
     hideTip(true);
+    // One thing open at a time: a list drawn in the row closes with the control
+    // that opens, because the two would stand in the same place.
+    closeList();
     // A panel that closes fades out instead of going in one frame.
     var leave = !key && !pop.hidden && !dock.hidden && pop.firstChild && moves(pop) ? ghostOf(pop) : null;
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
@@ -2230,6 +2231,15 @@ function icons(items, current, onPick, cls) {
     return row;
   }
 
+  /** The drawn list that is showing, if any: one thing open at a time. */
+  var openList = null;
+
+  /** Hide the list that is showing, so nothing else has to stand beside it. */
+  function closeList() {
+    if (openList) openList.hidden = true;
+    openList = null;
+  }
+
   /** A custom list that keeps its value editable through the paired input.
       A `chevron` trigger is the arrow alone, for a list whose value is already
       in the field beside it: a trigger that repeats the value says it twice. */
@@ -2249,6 +2259,7 @@ function icons(items, current, onPick, cls) {
       var option = button("custom-option", "", item.label, function () {
         if (!chevron) trigger.textContent = item.label;
         menu.hidden = true;
+        if (openList === menu) openList = null;
         for (var i = 0; i < menu.children.length; i++) {
           menu.children[i].setAttribute("aria-pressed", menu.children[i] === option ? "true" : "false");
         }
@@ -2260,7 +2271,13 @@ function icons(items, current, onPick, cls) {
     });
     trigger.addEventListener("click", function (e) {
       if (e.stopPropagation) e.stopPropagation();
-      menu.hidden = !menu.hidden;
+      var open = menu.hidden;
+      // One thing open at a time. A list inside the button of the row closes the
+      // control that is open, and a control that opens closes the list.
+      if (open && inRow(wrap)) show("");
+      if (open) closeList();
+      menu.hidden = !open;
+      openList = open ? menu : null;
       syncElementMenu();
     });
     wrap.appendChild(trigger);
@@ -2789,8 +2806,10 @@ function icons(items, current, onPick, cls) {
         slider(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), "", function (v) { set("font-weight", v); });
       } else if (info.kind === "fixed") {
         var current = num("font-weight", info.values[0]);
+        // One field, drawn like the size control in the dock: the number and a
+        // bare chevron inside it, so the list is not a second box beside the value.
         var row = document.createElement("div");
-        row.className = "bar2 weight-control";
+        row.className = "value-field weight-control";
         var input = document.createElement("input");
         input.type = "number";
         input.min = info.values[0];
@@ -3138,14 +3157,6 @@ function decorations() {
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     while (row.firstChild) row.removeChild(row.firstChild);
-    // The element's own additions, in the order they were added to it. Read off
-    // the change record rather than a global: the whole point of the `+` is that
-    // the dock does not clutter, and a control added to one element has no
-    // business sitting on every other one.
-    (selected ? addedTo(selected) : []).forEach(function (key) {
-      var item = ADD.filter(function (a) { return a.key === key; })[0];
-      if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
-    });
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
     var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
@@ -3163,10 +3174,10 @@ function decorations() {
       var isText = selectedKind === "text";
       // The table holds a name per control, and svg() draws it. Two of them hold no
       // icon at all — the family is text and the size is a field — and the colour
-      // control is a letterform with the swatch under it rather than a glyph alone.
+      // control is its chip alone, with no glyph over it.
       var glyph = definition.glyph ? svg(definition.glyph) : "";
       var html = definition.key === "color"
-        ? '<i class="g">' + glyph + '<i class="sw" id="swatch-color"></i></i>'
+        ? '<i class="sw" id="swatch-color"></i>'
         : glyph;
       var className = "ic";
       var onClick = function () { toggle(definition.key); };
@@ -3232,7 +3243,17 @@ function decorations() {
         alignButton.setAttribute("aria-label", align.label);
       }
     }
-    addBtn = button("ic add group-start", svg("ellipsis"), "Add a control", function () {
+    // The element's own additions, in the order they were added to it, and after
+    // the controls every element has: a control that arrives from the `+` lands
+    // at the end of the row, beside the `+` it came from. Read off the change
+    // record rather than a global: the whole point of the `+` is that the dock
+    // does not clutter, and a control added to one element has no business
+    // sitting on every other one.
+    (selected ? addedTo(selected) : []).forEach(function (key) {
+      var item = ADD.filter(function (a) { return a.key === key; })[0];
+      if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
+    });
+    addBtn = button("ic add group-start", svg("plus"), "Add a control", function () {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
@@ -3284,6 +3305,8 @@ function decorations() {
   var TIP_CLOSE = 120;
   var TIP_WARM = 400;
   var TIP_REST = "translate(-50%,-100%)";
+  // Below the control instead, for one that stands near the top of the screen.
+  var TIP_BELOW = "translate(-50%,0)";
   var tipFor = null; // the control the tooltip is over, while it is on show
   var tipAt = null; // the control the pointer or the focus is on
   var tipBlocked = null; // a control whose panel just opened: no tooltip over it
@@ -3312,6 +3335,11 @@ function decorations() {
     if (!words || !button.getBoundingClientRect) return;
     var box = button.getBoundingClientRect();
     var x = box.left + box.width / 2;
+    // Above the control, unless it stands at the top of the screen: a tip that
+    // runs off the edge says nothing. The element menu floats at the element, so
+    // its actions can be up there.
+    var above = box.top > 46;
+    var rest = above ? TIP_REST : TIP_BELOW;
     var shown = !!tipFor && !tipLeaving;
     var warm = tipWarm;
     var from = tipX;
@@ -3323,10 +3351,11 @@ function decorations() {
     tipFor = button;
     tipWarm = true;
     tipX = x;
+    tip.dataset.side = above ? "top" : "bottom";
     tip.hidden = false;
     tip.style.left = x + "px";
-    tip.style.top = box.top - 8 + "px";
-    tip.style.transform = TIP_REST;
+    tip.style.top = (above ? box.top - 8 : box.bottom + 8) + "px";
+    tip.style.transform = rest;
     if (!moves(tip)) {
       tip.textContent = words;
       return;
@@ -3340,7 +3369,7 @@ function decorations() {
       // On show already: the box travels from the last control to this one,
       // and the new words come in from the side it travelled from.
       tip.animate(
-        [{ transform: "translate(calc(-50% + " + (from - x) + "px),-100%)" }, { transform: TIP_REST }],
+        [{ transform: "translate(calc(-50% + " + (from - x) + "px)," + (above ? "-100%" : "0") + ")" }, { transform: rest }],
         { duration: 260, easing: ARRIVE }
       );
       label.animate(slide, { duration: 200, easing: ARRIVE });
@@ -3352,8 +3381,8 @@ function decorations() {
       // The first of the group rises out of the control, a little blurred.
       tip.animate(
         [
-          { opacity: 0, transform: TIP_REST + " translateY(7px) scale(.9)", filter: "blur(4px)" },
-          { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
+          { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)", filter: "blur(4px)" },
+          { opacity: 1, transform: rest, filter: "blur(0px)" },
         ],
         { duration: 240, easing: ARRIVE }
       );
@@ -3396,10 +3425,11 @@ function decorations() {
       tip.hidden = true;
       return;
     }
+    var rest = tip.dataset.side === "bottom" ? TIP_BELOW : TIP_REST;
     var out = tip.animate(
       [
-        { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
-        { opacity: 0, transform: TIP_REST + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
+        { opacity: 1, transform: rest, filter: "blur(0px)" },
+        { opacity: 0, transform: rest + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
       ],
       { duration: 120, easing: LEAVE, fill: "forwards" }
     );
@@ -3461,6 +3491,35 @@ function decorations() {
   row.addEventListener("focusout", function () {
     tipAt = null;
     tipBlocked = null;
+    hideTip();
+  });
+
+  /** The element-menu action under a pointer or the keyboard, if any. */
+  function actionOf(node) {
+    while (node && node !== elementMenu) {
+      if (String(node.className || "").split(" ").indexOf("element-action") !== -1) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // The menu is rebuilt under the element it belongs to, so its hints are
+  // delegated too: an action is its icon alone, and the words are the drawn tip.
+  elementMenu.addEventListener("pointerover", function (e) {
+    var action = actionOf(e.target);
+    if (action) showTip(action);
+  });
+  elementMenu.addEventListener("pointerout", function (e) {
+    if (actionOf(e.relatedTarget)) return;
+    tipAt = null;
+    hideTip();
+  });
+  elementMenu.addEventListener("focusin", function (e) {
+    var action = actionOf(e.target);
+    if (action) showTip(action, true);
+  });
+  elementMenu.addEventListener("focusout", function () {
+    tipAt = null;
     hideTip();
   });
 
