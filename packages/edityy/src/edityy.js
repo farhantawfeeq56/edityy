@@ -530,7 +530,7 @@
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    ".note{margin:6px 10px;max-width:240px;font:400 12px/1.4 inherit;color:var(--muted)}",
+    ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".cta:hover{background:var(--muted)}",

@@ -70,7 +70,7 @@ All notable changes to the `edityy` package. The format follows
   to the left end of the row, where the font family chip stands. An option is
   part of the list that came out of its chip, not a control of the row. (#194)
 - The foot of the family list says "Search for more fonts", with no count in
-  front of it, in a 12px line where it stood at 16px. (#194)
+  front of it, in an 11px line where it stood at 16px. (#194)
 - A number field printed its value twice: once in the field and once beside it,
   where a unit stood. The field says the number, and no unit stands beside it.
   (#190)
