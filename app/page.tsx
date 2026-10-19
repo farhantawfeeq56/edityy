@@ -1,67 +1,422 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { CopyButton } from "./copy";
 
-const features = [
+const INSTALL = "npm install -D edityy";
+const NPM = "https://www.npmjs.com/package/edityy";
+const GITHUB = "https://github.com/farhantawfeeq56/edityy";
+
+const steps = [
   {
-    title: "Edit the page",
-    description: "Select text, containers or media. Edit text on demand and change typography, colour, spacing and box styles.",
+    title: "Install Edityy",
+    body: "Add the plugin to your dev server. A launcher appears in the bottom-right corner of the page you already run.",
   },
   {
-    title: "Arrange elements",
-    description: "Create or move elements, select their parent or child, and delete them. Shift-click siblings and press Shift+A to make a column layout.",
+    title: "Point and edit",
+    body: "Pick an element. The dock changes its type, colour, spacing, fill, border and shadow. Each edit is one inline style.",
   },
   {
-    title: "Keep control",
-    description: "Undo and redo style changes. Review each edit, select its element or revert it before you leave edit mode.",
-  },
-  {
-    title: "Use your fonts",
-    description: "Search fonts already on the page or browse Google Fonts. Edityy loads a font only when you preview or choose it.",
-  },
-  {
-    title: "Hand changes to code",
-    description: "Copy edits as a prompt or save them to your project. Your source code stays the source of truth.",
-  },
-  {
-    title: "Work with your agent",
-    description: "Use the Edityy MCP server to share saved visual changes with coding agents such as Claude Code and Cursor.",
+    title: "Hand over the edits",
+    body: "Copy the edits as a prompt, save them to the project, or let an agent read them over MCP. Your code does the rest.",
   },
 ];
 
+const features = [
+  {
+    icon: "cursor",
+    title: "Edit the page",
+    body: "Select text, a container or media. Type new words. Change typography, colour, spacing and box styles.",
+  },
+  {
+    icon: "grid",
+    title: "Arrange elements",
+    body: "Add, move and delete elements. Select the parent or the child. Shift-click siblings and press Shift+A for a column.",
+  },
+  {
+    icon: "undo",
+    title: "Undo with trust",
+    body: "Undo and redo style changes. Review each edit, select its element, or revert it before you leave the mode.",
+  },
+  {
+    icon: "type",
+    title: "Use your own fonts",
+    body: "Search the fonts already on the page, or browse Google Fonts. Edityy loads a face only when you preview or pick it.",
+  },
+  {
+    icon: "code",
+    title: "Hand changes to code",
+    body: "Copy the edits as a prompt, or save them to your project. The source code stays the source of truth.",
+  },
+  {
+    icon: "agent",
+    title: "Work with your agent",
+    body: "The Edityy MCP server shares saved changes with coding agents such as Claude Code and Cursor.",
+  },
+];
+
+const handoffs = [
+  {
+    label: "Copy the edits",
+    body: "Paste them into your agent as a prompt. Each edit names its selector, its source line and each value.",
+  },
+  {
+    label: "Save to the project",
+    body: "The edits land in .edityy/changes.json, in the folder your project already has.",
+  },
+  {
+    label: "Read over MCP",
+    body: "Run npx edityy mcp and the agent reads the same file, with no copy and no paste.",
+  },
+];
+
+const glyphs: Record<string, string> = {
+  cursor: "M5 4l6.5 15 2.2-6.3L20 10.5z",
+  grid: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
+  undo: "M8 5L4 9l4 4M4 9h10a5 5 0 010 10H8",
+  type: "M5 6h14M12 6v13M9 19h6",
+  code: "M9 8l-5 4 5 4M15 8l5 4-5 4",
+  agent: "M12 4l1.9 4.3L18 10l-4.1 1.7L12 16l-1.9-4.3L6 10l4.1-1.7z",
+  list: "M5 7h14M5 12h14M5 17h10",
+};
+
+const promptSample = `# Visual edits from Edityy
+
+Apply these edits to the source code. Change the code
+that renders each element, in the styling approach
+the project already uses.
+
+## 1. Heading
+- Selector: \`h1.hero-title\`
+- Source: \`src/App.tsx:12:7\`
+- \`font-size\`: \`44px\` → \`52px\`
+- \`color\`: \`#16233a\` → \`#2f5fa8\``;
+
+function Icon({ name, className = "size-4" }: { name: string; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d={glyphs[name]} />
+    </svg>
+  );
+}
+
+function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted?: boolean }) {
+  return (
+    <p
+      className={`flex items-center gap-2 text-[0.6875rem] font-medium uppercase tracking-[0.16em] ${
+        inverted ? "text-white/60" : "text-neutral-600"
+      }`}
+    >
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
+      {children}
+    </p>
+  );
+}
+
+function Install({ note }: { note?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white py-1 pl-4 pr-1 shadow-[0_1px_1px_rgba(22,35,58,0.05)]">
+        <span aria-hidden="true" className="font-mono text-[0.8125rem] text-neutral-600">
+          $
+        </span>
+        <span className="mx-1 font-mono text-[0.8125rem] text-neutral-900">{INSTALL}</span>
+        <CopyButton value={INSTALL} />
+      </div>
+      {note ? <p className="text-[0.8125rem] text-neutral-600">{note}</p> : null}
+    </div>
+  );
+}
+
+// A still of the product: a page in a browser frame, one paragraph selected, and
+// the dock over the bottom edge. Markup and CSS only — no screenshot to go stale.
+function Preview() {
+  return (
+    <figure className="relative mx-auto mt-16 max-w-[56rem] sm:mt-20">
+      <div
+        aria-hidden="true"
+        className="absolute -inset-x-8 -bottom-4 top-12 -z-10 rounded-[2.5rem] bg-blush/70 blur-2xl"
+      />
+      <div
+        aria-hidden="true"
+        className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_1px_rgba(22,35,58,0.05),0_32px_64px_-32px_rgba(22,35,58,0.28)]"
+      >
+        <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-2.5">
+          <div className="flex gap-1.5">
+            <span className="size-2 rounded-full bg-neutral-300" />
+            <span className="size-2 rounded-full bg-neutral-300" />
+            <span className="size-2 rounded-full bg-neutral-300" />
+          </div>
+          <span className="mx-auto rounded-full border border-neutral-200 px-3 py-1 font-mono text-[0.625rem] text-neutral-600">
+            localhost:5173
+          </span>
+          <span className="hidden items-center gap-1.5 rounded-full bg-blush px-2 py-1 text-[0.625rem] font-medium text-neutral-900 sm:flex">
+            <span className="size-1.5 rounded-full bg-rose-500" />
+            Edityy
+          </span>
+        </div>
+
+        <div className="relative px-6 pb-28 pt-8 sm:px-12 sm:pb-32 sm:pt-12">
+          <div className="flex items-center justify-between">
+            <span className="text-[0.8125rem] font-semibold tracking-[-0.02em]">Harbour</span>
+            <div className="flex items-center gap-4 text-[0.6875rem] text-neutral-600">
+              <span>Work</span>
+              <span>Studio</span>
+              <span className="hidden sm:inline">Journal</span>
+            </div>
+          </div>
+
+          <div className="mt-10 sm:mt-14">
+            <p className="text-[0.625rem] font-medium uppercase tracking-[0.16em] text-neutral-600">Field notes</p>
+            <p className="mt-3 max-w-[24rem] text-[1.375rem] font-semibold leading-[1.2] tracking-[-0.03em] sm:text-[1.75rem]">
+              A quiet morning on the water.
+            </p>
+
+            <div className="relative mt-5 inline-block max-w-[26rem]">
+              <p className="text-[0.8125rem] leading-[1.7] text-neutral-600">
+                The fog holds the far shore until ten. The boats leave when it lifts, and the water gives the tide
+                back.
+              </p>
+              <span className="absolute -inset-2 rounded-[6px] border border-rose-500" />
+              {["-top-2 -left-2", "-top-2 -right-2", "-bottom-2 -left-2", "-bottom-2 -right-2"].map((at) => (
+                <span key={at} className={`absolute size-[5px] rounded-[1px] bg-rose-500 ${at}`} />
+              ))}
+              <span className="absolute -top-8 left-0 rounded-[4px] bg-rose-500 px-1.5 py-[3px] text-[0.5625rem] font-medium tracking-wide text-white">
+                Paragraph
+              </span>
+            </div>
+
+            <div className="mt-8 flex max-w-[26rem] gap-4">
+              <div className="size-16 shrink-0 rounded-lg bg-blush" />
+              <div className="flex-1 space-y-2 pt-1">
+                <span className="block h-1.5 w-full rounded-full bg-neutral-200" />
+                <span className="block h-1.5 w-4/5 rounded-full bg-neutral-200" />
+                <span className="block h-1.5 w-2/3 rounded-full bg-neutral-200" />
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-neutral-200 bg-white/85 p-1.5 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_12px_28px_-14px_rgba(22,35,58,0.3)] backdrop-blur-md">
+            <span className="flex size-7 items-center justify-center rounded-full text-[0.625rem] font-semibold">Aa</span>
+            <span className="flex size-7 items-center justify-center rounded-full">
+              <span className="size-2.5 rounded-full bg-rose-500" />
+            </span>
+            <span className="flex size-7 items-center justify-center rounded-full">
+              <span className="size-3 rounded-[2px] border border-neutral-600" />
+            </span>
+            <span className="flex size-7 flex-col items-center justify-center gap-[3px] rounded-full">
+              <span className="h-px w-3 bg-neutral-600" />
+              <span className="h-px w-3 bg-neutral-600" />
+              <span className="h-px w-3 bg-neutral-600" />
+            </span>
+            <span className="mx-0.5 h-4 w-px bg-neutral-200" />
+            <span className="relative flex size-7 items-center justify-center rounded-full bg-neutral-900 text-white">
+              <Icon name="list" className="size-3.5" />
+              <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-rose-500 text-[0.5rem] font-semibold text-white">
+                3
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <figcaption className="mt-4 text-center text-[0.8125rem] text-neutral-600">
+        The launcher opens the dock on the element you pick. Nothing is written to your code.
+      </figcaption>
+    </figure>
+  );
+}
+
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-6 py-20">
-      <p className="text-sm font-medium text-neutral-500">A visual editing layer for code-based websites</p>
-      <h1 className="mt-4">Shape the page. Keep the code.</h1>
-      <p className="mt-6 max-w-2xl text-base leading-relaxed text-neutral-600">
-        Edityy adds a visual editor to your development server. Edit content and styles on the page, arrange elements,
-        and hand your changes to the codebase when they are ready.
-      </p>
+    <div className="flex flex-1 flex-col">
+      <header className="sticky top-3 z-40 px-4 sm:top-5">
+        <nav
+          aria-label="Main"
+          className="mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 bg-white/80 py-2 pl-4 pr-2 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_8px_24px_-16px_rgba(22,35,58,0.25)] backdrop-blur-md"
+        >
+          <Link href="/" className="flex items-center gap-2 text-[0.875rem] font-semibold tracking-[-0.02em]">
+            <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
+            Edityy
+          </Link>
+          <div className="ml-auto hidden items-center gap-1 sm:flex">
+            <a
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              href="#how"
+            >
+              How it works
+            </a>
+            <a
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              href="#features"
+            >
+              Features
+            </a>
+            <a
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              href={GITHUB}
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+          </div>
+          <a
+            href="#install"
+            className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-[0.8125rem] font-medium text-white transition-colors duration-150 hover:bg-neutral-600 sm:ml-2"
+          >
+            Install
+          </a>
+        </nav>
+      </header>
 
-      <pre className="mt-8 overflow-x-auto rounded-md border border-neutral-200 bg-neutral-100 p-4 font-mono text-sm">
-        npm install -D edityy
-      </pre>
+      <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
+        <section className="pt-16 text-center sm:pt-24">
+          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
+            Open source, MIT licensed
+          </span>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Edityy features">
-        {features.map((feature) => (
-          <article key={feature.title} className="rounded-lg border border-neutral-200 p-4">
-            <h2 className="text-base font-semibold">{feature.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600">{feature.description}</p>
-          </article>
-        ))}
-      </section>
+          <h1 className="mx-auto mt-6 max-w-[42rem] text-balance text-[2.25rem] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-[2.75rem]">
+            Shape the page.
+            <br />
+            <span className="text-neutral-600">Keep the code.</span>
+          </h1>
 
-      <p className="mt-8 text-sm text-neutral-500">
-        Add Edityy to Vite, Express or Next.js. Read the {" "}
-        <a className="underline" href="https://www.npmjs.com/package/edityy" target="_blank" rel="noreferrer">
-          setup guide and full feature details
-        </a>
-        .
-      </p>
-      <p className="mt-2 text-sm text-neutral-500">
-        <Link className="underline" href="https://github.com/farhantawfeeq56/edityy">
-          View the source on GitHub
-        </Link>
-      </p>
-    </main>
+          <p className="mx-auto mt-6 max-w-[34rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
+            Edityy puts a visual editor on the site you already run. Point at an element. Change the type, the colour,
+            the spacing and the fill. Then hand the edits to your code.
+          </p>
+
+          <div className="mt-9">
+            <Install note="One line of config for Vite, Express or Next.js." />
+          </div>
+
+          <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
+            <a className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-900" href={NPM} target="_blank" rel="noreferrer">
+              Setup guide and full details
+            </a>
+            <a className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-900 hover:decoration-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
+              View the source
+            </a>
+          </p>
+
+          <Preview />
+        </section>
+
+        <section id="how" className="scroll-mt-28 border-t border-neutral-200 pt-16 sm:pt-20">
+          <Eyebrow>How it works</Eyebrow>
+          <h2 className="mt-4 max-w-[30rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+            One install, then the page answers to you.
+          </h2>
+          <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
+            {steps.map((step, i) => (
+              <li key={step.title} className="border-t border-neutral-200 pt-5">
+                <span className="font-mono text-[0.75rem] text-rose-500">{`0${i + 1}`}</span>
+                <h3 className="mt-3 text-[1rem] font-semibold tracking-[-0.02em]">{step.title}</h3>
+                <p className="mt-2 max-w-[22rem] text-[0.875rem] leading-relaxed text-neutral-600">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="features" className="mt-20 scroll-mt-28 border-t border-neutral-200 pt-16 sm:mt-24 sm:pt-20">
+          <Eyebrow>What you can change</Eyebrow>
+          <h2 className="mt-4 max-w-[30rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+            The whole page, in the browser you already have open.
+          </h2>
+          <ul className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <li key={feature.title} className="group">
+                <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 transition-colors duration-150 group-hover:border-neutral-300 group-hover:bg-rose">
+                  <Icon name={feature.icon} />
+                </span>
+                <h3 className="mt-4 text-[0.9375rem] font-semibold tracking-[-0.02em]">{feature.title}</h3>
+                <p className="mt-2 text-[0.875rem] leading-relaxed text-neutral-600">{feature.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section id="agent" className="mt-20 scroll-mt-28 sm:mt-24">
+          <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-white sm:px-10 sm:py-14">
+            <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
+              <div>
+                <Eyebrow inverted>Hand-off</Eyebrow>
+                <h2 className="mt-4 text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+                  Your code stays the source of truth.
+                </h2>
+                <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-white/70">
+                  Edityy does not write to your source. It writes down what you changed. Your agent makes the change in
+                  the file, in the way the project already styles things.
+                </p>
+                <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
+                  {handoffs.map((handoff) => (
+                    <li key={handoff.label} className="py-4">
+                      <p className="text-[0.875rem] font-medium">{handoff.label}</p>
+                      <p className="mt-1 text-[0.875rem] leading-relaxed text-white/60">{handoff.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div aria-hidden="true" className="rounded-xl border border-white/10 bg-white/[0.04] p-1">
+                <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-white/50">
+                  <span className="size-1.5 rounded-full bg-rose-500" />
+                  copied as a prompt
+                </div>
+                <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-white/80">
+                  {promptSample}
+                </pre>
+                <div className="flex items-center gap-2 border-t border-white/10 px-3 py-2.5 font-mono text-[0.6875rem] text-white/60">
+                  <span className="text-white/40">$</span>
+                  npx edityy mcp
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="install" className="mt-20 scroll-mt-28 border-t border-neutral-200 pt-16 text-center sm:mt-24 sm:pt-20">
+          <h2 className="mx-auto max-w-[26rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+            Ready when your dev server is.
+          </h2>
+          <p className="mx-auto mt-4 max-w-[30rem] text-[0.9375rem] leading-relaxed text-neutral-600">
+            Install the package, add one line, and reload the page. The launcher is in the bottom-right corner.
+          </p>
+          <div className="mt-9">
+            <Install />
+          </div>
+        </section>
+      </main>
+
+      <footer className="mx-auto w-full max-w-[68rem] px-5 pb-10 sm:px-8">
+        <div className="flex flex-col items-center gap-4 border-t border-neutral-200 pt-6 text-[0.8125rem] text-neutral-600 sm:flex-row sm:justify-between">
+          <span className="flex items-center gap-2 font-medium text-neutral-900">
+            <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
+            Edityy
+          </span>
+          <div className="flex items-center gap-5">
+            <a className="hover:text-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+            <a className="hover:text-neutral-900" href={NPM} target="_blank" rel="noreferrer">
+              npm
+            </a>
+            <a className="hover:text-neutral-900" href={`${GITHUB}/releases`} target="_blank" rel="noreferrer">
+              Changelog
+            </a>
+            <span>MIT</span>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
