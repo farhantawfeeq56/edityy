@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
+import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 /**
@@ -39,6 +40,56 @@ const TOOLS = [
     description:
       "Delete the saved visual edits once they have been applied to the source code, so they are not applied twice.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_variation_request",
+    description:
+      "Read the style variations the user asked for on one element of their running site. " +
+      "Returns the one-sentence request, the element's selector and tag, and its current values. " +
+      "Answer with 2 to 5 variations of plain CSS declarations, then call place_variations.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "place_variations",
+    description:
+      "Place the style variations for a pending variation request, for the user to try on the live element. " +
+      "Each variation is a label and plain standard CSS declarations. No custom properties, " +
+      "pseudo-elements, states, at-rules or !important.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        requestId: { type: "string", description: "The requestId that get_variation_request returned." },
+        variations: {
+          type: "array",
+          minItems: 2,
+          maxItems: 5,
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "Two or three words the user will see." },
+              props: {
+                type: "array",
+                minItems: 1,
+                maxItems: 12,
+                items: {
+                  type: "object",
+                  properties: {
+                    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
+                    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+                  },
+                  required: ["property", "value"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["label", "props"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["requestId", "variations"],
+      additionalProperties: false,
+    },
   },
 ];
 
@@ -98,6 +149,19 @@ export async function handle(message, root) {
         if (params?.name === "clear_visual_changes") {
           await rm(join(root, CHANGES_FILE), { force: true });
           return reply({ content: [{ type: "text", text: "Cleared the saved edits." }] });
+        }
+        if (params?.name === "get_variation_request") {
+          const request = await readVariationRequest(root);
+          return reply({
+            content: [{ type: "text", text: request ? requestText(request) : "No pending variation request. The user has not asked for variations yet." }],
+          });
+        }
+        if (params?.name === "place_variations") {
+          const placed = await placeVariations(params?.arguments, root);
+          const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
+          return reply({
+            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one:\n\n${labels}` }],
+          });
         }
         return fail(-32602, `Unknown tool: ${params?.name}`);
       } catch (error) {
