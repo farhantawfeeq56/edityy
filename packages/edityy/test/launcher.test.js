@@ -1534,7 +1534,7 @@ test("selecting text shows actions without editing until Edit text is chosen", (
   const p = selectText(app, false);
   assert.equal(p.getAttribute("contenteditable"), undefined);
   assert.equal(app.root.nodes["element-menu"].hidden, false);
-  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Delete"]);
+  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Variations", "Delete"]);
   app.action("Edit text");
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
   assert.equal(app.root.nodes["element-menu"].hidden, true);
@@ -1556,7 +1556,7 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   assert.equal(area.getAttribute("aria-label"), "Comment", "the box opens a field to write in");
   area.value = "  make this bigger  ";
   pressButton(inMenu("Save comment"));
-  assert.deepEqual(menu.children[0].children.map((b) => b.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Delete"], "the buttons are back");
+  assert.deepEqual(menu.children[0].children.map((b) => b.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Variations", "Delete"], "the buttons are back");
   assert.match(app.win.__edityy_changes(), /- Comment: "make this bigger"/);
   // Reopening shows what was written, and an emptied field takes it off again.
   app.action("Comment");
@@ -2803,8 +2803,7 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   assert.equal(save.textContent, "Saved to .edityy/changes.json");
 });
 
-test("with no save endpoint the button says so", async () => {
-  const { run } = fakeDom();
+test("with no save endpoint the button says so", async () => {  const { run } = fakeDom();
   const app = run();
   app.win.fetch = async () => ({ status: 404, json: async () => ({}) });
   selectText(app);
@@ -2850,3 +2849,78 @@ test("the dock is fixed at the bottom centre, and the menu sits at the element",
   assert.equal(dock.style.left, "", "the dock holds its one place");
   assert.match(app.root.nodes.pop.style.left, /px$/,
     "the control places the panel from its own centre");});
+
+test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const sent = [];
+  let polls = 0;
+  const variations = [
+    { label: "thin grey", props: [{ property: "scrollbar-width", value: "thin" }, { property: "scrollbar-color", value: "#8a8a8a transparent" }] },
+    { label: "rose pill", props: [{ property: "scrollbar-color", value: "#f43f5e #f4f4f5" }] },
+  ];
+  app.win.fetch = async (url, init = {}) => {
+    sent.push({ url, init });
+    if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "v1" }) };
+    if (init.method === "DELETE") return { status: 200, json: async () => ({ ok: true }) };
+    polls += 1;
+    // One poll with no answer, which is the wait the user sees, then the answer.
+    return { status: 200, json: async () => (polls === 1 ? { ok: true, pending: true } : { ok: true, requestId: "v1", variations }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  const el = selectText(app);
+  const menu = app.root.nodes["element-menu"];
+  const strip = app.root.nodes.variants;
+  const inMenu = (label) => menu.children[0].children
+    .flatMap((child) => (child.children.length ? child.children : [child]))
+    .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  app.action("Variations");
+  const area = menu.children[0].children[0];
+  assert.equal(area.getAttribute("aria-label"), "What to vary");
+  area.value = "  thinner and darker  ";
+  const ask = inMenu("Ask for variations of this element");
+  for (const fn of ask.bubbles.click.bubble) fn({});
+  // The box says it is waiting, and neither the field nor Ask takes a second request.
+  assert.match(menu.children[0].children[1].children[0].nodeValue, /Waiting for your agent…/);
+  assert.equal(menu.children[0].children[0].disabled, true);
+  assert.equal(inMenu("Ask for variations of this element").disabled, true);
+
+  await tick();
+  const request = JSON.parse(sent[0].init.body);
+  assert.equal(sent[0].url, "/__edityy/variations");
+  assert.equal(sent[0].init.method, "POST");
+  assert.equal(request.prompt, "thinner and darker");
+  assert.equal(request.element.tag, "p", "the tag, not the source code");
+  assert.equal(request.element.selector, "p");
+  assert.deepEqual(request.element.values, [{ property: "display", value: "block" }]);
+  assert.ok(JSON.stringify(request.element).length < 800, "the agent gets a short context");
+
+  await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
+  assert.equal(polls, 2);
+  assert.equal(strip.hidden, false, "the strip is up");
+  assert.equal(inMenu("Ask for variations of this element"), undefined, "the prompt box is done");
+  const rows = strip.children.slice(1);
+  assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);
+  assert.deepEqual(rows.map((r) => r.children[0].children[0].nodeValue), ["1", "2"], "each row says its key");
+  assert.deepEqual(rows.map((r) => r.children[1].children[0].nodeValue), ["thin grey", "rose pill"]);
+  assert.equal(rows[0].getAttribute("aria-pressed"), "false", "nothing is on the element yet");
+
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
+  assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
+  // The strip is drawn again, so the row that is on is the one read back now.
+  assert.equal(strip.children[1].getAttribute("aria-pressed"), "true");
+  assert.equal(strip.children[2].getAttribute("aria-pressed"), "false");
+  assert.match(app.win.__edityy_changes(), /- `scrollbar-width`: `unset` → `thin`/);
+
+  // The next variation is the whole variation: the width goes back, it is not left over.
+  quiet(() => app.fire("keydown", { key: "2" }));
+  assert.equal(el.style.getPropertyValue("scrollbar-width"), "");
+  assert.equal(el.style.getPropertyValue("scrollbar-color"), "#f43f5e #f4f4f5");
+
+  // Escape puts the strip away, and the picks stay: they are ordinary edits.
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(strip.hidden, true);
+  assert.match(app.win.__edityy_changes(), /- `scrollbar-color`: `unset` → `#f43f5e #f4f4f5`/);
+});

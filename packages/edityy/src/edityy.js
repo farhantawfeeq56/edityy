@@ -71,6 +71,7 @@
     "list": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /></svg>',
     "maximize": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>',
     "message-square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>',
+    "sparkles": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5 8.5 19l-1.44-3.5L3.5 14l3.56-1.44L8.5 9l1.44 3.5L13.5 14z" /> <path d="M18 3v4" /> <path d="M16 5h4" /> <path d="M17 17v4" /> <path d="M15 19h4" /></svg>',
     "move": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20" /> <path d="m15 19-3 3-3-3" /> <path d="m19 9 3 3-3 3" /> <path d="M2 12h20" /> <path d="m5 9-3 3 3 3" /> <path d="m9 5 3-3 3 3" /></svg>',
     "move-diagonal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19H5v-6" /> <path d="M13 5h6v6" /> <path d="M19 5 5 19" /></svg>',
     "move-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8 4 4-4 4" /> <path d="M2 12h20" /> <path d="m6 8-4 4 4 4" /></svg>',
@@ -498,11 +499,28 @@
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
+    // The variation strip: fixed to the bottom right, out of the dock's way, so
+    // the element stays in sight while its variations are compared. It wears the
+    // element card's paper, and one row per variation carries its key and label.
+    ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;gap:2px;width:max-content;max-width:min(280px,calc(100vw - 24px));padding:8px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;",
+    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
+    ".variants-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 6px 6px}",
+    ".variants-title{margin:0;font:500 12px/1.3 inherit;color:var(--muted)}",
+    ".variant{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border:0;border-radius:8px;background:transparent;",
+    "color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
+    ".variant:hover{background:var(--ink-4)}",
+    ".variant:active{transform:scale(.98);transition-duration:.13s,.08s}",
+    ".variant[aria-pressed=true]{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink-15)}",
+    ".variant:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".variant .key{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:6px;background:var(--ink-6);",
+    "color:var(--muted);font:500 12px/1 inherit}",
+    ".variant[aria-pressed=true] .key{background:var(--ink);color:var(--paper)}",
+    ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
     "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
     // Two pairs of sides, each pair with the link that ties it. A box is even
     // both ways far more often than not, so a tied pair is ONE field: top follows
     // the same value as bottom, and left the same as right.
@@ -564,6 +582,9 @@
     '<i class="frame-marker edge horizontal" data-edge="top"></i>',
     '<i class="frame-marker edge horizontal" data-edge="bottom"></i></div>',
     '<div class="element-menu" id="element-menu" hidden role="toolbar" aria-label="Element actions"></div>',
+    // The variations of one element, at the bottom right, and the keys that
+    // switch between them.
+    '<div class="variants" id="variants" hidden role="group" aria-label="Style variations"></div>',
     '<div class="insert" id="insert" hidden>',
     svg("plus"),
     "</div>",
@@ -599,6 +620,7 @@
   var hoverBox = $("hover");
   var selBox = $("sel");
   var elementMenu = $("element-menu");
+  var variantsBox = $("variants");
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
@@ -766,17 +788,22 @@
    * recorded as nothing to put back and exit would leave it behind.
    */
   function apply(prop, value) {
-    var rec = record(selected);
+    return applyTo(selected, prop, value);
+  }
+
+  /** apply(), for an element that is not the selection: a variation writes there. */
+  function applyTo(el, prop, value) {
+    var rec = record(el);
     remember(rec, prop);
-    var was = selected.style.getPropertyValue(prop);
+    var was = el.style.getPropertyValue(prop);
     // `value` is a string, and "" means "not set": removeProperty empties it
     // without leaving a declaration behind, while setProperty("") would write one
     // that overrides the stylesheet with nothing — the bug a control that writes
     // "" to mean "off" would otherwise cause, and silently break the revert too,
     // since an empty value records nothing to put back.
-    if (value) selected.style.setProperty(prop, value);
-    else selected.style.removeProperty(prop); // back to the stylesheet's value
-    step(rec, prop, was, selected.style.getPropertyValue(prop));
+    if (value) el.style.setProperty(prop, value);
+    else el.style.removeProperty(prop); // back to the stylesheet's value
+    step(rec, prop, was, el.style.getPropertyValue(prop));
     return rec;
   }
 
@@ -1169,6 +1196,22 @@
       commentFor = null;
       openComment = null;
     }
+    if (variationBoxFor && variationBoxFor !== selected) {
+      variationBoxFor = null;
+      openVariationBox = null;
+    }
+    if (variationBoxFor) {
+      // Rebuilt only when the words change — the prompt, then the waiting — so a
+      // refit mid-sentence leaves the caret and the words alone.
+      var state = variationWaiting ? "waiting" : "prompt";
+      if (!openVariationBox || openVariationBoxState !== state) {
+        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+        elementMenu.appendChild(variationBox(variationBoxFor));
+        openVariationBoxState = state;
+      }
+      placeElementMenu();
+      return;
+    }
     if (commentFor) {
       // A refit (a scroll, a resize) must not throw the words away mid-sentence,
       // so an open box is only placed again, and never built again.
@@ -1206,6 +1249,16 @@
       commentFor = selected;
       syncElementMenu();
     }, svg(MENU_ICONS.comment)));
+    actions.appendChild(actionButton("Variations", function () {
+      // One box at a time: the prompt replaces the comment's own.
+      commentFor = null;
+      openComment = null;
+      variationBoxFor = selected;
+      variationPrompt = "";
+      variationWords = "";
+      openVariationBox = null;
+      syncElementMenu();
+    }, svg(MENU_ICONS.variations)));
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
     elementMenu.appendChild(actions);
     placeElementMenu();
@@ -1659,6 +1712,7 @@ function faces() {
     parent: "arrow-up",
     child: "arrow-down",
     comment: "message-square",
+    variations: "sparkles",
     delete: "trash-2",
   };
 
@@ -4202,6 +4256,244 @@ function decorations() {
     });
   }
 
+  /* ---------------------------------------------------------- variations */
+
+  // The dev server's variation endpoint (index.js). The page writes what the
+  // user asked for, polls until the agent answers, and shows the answer here.
+  var VARIATIONS_URL = "/__edityy/variations";
+  // The values the agent gets: a short list of computed values, so a typical
+  // request stays under about 800 characters and the agent never sees the code.
+  var CONTEXT_PROPS = ["display", "color", "background-color", "border-color", "border-width", "border-style", "border-radius", "font-family", "font-size", "font-weight", "line-height", "padding", "margin", "width", "height"];
+  // How often the page asks whether the agent has answered.
+  var POLL_DELAY = 1000;
+
+  var variationFor = null; // the element the waiting request is about
+  var variationId = ""; // the pending request, "" when there is none
+  var variationWaiting = false;
+  var variationTimer = 0;
+  var variationWords = ""; // what the prompt box says: waiting, or why not
+  var variationPrompt = "";
+  var variationBoxFor = null; // the element whose prompt box is open
+  var openVariationBox = null;
+  var openVariationBoxState = "";
+  var variantList = []; // the variations the agent placed
+  var variantAt = -1; // the one on the element, -1 for none
+  var variantProps = []; // the properties the last variation wrote
+
+  /** A request id: random enough that two tabs never share one. */
+  function newId() {
+    return "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  /** What the agent is told about the element: its tag, a selector and values. */
+  function contextFor(el) {
+    var view = null;
+    try {
+      view = window.getComputedStyle(el);
+    } catch (e) {
+      view = null; // a page that cannot be measured still gets a request
+    }
+    var values = [];
+    CONTEXT_PROPS.forEach(function (prop) {
+      var value = view ? String(view.getPropertyValue(prop) || "") : "";
+      if (value) values.push({ property: prop, value: value.slice(0, 80) });
+    });
+    return { tag: el.tagName.toLowerCase(), selector: selectorFor(el), values: values };
+  }
+
+  /**
+   * Ask the dev server for variations of one element. The agent reads the same
+   * request over MCP; `failed` is told why a request did not go out.
+   */
+  function requestVariations(el, prompt, failed) {
+    if (typeof window.fetch !== "function") return failed("Cannot ask here");
+    var id = newId();
+    window.fetch(VARIATIONS_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ id: id, prompt: prompt, element: contextFor(el) }),
+    }).then(function (r) {
+      // Next.js answers 404 until its route file is added.
+      if (r.status === 404) throw new Error("No variations endpoint");
+      return r.json();
+    }).then(function (j) {
+      if (!j || !j.ok) throw new Error((j && j.error) || "The request was refused");
+      variationFor = el;
+      variationId = j.requestId || id;
+      pollVariations(); // at once: an answer already waiting is not waited for
+    }).catch(function (error) {
+      failed(error.message || "Could not ask the dev server");
+    });
+  }
+
+  /** Ask once for the answer, and again in a moment while there is none. */
+  function pollVariations() {
+    if (!variationId) return;
+    var id = variationId;
+    window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(id), { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (id !== variationId) return; // the user moved on
+        if (!j || !j.ok) throw new Error((j && j.error) || "The answer could not be read");
+        if (j.pending || !j.variations) {
+          if (variationTimer) clearTimeout(variationTimer);
+          variationTimer = setTimeout(pollVariations, POLL_DELAY);
+          return;
+        }
+        showVariants(j.variations);
+      })
+      .catch(function (error) {
+        if (id !== variationId) return;
+        variationId = "";
+        variationWaiting = false;
+        variationWords = error.message || "Could not reach the dev server";
+        syncElementMenu();
+      });
+  }
+
+  /** The answer arrived: the strip at the bottom right, and the keys 1 to 5. */
+  function showVariants(list) {
+    if (variationTimer) clearTimeout(variationTimer);
+    variationTimer = 0;
+    variationId = "";
+    variationWaiting = false;
+    variationWords = "";
+    variationBoxFor = null;
+    openVariationBox = null;
+    variantList = list;
+    variantAt = -1;
+    variantProps = [];
+    syncElementMenu();
+    paintVariants();
+    variantsBox.hidden = false;
+  }
+
+  /**
+   * Put one variation on the element. It is written as edits, so it is undoable,
+   * revertible, and saved and copied like any other change.
+   */
+  function pickVariant(index) {
+    var variation = variantList[index];
+    if (!variation || !variationFor) return;
+    var rec = record(variationFor);
+    var next = {};
+    variation.props.forEach(function (p) { next[p.property] = p.value; });
+    // What this variation does not set goes back to the page's own value, so a
+    // key press shows the whole variation and never a mix of two.
+    variantProps.forEach(function (prop) { if (!(prop in next)) restore(rec, prop); });
+    Object.keys(next).forEach(function (prop) { applyTo(variationFor, prop, next[prop]); });
+    variantProps = Object.keys(next);
+    variantAt = index;
+    paintVariants();
+    refit();
+    tally();
+  }
+
+  /** The strip: one row per variation, with the key that picks it. */
+  function paintVariants() {
+    while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
+    var head = document.createElement("div");
+    head.className = "variants-head";
+    var title = document.createElement("p");
+    title.className = "variants-title";
+    title.appendChild(text("Variations"));
+    head.appendChild(title);
+    var keep = button("cta ghost", "", "Keep the variation on the element", function () {
+      closeVariants();
+    }, "keep-variation");
+    keep.appendChild(say("Keep"));
+    head.appendChild(keep);
+    variantsBox.appendChild(head);
+    variantList.forEach(function (variation, i) {
+      var row = button("variant", "", "Use " + variation.label, function () { pickVariant(i); }, "variant-" + (i + 1));
+      row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
+      var key = document.createElement("span");
+      key.className = "key";
+      key.appendChild(text(String(i + 1)));
+      row.appendChild(key);
+      var words = document.createElement("span");
+      words.className = "words";
+      words.appendChild(text(variation.label));
+      row.appendChild(words);
+      variantsBox.appendChild(row);
+    });
+  }
+
+  /** Put the strip away. A pending request is dropped, so no agent answers it late. */
+  function closeVariants() {
+    if (variationTimer) clearTimeout(variationTimer);
+    variationTimer = 0;
+    if (variationId && typeof window.fetch === "function") {
+      window.fetch(VARIATIONS_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {
+        // The request outlives the page, and the next one replaces it anyway.
+      });
+    }
+    variationId = "";
+    variationWaiting = false;
+    variationWords = "";
+    variationBoxFor = null;
+    openVariationBox = null;
+    variantList = [];
+    variantAt = -1;
+    variantProps = [];
+    variationFor = null;
+    variantsBox.hidden = true;
+    while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
+  }
+
+  /** The box that asks what to vary, in the element's own card. */
+  function variationBox(el) {
+    var box = document.createElement("div");
+    box.className = "element-comment";
+    var area = document.createElement("textarea");
+    area.className = "element-comment-text";
+    area.rows = 2;
+    area.placeholder = "One sentence, such as: thinner and darker scrollbar";
+    area.setAttribute("aria-label", "What to vary");
+    area.value = variationPrompt;
+    area.disabled = variationWaiting;
+    box.appendChild(area);
+    if (variationWords) {
+      var note = document.createElement("p");
+      note.className = "note";
+      note.appendChild(text(variationWords));
+      box.appendChild(note);
+    }
+    openVariationBox = box;
+    var actions = document.createElement("div");
+    actions.className = "element-menu-actions";
+    var ask = button("element-action element-comment-action", "", "Ask for variations of this element", function () {
+      var prompt = String(area.value || "").trim();
+      if (!prompt) {
+        if (area.focus) area.focus();
+        return;
+      }
+      variationPrompt = prompt;
+      variationWaiting = true;
+      variationWords = "Waiting for your agent…";
+      syncElementMenu();
+      requestVariations(el, prompt, function (problem) {
+        variationWaiting = false;
+        variationWords = problem;
+        syncElementMenu();
+      });
+    }, "ask-variations");
+    ask.appendChild(say(variationWaiting ? "Waiting…" : "Ask"));
+    ask.disabled = variationWaiting;
+    actions.appendChild(ask);
+    var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
+      closeVariants();
+      syncElementMenu();
+    }, "cancel-variations");
+    cancel.appendChild(text("Cancel"));
+    actions.appendChild(cancel);
+    box.appendChild(actions);
+    // A box opened by a click is ready to type into.
+    setTimeout(function () { if (area.focus && !variationWaiting) area.focus(); }, 0);
+    return box;
+  }
+
   /** Put a string on the clipboard, by the API where there is one. */
   function copyText(value, done) {
     var nav = window.navigator;
@@ -4460,6 +4752,7 @@ function decorations() {
     window.removeEventListener("resize", refit, true);
     // Exiting always puts the page back exactly as it was.
     stopEditing();
+    closeVariants();
     if (moving) {
       var location = record(moving).location;
       location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
@@ -4707,6 +5000,19 @@ function decorations() {
 
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
+    // 1 to 5 pick a variation while the strip is up, which is what the strip
+    // says on each row. A digit in a field belongs to the field.
+    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(String(e.key || ""))) {
+      var field = e.target;
+      var typing = editing || (field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.isContentEditable));
+      var index = Number(e.key) - 1;
+      if (!typing && index < variantList.length) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        pickVariant(index);
+      }
+      return;
+    }
     if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       e.preventDefault();
       e.stopPropagation();
@@ -4714,7 +5020,11 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      if (commentFor) {
+      if (variationBoxFor || !variantsBox.hidden) {
+        // The variations go, the edits they made stay: they are undoable edits.
+        closeVariants();
+        syncElementMenu();
+      } else if (commentFor) {
         // Back to the buttons, with the words still unsaved.
         commentFor = null;
         syncElementMenu();
