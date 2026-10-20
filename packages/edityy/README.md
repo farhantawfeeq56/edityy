@@ -149,11 +149,16 @@ a production build.
 ## MCP
 
 `npx edityy mcp` is a stdio [MCP](https://modelcontextprotocol.io) server that
-hands the saved edits to a coding agent. It has two tools:
+hands the saved edits and the variation requests to a coding agent. It has four
+tools:
 
 - `get_visual_changes` returns the edits in `.edityy/changes.json`, as the same
   Markdown that "Copy for an agent" copies;
-- `clear_visual_changes` deletes them once they are in the code.
+- `clear_visual_changes` deletes them once they are in the code;
+- `get_variation_request` returns the style variations the user asked for on one
+  element, with its tag, selector and current values;
+- `place_variations` takes the answer: 2 to 5 variations of plain CSS
+declarations, for the user to try on the live element.
 
 Claude Code:
 
@@ -168,6 +173,47 @@ Cursor, or any client configured with JSON:
 ```
 
 It reads from the directory it is started in. Pass `--root <dir>` to read from another one.
+
+## Style variations
+
+Select one element, choose **Variations** in its actions, and write one
+sentence: "5 scrollbar variations, thinner and darker." The page posts the
+request to the dev server, and the box says "Waiting for your agent…".
+
+Your agent then has one job, in two tool calls:
+
+1. `get_variation_request` returns the sentence, the element's tag, its
+   selector and a few current values — about 800 characters. The agent never
+   sees your code for this.
+2. `place_variations` takes the answer: 2 to 5 variations, each a short label
+   and a list of plain declarations.
+
+```
+thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
+rose pill | scrollbar-color: #f43f5e #f4f4f5
+```
+
+A strip at the bottom right then shows the variations. Keys `1` to `5` switch
+the real element between them, and **Keep** puts the strip away. What is left
+on the element is an ordinary edit: **Save to project** and `get_visual_changes`
+carry it like any other, and Escape or leaving the mode reverts it.
+
+The endpoint is `POST`, `GET` and `DELETE /__edityy/variations`. A request and
+its answer are written to `.edityy/variation-request.json` and
+`.edityy/variation-response.json`, which the MCP server reads. The page sends
+only plain values, and an answer is checked before the page shows it: a custom
+property, a pseudo-element, a state, an at-rule, `!important` or `url()` is
+refused. Words in a stylesheet — a hover state, a pseudo-element, a breakpoint —
+need a temporary stylesheet, which this version does not have.
+
+**Next.js** needs one more route file, next to the one for the edits:
+
+```ts
+// app/%5F%5Fedityy/variations/route.ts
+import { variationsRoute } from "edityy";
+
+export const { GET, POST, DELETE } = variationsRoute();
+```
 
 ## What it does
 
@@ -206,6 +252,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
   - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
   - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
+- **Variations** in the element actions asks your coding agent for a few style variations of that one element. The strip at the bottom right shows them, keys `1` to `5` switch the element between them, and the one you keep is an ordinary edit. See [Style variations](#style-variations).
 - Keys: Shift+A wraps selected siblings in a column flex container. Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons. Shift+Arrow does not extend the selection.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
@@ -220,13 +267,14 @@ edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) m
 - `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
   function `(req, res) => string` when your app makes a new nonce for each response.
 - `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
-- `save: false` turns off the save endpoint.
+- `save: false` turns off the save endpoint and the variation endpoint.
 - `allowedHosts` names more hosts the save endpoint takes, besides `localhost` and IP addresses.
   A leading dot also takes the subdomains; `true` takes every host.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
 for injecting into an HTML string yourself, `changesRoute({ root, allowedHosts })` (the save
-endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
+endpoint as a fetch-style route handler), `variationsRoute({ root, allowedHosts })` (the
+variation endpoint as `GET`, `POST` and `DELETE` route handlers), `writeChanges(payload, root?)`,
 `CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
 mounts the launcher, for frameworks that inject client modules.
 
