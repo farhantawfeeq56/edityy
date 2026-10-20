@@ -51,20 +51,23 @@
     "align-left": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></svg>',
     "align-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3" /> <path d="M21 12H9" /> <path d="M21 19H7" /></svg>',
     "arrow-down": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg>',
+    "arrow-left": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg>',
     "arrow-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></svg>',
     "arrow-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg>',
     "baseline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16" /> <path d="m6 16 6-12 6 12" /> <path d="M8 12h8" /></svg>',
     "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>',
+    // A drop: the softest edge there is, for the shadow's blur.
+    "droplet": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg>',
     "bold": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" /></svg>',
     "columns-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M12 3v18" /></svg>',
     "ellipsis": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg>',
     "expand": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6" /> <path d="m15 9 6-6" /> <path d="M21 16v5h-5" /> <path d="M21 8V3h-5" /> <path d="M3 16v5h5" /> <path d="m3 21 6-6" /> <path d="M3 8V3h5" /> <path d="M9 9 3 3" /></svg>',
     "frame": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="6" y2="6" /> <line x1="22" x2="2" y1="18" y2="18" /> <line x1="6" x2="6" y1="2" y2="22" /> <line x1="18" x2="18" y1="2" y2="22" /></svg>',
     "grip": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" /> <circle cx="19" cy="5" r="1" /> <circle cx="5" cy="5" r="1" /> <circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /> <circle cx="12" cy="19" r="1" /> <circle cx="19" cy="19" r="1" /> <circle cx="5" cy="19" r="1" /></svg>',
-    "grid-3x3": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M3 9h18" /> <path d="M3 15h18" /> <path d="M9 3v18" /> <path d="M15 3v18" /></svg>',
     "italic": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4" /> <line x1="14" x2="5" y1="20" y2="20" /> <line x1="15" x2="9" y1="4" y2="20" /></svg>',
     "layers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></svg>',
     "layout-grid": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></svg>',
+    "link": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>',
     "list": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /></svg>',
     "maximize": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>',
     "message-square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>',
@@ -83,6 +86,7 @@
     "type": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16" /> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /> <path d="M9 20h6" /></svg>',
     "underline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v6a6 6 0 0 0 12 0V4" /> <line x1="4" x2="20" y1="20" y2="20" /></svg>',
     "undo-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>',
+    "unlink": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /> <path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /> <line x1="8" x2="8" y1="2" y2="5" /> <line x1="2" x2="5" y1="8" y2="8" /> <line x1="16" x2="16" y1="19" y2="22" /> <line x1="19" x2="22" y1="16" y2="16" /></svg>',
     "unfold-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12h6" /> <path d="M8 12H2" /> <path d="M12 2v2" /> <path d="M12 8v2" /> <path d="M12 14v2" /> <path d="M12 20v2" /> <path d="m19 15 3-3-3-3" /> <path d="m5 9-3 3 3 3" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
@@ -94,22 +98,41 @@
     return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + glyph + "</svg>";
   };
 
-  // DESIGN.md is the source of truth for every value below: Primary #3a283c,
-  // On-primary #ffffff, Secondary #86546b, Muted #86546b, hairline #3a283c1a,
-  // Accent-rose #d79eac for state, Tertiary #b6758b for focus. The ramp is
-  // closed — five values, nothing pure black or pure white. The ramp has no
-  // second neutral, so a control that needs a fill on paper wears ink alpha
-  // (the #3a283c0f the hover states already use), never a grey.
+  // DESIGN.md is the source of truth for the five values below: Primary
+  // #16233a, On-primary #ffffff, Secondary #465a78, Muted #465a78, hairline
+  // #16233a1a, Accent-rose #b6cbe8 for state, Tertiary #2f5fa8 for focus. The
+  // ramp is closed — five values, nothing pure black or pure white. The ramp
+  // has no second neutral, so a control that needs a fill on paper wears ink
+  // alpha (the ink 6% below), never a grey.
+  //
+  // The sheet paints itself from the variables on the first :host rule, so a
+  // page that sets --edityy-ink and its neighbours repaints the whole chrome.
+  // Every one of them falls back to its DESIGN.md value.
   root.innerHTML = [
     "<style>",
     // all:initial and the colour on ONE rule: a second :host{color} later in the
     // sheet would win, but `all:initial` resets colour itself, so a :host{color}
-    // written before it is wiped and every icon goes back to its own plum.
-    ":host{all:initial;color:#3a283c}",
+    // written before it is wiped and every icon goes back to its own ink.
+    ":host{all:initial;color:var(--ink)}",
     // The motion, after interior.dev: things arrive on a long ease-out and leave
     // on a short ease-in, so the way in is felt and the way out is not waited for.
     // Custom properties are not reset by all:initial.
     ":host{--arrive:cubic-bezier(.23,1,.32,1);--leave:cubic-bezier(.4,0,1,1)}",
+    // The five values, and the steps drawn from them. The numbers on an ink or
+    // a rose step are its alpha percentage: colour-mix against transparent
+    // keeps the alpha and the colour, so a step holds whatever the ink is.
+    ":host{--ink:var(--edityy-ink,#16233a);--paper:var(--edityy-paper,#ffffff);--muted:var(--edityy-muted,#465a78);",
+    "--accent:var(--edityy-accent,#2f5fa8);--rose:var(--edityy-rose,#b6cbe8);",
+    "--ink-4:color-mix(in srgb,var(--ink) 4%,transparent);--ink-6:color-mix(in srgb,var(--ink) 6%,transparent);",
+    "--ink-8:color-mix(in srgb,var(--ink) 8%,transparent);--ink-10:color-mix(in srgb,var(--ink) 10%,transparent);",
+    "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
+    "--ink-20:color-mix(in srgb,var(--ink) 20%,transparent);--ink-25:color-mix(in srgb,var(--ink) 25%,transparent);",
+    "--ink-35:color-mix(in srgb,var(--ink) 35%,transparent);--ink-40:color-mix(in srgb,var(--ink) 40%,transparent);",
+    "--rose-30:color-mix(in srgb,var(--rose) 30%,transparent);--rose-40:color-mix(in srgb,var(--rose) 40%,transparent);",
+    "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
+    // A control that is open, and one under the pointer: paper stepped once
+    // towards ink, so the step holds whatever the paper is.
+    "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper))}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
     // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
@@ -118,8 +141,8 @@
     //
     // The colour goes on :host, not on *. A universal colour reaches the <path>
     // inside an icon as well as its <svg>, and since those paths are painted with
-    // currentColor they resolve against their OWN colour — which is this plum on
-    // every button. An open control paints itself #3a283c, so its icon was the
+    // currentColor they resolve against their OWN colour — which is this ink on
+    // every button. An open control paints itself var(--ink), so its icon was the
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
@@ -132,15 +155,15 @@
     "display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{position:relative;display:flex;gap:2px;padding:4px;background:#ffffff;border:1px solid transparent;border-radius:12px;",
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
+    ".row{position:relative;display:flex;gap:2px;padding:4px;background:var(--paper);border:1px solid transparent;border-radius:12px;",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
     // is never one of row.children. It fades in where it first lands, and moves
     // only once it is on show (data-glide=warm).
     ".row:before{content:\"\";position:absolute;left:0;top:4px;height:34px;width:var(--glide-w,34px);border-radius:8px;",
-    "background:#3a283c0a;pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
+    "background:var(--ink-4);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity .1s var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity .1s var(--arrive),transform .26s var(--arrive),width .26s var(--arrive)}",
     ".row>*{position:relative}",
@@ -148,47 +171,70 @@
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
-    "border-radius:8px;background:transparent;color:#3a283c;cursor:pointer;",
+    "border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;",
     // The press goes down fast and comes back slower: the hand is quick, the
     // release settles.
     "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
-    ".ic:hover{background:#fcfcfc}",
+    ".ic:hover{background:var(--fill-hover)}",
     ".ic:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:#f9f9f9}",
-    ".ic.add{color:#86546b}",
+    ".ic[aria-expanded=true]{background:var(--fill-open)}",
+    ".ic.add{color:var(--muted)}",
     ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
     "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
     ".ic.group-start{margin-left:6px;position:relative}",
-    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:#3a283c26}",
-    ".ic.size-control{width:84px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px}",
-    ".ic.size-control:focus-within{background:#f9f9f9}",
-    ".size-control input{width:48px;height:32px;border:0;background:transparent;color:inherit;",
+    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
+    ".ic.size-control{width:86px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px;",
+    // The rectangle is there before the pointer arrives: a chip that holds a value
+    // is a box, at rest and under the caret alike.
+    "border:1px solid var(--ink-15)}",
+    ".ic.size-control:focus-within{background:var(--fill-open)}",
+    // A count the dock wears in its own row: the grid's columns × rows, and the
+    // four offsets of an element that is placed absolutely.
+    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px;border:1px solid var(--ink-15)}",
+    ".dock-count:focus-within{background:var(--fill-open)}",
+    ".ic.dock-count input{width:4ch;height:32px;border:0;padding:0;background:transparent;color:inherit;",
+    "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    ".dock-count input::placeholder{color:var(--muted);opacity:1}",
+    ".dock-count .times{color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;line-height:1}",
+    // The letter of an absolute side, so four numbers in a row still say which
+    // side is which without a label over every one of them.
+    ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:10px;",
+    "font-weight:500;line-height:1;letter-spacing:.04em}",
+    ".ic.size-control input{width:48px;height:32px;border:0;padding:0;background:transparent;color:inherit;",
     "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
-    ".custom-select-trigger{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:8px 10px;",
-    "background:#ffffff;color:#3a283c;font:500 14px/1 inherit;text-align:left;cursor:pointer}",
+    ".custom-select-trigger{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
+    "background:var(--paper);color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;",
+    "transition:background-color .13s ease,border-color .13s ease}",
+    ".custom-select-trigger:hover{background:var(--fill-hover)}",
+    ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted);",
+    "outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
-    "max-height:180px;overflow-y:auto;padding:4px;background:#ffffff;border:1px solid #3a283c1a;border-radius:8px;",
-    "box-shadow:0 8px 18px #3a283c1f}",
-    ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:#3a283c;text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
-    ".custom-option:hover,.custom-option[aria-pressed=true]{background:#3a283c0f}",
+    "max-height:180px;overflow-y:auto;padding:4px;background:var(--paper);border:1px solid var(--ink-10);border-radius:8px;",
+    "box-shadow:0 8px 18px var(--ink-12)}",
+    ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--ink);text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
+    ".custom-option:hover,.custom-option[aria-pressed=true]{background:var(--ink-6)}",
     ".size-control .custom-select{width:26px;flex:none}",
     ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
     // Upward, like every other list in the dock: the size button sits 24px above
     // the bottom of the viewport, so a list below it lands off the screen.
     ".size-control .custom-select-menu{bottom:calc(100% + 4px);top:auto;width:64px}",
-    ".weight-control{gap:8px}",
-    ".weight-control>input{width:64px;flex:none}",
-    ".weight-control .custom-select{min-width:0;width:26px;flex:none}",
+    // The weight field is the size control in the dock, at the width of a field:
+    // the number and a bare chevron in one chip, so the list is not a second box
+    // standing beside the value.
+    ".pop .weight-control{width:auto;gap:2px}",
+    ".pop .weight-control .custom-select{width:26px;flex:none;min-width:0}",
+    ".pop .weight-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px;color:var(--muted)}",
+    ".pop .weight-control .custom-select-trigger:hover{color:var(--ink)}",
     // The arrow of a list that has a value field beside it. The arrow alone
     // says "there is a list here"; the value is the field's, and is not said
     // twice. Sized where it stands, and it borrows the colour of its row.
     ".custom-select-trigger.chevron>svg{width:14px;height:14px;display:block;color:inherit}",
-    // A list off a narrow arrow is as wide as its own words, and grows towards
+    // A list off a bare arrow is as wide as its own words, and grows towards
     // the middle of the panel rather than past its edge.
-    ".weight-control .custom-select-menu{left:auto;right:0;width:max-content;min-width:120px}",
-    ".color-button[aria-expanded=true]{background:#f9f9f9}",
+    ".pop .weight-control .custom-select-menu{left:auto;right:0;bottom:calc(100% + 6px);width:max-content;min-width:140px}",
+    ".color-button[aria-expanded=true]{background:var(--fill-open)}",
     // The picker is HeroUI's in build and behaviour — the field with the dot,
     // the hue rail, the value field — and every control on it is still drawn
     // rather than borrowed from the browser, because a native range cannot
@@ -203,18 +249,18 @@
     // The Controlled picker asks the popover for a tighter gap than the default,
     // and the width is the picker's own: the panel takes the room it needs and
     // the surface around it follows, wherever the picker stands.
-    ".color-panel{display:flex;flex-direction:column;gap:8px;width:152px}",
-    // The keyboard ring: 2px of paper, then the mid rose that carries every
+    ".color-panel{display:flex;flex-direction:column;gap:8px;width:176px}",
+    // The keyboard ring: 2px of paper, then the cobalt that carries every
     // interaction highlight in the ramp. Drawn on the control the pointer uses,
     // never on the hidden input.
-    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
+    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // The field: saturation across, brightness up, the hue underneath both. Its
     // layers are set from the colour on show; the dot wears the colour itself.
     ".field{position:relative;width:100%;aspect-ratio:1/1;border-radius:16px;cursor:crosshair;touch-action:none;",
-    "box-shadow:inset 0 0 0 1px #3a283c1a}",
-    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px #3a283c1a,0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
-    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
-    "box-shadow:0 0 0 1px #3a283c1a,inset 0 0 0 1px #3a283c1a;pointer-events:none;will-change:width,height;",
+    "box-shadow:inset 0 0 0 1px var(--ink-10)}",
+    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px var(--ink-10),0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
+    "box-shadow:0 0 0 1px var(--ink-10),inset 0 0 0 1px var(--ink-10);pointer-events:none;will-change:width,height;",
     "transition:width .15s cubic-bezier(0,0,.2,1),height .15s cubic-bezier(0,0,.2,1)}",
     ".field[data-dragging=true] .field-thumb{width:20px;height:20px}",
     // The sliders: one 20px track, a 10px cap at each end that carries the
@@ -224,22 +270,22 @@
     ".pick-row .slider{flex:1}",
     ".track{position:relative;height:20px;margin:0 10px;",
     "background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);",
-    "box-shadow:inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a}",
+    "box-shadow:inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10)}",
     ".track:before,.track:after{content:\"\";position:absolute;top:0;height:100%;width:10px}",
     // The caps carry the colours the track stops short of. On the hue slider that
     // is red at both ends — the hue it shows is fully saturated by definition —
     // and the alpha slider sets its own two: clear, and the colour itself.
     ".track:before{left:-10px;border-start-start-radius:16px;border-end-start-radius:16px;",
-    "box-shadow:inset 1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    "box-shadow:inset 1px 0 0 var(--ink-10),inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10);",
     // The checkerboard is the ramp too: paper, then ink alpha. A grey pair here
     // was the one place a colour came from outside the five values.
-    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(#ffffff 0% 25%,#3a283c14 0% 50%) 50%/16px 16px}",
+    "background:linear-gradient(var(--track-start,#f00)),repeating-conic-gradient(var(--paper) 0% 25%,var(--ink-8) 0% 50%) 50%/16px 16px}",
     ".track:after{right:-10px;border-start-end-radius:16px;border-end-end-radius:16px;",
-    "box-shadow:inset -1px 0 0 #3a283c1a,inset 0 1px 0 #3a283c1a,inset 0 -1px 0 #3a283c1a;",
+    "box-shadow:inset -1px 0 0 var(--ink-10),inset 0 1px 0 var(--ink-10),inset 0 -1px 0 var(--ink-10);",
     "background-color:var(--track-end,#f00)}",
-    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid #ffffff;border-radius:16px;transform:translate(-50%,-50%);",
-    "pointer-events:none;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f}",
-    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b6758b}",
+    ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
+    "pointer-events:none;box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12)}",
+    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // The real input behind each drawn control: out of sight, out of the
     // pointer's way, and still the thing Tab lands on.
     "input.knob[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;opacity:.0001;pointer-events:none}",
@@ -247,9 +293,9 @@
     // with ink alpha because it stands on paper and the ramp has no grey to
     // fill it with.
     ".icon-button{display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border:0;",
-    "border-radius:50%;padding:0;background:#3a283c0f;color:#3a283c;cursor:pointer;",
+    "border-radius:50%;padding:0;background:var(--ink-6);color:var(--ink);cursor:pointer;",
     "transition:transform .25s ease,background-color .1s cubic-bezier(0,0,.2,1),box-shadow .1s cubic-bezier(0,0,.2,1)}",
-    ".icon-button:hover{background:#3a283c1a}",
+    ".icon-button:hover{background:var(--ink-10)}",
     ".icon-button:active{transform:scale(.97)}",
     ".icon-button>svg{width:16px;height:16px;display:block}",
     // The button's own input, held off-screen: the UA rule for a colour input
@@ -257,34 +303,29 @@
     "input.colour-picker[type=color]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}",
     // The value, in the field a form would use: the colour as a swatch, and the
     // words beside it.
-    // Paper fill on paper, at the 8px the input ramp asks for: the hairline is
-    // what gives it a body, the way it does every other card on a paper canvas.
-    ".value-field{display:flex;align-items:center;width:100%;height:36px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff}",
-    ".value-field:focus-within{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
-    ".value-field .chip{width:16px;height:16px;flex:none;margin-inline-start:12px;border-radius:8px;box-shadow:inset 0 0 0 1px #3a283c1a}",
-    ".value-field input[type=text]{flex:1;min-width:0;height:100%;border:0;padding:8px;background:transparent;color:#3a283c;",
+    // The colour's field is the chip every other value wears: the swatch where a
+    // glyph stands, the hex after it, and the transparency where a unit would be.
+    // It spans the picker, and the picker is its width.
+    ".value-field{width:100%}",
+    ".value-field .chip{width:16px;height:16px;flex:none;border-radius:8px;box-shadow:inset 0 0 0 1px var(--ink-10)}",
+    ".value-field input[type=text]{flex:1;min-width:7ch;height:100%;border:0;padding:0 4px;background:transparent;color:var(--ink);",
     "font-size:14px;font-weight:500;outline:none}",
     // The transparency, as the number it is: one line with the value, the way a
     // form wears a unit. The spinners are off so a three-character field holds
     // the number and the sign, and the arrow keys still step it.
-    ".value-field .alpha{display:flex;align-items:center;flex:none;margin-inline-end:12px;color:#86546b;font-size:14px;font-weight:500}",
+    ".value-field .alpha{display:flex;align-items:center;flex:none;color:var(--muted);font-size:14px;font-weight:500}",
     ".value-field .alpha input[type=number]{width:3ch;height:100%;border:0;padding:0;background:transparent;color:inherit;",
     "font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;outline:none;-webkit-appearance:none;appearance:none}",
     // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
     // glyph is its own svg inside this one, and sizing that too would draw it 18
     // units wide in a 256 box. The `>` is what keeps this from reaching it.
     ".ic>svg{width:18px;height:18px;display:block;color:inherit}",
-    // Type controls are their own glyphs: a letterform says "this is about type"
-    // faster than any abstract mark could. color:inherit is not optional: the
-    // universal * rule above sets a colour on every element, so a glyph would
-    // stay plum on the plum of an active button and vanish.
-    ".g{font-size:15px;font-weight:600;line-height:1;color:inherit;pointer-events:none}",
-    // The swatch is a real control, so it takes focus and shows focus: an inline
-    // <i> would be invisible to the keyboard and unreachable by the pointer.
-    // The bar wears the element own colour once one is selected, and is a bare
-    // outline until then: an empty swatch is honest about knowing nothing, where
-    // a swatch painted in our plum would claim the site is that colour.
-    ".sw{display:block;width:16px;height:3px;margin-top:2px;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px #3a283c40}",
+    // The text colour is the colour alone: a chip painted in the element own
+    // colour. The chip is a real element so it takes focus and shows focus: a
+    // background on the button could not be read out by anything, and an empty
+    // chip is honest about knowing nothing, where one painted in our ink would
+    // claim the site is that colour.
+    ".sw{display:block;width:18px;height:18px;border-radius:6px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-20)}",
     // No min-width: each control is exactly as wide as its own content. A floor
     // here is what makes a row of four icons as wide as a list of face names,
     // with dead paper either side of the icons. The pop is out of the flow, so
@@ -294,65 +335,93 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:#f9f9f9;border:1px solid transparent;border-radius:16px;",
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--fill-open);border:1px solid transparent;border-radius:16px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
     // whatever the site styles its scrollbars with, or a chunky default. A hairline
     // in the ramp, inset so it never sits on the text, and no buttons.
-    "scrollbar-width:thin;scrollbar-color:#3a283c40 transparent;padding-right:4px}",
+    "scrollbar-width:thin;scrollbar-color:var(--ink-25) transparent;padding-right:4px}",
     ".list::-webkit-scrollbar{width:6px}",
     ".list::-webkit-scrollbar-track{background:transparent}",
-    ".list::-webkit-scrollbar-thumb{background:#3a283c40;border-radius:6px}",
-    ".list::-webkit-scrollbar-thumb:hover{background:#3a283c66}",
+    ".list::-webkit-scrollbar-thumb{background:var(--ink-25);border-radius:6px}",
+    ".list::-webkit-scrollbar-thumb:hover{background:var(--ink-40)}",
     // One row per option: a face shows itself, an alignment shows its own lines.
     // width:max-content, not 100%: a row is as wide as its own label, so a short
     // name does not stretch the list and a long one is not clipped.
     ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
     "border-radius:8px;padding:7px 10px;",
-    "background:transparent;color:#3a283c;font:500 14px/1.2 inherit;cursor:pointer;",
+    "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer;",
     "transition:background .12s ease,color .12s ease,transform .2s var(--arrive)}",
-    ".opt:hover{background:#3a283c0f}",
+    ".opt:hover{background:var(--ink-6)}",
     ".opt:active{transform:scale(.98);transition-duration:.12s,.12s,.08s}",
-    ".opt[aria-pressed=true]{background:#3a283c1f}",
+    ".opt[aria-pressed=true]{background:var(--ink-12)}",
     ".opts{display:flex;gap:2px;padding:2px}",
-    // The alignment control lays its row out as a real 3x3 grid instead.
+    // The alignment control lays its row out as a real 3x3 grid instead. A cell
+    // is the control: empty until it is picked, and filled once it is, so the
+    // panel shows where the children go without a mark in every cell.
     ".opts.grid3{display:grid;grid-template-columns:repeat(3,34px);gap:2px;padding:2px}",
-    ".bar2{display:flex;align-items:center;gap:10px;padding:6px}",
-    ".bar2>input[type=number]{width:auto;min-width:0;flex:1}",
-    ".pair{display:flex;flex-direction:column;gap:2px;padding:2px 0}",
-    ".pair .bar2{padding:6px}",
+    ".grid3>.ic{background:var(--ink-4)}",
+    ".grid3>.ic:hover{background:var(--ink-10)}",
+    ".grid3>.ic[aria-pressed=true]{background:var(--ink)}",
+    // One field to a line. A row that holds a value wears `fld` too: the chip
+    // sets its own height and padding, and this rule only the flow around it.
+    ".bar2{display:flex;align-items:center;gap:10px;padding:4px}",
+    // Two fields to a line, so a shadow is read as a pair of pairs rather than
+    // four rows: the offsets, then the two lengths of the edge. Each chip is as
+    // wide as its own digits, so the columns are as wide as the chips.
+    ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px 2px;padding:2px 0}",
+    ".pair{display:flex;flex-direction:column;gap:6px;padding:2px 0}",
 
     ".field-label{white-space:nowrap}",
-    ".val{min-width:36px;text-align:right;font:500 14px/1 inherit;color:#86546b;",
-    "font-variant-numeric:tabular-nums}",
-    // The weight slider: a hairline track in the ramp and a solid grab dot. The
-    // track has to be dark enough to see against paper — the default UA track is
-    // a light grey that vanishes on this background.
-    "input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;",
-    "border-radius:2px;background:#3a283c59;outline:none}",
-    "input[type=range]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:#3a283c59}",
-    "input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;",
-    "margin-top:-6px;border-radius:50%;background:#3a283c;cursor:grab;",
-    "box-shadow:0 1px 2px #3a283c40}",
-    "input[type=range]:focus-visible{box-shadow:0 0 0 3px #d79eac66}",
-    "input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:#3a283c59}",
-    "input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;",
-    "background:#3a283c;cursor:grab}",
+    // A glyph may stand where a word would: a shadow's blur and spread are
+    // marked, not named, so the four fields fit two lines, and so are the two
+    // typography spacings.
+    ".field-label>svg{width:14px;height:14px;display:block}",
+    // One chip holds one value: the glyph that names it and the field on one
+    // line, as the size and count chips in the dock hold theirs. Every chip
+    // answers the pointer in the same three steps, in the dock's own times: ink
+    // under the pointer, the open fill and a darker hairline while it holds the
+    // caret, and a press that goes down fast and comes back slower. The value is
+    // as wide as its digits and the room to type one more, so no field is wider
+    // than what it holds.
+    ".fld,.sides-pair>label,.value-field,.pop .weight-control{display:flex;align-items:center;gap:6px;height:30px;padding:0 6px;",
+    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
+    "transition:background-color .13s ease,border-color .13s ease,transform .2s var(--arrive)}",
+    ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
+    ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open)}",
+    // A chip that is wider than the dock's 34px square cannot take the dock's .94
+    // without moving many times as far, so it takes the scale that moves the same
+    // few pixels: down in .08s, back in .2s.
+    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96);transition-duration:.13s,.13s,.08s}",
+    ".fld input[type=number],.sides-pair input[type=number],.value-field input[type=number],.pop .weight-control>input{width:5ch;min-width:0;height:100%;border:0;border-radius:0;padding:0;background:transparent;color:var(--ink);",
+    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;box-shadow:none}",
+    // The chip is the thing that answers, so the field inside it never lights, and
+    // never wears a ring of its own.
+    ".fld input[type=number]:hover,.fld input[type=number]:focus,.fld input[type=number]:focus-visible,",
+    ".sides-pair input[type=number]:hover,.sides-pair input[type=number]:focus,.sides-pair input[type=number]:focus-visible,",
+    ".value-field input[type=number]:hover,.value-field input[type=number]:focus,.value-field input[type=number]:focus-visible",
+    "{background:transparent;border-color:transparent;box-shadow:none}",
 
-    "input[type=number],input[type=search]{width:100%;border:1px solid #3a283c26;border-radius:8px;padding:9px 10px;",
-    // -webkit-text-fill-color is what actually makes the digits appear: the UA
-    // paints them in its own light grey, which is invisible on paper.
-    "background:#ffffff;-webkit-text-fill-color:#3a283c;color:#3a283c;",
-    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;",
-    "transition:border-color .13s ease,box-shadow .13s ease}",
-    "input[type=number]:focus,input[type=search]:focus{border-color:#86546b;box-shadow:0 0 0 3px #d79eac4d}",
-    // The search over the family list sits on top of it, a little apart.
-    "input[type=search]{margin-bottom:6px;padding:8px 10px;font-variant-numeric:normal}",
-    "input[type=search]::placeholder{-webkit-text-fill-color:#86546b;color:#86546b}",
+    // The base every field stands on: the digits, the paint, and no spinner. No
+    // rule here draws a box: the chip is the box. A dock chip that took a border
+    // and 9px of padding from this rule was never the width it said it was.
+    "input[type=number],input[type=search]{-webkit-text-fill-color:var(--ink);color:var(--ink);",
+    "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;border:0;padding:0;background:transparent}",
+    // A field that holds words cannot be as wide as its value, so the search keeps
+    // the panel's width. It takes the same hover and the same focus as a chip.
+    "input[type=search]{width:100%;margin-bottom:6px;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
+    "background:var(--paper);font-variant-numeric:normal;transition:background-color .13s ease,border-color .13s ease}",
+    "input[type=search]:hover{background:var(--fill-hover)}",
+    "input[type=search]:focus{background:var(--fill-open)}",
+    // The cobalt ring is the keyboard's, on the buttons and the lists that take the
+    // keyboard. A field does not wear it: a text field answers :focus-visible to a
+    // pointer too, so a click would draw a ring that says nothing happened.
+    ".ic:focus-visible{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
     // One element, both states. Anchored bottom-right while the mode is off, moved
@@ -360,14 +429,14 @@
     // point rather than one control swapping in for another.
     "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:#ffffff;",
-    "background:#3a283c;box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;",
+    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:var(--paper);",
+    "background:var(--ink);box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);",
     // transform only: a scale from the centre and a translate to the pointer are
     // the same property, so the shrink and the travel animate as one move. The
     // default centre origin is what makes the dot land exactly under the pointer.
     "transition:transform .3s cubic-bezier(.2,.8,.2,1),background .15s}",
-    "#launch:hover{background:#86546b}",
-    "#launch:focus-visible{outline:2px solid #3a283c;outline-offset:3px}",
+    "#launch:hover{background:var(--muted)}",
+    "#launch:focus-visible{outline:2px solid var(--ink);outline-offset:3px}",
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity .12s ease-out}",
@@ -377,11 +446,13 @@
     // whole box: the ramp value that opposes what it lies on, so the line and
     // the handles always stand off the page they cross.
     ".frame{position:fixed;pointer-events:none;z-index:1;box-sizing:border-box;",
-    "border:1.5px solid var(--frame,#3a283c);border-radius:0;background:transparent}",
+    // The colour of a frame is the palette's own, so it reads as one of the
+    // chrome's five values: --ink until place() sets the contrast colour.
+    "border:1.5px solid var(--frame,var(--ink));border-radius:0;background:transparent}",
     // The handles are that line in multiples: a corner disc 5 lines across
     // (7.5px) and an edge bar 3 lines thick (4.5px) and at most 16 lines long
     // (24px), with round ends because the radius is half the bar.
-    ".frame-marker{position:absolute;background:var(--frame,#3a283c);pointer-events:auto}",
+    ".frame-marker{position:absolute;background:var(--frame,var(--ink));pointer-events:auto}",
     ".frame-marker.corner{width:7.5px;height:7.5px;border-radius:50%}",
     ".frame-marker.edge{width:4.5px;height:min(24px,40%);border-radius:2.25px}",
     ".frame-marker.edge.horizontal{width:min(24px,40%);height:4.5px}",
@@ -397,60 +468,79 @@
     "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:#ffffffe0;border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f;pointer-events:auto}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
-    ".element-action{display:flex;align-items:center;border:1px solid transparent;border-radius:8px;padding:8px;background:transparent;color:#3a283c;font:500 14px/1 inherit;cursor:pointer;",
-    "transition:background .12s ease,border-color .12s ease,transform .2s var(--arrive)}",
-    ".element-action:active{transform:scale(.96);transition-duration:.12s,.12s,.08s}",
-    ".element-action:hover{background:#3a283c0f;border-color:#3a283c1a}",
-    ".element-action:focus-visible{outline:2px solid #86546b;outline-offset:2px}",
-    ".element-action.delete{color:#86546b}",
-    ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
+    // An action wears what a control in the dock wears: the same 34px square, the
+    // same 8px radius, the same hover fill and the same press. The row's fill
+    // travels under the pointer, which one square cannot do, so the fill is the
+    // one it lands in.
+    ".element-action{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:8px;padding:0;",
+    "background:transparent;color:var(--ink);font:500 14px/1 inherit;cursor:pointer;",
+    "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
+    ".element-action:hover{background:var(--ink-4)}",
+    ".element-action:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
+    ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
+    ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".element-action.delete{color:var(--muted)}",
+    ".element-action>svg{width:18px;height:18px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid #3a283c1a;border-radius:8px;background:#ffffff;color:#3a283c;font:400 16px/1.4 inherit}",
-    ".element-comment-text:focus-visible{outline:2px solid #86546b;outline-offset:1px}",
-    ".element-comment-action{flex:1;justify-content:center;padding:7px 10px}",
-    ".insert{position:fixed;z-index:2;height:2px;background:#86546b;pointer-events:none}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
+    "transition:background-color .13s ease,border-color .13s ease}",
+    ".element-comment-text:hover{background:var(--fill-hover)}",
+    ".element-comment-text:focus{background:var(--fill-open)}",
+    // The two buttons of the comment box carry words, so they take the width
+    // they are given rather than the square an action is.
+    ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
+    ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
-    "width:22px;height:22px;padding:2px;border:2px solid #ffffff;border-radius:50%;background:#86546b;",
-    "color:#ffffff;box-shadow:0 0 0 1px #86546b}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
-    // Four sides in a row, each a small field under its name.
-    ".sides{display:grid;grid-template-columns:repeat(4,58px);gap:6px;padding:0 6px 6px}",
-    ".sides label{display:flex;flex-direction:column;gap:4px;font:500 14px/1 inherit;color:#86546b}",
-    ".sides input[type=number]{padding:7px 6px}",
+    "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
+    "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
+    // Two pairs of sides, each pair with the link that ties it. A box is even
+    // both ways far more often than not, so a tied pair is ONE field: top follows
+    // the same value as bottom, and left the same as right.
+    ".sides{display:flex;flex-direction:column;gap:6px;padding:0 6px 6px}",
+    ".sides-pair{display:grid;grid-template-columns:76px 76px 34px;gap:6px;align-items:center}",
+    // The one field of a tied pair takes the room of the two it stands for.
+    ".sides-pair>label.wide{grid-column:1/3}",
+    ".sides-pair label>svg{width:14px;height:14px;flex:none;display:block}",
+    // A field that is put away is not drawn at all, and is not a grid cell either.
+    ".sides [hidden]{display:none}",
+    ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
+    ".sides .side-link:hover{background:var(--ink-6)}",
+    ".sides .side-link[aria-pressed=true]{background:var(--ink-12);color:var(--ink)}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:44px;height:44px;background:#ffffff;border:1px solid transparent;",
+    ".ic.solo{position:relative;width:44px;height:44px;background:var(--paper);border:1px solid transparent;",
     "border-radius:12px;",
-    "box-shadow:0 1px 1px #3a283c14,0 10px 24px #3a283c1f}",
-    ".ic.solo[aria-expanded=true]{background:#f9f9f9}",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
+    ".ic.solo[aria-expanded=true]{background:var(--fill-open)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp.
     ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
-    "background:#3a283c;color:#ffffff;font:500 12px/1.2 inherit;white-space:nowrap;",
-    "box-shadow:0 1px 1px #3a283c14,0 6px 12px #3a283c1f;transform-origin:50% 100%}",
+    "background:var(--ink);color:var(--paper);font:500 12px/1.2 inherit;white-space:nowrap;",
+    "box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);transform-origin:50% 100%}",
     ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
-    "border-radius:28px;background:#d79eac;color:#3a283c;font:500 14px/20px inherit;text-align:center}",
+    "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    ".note{margin:6px 10px;max-width:240px;font:400 16px/1.4 inherit;color:#86546b}",
-    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:#3a283c;color:#ffffff;white-space:nowrap;",
+    ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
+    ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
-    ".cta:hover{background:#86546b}",
+    ".cta:hover{background:var(--muted)}",
     ".cta:active:not(:disabled){transform:translateY(1px);transition-duration:.13s,.08s}",
     // The words of a button that answers (Copied, Saved) change in place: the
     // old words leave, the new ones rise in, and the button does not move.
     ".say{display:inline-block}",
-    ".cta:disabled{opacity:.4;cursor:default;background:#3a283c}",
-    ".cta.ghost{background:transparent;color:#3a283c;box-shadow:inset 0 0 0 1px #3a283c33}",
-    ".cta.ghost:hover{background:#3a283c0f}",
+    ".cta:disabled{opacity:.4;cursor:default;background:var(--ink)}",
+    ".cta.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-20)}",
+    ".cta.ghost:hover{background:var(--ink-6)}",
     ".cta.ghost:disabled{background:transparent}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
@@ -734,7 +824,10 @@
     });
     refit();
     tally();
-    // An open control shows the value it read when it opened, so it is redrawn.
+    // The row wears the element's own values — a grid's counts, an absolute
+    // element's offsets — so a reverted selection is drawn again. An open
+    // control shows the value it read when it opened, so it is redrawn too.
+    if (selected && target.rec.el === selected) buildRow();
     if (openKey && openKey !== "+") show(openKey);
   }
 
@@ -908,10 +1001,10 @@
    * no pixel, so an element painted that way falls through to the page's own
    * paper, which is light.
    *
-   * Paper on ink, ink on paper: two of the five values, chosen by the luminance
-   * of that background. The photographic negative this used to write answered
-   * with a hue from outside the palette — olive over a pale rose page — and a
-   * pure black when nothing at all was painted behind the element.
+   * Paper on ink, ink on paper: two of the five palette values, chosen by the
+   * luminance of that background. The photographic negative this used to write
+   * answered with a hue from outside the palette — olive over a pale rose page —
+   * and a pure black when nothing at all was painted behind the element.
    */
   function frameInk(el) {
     for (var node = el; node; node = node.parentElement) {
@@ -919,33 +1012,33 @@
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
       var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? "#3a283c" : "#ffffff";
+      return luminance > 0.55 ? chromeColour("--ink", "#16233a") : chromeColour("--paper", "#ffffff");
     }
     // Nothing is painted behind it: the canvas is paper, so the line is ink.
-    return "#3a283c";
+    return chromeColour("--ink", "#16233a");
   }
 
   /**
-   * Paint the text-colour glyph with the colour the element actually has.
+   * Paint the text-colour chip with the colour the element actually has.
    *
-   * Read from the element rather than painted in: the bar under the A is a
-   * readout of this site, and a fixed colour on it would be a lie about every
-   * site that is not ours. Left transparent when the element has no hex colour
-   * of its own — a name or an rgb() is a real colour, and the bar is honest
-   * about not being able to show it rather than guessing.
+   * Read from the element rather than painted in: the chip is a readout of this
+   * site, and a fixed colour on it would be a lie about every site that is not
+   * ours. Left transparent when the element has no hex colour of its own — a
+   * name or an rgb() is a real colour, and the chip is honest about not being
+   * able to show it rather than guessing.
    */
   function paintSwatch() {
     if (!selected) return;
-    // Found by walking the row rather than by id: the bar is markup inside the
+    // Found by walking the row rather than by id: the chip is markup inside the
     // icon's own innerHTML, not an element of its own.
     var icon = slot("color");
     var bar = icon && icon.querySelector ? icon.querySelector("#swatch-color") : null;
     if (!bar) return;
     var current = get("color").trim();
-    // The bar shows what the browser resolved the colour to, rgba() and all, so
+    // The chip shows what the browser resolved the colour to, rgba() and all, so
     // a colour with any transparency is not drawn as a solid one. Anything that
     // is not an rgb() — a name, an hsl(), an oklch() — still falls through to
-    // the hex, and is left transparent when there is no hex to show: the bar is
+    // the hex, and is left transparent when there is no hex to show: the chip is
     // a readout, and a readout that guesses is a lie.
     bar.style.background = /^rgba?\(/.test(current) ? current : hex();
   }
@@ -1019,9 +1112,8 @@
     button.className = "element-action" + (className ? " " + className : "");
     // Markup as a string, for the same reason the dock's button() gives: an SVG
     // element cannot be made with createElement(). The button is its icon alone,
-    // so the name lives in aria-label and in the title a pointer shows.
+    // so the name lives in aria-label, and the drawn tooltip speaks it.
     button.innerHTML = icon;
-    button.title = label;
     button.setAttribute("aria-label", label);
     button.addEventListener("click", action);
     return button;
@@ -1491,47 +1583,26 @@ function faces() {
     { v: "wrap", label: "Wrap", icon: "wrap-text" },
     { v: "wrap-reverse", label: "Wrap reverse", icon: "wrap-text" },
   ];
-  // Alignment as one 3x3 grid: each cell is a justify/align pair, drawn as a
-  // dot in a frame so the cell itself says where the children go.
+  // Alignment as one 3x3 grid: each cell is a justify/align pair, and the cell
+  // is the whole control. The list is in the order of the grid, so the labels
+  // run left to right along each row.
   var ALIGN_CELLS = [
-    { j: "flex-start", a: "flex-start", x: 6, y: 6, label: "Top left" },
-    { j: "center", a: "flex-start", x: 9, y: 6, label: "Top center" },
-    { j: "flex-end", a: "flex-start", x: 12, y: 6, label: "Top right" },
-    { j: "flex-start", a: "center", x: 6, y: 9, label: "Middle left" },
-    { j: "center", a: "center", x: 9, y: 9, label: "Center" },
-    { j: "flex-end", a: "center", x: 12, y: 9, label: "Middle right" },
-    { j: "flex-start", a: "flex-end", x: 6, y: 12, label: "Bottom left" },
-    { j: "center", a: "flex-end", x: 9, y: 12, label: "Bottom center" },
-    { j: "flex-end", a: "flex-end", x: 12, y: 12, label: "Bottom right" },
+    { v: "flex-start:flex-start", label: "Top left" },
+    { v: "center:flex-start", label: "Top center" },
+    { v: "flex-end:flex-start", label: "Top right" },
+    { v: "flex-start:center", label: "Middle left" },
+    { v: "center:center", label: "Center" },
+    { v: "flex-end:center", label: "Middle right" },
+    { v: "flex-start:flex-end", label: "Bottom left" },
+    { v: "center:flex-end", label: "Bottom center" },
+    { v: "flex-end:flex-end", label: "Bottom right" },
   ];
-  // The frame the grid's nine cells sit in: Lucide's square, at the box the grid
-  // was drawn around. The dot placed in each cell is this file's own.
-  var ALIGN_FRAME = '<svg x="14.3" y="14.3" width="227.6" height="227.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /></svg>';
 
-  var ALIGN_GRID = ALIGN_CELLS.map(function (c) {
-    // No single Lucide glyph says "top left": it is a frame with a dot, so it is
-    // the square, inset to the frame, and a dot placed at the cell's own corner.
-    // 14.22 is 256/18, the old grid the places were on.
-    var at = function (v) { return (v * 14.222 - 28.03).toFixed(1); };
-    return {
-      v: c.j + ":" + c.a,
-      label: c.label,
-      icon: ALIGN_FRAME +
-        '<path transform="translate(' + at(c.x) + " " + at(c.y) + ') scale(.219)" d="M232,128A104,104,0,1,1,128,24,104.13,104.13,0,0,1,232,128Z"/>',
-    };
-  });
   var BOX_GLYPHS = {
     direction: "move-horizontal",
     gap: "unfold-horizontal",
     alignment: "grip",
     wrap: "wrap-text",
-    columns: "columns-2",
-    rows: "rows-2",
-    // The grid-size control sits beside the mode button, which already draws
-    // layout-grid: a ruling through the cells says "how many" instead.
-    grid: "grid-3x3",
-    size: "move-diagonal",
-    position: "maximize",
   };
 
   var ICONS = [
@@ -1546,9 +1617,8 @@ function faces() {
       label: "Font weight",
       glyph: "bold",
     },
-    // A letterform over a bar painted in the element's own colour: the colour the
-    // words themselves are. The bar is a readout, so it stays.
-    { key: "color", label: "Text colour", glyph: "type" },
+    // The colour control is the colour itself: a chip, and nothing over it.
+    { key: "color", label: "Text colour", glyph: "" },
     // Four bars, each ending short of a different edge: what the button does.
     {
       key: "align",
@@ -1757,6 +1827,9 @@ function faces() {
     // The panel rises under the control the pointer is on: the tooltip would
     // stand on top of it.
     hideTip(true);
+    // One thing open at a time: a list drawn in the row closes with the control
+    // that opens, because the two would stand in the same place.
+    closeList();
     // A panel that closes fades out instead of going in one frame.
     var leave = !key && !pop.hidden && !dock.hidden && pop.firstChild && moves(pop) ? ghostOf(pop) : null;
     // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
@@ -1879,6 +1952,9 @@ function faces() {
     // The label is added rather than passed in, because a face name is text and
     // text is a node — there is no markup to parse it out of.
     b.appendChild(text(item.label));
+    // The row says its own name, so a title would say it twice: the second time
+    // as a browser tooltip under the row the pointer is already on.
+    b.title = "";
     // cssText rather than the property: a face stack is commas and quotes, and
     // the shorthand carries them through without the DOM re-parsing anything.
     // Only a face row has a stack: a weight or an alignment row has none, and
@@ -1968,7 +2044,7 @@ function faces() {
       previewFaces(drawn);
       if (failed) say("Google Fonts did not load. Close and open this control to try again.");
       else if (!google) say("Loading Google Fonts…");
-      else if (more) say(more + " more fonts. Type a name to find them.");
+      else if (more) say("Search for more fonts");
       else if (!rows.length) say("No font has that name.");
       else say("");
     }
@@ -2111,9 +2187,9 @@ function faces() {
     }
   }
 
-  /** A row of icon buttons, for alignment and decoration. */
   /**
- * A row of icon buttons, for alignment and decoration.
+ * A row of buttons, for alignment and decoration. A button may hold a glyph or
+ * be an empty cell: the alignment grid is nine cells, and the cell is the mark.
  *
  * `onPick` returns the options that are now on, as a list, and the ticks follow
  * it: one item for a control that only allows one, several for decoration, which
@@ -2123,7 +2199,7 @@ function icons(items, current, onPick, cls) {
     var list = document.createElement("div");
     list.className = cls ? "opts " + cls : "opts";
     var rows = items.map(function (item) {
-      var b = button("ic", svg(item.icon), item.label || item.v, function () {
+      var b = button("ic", item.icon ? svg(item.icon) : "", item.label || item.v, function () {
         // Stays open like every other control: these are things you try twice,
         // and the tick moves so you can see which one is on.
         release();
@@ -2143,46 +2219,23 @@ function icons(items, current, onPick, cls) {
     return mark;
   }
 
-  /** A slider with a live readout, for weight and line height. */
-  function slider(min, max, step, current, unit, onInput, label, parent) {
-    var row = document.createElement("div");
-    row.className = "bar2";
+  /**
+   * A number field, for size, tracking, gaps and the rest. A label may be a
+   * glyph instead of the word: the glyph stands where the word would, and the
+   * word stays on the input, where a screen reader reads it. The field says the
+   * number; a unit is the dock's own business, not a word beside every value.
+   */
+  function number(min, max, step, current, onInput, label, parent) {
+    // The row is one chip, and the chip is the field: the glyph and the number
+    // inside one hairline, the way the dock's size control holds both. It is a
+    // label, so a press anywhere on the chip lands in the number and presses it.
+    var row = document.createElement("label");
+    row.className = "bar2 fld";
     if (label) {
       var caption = document.createElement("span");
       caption.className = "field-label";
-      caption.textContent = label;
-      row.appendChild(caption);
-    }
-    var input = document.createElement("input");
-    input.type = "range";
-    input.min = min;
-    input.max = max;
-    input.step = step;
-    input.value = current;
-    var out = document.createElement("span");
-    out.className = "val";
-    out.textContent = current + unit;
-    // Live: the element changes under the pointer, so there is nothing to commit.
-    input.addEventListener("input", function () {
-      out.textContent = input.value + unit;
-      hold();
-      onInput(input.value);
-    });
-    input.addEventListener("change", release);
-    row.appendChild(input);
-    row.appendChild(out);
-    (parent || pop).appendChild(row);
-    return row;
-  }
-
-  /** A number field, for size and tracking. */
-  function number(min, max, step, current, unit, onInput, label, parent) {
-    var row = document.createElement("div");
-    row.className = "bar2";
-    if (label) {
-      var caption = document.createElement("span");
-      caption.className = "field-label";
-      caption.textContent = label;
+      if (typeof label === "string") caption.textContent = label;
+      else caption.innerHTML = svg(label.glyph);
       row.appendChild(caption);
     }
     var input = document.createElement("input");
@@ -2191,22 +2244,26 @@ function icons(items, current, onPick, cls) {
     input.max = max;
     input.step = step;
     input.value = current;
-    var out = document.createElement("span");
-    out.className = "val";
-    out.textContent = unit;
+    if (label) input.setAttribute("aria-label", typeof label === "string" ? label : label.label);
     input.addEventListener("input", function () {
       // Blank while typing is not a value; wait for the field to be usable.
       if (input.value === "") return;
-      var v = Number(input.value);
-      out.textContent = v + unit;
       hold();
-      onInput(v);
+      onInput(Number(input.value));
     });
     input.addEventListener("change", release);
     row.appendChild(input);
-    row.appendChild(out);
     (parent || pop).appendChild(row);
     return row;
+  }
+
+  /** The drawn list that is showing, if any: one thing open at a time. */
+  var openList = null;
+
+  /** Hide the list that is showing, so nothing else has to stand beside it. */
+  function closeList() {
+    if (openList) openList.hidden = true;
+    openList = null;
   }
 
   /** A custom list that keeps its value editable through the paired input.
@@ -2228,18 +2285,27 @@ function icons(items, current, onPick, cls) {
       var option = button("custom-option", "", item.label, function () {
         if (!chevron) trigger.textContent = item.label;
         menu.hidden = true;
+        if (openList === menu) openList = null;
         for (var i = 0; i < menu.children.length; i++) {
           menu.children[i].setAttribute("aria-pressed", menu.children[i] === option ? "true" : "false");
         }
         onPick(item.value);
       }, String(item.value));
       option.appendChild(text(item.label));
+      // Named by its own row: no second tooltip saying the same word.
+      option.title = "";
       option.setAttribute("aria-pressed", String(item.value) === String(current) ? "true" : "false");
       menu.appendChild(option);
     });
     trigger.addEventListener("click", function (e) {
       if (e.stopPropagation) e.stopPropagation();
-      menu.hidden = !menu.hidden;
+      var open = menu.hidden;
+      // One thing open at a time. A list inside the button of the row closes the
+      // control that is open, and a control that opens closes the list.
+      if (open && inRow(wrap)) show("");
+      if (open) closeList();
+      menu.hidden = !open;
+      openList = open ? menu : null;
       syncElementMenu();
     });
     wrap.appendChild(trigger);
@@ -2258,29 +2324,34 @@ function icons(items, current, onPick, cls) {
    *
    * [x, y, blur, spread, colour], with x/y/blur/spread absent meaning 0 — the
    * same defaults getComputedStyle hands back for a "none" shadow.
+   *
+   * The words of the selection are shadowed with text-shadow, and a box with
+   * box-shadow: a shadow on a paragraph is the letters' own, not the block's.
+   * A text shadow has no spread, so the fourth length is left out there.
    */
   function shadow(values) {
-    // Nothing to cast: four zero lengths and a colour draw nothing, so the
+    var text = selectedKind === "text";
+    // Nothing to cast: the lengths are zero and a colour draws nothing, so the
     // property is emptied instead and the element is left as the page had it.
-    var flat = !values[0] && !values[1] && !values[2] && !values[3];
+    var flat = !values[0] && !values[1] && !values[2] && (text || !values[3]);
+    var parts = [values[0] + "px", values[1] + "px", values[2] + "px"];
+    if (!text && values[3]) parts.push(values[3] + "px");
     // A shadow with no colour of its own is the words' colour: css says so, and
     // "undefined" in the shorthand would say nothing at all.
-    set("box-shadow", flat ? "" : values[0] + "px " + values[1] + "px " + values[2] + "px " + values[3] + "px " + (values[4] || ""));
+    if (values[4]) parts.push(values[4]);
+    set(text ? "text-shadow" : "box-shadow", flat ? "" : parts.join(" "));
   }
 
-  /** The colour inside the computed box-shadow, or "" when it names none. */
-  function shadowColour() {
-    var match = String(get("box-shadow") || "").match(/rgba?\([^)]*\)/);
-    return match ? match[0] : "";
-  }
-
-  /** One value off a computed `box-shadow`, read the way the browser wrote it. */
-  function shadowOf(prop, fallback) {
-    var v = get("box-shadow-" + prop).trim();
-    if (!v) return fallback;
-    var n = parseFloat(v);
-    // A colour, or anything the shorthand spelled: handed back as it stands.
-    return isNaN(n) ? v : n;
+  /**
+   * The computed shadow of the selection, as the four lengths and the colour.
+   * A shadow is one shorthand, so it is read as one: the colour is the rgba()
+   * it names, and the lengths are the px it spells.
+   */
+  function shadowParts() {
+    var value = String(get(selectedKind === "text" ? "text-shadow" : "box-shadow") || "").trim();
+    var colour = (value.match(/rgba?\([^)]*\)/) || [""])[0];
+    var lengths = (value.replace(/rgba?\([^)]*\)/, "").match(/-?[\d.]+px/g) || []).map(parseFloat);
+    return [lengths[0] || 0, lengths[1] || 0, lengths[2] || 0, lengths[3] || 0, colour];
   }
 
   /* ---------------------------------------------------------------- colour */
@@ -2382,7 +2453,7 @@ function icons(items, current, onPick, cls) {
     var panel = document.createElement("div");
     panel.className = "color-panel";
     // A colour that cannot be read — a name, an oklch(), nothing at all — opens
-    // the picker on the plum the dock is drawn in. Opening on black would claim
+    // the picker on the ink the dock is drawn in. Opening on black would claim
     // the page is a colour it never wrote.
     var read = readColour(current);
     var channels = read ? read.channels : [134, 84, 107];
@@ -2701,55 +2772,103 @@ function icons(items, current, onPick, cls) {
   }
 
   /**
-   * Four sides of padding or margin: one slider for all four at once, and a
-   * field per side for one at a time. Written as the longhands, so the edits list
-   * says which side changed and an undo puts back exactly the four that moved.
+   * Four sides of padding or margin, as one field per pair of sides. Left and
+   * right take the same value, and so do top and bottom: a box is even both ways
+   * far more often than not, so a tied pair is one field, not two. The link
+   * beside a pair breaks it, and each side then takes a value of its own.
+   * Written as the longhands, so the edits list says which side changed and an
+   * undo puts back exactly the sides that moved.
    */
   function sides(prop, min, max) {
-    var names = [["top", "Top"], ["right", "Right"], ["bottom", "Bottom"], ["left", "Left"]];
-    var values = names.map(function (n) { return num(prop + "-" + n[0], 0); });
-    var inputs = [];
-    slider(min, max, 1, values[0], "px", function (v) {
-      names.forEach(function (n, i) {
-        set(prop + "-" + n[0], v + "px");
-        inputs[i].value = String(v);
-      });
+    var PAIRS = [
+      { sides: ["top", "bottom"], labels: ["Top", "Bottom"], glyphs: ["arrow-up", "arrow-down"], both: "move-vertical" },
+      { sides: ["left", "right"], labels: ["Left", "Right"], glyphs: ["arrow-left", "arrow-right"], both: "move-horizontal" },
+    ];
+    var values = {};
+    ["top", "right", "bottom", "left"].forEach(function (side) {
+      values[side] = num(prop + "-" + side, 0);
     });
-    var grid = document.createElement("div");
-    grid.className = "sides";
-    names.forEach(function (n, i) {
+    /** One field: the sides it writes, its glyph, and its name for a reader. */
+    function field(row, group, glyph, name) {
       var cell = document.createElement("label");
-      cell.appendChild(text(n[1]));
+      if (group.length > 1) cell.className = "wide";
+      cell.innerHTML = svg(glyph);
       var input = document.createElement("input");
       input.type = "number";
       input.min = min;
       input.max = max;
       input.step = 1;
-      input.value = values[i];
-      input.setAttribute("aria-label", n[1] + " " + prop);
+      input.value = values[group[0]];
+      input.setAttribute("aria-label", name + " " + prop);
       input.addEventListener("input", function () {
         if (input.value === "") return; // blank while typing is not a value
         hold();
-        set(prop + "-" + n[0], Number(input.value) + "px");
+        group.forEach(function (side) { set(prop + "-" + side, Number(input.value) + "px"); });
       });
       input.addEventListener("change", release);
-      inputs.push(input);
       cell.appendChild(input);
-      grid.appendChild(cell);
+      row.appendChild(cell);
+      return { cell: cell, input: input };
+    }
+    var panel = document.createElement("div");
+    panel.className = "sides";
+    PAIRS.forEach(function (pair) {
+      // A pair the stylesheet already sets apart opens as a broken pair.
+      var tied = values[pair.sides[0]] === values[pair.sides[1]];
+      var row = document.createElement("div");
+      row.className = "sides-pair";
+      panel.appendChild(row);
+      var both = field(row, pair.sides, pair.both, pair.labels[0] + " and " + pair.labels[1].toLowerCase());
+      var left = field(row, [pair.sides[0]], pair.glyphs[0], pair.labels[0]);
+      var right = field(row, [pair.sides[1]], pair.glyphs[1], pair.labels[1]);
+      var link = document.createElement("button");
+      link.type = "button";
+      link.className = "icon-button side-link";
+      link.title = both.input.getAttribute("aria-label") + " together";
+      link.setAttribute("aria-label", link.title);
+      row.appendChild(link);
+      function show() {
+        both.cell.hidden = !tied;
+        left.cell.hidden = tied;
+        right.cell.hidden = tied;
+        link.setAttribute("aria-pressed", tied ? "true" : "false");
+        link.innerHTML = svg(tied ? "link" : "unlink");
+      }
+      show();
+      // A tied pair is one field, so what is typed into it moves both sides, and
+      // the two fields it stands for already say the same thing when it breaks.
+      both.input.addEventListener("input", function () {
+        left.input.value = both.input.value;
+        right.input.value = both.input.value;
+      });
+      link.addEventListener("click", function () {
+        tied = !tied;
+        if (tied) {
+          // Back together: the first side is the value both of them take.
+          var value = left.input.value || "0";
+          var moved = String(right.input.value) !== value;
+          right.input.value = value;
+          both.input.value = value;
+          if (moved) set(prop + "-" + pair.sides[1], value + "px");
+          release();
+        }
+        show();
+      });
     });
-    pop.appendChild(grid);
+    pop.appendChild(panel);
   }
 
   function spacingControl() {
     // Both rows are the shared number field, which appends to the panel itself,
     // so there is no wrapper here: a <div> whose class matched no rule dressed
-    // nothing at all.
-    number(-4, 16, 0.1, num("letter-spacing", 0), "px", function (v) {
+    // nothing at all. A glyph stands where the words would: sideways for the
+    // letters, up and down for the lines.
+    number(-4, 16, 0.1, num("letter-spacing", 0), function (v) {
       set("letter-spacing", v + "px");
-    }, "Letter spacing");
-    number(0.8, 3, 0.05, num("line-height", 1.3), "", function (v) {
+    }, { glyph: "move-horizontal", label: "Letter spacing" });
+    number(0.8, 3, 0.05, num("line-height", 1.3), function (v) {
       set("line-height", v);
-    }, "Line spacing");
+    }, { glyph: "move-vertical", label: "Line spacing" });
   }
 
   var CONTROLS = {
@@ -2765,11 +2884,15 @@ function icons(items, current, onPick, cls) {
     weight: function () {
       var info = weightInfo();
       if (info.kind === "variable") {
-        slider(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), "", function (v) { set("font-weight", v); });
+        number(info.min, info.max, 1, Math.max(info.min, Math.min(info.max, num("font-weight", info.min))), function (v) {
+          set("font-weight", v);
+        }, { glyph: "bold", label: "Font weight" });
       } else if (info.kind === "fixed") {
         var current = num("font-weight", info.values[0]);
+        // One field, drawn like the size control in the dock: the number and a
+        // bare chevron inside it, so the list is not a second box beside the value.
         var row = document.createElement("div");
-        row.className = "bar2 weight-control";
+        row.className = "value-field weight-control";
         var input = document.createElement("input");
         input.type = "number";
         input.min = info.values[0];
@@ -2793,19 +2916,6 @@ function icons(items, current, onPick, cls) {
         }, "Font weight choices", true));
         pop.appendChild(row);
       }
-    },
-    size: function () {
-      var size = num("font-size", 16);
-      var row = number(8, 200, 1, size, "px", function (v) {
-        set("font-size", v + "px");
-        updateSizeLabel();
-      });
-      row.appendChild(customSelect([12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72, 96].map(function (value) {
-        return { value: value, label: value + "px" };
-      }), size, function (v) {
-        set("font-size", v + "px");
-        updateSizeLabel();
-      }, "Common font sizes", true));
     },
     spacing: spacingControl,
     align: cycleAlignment,
@@ -2832,40 +2942,32 @@ function icons(items, current, onPick, cls) {
       // A colour on a border that has no width is a colour nobody sees, so the
       // width is offered too. A hairline, in the ramp: thick enough to read,
       // thin enough not to shout.
-      slider(0, 12, 1, num("border-width", 0), "px", function (v) {
+      number(0, 120, 1, num("border-width", 0), function (v) {
         set("border-width", v + "px");
         set("border-style", v ? "solid" : "");
-      });
+      }, { glyph: "square", label: "Border width" });
     },
     shadow: function () {
-      var read = function () {
-        return [
-          shadowOf("offset-x", 0),
-          shadowOf("offset-y", 0),
-          shadowOf("blur", 0),
-          shadowOf("spread", 0),
-          // No colour of our own to fall back on: the page's own shadow colour,
-          // read out of the shorthand, or none — and a shadow with no colour is
-          // the words' colour, which is what css itself does.
-          shadowColour(),
-        ];
-      };
-      var values = read();
-      // Four sliders, one per length, laid out as a list rather than one row of
-      // four: a row of four drags is four narrow targets for a control judged by
-      // eye, and a shadow is read down a column anyway.
-      [
+      var text = selectedKind === "text";
+      var values = shadowParts();
+      // Two fields to a line: the offsets, then the lengths of the edge. A glyph
+      // stands where "Blur" and "Spread" would, so four fields fit two lines and
+      // the colour keeps a line of its own.
+      var fields = [
         { i: 0, label: "X", min: -40, max: 40 },
         { i: 1, label: "Y", min: -40, max: 40 },
-        { i: 2, label: "Blur", min: 0, max: 80 },
-        { i: 3, label: "Spread", min: -40, max: 40 },
-      ].forEach(function (field) {
-        slider(field.min, field.max, 1, values[field.i], "px", function (v) {
-          // A number, not the string the input hands over: "0" is truthy, so the
-          // check for a shadow worth writing would never fire.
-          values[field.i] = Number(v);
+        { i: 2, label: { glyph: "droplet", label: "Blur" }, min: 0, max: 80 },
+      ];
+      // A text shadow has no spread: the letters cast it, not the box.
+      if (!text) fields.push({ i: 3, label: { glyph: "maximize", label: "Spread" }, min: -40, max: 40 });
+      var grid = document.createElement("div");
+      grid.className = "shadow-grid";
+      pop.appendChild(grid);
+      fields.forEach(function (field) {
+        number(field.min, field.max, 1, values[field.i], function (v) {
+          values[field.i] = v;
           shadow(values);
-        });
+        }, field.label, grid);
       });
       picker(values[4], function (value) {
         values[4] = value;
@@ -2886,24 +2988,15 @@ function icons(items, current, onPick, cls) {
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
-      var currentMode = mode();
-      var direction = currentMode === "stack"
+      var direction = mode() === "stack"
         ? "column"
         : String(get("flex-direction") || "row").trim();
-      var current;
-      if (currentMode === "grid") {
-        current = alignValue(get("justify-items"), "start") + ":" + alignValue(get("align-items"), "start");
-      } else {
-        var main = alignValue(get("justify-content"), "flex-start");
-        var cross = alignValue(get("align-items"), "flex-start");
-        current = direction === "column" ? cross + ":" + main : main + ":" + cross;
-      }
-      icons(ALIGN_GRID, current, function (v) {
+      var main = alignValue(get("justify-content"), "flex-start");
+      var cross = alignValue(get("align-items"), "flex-start");
+      var current = direction === "column" ? cross + ":" + main : main + ":" + cross;
+      icons(ALIGN_CELLS, current, function (v) {
         var parts = v.split(":");
-        if (currentMode === "grid") {
-          set("justify-items", parts[0] === "flex-start" ? "start" : parts[0] === "flex-end" ? "end" : parts[0]);
-          set("align-items", parts[1]);
-        } else if (direction === "column") {
+        if (direction === "column") {
           set("align-items", parts[0]);
           set("justify-content", parts[1]);
         } else {
@@ -2932,62 +3025,18 @@ function icons(items, current, onPick, cls) {
         var pair = document.createElement("div");
         pair.className = "pair";
         pop.appendChild(pair);
-        slider(0, 48, 1, num("column-gap", 0), "px", function (v) {
+        number(0, 160, 1, num("column-gap", 0), function (v) {
           set("column-gap", v + "px");
-        }, "Column gap", pair);
-        slider(0, 48, 1, num("row-gap", 0), "px", function (v) {
+        }, { glyph: "columns-2", label: "Column gap" }, pair);
+        number(0, 160, 1, num("row-gap", 0), function (v) {
           set("row-gap", v + "px");
-        }, "Row gap", pair);
+        }, { glyph: "rows-2", label: "Row gap" }, pair);
         return;
       }
-      slider(0, 48, 1, num("gap", 0), "px", function (v) {
+      number(0, 160, 1, num("gap", 0), function (v) {
         set("gap", v + "px");
         ensureBox();
-      });
-    },
-    grid: function () {
-      var columns = String(get("grid-template-columns") || "").match(/repeat\(\s*(\d+)/i);
-      var rows = String(get("grid-template-rows") || "").match(/repeat\(\s*(\d+)/i);
-      if (mode() !== "grid") setMode("grid");
-      var pair = document.createElement("div");
-      pair.className = "pair";
-      pop.appendChild(pair);
-      number(1, 12, 1, columns ? Number(columns[1]) : 1, "", function (v) {
-        set("grid-template-columns", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Columns", pair);
-      number(1, 12, 1, rows ? Number(rows[1]) : 1, "", function (v) {
-        set("grid-template-rows", "repeat(" + v + ", minmax(0, 1fr))");
-      }, "Rows", pair);
-    },
-    size: function () {
-      var pair = document.createElement("div");
-      pair.className = "pair";
-      pop.appendChild(pair);
-      number(0, 2000, 1, num("width", 0), "px", function (v) { set("width", v + "px"); }, "Width", pair);
-      number(0, 2000, 1, num("height", 0), "px", function (v) { set("height", v + "px"); }, "Height", pair);
-    },
-    bounds: function () {
-      ["top", "right", "bottom", "left"].forEach(function (prop) {
-        var row = document.createElement("div");
-        row.className = "bar2";
-        var label = document.createElement("span");
-        label.className = "field-label";
-        label.textContent = prop.charAt(0).toUpperCase() + prop.slice(1);
-        row.appendChild(label);
-        var input = document.createElement("input");
-        input.type = "number";
-        input.min = -1000;
-        input.max = 1000;
-        input.step = 1;
-        input.value = num(prop, 0);
-        input.addEventListener("input", function () {
-          if (input.value !== "") set(prop, Number(input.value) + "px");
-        });
-        row.appendChild(input);
-        var unit = text("px");
-        row.appendChild(unit);
-        pop.appendChild(row);
-      });
+      }, { glyph: "unfold-horizontal", label: "Gap" });
     },
     padding: function () { sides("padding", 0, 160); },
     margin: function () { sides("margin", -160, 160); },
@@ -3008,6 +3057,15 @@ function icons(items, current, onPick, cls) {
         return view ? view.getPropertyValue(prop) : "";
       },
     };
+  }
+
+  /**
+   * A colour the chrome paints itself with, read from its own custom properties
+   * so the frame wears the palette the page handed the chrome (the --edityy-*
+   * hooks). Unset, or a page that hands over nothing, gives the DESIGN.md value.
+   */
+  function chromeColour(prop, fallback) {
+    return String(viewOf(host).getPropertyValue(prop)).trim() || fallback;
   }
 
   /** The same, as a number, with a sensible default when it cannot be read. */
@@ -3092,30 +3150,121 @@ function decorations() {
       { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
       { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
     ],
+    // A grid's size is the counts themselves in the row, as columns × rows, and
+    // it offers no alignment: the cells of a grid are placed by the grid.
     grid: [
-      { key: "grid", label: "Grid size", glyph: BOX_GLYPHS.grid },
+      { key: "grid", label: "Columns × rows", glyph: "" },
       { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
-      { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
     ],
+    // An element that is placed by its own offsets wears all four in the row.
     absolute: [
-      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: BOX_GLYPHS.position },
-      { key: "size", label: "Size", glyph: BOX_GLYPHS.size },
+      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: "" },
     ],
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
 
+  /**
+   * How many tracks a grid-template value names. A computed value has already
+   * expanded repeat(), so it arrives as the list itself; a value that still
+   * names a repeat counts what the repeat names, a line name in brackets is not
+   * a track, and "none" means the grid names none of its own.
+   */
+  function trackCount(value) {
+    var seen = String(value || "").trim();
+    if (!seen || seen === "none") return 0;
+    var count = 0;
+    var word = "";
+    var depth = 0;
+    function flush() {
+      var repeat = word && word.charAt(0) !== "[" && word.match(/^repeat\(\s*(\d+)/i);
+      count += repeat ? Number(repeat[1]) : word && word.charAt(0) !== "[" ? 1 : 0;
+      word = "";
+    }
+    for (var i = 0; i < seen.length; i++) {
+      var ch = seen.charAt(i);
+      if (ch === "(") depth++;
+      else if (ch === ")" && depth) depth--;
+      // A space inside a function belongs to the track: minmax(0, 1fr).
+      if (!depth && (ch === " " || ch === "\t" || ch === "\n")) flush();
+      else word += ch;
+    }
+    flush();
+    return count;
+  }
+
+  /**
+   * A grid's size, worn in the row as the counts themselves: columns × rows,
+   * with "auto" where the grid names no tracks of its own. Nothing to open.
+   */
+  function gridCountField() {
+    var field = button("ic dock-count", "", "Columns × rows", function () {}, "grid");
+    ["grid-template-columns", "grid-template-rows"].forEach(function (prop, i) {
+      if (i) {
+        var times = document.createElement("span");
+        times.className = "times";
+        times.textContent = "×";
+        field.appendChild(times);
+      }
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = 1;
+      input.max = 12;
+      input.step = 1;
+      input.value = String(trackCount(get(prop)) || "");
+      input.placeholder = "auto";
+      input.setAttribute("aria-label", prop === "grid-template-columns" ? "Columns" : "Rows");
+      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
+      input.addEventListener("input", function () {
+        hold();
+        // A blank field is auto: the grid names no tracks of its own.
+        if (input.value === "") return set(prop, "");
+        var tracks = Math.round(Number(input.value));
+        if (!(tracks >= 1)) return;
+        set(prop, "repeat(" + tracks + ", minmax(0, 1fr))");
+      });
+      input.addEventListener("change", release);
+      field.appendChild(input);
+    });
+    return field;
+  }
+
+  /**
+   * The absolute offsets, worn in the row: top, right, bottom and left, each a
+   * field of its own with its own letter, so the hover fill and the hint name
+   * the one side the pointer is on. A side that names no offset says "auto".
+   */
+  function boundsFields() {
+    return [["top", "T"], ["right", "R"], ["bottom", "B"], ["left", "L"]].map(function (axis) {
+      var prop = axis[0];
+      var field = button("ic dock-count", '<span class="axis">' + axis[1] + "</span>", prop.charAt(0).toUpperCase() + prop.slice(1), function () {}, prop);
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = -1000;
+      input.max = 1000;
+      input.step = 1;
+      var at = Math.round(parseFloat(get(prop)));
+      input.value = isNaN(at) ? "" : String(at);
+      input.placeholder = "auto";
+      input.setAttribute("aria-label", prop.charAt(0).toUpperCase() + prop.slice(1));
+      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
+      input.addEventListener("input", function () {
+        hold();
+        // A blank side is auto: the element sits where the page puts it.
+        if (input.value === "") return set(prop, "");
+        var offset = Number(input.value);
+        if (isNaN(offset)) return;
+        set(prop, offset + "px");
+      });
+      input.addEventListener("change", release);
+      field.appendChild(input);
+      return field;
+    });
+  }
+
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     while (row.firstChild) row.removeChild(row.firstChild);
-    // The element's own additions, in the order they were added to it. Read off
-    // the change record rather than a global: the whole point of the `+` is that
-    // the dock does not clutter, and a control added to one element has no
-    // business sitting on every other one.
-    (selected ? addedTo(selected) : []).forEach(function (key) {
-      var item = ADD.filter(function (a) { return a.key === key; })[0];
-      if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
-    });
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
     var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
@@ -3131,12 +3280,20 @@ function decorations() {
     }
     definitions.forEach(function (definition) {
       var isText = selectedKind === "text";
+      if (!isText && definition.key === "grid") {
+        row.appendChild(gridCountField());
+        return;
+      }
+      if (!isText && definition.key === "bounds") {
+        boundsFields().forEach(function (field) { row.appendChild(field); });
+        return;
+      }
       // The table holds a name per control, and svg() draws it. Two of them hold no
       // icon at all — the family is text and the size is a field — and the colour
-      // control is a letterform with the swatch under it rather than a glyph alone.
+      // control is its chip alone, with no glyph over it.
       var glyph = definition.glyph ? svg(definition.glyph) : "";
       var html = definition.key === "color"
-        ? '<i class="g">' + glyph + '<i class="sw" id="swatch-color"></i></i>'
+        ? '<i class="sw" id="swatch-color"></i>'
         : glyph;
       var className = "ic";
       var onClick = function () { toggle(definition.key); };
@@ -3202,7 +3359,17 @@ function decorations() {
         alignButton.setAttribute("aria-label", align.label);
       }
     }
-    addBtn = button("ic add group-start", svg("ellipsis"), "Add a control", function () {
+    // The element's own additions, in the order they were added to it, and after
+    // the controls every element has: a control that arrives from the `+` lands
+    // at the end of the row, beside the `+` it came from. Read off the change
+    // record rather than a global: the whole point of the `+` is that the dock
+    // does not clutter, and a control added to one element has no business
+    // sitting on every other one.
+    (selected ? addedTo(selected) : []).forEach(function (key) {
+      var item = ADD.filter(function (a) { return a.key === key; })[0];
+      if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
+    });
+    addBtn = button("ic add group-start", svg("plus"), "Add a control", function () {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
@@ -3254,6 +3421,8 @@ function decorations() {
   var TIP_CLOSE = 120;
   var TIP_WARM = 400;
   var TIP_REST = "translate(-50%,-100%)";
+  // Below the control instead, for one that stands near the top of the screen.
+  var TIP_BELOW = "translate(-50%,0)";
   var tipFor = null; // the control the tooltip is over, while it is on show
   var tipAt = null; // the control the pointer or the focus is on
   var tipBlocked = null; // a control whose panel just opened: no tooltip over it
@@ -3282,6 +3451,11 @@ function decorations() {
     if (!words || !button.getBoundingClientRect) return;
     var box = button.getBoundingClientRect();
     var x = box.left + box.width / 2;
+    // Above the control, unless it stands at the top of the screen: a tip that
+    // runs off the edge says nothing. The element menu floats at the element, so
+    // its actions can be up there.
+    var above = box.top > 46;
+    var rest = above ? TIP_REST : TIP_BELOW;
     var shown = !!tipFor && !tipLeaving;
     var warm = tipWarm;
     var from = tipX;
@@ -3293,10 +3467,11 @@ function decorations() {
     tipFor = button;
     tipWarm = true;
     tipX = x;
+    tip.dataset.side = above ? "top" : "bottom";
     tip.hidden = false;
     tip.style.left = x + "px";
-    tip.style.top = box.top - 8 + "px";
-    tip.style.transform = TIP_REST;
+    tip.style.top = (above ? box.top - 8 : box.bottom + 8) + "px";
+    tip.style.transform = rest;
     if (!moves(tip)) {
       tip.textContent = words;
       return;
@@ -3310,7 +3485,7 @@ function decorations() {
       // On show already: the box travels from the last control to this one,
       // and the new words come in from the side it travelled from.
       tip.animate(
-        [{ transform: "translate(calc(-50% + " + (from - x) + "px),-100%)" }, { transform: TIP_REST }],
+        [{ transform: "translate(calc(-50% + " + (from - x) + "px)," + (above ? "-100%" : "0") + ")" }, { transform: rest }],
         { duration: 260, easing: ARRIVE }
       );
       label.animate(slide, { duration: 200, easing: ARRIVE });
@@ -3322,8 +3497,8 @@ function decorations() {
       // The first of the group rises out of the control, a little blurred.
       tip.animate(
         [
-          { opacity: 0, transform: TIP_REST + " translateY(7px) scale(.9)", filter: "blur(4px)" },
-          { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
+          { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)", filter: "blur(4px)" },
+          { opacity: 1, transform: rest, filter: "blur(0px)" },
         ],
         { duration: 240, easing: ARRIVE }
       );
@@ -3366,10 +3541,11 @@ function decorations() {
       tip.hidden = true;
       return;
     }
+    var rest = tip.dataset.side === "bottom" ? TIP_BELOW : TIP_REST;
     var out = tip.animate(
       [
-        { opacity: 1, transform: TIP_REST, filter: "blur(0px)" },
-        { opacity: 0, transform: TIP_REST + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
+        { opacity: 1, transform: rest, filter: "blur(0px)" },
+        { opacity: 0, transform: rest + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
       ],
       { duration: 120, easing: LEAVE, fill: "forwards" }
     );
@@ -3386,6 +3562,18 @@ function decorations() {
   function inRow(node) {
     while (node) {
       if (node === row) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  /**
+   * Is `node` the list part of a control: its chevron, or the options under it?
+   * The list says what it is, so it opens no tooltip of its own.
+   */
+  function inList(node) {
+    while (node && node !== row) {
+      if (String(node.className || "").indexOf("custom-select") !== -1) return true;
       node = node.parentElement;
     }
     return false;
@@ -3412,6 +3600,13 @@ function decorations() {
   row.addEventListener("pointerover", function (e) {
     var button = controlOf(e.target);
     if (!button) return;
+    // The list that comes out of a chip belongs to that chip: an option is not a
+    // control of the row, so it neither moves the row's fill nor names itself.
+    if (inList(e.target)) {
+      tipAt = null;
+      hideTip(true);
+      return;
+    }
     glideTo(button);
     showTip(button);
   });
@@ -3426,11 +3621,40 @@ function decorations() {
   });
   row.addEventListener("focusin", function (e) {
     var button = controlOf(e.target);
-    if (button) showTip(button, true);
+    if (button && !inList(e.target)) showTip(button, true);
   });
   row.addEventListener("focusout", function () {
     tipAt = null;
     tipBlocked = null;
+    hideTip();
+  });
+
+  /** The element-menu action under a pointer or the keyboard, if any. */
+  function actionOf(node) {
+    while (node && node !== elementMenu) {
+      if (String(node.className || "").split(" ").indexOf("element-action") !== -1) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // The menu is rebuilt under the element it belongs to, so its hints are
+  // delegated too: an action is its icon alone, and the words are the drawn tip.
+  elementMenu.addEventListener("pointerover", function (e) {
+    var action = actionOf(e.target);
+    if (action) showTip(action);
+  });
+  elementMenu.addEventListener("pointerout", function (e) {
+    if (actionOf(e.relatedTarget)) return;
+    tipAt = null;
+    hideTip();
+  });
+  elementMenu.addEventListener("focusin", function (e) {
+    var action = actionOf(e.target);
+    if (action) showTip(action, true);
+  });
+  elementMenu.addEventListener("focusout", function () {
+    tipAt = null;
     hideTip();
   });
 
@@ -3456,7 +3680,7 @@ function decorations() {
     // gone: an icon that is there cannot be added twice.
     options(
       ADD.filter(function (item) { return !icon(item.key); })
-          .map(function (item) { return { v: item.key, label: item.label, stack: "system-ui,sans-serif" }; }),
+          .map(function (item) { return { v: item.key, label: item.label }; }),
       "",
       function (key) {
         var item = ADD.filter(function (a) { return a.key === key; })[0];

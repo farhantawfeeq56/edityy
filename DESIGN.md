@@ -1,17 +1,17 @@
 ---
 name: Edityy
-description: Edityy — a visual editing layer for code-based websites, on white paper, in mist-graded rose
+description: Edityy — a visual editing layer for code-based websites, on white paper, in mist-graded cobalt
 colors:
-  primary: "#3a283c"
-  secondary: "#86546b"
-  tertiary: "#b6758b"
+  primary: "#16233a"
+  secondary: "#465a78"
+  tertiary: "#2f5fa8"
   neutral: "#ffffff"
   surface: "#ffffff"
   on-primary: "#ffffff"
-  muted: "#86546b"
-  border: "#3a283c1a"
-  accent-rose: "#d79eac"
-  accent-blush: "#ecc5c9"
+  muted: "#465a78"
+  border: "#16233a1a"
+  accent-rose: "#b6cbe8"
+  accent-blush: "#d8e3f4"
 typography:
   h1:
     fontFamily: "Plus Jakarta Sans"
@@ -101,8 +101,8 @@ components:
 
 Edityy sits between a codebase and a visual editing interface: a Components
 Editor for AI-assisted building and an editor for structured content like
-posts and landing copy. The UI is a white paper canvas with plum ink
-headlines and rose signals. The feel is a calm workbench — quiet
+posts and landing copy. The UI is a white paper canvas with navy ink
+headlines and cobalt signals. The feel is a calm workbench — quiet
 surfaces, one strong dark button, no gradients on core UI.
 
 ## Visual reference
@@ -117,7 +117,7 @@ What carries over:
 
 - **Washed-out highlights.** Paper is the brightest value in the frame and
   nothing competes with it. Highlights bloom, they don't clip.
-- **Deep, faded shadows.** Ink is a deep faded plum, never pure black, and
+- **Deep, faded shadows.** Ink is a deep faded navy, never pure black, and
   never full contrast against paper.
 - **Dense atmospheric mist.** Value separation between elements is soft.
   Nothing is crisply outlined; hierarchy comes from tone, not edges.
@@ -129,33 +129,36 @@ What carries over:
 What does not carry over: literal scenery, literal fog textures as
 backgrounds, and any literal teal/cyan. The brief named a monochromatic
 deep-cyan and faded-pale-teal combination as the image's palette; this
-document translates that intent into Edityy's own rose-and-plum palette.
+document translates that intent into Edityy's own cobalt-and-navy palette.
 The *grade* transfers, the *hue* is the app's own.
 
 ## Colors
 
-White paper under plum ink, with a rose mid-tone doing the signalling.
+White paper under navy ink, with a cobalt mid-tone doing the signalling.
 
-- **Primary (#3a283c):** Deep plum ink. Headlines, body text, the primary
+- **Primary (#16233a):** Deep navy ink. Headlines, body text, the primary
   button, the orb. Never pure black.
-- **Secondary (#86546b):** Dusty rose-brown. Dark surfaces, hover fills,
-  muted-on-dark emphasis. Also the muted text color on light fills.
-- **Tertiary (#b6758b):** Mid rose. Signal dots, active states,
-  interaction highlights — always paired with ink or paper text.
+- **Secondary (#465a78):** Slate blue. Dark surfaces, hover fills, muted
+  on dark emphasis. Also the muted text color on light fills.
+- **Tertiary (#2f5fa8):** Cobalt. Signal dots, active states, interaction
+  highlights — always paired with ink or paper text.
 - **Neutral (#ffffff):** Paper. The canvas and editor background. The
   app's brightest value.
 - **Surface (#ffffff):** Cards and instruction blocks sit on the same
   paper as the canvas, separated only by a hairline and by grain. Layers
   that need to lift off the canvas use a blur, not a lighter fill.
-- **On-primary (#ffffff):** Text and icons on plum fills.
-- **Muted (#86546b):** Secondary copy, timestamps, captions on paper.
-- **Border (#3a283c1a):** Hairline dividers between panes — ~10% ink.
+- **On-primary (#ffffff):** Text and icons on navy fills.
+- **Muted (#465a78):** Secondary copy, timestamps, captions on paper.
+- **Border (#16233a1a):** Hairline dividers between panes — ~10% ink.
   Slightly heavier than a typical hairline, because grain eats contrast.
-- **Accent-rose (#d79eac) / Accent-blush (#ecc5c9):** Pastel badges for
+- **Accent-rose (#b6cbe8) / Accent-blush (#d8e3f4):** Pastel badges for
   content state (draft / review / published), always with ink text.
 
-The ramp runs paper → blush → rose → mid rose → plum. There is no sixth
+The ramp runs paper → blush → rose → cobalt → navy. There is no sixth
 value, and nothing is pure black.
+
+The token names keep the words rose and blush: they are the ramp's two
+pastels, and every class in the app is named after them.
 
 ## Typography
 
@@ -233,18 +236,20 @@ over-round cards into bubbles.
 
 ## Components
 
-- **Primary button:** plum fill, paper label, 8px radius, `0.75rem 1rem`
+- **Primary button:** navy fill, paper label, 8px radius, `0.75rem 1rem`
   padding, flex with 0.5rem gap. Hover steps to Secondary.
 - **Secondary button:** paper fill at ~75% opacity with blur over dark,
   ink label, same radius.
 - **Card:** Surface fill, ink text, 12px radius, 24px padding, hairline
   border. Used for editor panels and agent-instruction blocks.
 - **Muted section:** Neutral fill, ink text, 16px radius, 40px padding.
-- **Input:** paper fill, ink text, 8px radius. Used for content fields
-  in the editor.
+- **Input:** one chip holds the glyph and the value: hairline border, paper
+  fill, 8px radius, and as wide as the digits plus one more. The border is
+  there at rest; hover adds ink, focus takes the open fill, and a press goes to
+  `scale(.96)` and back. It is the shape of every value field in the editor.
 - **Badges:** pastel fill (rose / blush), ink text, pill radius. Used for
   content state.
-- **Divider:** border-ink 1px line. **Signal dots:** 12px pills in mid rose
+- **Divider:** border-ink 1px line. **Signal dots:** 12px pills in cobalt
   for agent/sync status, decorative only.
 - **Orb:** a single filled circle, Primary, bottom-right, persistent.
   Its only job is to be the thing you press to reveal more.
@@ -263,10 +268,10 @@ legible and it never appears as a repeating tile at a fixed scale.
 - Do give each view one display-sized title, placed in open space, and set
   every other heading in semibold; do not reintroduce Geist or a system
   serif.
-- Do keep editor copy on paper with ink text; don't put body copy on rose
-  or pastel fills.
-- Do use paper text only on plum and rose-brown; don't place paper text
-  on rose or blush (fails contrast).
+- Do keep editor copy on paper with ink text; don't put body copy on
+  cobalt or pastel fills.
+- Do use paper text only on navy and slate; don't place paper text on ice
+  or blush (fails contrast).
 - Do use pastels with ink text for content-state badges; don't use them
   for buttons.
 - Do let interaction layers blur and float; don't add gradients to

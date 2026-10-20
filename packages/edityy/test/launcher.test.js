@@ -741,9 +741,10 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.equal(sel.style.width, "121.5px");
   assert.equal(sel.style.height, "49.5px");
   // The design's own stroke: a dark solid line outside the element, no corner
-  // radius, nothing painted inside it. The colour is a ramp value chosen by the
-  // luminance behind the box, so the stylesheet only has the ink fallback.
-  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,#3a283c\)/, "one solid frame, all four sides");
+  // radius, nothing painted inside it. The colour is the palette ink or paper,
+  // chosen by the luminance behind the box, so the stylesheet only has the
+  // ink fallback.
+  assert.match(app.root.innerHTML, /border:1\.5px solid var\(--frame,var\(--ink\)\)/, "one solid frame, all four sides");
   assert.match(app.root.innerHTML, /border-radius:0/, "no corner radius");
   assert.match(app.root.innerHTML, /background:transparent/, "nothing painted inside");
   // Eight handles: four corners and four edges.
@@ -759,7 +760,7 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/, "corner discs five lines across");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\{width:4\.5px;height:min\(24px,40%\);border-radius:2\.25px\}/, "edge bars three lines thick, sixteen long, ends round");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\.horizontal\{width:min\(24px,40%\);height:4\.5px\}/, "the same bar on a top or bottom edge");
-  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,#3a283c\);pointer-events:auto\}/, "the handles wear the same colour as the line");
+  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,var\(--ink\)\);pointer-events:auto\}/, "the handles wear the same colour as the line");
   assert.match(app.root.innerHTML, /\[data-edge=left\]\{left:-3px\}\[data-edge=right\]\{right:-3px\}/, "vertical handles center on the side stroke");
   assert.match(app.root.innerHTML, /\[data-edge=top\]\{top:-3px\}\[data-edge=bottom\]\{bottom:-3px\}/, "horizontal handles center on the top and bottom strokes");
   assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");
@@ -785,7 +786,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(bare);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a");
   // A light background keeps the line in ink rather than inventing a hue.
   const paper = text("div", "hi", { "background-color": "rgb(249, 242, 238)" },
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
@@ -793,7 +794,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(paper);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#3a283c", "ink on paper");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a", "ink on paper");
   // A transparent element takes the colour of the nearest ancestor that paints
   // one, because that is the colour the box actually lies on.
   const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
@@ -830,20 +831,23 @@ const press = (app, key) => {
   return icon;
 };
 
-/** Pick a named row out of the open control. */
+/** Pick a named row out of the open control. A row that shows its own words
+    wears them as its accessible name, not as a title repeating them. */
 const pickOption = (pop, title) => {
-  const row = pop.children.flatMap((c) => c.children).find((b) => b.title === title);
+  const row = pop.children.flatMap((c) => c.children).find((b) => b.getAttribute?.("aria-label") === title);
   assert.ok(row, `no option "${title}" in the open control`);
+  assert.ok(!row.title, "a row that says its own name keeps no second tooltip");
   for (const fn of row.bubbles.click.bubble) fn({});
   return row;
 };
 
-/** Move the popover's nth slider to a value, as a user would drag it. */
-const drag = (open, index, value) => {
-  const input = open.children[index].children[0];
-  assert.ok(input, `no slider at ${index}`);
-  input.value = value;
+/** Type a number into a named field of the open control. */
+const typeInto = (pop, name, value) => {
+  const input = all(pop).find((n) => n.getAttribute?.("aria-label") === name);
+  assert.ok(input, `no field "${name}" in the open control`);
+  input.value = String(value);
   for (const fn of input.bubbles.input.bubble) fn({});
+  for (const fn of input.bubbles.change.bubble) fn({});
   return input;
 };
 
@@ -871,12 +875,11 @@ const fields = (el) =>
 test("the open icon stays visible on its own dark background", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
-  // `*{color:#3a283c}` matches the glyph itself, so an active button's paper
-  // colour never reaches it: without an explicit inherit the Aa is plum on plum
-  // and disappears. Both glyph kinds need it, one by letterform one by svg — the
-  // drawn one takes the colour down from the box the icon is drawn in.
-  assert.match(css, /\.g\{[^}]*color:inherit/, "the letterform glyph");
-  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the drawn ones");
+  // `*{color:#16233a}` matches the glyph itself, so an active button's paper
+  // colour never reaches it: without an explicit inherit the glyph is ink on
+  // ink and disappears. The drawn one takes the colour down from the box the
+  // icon is drawn in.
+  assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "the drawn glyphs");
 });
 
 test("each control is as wide as it needs to be, not a shared width", () => {
@@ -897,7 +900,7 @@ test("the scrolling list brings its own scrollbar", () => {
   // the host page styles its scrollbars with.
   assert.match(css, /\.list\{[^}]*overflow-y:auto/, "it scrolls");
   assert.match(css, /\.list\{[^}]*scrollbar-width:thin/, "a hairline, not the UA default");
-  assert.match(css, /\.list\{[^}]*scrollbar-color:#3a283c40 transparent/, "on the ramp");
+  assert.match(css, /\.list\{[^}]*scrollbar-color:var\(--ink-25\) transparent/, "on the ramp");
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
 });
 
@@ -906,8 +909,8 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const app = run();
   const css = app.root.innerHTML;
   assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
-  assert.match(css, /\.ic\[aria-expanded=true\]\{background:#f9f9f9\}/, "a selected control is #f9f9f9");
-  assert.match(css, /\.pop\{[^}]*background:#f9f9f9/, "the secondary dock wears the same fill");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--fill-open\)\}/, "a selected control wears the open fill");
+  assert.match(css, /\.pop\{[^}]*background:var\(--fill-open\)/, "the secondary dock wears the same fill");
   quiet(() => selectText(app));
   const row = app.root.nodes.row;
   const tip = app.root.nodes.tip;
@@ -924,6 +927,44 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   quiet(() => press(app, "spacing"));
   for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
   assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("the element menu's actions draw the dock's tooltip, in their own words", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const tip = app.root.nodes.tip;
+  const menu = app.root.nodes["element-menu"];
+  selectText(app);
+  const move = menu.children[0].children.find((b) => b.getAttribute("aria-label") === "Move");
+  assert.equal(move.getAttribute("title"), undefined, "no native title beside the drawn tip");
+  assert.equal(tip.hidden, true, "nothing is shown to begin with");
+  for (const fn of menu.bubbles.pointerover.bubble) fn({ target: move });
+  assert.equal(tip.hidden, true, "the first of the group waits");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(tip.hidden, false, "an action the pointer stays on shows one");
+  assert.equal(tip.textContent, "Move", "in the words of that action");
+  for (const fn of menu.bubbles.pointerout.bubble) fn({ target: move, relatedTarget: null });
+  await new Promise((resolve) => setTimeout(resolve, 140));
+  assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("one thing is open at a time, so two panels never stand on each other", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const pop = app.root.nodes.pop;
+  selectText(app);
+  const select = all(app.root.nodes.row.children.find((b) => b.dataset.key === "size"))
+    .find((node) => String(node.className) === "custom-select");
+  const trigger = all(select).find((node) => String(node.className).startsWith("custom-select-trigger"));
+  const list = all(select).find((node) => String(node.className) === "custom-select-menu");
+  quiet(() => press(app, "spacing"));
+  assert.equal(pop.hidden, false, "a control is open");
+  for (const fn of trigger.bubbles.click.bubble) fn({});
+  assert.equal(pop.hidden, true, "the list in the row closes the control it would stand on");
+  assert.equal(list.hidden, false, "and stands alone");
+  quiet(() => press(app, "spacing"));
+  assert.equal(pop.hidden, false, "a control opens");
+  assert.equal(list.hidden, true, "and the list closes with it");
 });
 
 test("the secondary dock centres on its control and corners at the row's ends", () => {
@@ -966,6 +1007,9 @@ test("the dock opens on text and container, stays shut on media", () => {
     "existing containers retain their default controls"
   );
   const box = app.root.selection().el;
+  // A computed template arrives already expanded, with its line names kept: the
+  // count is the list of tracks, not the repeat() the page may have written.
+  box.computed = { "grid-template-columns": "[left] 1fr [mid] 1fr [right]", "grid-template-rows": "none" };
 
   // The mode cycle omits Stack and starts at Flex.
   quiet(() => press(app, "mode"));
@@ -974,40 +1018,26 @@ test("the dock opens on text and container, stays shut on media", () => {
   assert.equal(box.style.getPropertyValue("display"), "flex");
   quiet(() => press(app, "mode"));
   assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "grid", "gap", "alignment", "+"]);
+    ["mode", "grid", "gap", "+"], "a grid wears its counts in the row");
   assert.equal(box.style.getPropertyValue("display"), "grid");
-  // The mode button is already the grid: the size control next to it must not
-  // draw the same glyph, or the row reads as two of the same button.
-  const [modeButton, gridButton] = app.root.nodes.row.children;
-  assert.notEqual(modeButton.innerHTML, gridButton.innerHTML, "the grid-size control draws its own glyph");
-  quiet(() => press(app, "mode"));
-  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "bounds", "size", "+"]);
-  assert.equal(box.style.getPropertyValue("position"), "absolute");
-  quiet(() => press(app, "mode"));
-  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
-    ["mode", "direction", "wrap", "alignment", "gap", "+"]);
-
-  quiet(() => press(app, "alignment"));
-  assert.equal(app.root.nodes.pop.children[0].children.length, 9, "alignment is a 3x3 grid");
-  for (const fn of app.root.nodes.pop.children[0].children[2].bubbles.click.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
-  assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
-  quiet(() => press(app, "wrap"));
-  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
-  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
-  quiet(() => press(app, "mode"));
-  quiet(() => press(app, "grid"));
-  const gridInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
-  assert.equal(gridInputs.length, 2, "columns and rows share one control");
-  gridInputs[0].value = "3";
-  for (const fn of gridInputs[0].bubbles.input.bubble) fn({});
+  // The size is the pair of counts in the row itself, with nothing to open; a
+  // grid that names no tracks of its own says "auto".
+  const gridInputs = () => fields(app.root.nodes.row.children.find((b) => b.dataset.key === "grid"));
+  assert.equal(gridInputs().length, 2, "columns and rows share one field");
+  assert.equal(gridInputs()[0].value, "2", "columns read off the resolved track list");
+  assert.equal(gridInputs()[1].value, "", "a grid that names no rows of its own is auto");
+  assert.equal(gridInputs()[1].placeholder, "auto");
+  gridInputs()[0].value = "3";
+  for (const fn of gridInputs()[0].bubbles.input.bubble) fn({});
   assert.equal(box.style.getPropertyValue("grid-template-columns"), "repeat(3, minmax(0, 1fr))");
-  gridInputs[1].value = "4";
-  for (const fn of gridInputs[1].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("grid-template-rows"), "repeat(4, minmax(0, 1fr))");
+  gridInputs()[1].value = "2";
+  for (const fn of gridInputs()[1].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-rows"), "repeat(2, minmax(0, 1fr))");
+  gridInputs()[1].value = "";
+  for (const fn of gridInputs()[1].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("grid-template-rows"), "", "a blank count is auto");
   quiet(() => press(app, "gap"));
-  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "range");
+  const gapInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
   assert.equal(gapInputs.length, 2, "row and column gaps share one control");
   gapInputs[0].value = "16";
   for (const fn of gapInputs[0].bubbles.input.bubble) fn({});
@@ -1015,22 +1045,43 @@ test("the dock opens on text and container, stays shut on media", () => {
   gapInputs[1].value = "12";
   for (const fn of gapInputs[1].bubbles.input.bubble) fn({});
   assert.equal(box.style.getPropertyValue("row-gap"), "12px");
-  quiet(() => press(app, "alignment"));
-  for (const fn of app.root.nodes.pop.children[0].children[8].bubbles.click.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("justify-items"), "end", "grid horizontal alignment");
-  assert.equal(box.style.getPropertyValue("align-items"), "flex-end", "grid vertical alignment");
   quiet(() => press(app, "mode"));
-  quiet(() => press(app, "bounds"));
-  assert.equal(app.root.nodes.pop.children.length, 4, "absolute edges");
-  quiet(() => press(app, "size"));
-  const sizeInputs = fields(app.root.nodes.pop).filter((n) => n.type === "number");
-  assert.equal(sizeInputs.length, 2, "width and height share one control");
-  sizeInputs[0].value = "320";
-  for (const fn of sizeInputs[0].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("width"), "320px");
-  sizeInputs[1].value = "180";
-  for (const fn of sizeInputs[1].bubbles.input.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("height"), "180px");
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "top", "right", "bottom", "left", "+"], "each offset has its own field");
+  assert.equal(box.style.getPropertyValue("position"), "absolute");
+  // The offsets are fields in the row, with nothing to open, and a side that
+  // names no offset says "auto".
+  const offsetInputs = () => ["top", "right", "bottom", "left"].map((key) =>
+    fields(app.root.nodes.row.children.find((b) => b.dataset.key === key))[0]);
+  assert.equal(offsetInputs().every(Boolean), true, "top, right, bottom and left");
+  assert.equal(offsetInputs()[0].value, "", "a side with no offset is auto");
+  assert.equal(offsetInputs()[2].placeholder, "auto");
+  offsetInputs()[0].value = "24";
+  for (const fn of offsetInputs()[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("top"), "24px");
+  offsetInputs()[3].value = "-40";
+  for (const fn of offsetInputs()[3].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("left"), "-40px");
+  offsetInputs()[0].value = "";
+  for (const fn of offsetInputs()[0].bubbles.input.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("top"), "", "a blank side is auto");
+  quiet(() => press(app, "mode"));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.dataset.key),
+    ["mode", "direction", "wrap", "alignment", "gap", "+"]);
+
+  quiet(() => press(app, "alignment"));
+  const cells = app.root.nodes.pop.children[0].children;
+  assert.equal(cells.length, 9, "alignment is a 3x3 grid");
+  assert.equal(cells.some((b) => b.innerHTML.includes("<svg")), false, "a cell is the control, not a mark in a frame");
+  assert.equal(cells[0].attributes["aria-pressed"], "true", "the cell that is on is filled");
+  for (const fn of cells[2].bubbles.click.bubble) fn({});
+  assert.equal(box.style.getPropertyValue("justify-content"), "flex-end", "flex horizontal alignment");
+  assert.equal(box.style.getPropertyValue("align-items"), "flex-start", "flex vertical alignment");
+  assert.equal(cells[2].attributes["aria-pressed"], "true", "the fill moves to the cell that was picked");
+  assert.equal(cells[0].attributes["aria-pressed"], "false", "and the cell it left is empty again");
+  quiet(() => press(app, "wrap"));
+  assert.equal(box.style.getPropertyValue("flex-wrap"), "wrap", "flex wrap");
+  assert.equal(app.root.nodes.pop.hidden, true, "the cycle opens nothing");
   quiet(() => press(app, "mode"));
   quiet(() => selectText(app));
   assert.equal(app.root.nodes.dock.hidden, false, "words are");
@@ -1262,7 +1313,7 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   quiet(() => press(app, "family")); // close
   await reopen();
   assert.equal(requests.length, 2, "the retry");
-  const rows = () => pop.children[1].children.map((b) => b.title);
+  const rows = () => pop.children[1].children.map((b) => b.getAttribute("aria-label"));
   assert.deepEqual(rows().slice(5), ["Inter", "Lora"], "the catalog after the page's faces, and no icon fonts");
   assert.equal(links().length, 1, "one preview request for all the rows drawn");
   assert.match(links()[0].href, /family=Inter&family=Lora&text=/);
@@ -1903,13 +1954,13 @@ test("a border colour comes with a width, or it is a colour nobody sees", () => 
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  // A colour on a zero-width border paints nothing at all.
-  // The width slider is the second row: the colour bar is the first.
-  drag(pop(app), 1, 2);
+  // A colour on a zero-width border paints nothing at all. The width is a
+  // field, and the colour bar stands above it.
+  typeInto(pop(app), "Border width", 2);
   assert.equal(p.style.getPropertyValue("border-width"), "2px");
   assert.equal(p.style.getPropertyValue("border-style"), "solid", "a width with no style is still nothing");
 
-  drag(pop(app), 1, 0);
+  typeInto(pop(app), "Border width", 0);
   assert.equal(p.style.getPropertyValue("border-width"), "0px");
   assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
 });
@@ -1927,7 +1978,7 @@ test("no colour of ours stands in for one the page never wrote", () => {
   const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
   // Nothing invents a colour to fall back on: an element whose colour is a name
   // or an rgb() leaves the UA default alone rather than showing a colour of ours.
-  assert.doesNotMatch(source, /swatch\.value = .*#3a283c/, "no plum standing in for an unknown colour");
+  assert.doesNotMatch(source, /swatch\.value = .*#3a283c/, "no ink standing in for an unknown colour");
 });
 
 test("the text-colour glyph wears the element own colour, not one of ours", () => {
@@ -1938,14 +1989,15 @@ test("the text-colour glyph wears the element own colour, not one of ours", () =
   app.hover(p);
   app.clickPage();
   const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
-  // The bar under the A is a readout of this site. Painting it plum on every
+  // The bar under the A is a readout of this site. Painting it ink on every
   // site claims the site is that colour.
-  assert.doesNotMatch(icon.innerHTML, /background:#3a283c/, "no colour baked into the glyph");
+  assert.doesNotMatch(icon.innerHTML, /background:#16233a/, "no colour baked into the glyph");
   // There is nowhere left to read a hex: style.color and getComputedStyle both
   // answer rgb(), so the only route back to a hex is converting what the page
   // wrote — which is arithmetic, not invention.
   p.style.setProperty("color", "rgb(0, 105, 92)");
-  assert.match(icon.innerHTML, /id="swatch-color"/, "a bar that shows the element own colour");
+  assert.match(icon.innerHTML, /id="swatch-color"/, "a chip that shows the element own colour");
+  assert.doesNotMatch(icon.innerHTML, /<svg/, "the colour alone, with no glyph over it");
 });
 
 
@@ -1965,13 +2017,13 @@ test("each element keeps its own additions", () => {
     pickOption(app.root.nodes.pop, "Border");
   });
   const keys = () => app.root.nodes.row.children.map((b) => b.dataset.key);
-  assert.deepEqual(keys(), ["border", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"]);
+  assert.deepEqual(keys(), ["family", "size", "weight", "color", "align", "spacing", "decorate", "border", "+"], "a control that arrives from the + lands beside it");
 
   app.hover(first);
   app.clickPage();
   assert.deepEqual(
     keys(),
-    ["shadow", "family", "size", "weight", "color", "align", "spacing", "decorate", "+"],
+    ["family", "size", "weight", "color", "align", "spacing", "decorate", "shadow", "+"],
     "the first element keeps only its own",
   );
 });
@@ -1986,10 +2038,10 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   const glyph = app.root.nodes.row.children.find((b) => b.dataset.key === "align").innerHTML;
   // `*{color:...}` reaches the <path> as well as the <svg>, and a path painted
   // with currentColor resolves against its OWN colour — so a universal colour
-  // painted every icon the same plum, and an open control is that plum: an icon
+  // painted every icon the same ink, and an open control is that ink: an icon
   // the exact colour of its own background. The colour goes on :host instead.
-  assert.doesNotMatch(css, /\*\{[^}]*color:#3a283c/, "no universal colour to leak onto the paths");
-  assert.match(css, /:host\{all:initial;color:#3a283c\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
+  assert.doesNotMatch(css, /\*\{[^}]*color:#16233a/, "no universal colour to leak onto the paths");
+  assert.match(css, /:host\{all:initial;color:var\(--ink\)\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
   assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
   // Scoped to the icon the control holds: a Lucide glyph is its own svg inside that
   // one, and a rule that reached it would draw the glyph 18 units wide in a 256 box.
@@ -2022,10 +2074,10 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
   drawn(row[row.length - 1].innerHTML);
   assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
 
-  // The alignment grid is the one glyph that is composed here: Lucide's square
-  // with a dot of this file's own in each of the nine cells.
-  assert.match(source, /var ALIGN_FRAME = '<svg x="14\.3"[^']*viewBox="0 0 24 24"/, "the frame is the square");
-  assert.match(source, /ALIGN_FRAME \+/, "and the grid draws it");
+  // The alignment control is nine cells with no glyph in them: the cell is the
+  // mark, and the one that is picked is filled.
+  assert.match(source, /var ALIGN_CELLS = \[\s*\{ v: "flex-start:flex-start", label: "Top left" \}/, "the nine cells are named once");
+  assert.doesNotMatch(source, /ALIGN_GRID|ALIGN_FRAME/, "no mark is drawn inside a cell");
 
   // The container dock is the other place a glyph is picked per control.
   const box = el("div");
@@ -2056,13 +2108,13 @@ test("the dock ends in a + that adds a control to the row", () => {
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
   assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /<circle/, "three dots, drawn");
+  assert.match(plus.innerHTML, /<path d="M5 12h14"/, "a plus, drawn");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the additions, as a list under the dock.
   const pop = app.root.nodes.pop;
   assert.deepEqual(
-    pop.children[0].children.map((b) => b.title),
+    pop.children[0].children.map((b) => b.getAttribute("aria-label")),
     ["Shadow", "Fill", "Border", "Padding", "Margin"],
   );
   // Picking one puts it in the row, and opens the control that was just picked.
@@ -2083,13 +2135,13 @@ test("a control can only be added once", () => {
     pickOption(app.root.nodes.pop, "Shadow");
     press(app, "+");
   });
-  const names = app.root.nodes.pop.children[0].children.map((b) => b.title);
+  const names = app.root.nodes.pop.children[0].children.map((b) => b.getAttribute("aria-label"));
   // Shadow is gone because this element has it; the box controls are still
   // on offer, since only Shadow was ever added.
   assert.deepEqual(names, ["Fill", "Border", "Padding", "Margin"]);
 });
 
-test("a shadow is written as one shorthand, because the offsets have no longhand", () => {
+test("a shadow is one shorthand, and the words wear their own", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
@@ -2097,19 +2149,50 @@ test("a shadow is written as one shorthand, because the offsets have no longhand
     press(app, "+");
     pickOption(app.root.nodes.pop, "Shadow");
   });
-  const bars = app.root.nodes.pop.children;
-  assert.equal(bars.length, 5, "four lengths and a colour");
-  // Strings, as a range input reports them: "0" is truthy, so a shadow that
-  // casts nothing would be written as 0px 0px 0px 0px and never clear.
-  drag(pop(app), 1, "10"); // y offset
-  drag(pop(app), 2, "24"); // blur
+  const grid = pop(app).children[0];
+  assert.equal(grid.children.length, 3, "x, y and blur: words have no spread");
+  const fieldValue = (i, value) => {
+    const input = grid.children[i].children[1];
+    input.value = value;
+    for (const fn of input.bubbles.input.bubble) fn({});
+  };
+  fieldValue(1, "10"); // y offset
+  fieldValue(2, "24"); // blur
+  // The number lives in the field, and nothing is written beside it: no unit to
+  // read twice, no value said a second time.
+  assert.equal(grid.children[1].children.length, 2, "a label and a field, with no unit beside them");
+  assert.equal(grid.children[1].children[0].textContent, "Y");
+  // A shadow on words is the letters' own: text-shadow, not the block's box.
+  assert.equal(p.style.getPropertyValue("text-shadow"), "0px 10px 24px", "x, y, blur and the colour to come");
+  assert.equal(p.style.getPropertyValue("box-shadow"), "", "the box is left alone");
   // Five invented properties would draw nothing at all: CSS has no
   // box-shadow-offset-x outside an @property registration.
-  assert.match(p.style.getPropertyValue("box-shadow"), /10px 24px/, "x, y, blur, spread, colour");
   assert.equal(p.style.getPropertyValue("box-shadow-offset-x"), "", "and no invented longhand");
-  // Back to nothing: four zeroes and a colour cast nothing, so nothing is written.
-  for (const i of [0, 1, 2, 3]) drag(pop(app), i, "0");
-  assert.equal(p.style.getPropertyValue("box-shadow"), "", "no shadow left behind");
+  // Back to nothing: zero lengths cast nothing, so nothing is written.
+  for (const i of [0, 1, 2]) fieldValue(i, "0");
+  assert.equal(p.style.getPropertyValue("text-shadow"), "", "no shadow left behind");
+});
+
+test("a box shadow keeps its spread, and opens on the one the page has", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const box = el("div");
+  box.computed = { "box-shadow": "rgba(22, 35, 58, 0.25) 2px 4px 8px 6px" };
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Shadow");
+  });
+  const grid = pop(app).children[0];
+  assert.equal(grid.children.length, 4, "the offsets, the blur and the spread");
+  assert.equal(grid.children[1].children[1].value, 4, "the shadow the page has is read off its shorthand");
+  assert.equal(grid.children[3].children[1].value, 6, "spread included");
+  const input = grid.children[3].children[1];
+  input.value = "10";
+  for (const fn of input.bubbles.input.bubble) fn({});
+  assert.match(box.style.getPropertyValue("box-shadow"), /^2px 4px 8px 10px /, "spread sits before the colour");
 });
 
 test("every change is still undone on exit", () => {
@@ -2119,8 +2202,8 @@ test("every change is still undone on exit", () => {
   quiet(() => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Padding");
-    drag(pop(app), 0, 12);
   });
+  typeInto(pop(app), "Top and bottom padding", 12);
   assert.equal(p.style.getPropertyValue("padding-top"), "12px");
   press(app, "+");
   quiet(() => app.fire("keydown", { key: "Escape" })); // the control
@@ -2287,7 +2370,8 @@ test("one drag is one step, however many inputs it fires", async () => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
+  const width = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === "Border width");
+  assert.ok(width, "the width field is in the border control");
   for (const v of [2, 4, 6, 8]) {
     width.value = String(v);
     for (const fn of width.bubbles.input.bubble) fn({});
@@ -2306,9 +2390,9 @@ test("a border's width and style are undone together", async () => {
     press(app, "+");
     pickOption(app.root.nodes.pop, "Border");
   });
-  // The border's own width slider, not the picker's hidden knobs.
-  const width = fields(pop(app)).filter((n) => n.type === "range" && n.className !== "knob")[0];
-  assert.ok(width, "the width slider is in the border control");
+  // The border's own width field, not the picker's alpha.
+  const width = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === "Border width");
+  assert.ok(width, "the width field is in the border control");
   width.value = "3";
   for (const fn of width.bubbles.input.bubble) fn({});
   await tick();
@@ -2500,7 +2584,7 @@ test("an arrow on one of our own controls is the control's", () => {
   assert.equal(app.root.selection().el, t.img);
 });
 
-test("padding moves all four sides at once, or one side on its own", async () => {
+test("padding moves all four sides at once, or one pair at a time", async () => {
   const { run, el } = fakeDom();
   const app = run();
   const box = el("div");
@@ -2511,30 +2595,58 @@ test("padding moves all four sides at once, or one side on its own", async () =>
     press(app, "+");
     pickOption(app.root.nodes.pop, "Padding");
   });
-  const all = fields(pop(app));
-  const range = all.find((n) => n.type === "range");
-  range.value = "24";
-  for (const fn of range.bubbles.input.bubble) fn({});
-  for (const fn of range.bubbles.change.bubble) fn({});
+  const type = (input, value) => {
+    input.value = value;
+    for (const fn of input.bubbles.input.bubble) fn({});
+    for (const fn of input.bubbles.change.bubble) fn({});
+  };
+  const link = (name) => {
+    const toggle = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === name);
+    assert.ok(toggle, `no link "${name}"`);
+    for (const fn of toggle.bubbles.click.bubble) fn({});
+    return toggle;
+  };
+  // A field of a pair that is put away is not a control the user can see.
+  const shownFields = () => fields(pop(app)).filter((n) => n.type === "number" && !n.parentElement?.hidden);
+  const tied = shownFields();
+  assert.deepEqual(tied.map((n) => n.getAttribute("aria-label")), ["Top and bottom padding", "Left and right padding"], "one field per pair, and no field per side");
+  assert.equal(fields(pop(app)).some((n) => n.type === "range"), false, "the fields are the control: no bar beside them");
+  // Each pair writes its two sides, and the other pair does not move.
+  type(tied[0], "24");
+  assert.equal(box.style.getPropertyValue("padding-left"), "", "the other pair is left where it was");
+  await tick();
+  type(tied[1], "24");
   for (const side of ["top", "right", "bottom", "left"]) {
     assert.equal(box.style.getPropertyValue("padding-" + side), "24px", side);
   }
-  const numbers = all.filter((n) => n.type === "number");
-  assert.deepEqual(numbers.map((n) => n.value), ["24", "24", "24", "24"], "the fields follow the slider");
-  assert.equal(numbers[1].getAttribute("aria-label"), "Right padding");
   await tick();
 
-  numbers[1].value = "8";
-  for (const fn of numbers[1].bubbles.input.bubble) fn({});
-  for (const fn of numbers[1].bubbles.change.bubble) fn({});
-  assert.equal(box.style.getPropertyValue("padding-right"), "8px");
-  assert.equal(box.style.getPropertyValue("padding-left"), "24px");
+  // One field of a tied pair writes both of its sides.
+  type(tied[0], "8");
+  assert.equal(box.style.getPropertyValue("padding-top"), "8px");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8px", "its pair follows");
+  assert.equal(box.style.getPropertyValue("padding-left"), "24px", "the other pair stays");
+  assert.equal(tied[1].value, "24", "and the field beside it is untouched");
+  await tick();
+
+  // The link breaks the pair into a field per side.
+  assert.equal(link("Top and bottom padding together").getAttribute("aria-pressed"), "false");
+  const apart = shownFields();
+  assert.deepEqual(apart.map((n) => n.getAttribute("aria-label")), ["Top padding", "Bottom padding", "Left and right padding"], "the pair is two fields now");
+  assert.deepEqual(apart.map((n) => n.value), ["8", "8", "24"], "and both of them say what the pair said");
+  type(apart[1], "12");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "12px");
+  assert.equal(box.style.getPropertyValue("padding-top"), "8px", "only the side that was typed into");
   await tick();
 
   key(app, "z", { metaKey: true });
-  assert.equal(box.style.getPropertyValue("padding-right"), "24px", "one side undoes alone");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "8px", "one side undoes alone");
   key(app, "z", { metaKey: true });
-  assert.equal(box.style.getPropertyValue("padding-top"), "", "and the four sides undo together");
+  assert.equal(box.style.getPropertyValue("padding-bottom"), "24px", "the tied pair undoes as one");
+  assert.equal(box.style.getPropertyValue("padding-top"), "24px");
+  key(app, "z", { metaKey: true });
+  assert.equal(box.style.getPropertyValue("padding-left"), "", "the other pair undoes as one too");
+  assert.equal(box.style.getPropertyValue("padding-top"), "24px", "and leaves the first pair alone");
 });
 
 test("margin can go negative, and is reverted on exit", () => {

@@ -4,7 +4,7 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.0 — 2026-10-19
 
 ### Changed
 
@@ -15,9 +15,71 @@ All notable changes to the `edityy` package. The format follows
   save buttons change their words in place, and the edits count pops when it
   changes. The dock and the element menu move in when they appear. Reduced
   motion stops all of this motion. (#181)
+- A grid wears its columns and rows in the dock row as `columns × rows`, with
+  `auto` where the grid names no tracks of that axis. The count is read from the
+  resolved track list, so a grid written with `repeat()` or with its tracks
+  written out shows the count it has. An absolute element wears its top, right,
+  bottom and left offsets in the row, one field for each side. (#187)
+- The alignment control is a 3 x 3 grid of empty cells. The cell is the
+  control, and the cell that is picked is filled. (#188)
+- A shadow on words is written as `text-shadow`, so the letters carry it and the
+  block does not. Its four lengths are number fields in a 2 x 2 grid, with a
+  glyph where "Blur" and "Spread" stood, and the colour under them. A text
+  shadow offers no spread, because CSS has none for it. (#189)
+- The padding and margin panel has one field for the left and right pair, and
+  one field for the top and bottom pair: a box is even both ways far more often
+  than not. Each pair shows two arrows, and its one value is written to both
+  sides. A link button beside the pair breaks it into a field per side, each
+  with one arrow. A pair that the stylesheet already sets apart opens broken. The
+  Grid gap sliders wear glyphs in place of "Column gap" and "Row gap". (#191)
+- Every slider in the dock is a number field: the weight of a variable face, the
+  gap, the column and row gap, and a border's width. A number is typed, not
+  dragged. The padding and margin panel keeps its two pair fields, and no slider
+  stands above them. (#192)
+- The typography spacing panel wears a glyph where a word stood: sideways arrows
+  for the letters, up and down arrows for the lines. The word stays on the field,
+  where a screen reader reads it, like the shadow's blur and spread. (#192)
+- A list row that shows its own words keeps no title. Hovering "Shadow" in the
+  `+` list showed "Shadow" a second time, in a browser tooltip. The row keeps its
+  accessible name. (#192)
+- Every field is one chip and answers the pointer the same way: a hairline and
+  paper at rest, a touch of ink under the pointer, and the open fill with a
+  darker hairline while it holds the caret. A number in a panel is as wide as
+  its own digits, so it no longer spans the panel; the dock's own fields keep
+  the width they are drawn at. (#192)
+- Every value in a panel sits in one chip with the glyph that names it: the two
+  typography spacings, the gap, the border width, the shadow lengths, the colour
+  value, the weight and the padding and margin sides. A chip presses like the
+  size chip in the dock: down in .08s, back in .2s, and it takes the open fill
+  while it holds the caret. A number is as wide as its digits and the room to
+  type one more, so no field is wider than its value. A dock count field no
+  longer takes the padding of a panel field, so it is the width it says it is.
+  The search and the comment box keep the width their words need. (#193)
+- The dock's size and count chips are a box before the pointer arrives: the
+  same hairline a panel field wears, and the open fill while it holds the caret.
+  The cobalt ring is not on a field: a text field answers that ring to a pointer
+  too, so a click drew a blue edge around a field that had done nothing. The
+  cobalt ring stays on the buttons and the lists, where only the keyboard draws
+  it. (#193)
+
+### Fixed
+
+- The `+` list wears the chrome face. It drew its words in the machine UI face,
+  because each row carried a font stack of its own. (#194)
+- A pointer over an option of the size list no longer moves the row's hover fill
+  to the left end of the row, where the font family chip stands. An option is
+  part of the list that came out of its chip, not a control of the row. (#194)
+- The foot of the family list says "Search for more fonts", with no count in
+  front of it, in an 11px line where it stood at 16px. (#194)
+- A number field printed its value twice: once in the field and once beside it,
+  where a unit stood. The field says the number, and no unit stands beside it.
+  (#190)
 
 ### Removed
 
+- A grid no longer offers the Alignment control. The Grid size control, and the
+  width and height control of an absolute element, are gone: their values are
+  fields in the dock row. (#187)
 - Edit text no longer plays the Canvas UI ASCII sweep. The caret goes in at
   once, and the launcher no longer fetches a second file. A cyclic dock control
   changes the element with no animation. (#179)
