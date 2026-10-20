@@ -17,6 +17,10 @@ const MAX_TEXT = 20000;
 const FAMILY = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]*$/u;
 /** A CSS property name, custom properties included. */
 const PROPERTY = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
+/** A state or pseudo-element on the element's own selector: ":hover", "::before". */
+export const STATE = /^(?:::?[a-z][a-z0-9-]{0,40}){1,3}$/;
+/** A media condition: "print", or parenthesised features joined by "and". */
+export const MEDIA = /^(?:print|\([a-z-]{1,30}\s*:\s*[^;{}()|]{1,40}\)(?:\s+and\s+\([a-z-]{1,30}\s*:\s*[^;{}()|]{1,40}\))?)$/;
 /** An HTML tag name: what an added element is. */
 const TAG = /^[a-z][a-z0-9-]*$/;
 
@@ -44,6 +48,8 @@ function str(value, name, max, fallback = "") {
  * Each change is `{ label, selector, source, props, text, comment, added, removed, moved }`,
  * the shape the launcher sends. A prop is `{ prop, before, after }`, and a
  * `font-family` prop has `googleFont` when the user picked a Google font.
+ * A prop also carries `on` for a state or pseudo-element, and `when` for a
+ * media condition: the two things an element cannot hold in its inline style.
  * `comment` is a note the user wrote about the element.
  * `added` is `{ tag, style, wraps }` for an element the user added: its tag,
  * the inline style it was made with, and the selectors of the elements it was
@@ -71,6 +77,18 @@ export function checkChanges(changes) {
         const prop = str(p.prop, "prop", 200);
         if (!PROPERTY.test(prop)) throw invalid("prop must be a CSS property name");
         const out = { prop, before: str(p.before, "before", MAX_SHORT), after: str(p.after, "after", MAX_SHORT) };
+        // A state, a pseudo-element or a breakpoint: the declarations Edityy
+        // writes into a temporary rule instead of the element's inline style.
+        const on = str(p.on, "on", 200, null);
+        if (on !== null) {
+          if (!STATE.test(on)) throw invalid("on must be a state or pseudo-element, such as :hover");
+          out.on = on;
+        }
+        const when = str(p.when, "when", 200, null);
+        if (when !== null) {
+          if (!MEDIA.test(when)) throw invalid("when must be a media condition, such as (max-width: 640px)");
+          out.when = when;
+        }
         const googleFont = str(p.googleFont, "googleFont", 200, null);
         if (googleFont !== null) {
           if (prop !== "font-family" || !FAMILY.test(googleFont)) throw invalid("googleFont must be a font family on font-family");
@@ -146,7 +164,8 @@ export function markdownFor(changes, page) {
     if (change.selector) out.push(`- Selector: ${code(change.selector)}`);
     if (change.source) out.push(`- Source: ${code(change.source)}`);
     for (const p of change.props) {
-      out.push(`- ${code(p.prop)}: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
+      out.push(`- ${code(p.prop)}` + (p.on ? ` on ${code(p.on)}` : "") + (p.when ? ` in ${code("@media " + p.when)}` : "") +
+        `: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
       if (p.googleFont) {
         out.push(`- Font: ${code(p.googleFont)} is a Google font that the project does not load. ` +
           "Add it to the project the way the project loads its fonts, then use it in `font-family`.");

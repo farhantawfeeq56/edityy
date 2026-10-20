@@ -47,7 +47,7 @@ test("a request the page could not have sent is refused", () => {
     { ...request, id: undefined },
     { ...request, count: undefined },
     { ...request, count: 1 },
-    { ...request, count: 6 },
+    { ...request, count: 11 },
     { ...request, count: "3" },
     { ...request, count: 2.5 },
     { ...request, prompt: "x".repeat(241) },
@@ -83,6 +83,54 @@ test("an answer is 2 to 5 variations of plain declarations", () => {
   });
 });
 
+test("a state, a pseudo-element and a breakpoint are rules, and each is checked", () => {
+  const props = (declaration) => [declaration, { property: "color", value: "blue" }];
+  const checked = checkVariations(
+    answer([
+      {
+        label: "hover red",
+        props: [
+          { property: "background", value: "red", on: ":hover" },
+          { property: "background", value: "green", on: ":focus" },
+          { property: "content", value: '"→"', on: "::before" },
+          { property: "padding", value: "8px", when: "(max-width: 640px)" },
+          { property: "background", value: "black" },
+        ],
+      },
+      { label: "two", props: props({ property: "background", value: "blue" }) },
+    ]),
+    "v123abc",
+    2
+  );
+  assert.deepEqual(checked.variations[0].props.slice(0, 4), [
+    { property: "background", value: "red", on: ":hover" },
+    { property: "background", value: "green", on: ":focus" },
+    { property: "content", value: '"→"', on: "::before" },
+    { property: "padding", value: "8px", when: "(max-width: 640px)" },
+  ]);
+  // The same property on the element itself is a different declaration.
+  assert.deepEqual(checked.variations[0].props[4], { property: "background", value: "black" });
+
+  const refused = [
+    { property: "color", value: "red", on: "::before{color: red}" },
+    { property: "color", value: "red", on: ":hover;color:red" },
+    { property: "color", value: "red", on: "HOVER" },
+    { property: "color", value: "red", on: "" },
+    { property: "color", value: "red", on: 1 },
+    { property: "color", value: "red", when: "@media (max-width: 640px)" },
+    { property: "color", value: "red", when: "(max-width: 640px) or print" },
+    { property: "color", value: "red", when: "(max-width: 640px){" },
+    { property: "color", value: "red", when: 640 },
+  ];
+  for (const declaration of refused) {
+    assert.throws(
+      () => checkVariations(answer([{ label: "one", props: [declaration] }, { label: "two", props: props({ property: "color", value: "blue" }) }]), "v123abc"),
+      { status: 400 },
+      JSON.stringify(declaration)
+    );
+  }
+});
+
 test("an answer that would need a stylesheet is refused", () => {
   const props = (property, value) => [{ property, value }];
   const bad = [
@@ -94,6 +142,11 @@ test("an answer that would need a stylesheet is refused", () => {
       { label: "four", props: props("color", "pink") },
       { label: "five", props: props("color", "black") },
       { label: "six", props: props("color", "white") },
+      { label: "seven", props: props("color", "grey") },
+      { label: "eight", props: props("color", "teal") },
+      { label: "nine", props: props("color", "navy") },
+      { label: "ten", props: props("color", "lime") },
+      { label: "eleven", props: props("color", "olive") },
     ]),
     answer([
       { label: "one", props: [] },
@@ -176,6 +229,6 @@ test("the agent reads a short request, not the page", () => {
   assert.match(text, /Make exactly 2 variations/);
   assert.match(text, /requestId: `v123abc`/);
   assert.match(text, /plain standard CSS properties/);
-  assert.ok(text.length < 1200, `the request is short (${text.length} characters)`);
+  assert.ok(text.length < 1400, `the request is short (${text.length} characters)`);
   assert.match(requestText(checkVariationRequest({ ...request, prompt: "" })), /wrote no comment/);
 });

@@ -42,8 +42,8 @@ can copy the edits as a prompt for a coding agent, or save them to `.edityy/chan
 MCP (`npx edityy mcp`). Leaving the mode puts the page back exactly as it was.
 
 One element can also be varied: choose **Variations**, pick how many variants and add an optional comment, then type
-`vartest` in your agent and it answers with that many style variations. Keys `1` to `5` switch the live element
-between them, and the one you keep is an ordinary edit.
+`vartest` in your agent and it answers with that many style variations, including hover states, pseudo-elements and
+breakpoints. Keys `1` to `9` and `0` switch the live element between them, and the one you keep is an ordinary edit.
 
 ## The idea
 

@@ -58,8 +58,9 @@ const TOOLS = [
     description:
       "Place the style variations for a pending variation request, for the user to try on the live element. " +
       "Place exactly the number get_variation_request returned. " +
-      "Each variation is a label and plain standard CSS declarations. No custom properties, " +
-      "pseudo-elements, states, at-rules or !important.",
+      "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
+      "pseudo-element and `when` for a media condition. No custom properties, at-rules in place " +
+      "of `when`, `!important` or url().",
     inputSchema: {
       type: "object",
       properties: {
@@ -67,7 +68,7 @@ const TOOLS = [
         variations: {
           type: "array",
           minItems: 2,
-          maxItems: 5,
+          maxItems: 10,
           items: {
             type: "object",
             properties: {
@@ -81,6 +82,14 @@ const TOOLS = [
                   properties: {
                     property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
                     value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+                    on: {
+                      type: "string",
+                      description: "Optional: a state or pseudo-element on the element, such as :hover, :focus-visible or ::before.",
+                    },
+                    when: {
+                      type: "string",
+                      description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint variation.",
+                    },
                   },
                   required: ["property", "value"],
                   additionalProperties: false,

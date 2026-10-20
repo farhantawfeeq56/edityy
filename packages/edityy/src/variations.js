@@ -10,7 +10,7 @@
  */
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { SaveError } from "./changes.js";
+import { MEDIA, STATE, SaveError } from "./changes.js";
 
 export const VARIATIONS_PATH = "/__edityy/variations";
 export const VARIATION_REQUEST_FILE = ".edityy/variation-request.json";
@@ -21,7 +21,7 @@ const PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 /** A value with no rule, no block, no function that reaches the network, no bang. */
 const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
 const MIN_VARIATIONS = 2;
-const MAX_VARIATIONS = 5;
+const MAX_VARIATIONS = 10;
 const MAX_PROPERTIES = 12;
 /** The comment is optional, so an empty one is a request too. */
 const MAX_COMMENT = 240;
@@ -81,10 +81,25 @@ export function checkVariations(response, expectedId, count) {
       const property = declaration.property;
       const value = declaration.value;
       if (typeof property !== "string" || !PROPERTY.test(property) || property.startsWith("--")) invalid("property must be a standard CSS property name");
-      if (seen.has(property)) invalid("a variation cannot repeat a property");
-      seen.add(property);
+      // A state, a pseudo-element or a breakpoint lives in a rule of its own, so
+      // each one is checked here before the page draws it.
+      const on = declaration.on;
+      if (on !== undefined && (typeof on !== "string" || !STATE.test(on))) {
+        invalid("on must be a state or pseudo-element, such as :hover or ::before");
+      }
+      const when = declaration.when;
+      if (when !== undefined && (typeof when !== "string" || !MEDIA.test(when))) {
+        invalid("when must be a media condition, such as (max-width: 640px)");
+      }
+      // The same property can appear twice: on the element, and on its hover.
+      const key = `${on || ""}|${when || ""}|${property}`;
+      if (seen.has(key)) invalid("a variation cannot repeat a property");
+      seen.add(key);
       if (typeof value !== "string" || !value.trim() || value.length > 160 || VALUE.test(value)) invalid("property value is invalid");
-      return { property, value: value.trim() };
+      const out = { property, value: value.trim() };
+      if (on) out.on = on;
+      if (when) out.when = when;
+      return out;
     });
     return { label: variation.label.trim(), props };
   });
@@ -161,13 +176,18 @@ export function requestText(request) {
     "",
     `1. Make exactly ${request.count} variations. Give each one a short label of two or three words.`,
     "2. In each variation, use plain standard CSS properties and plain values.",
-    "3. Do not use custom properties, pseudo-elements, hover or other states,",
-    "   at-rules, media queries, `!important`, or `url()`.",
-    "4. Call place_variations with the requestId below and the variations.",
+    "3. A state, a pseudo-element or a breakpoint is a rule: set `on` to `:hover`,",
+    "   `:focus-visible` or `::before`, or set `when` to a media condition such as",
+    "   `(max-width: 640px)`. Leave both out for the element's own style.",
+    "4. `::before` and `::after` need a `content` value to show at all.",
+    "5. Do not use custom properties, at-rules other than a media condition in",
+    "   `when`, `!important`, or `url()`.",
+    "6. Call place_variations with the requestId below and the variations.",
     "",
     `requestId: \`${request.id}\``,
     "",
-    "The user sees each variation on the live element, keys 1 to 5 switch between",
-    "them, and the one they keep becomes a normal edit for this project.",
+    "The user sees each variation on the live element, keys 1 to 9 pick one and",
+    "0 picks the tenth, and the one they keep becomes a normal edit for this project. A state or a",
+    "breakpoint shows on the page only when the user hovers it or narrows the window.",
   ].join("\n");
 }

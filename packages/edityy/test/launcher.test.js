@@ -266,7 +266,22 @@ function fakeDom() {
   const withShadow = (node) => ((node.attachShadow = () => root), node);
 
   const appended = [];
-  const body = { appendChild: (node) => appended.push(node), childNodes: [] };
+  const body = {
+    appendChild: (node) => {
+      appended.push(node);
+      body.children.push(node);
+      node.parentElement = body;
+      return node;
+    },
+    removeChild: (node) => {
+      const at = body.children.indexOf(node);
+      if (at !== -1) body.children.splice(at, 1);
+      node.parentElement = null;
+      return node;
+    },
+    children: [],
+    childNodes: [],
+  };
 
   const win = {
     innerWidth: 1200,
@@ -2857,7 +2872,14 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   let polls = 0;
   const variations = [
     { label: "thin grey", props: [{ property: "scrollbar-width", value: "thin" }, { property: "scrollbar-color", value: "#8a8a8a transparent" }] },
-    { label: "rose pill", props: [{ property: "scrollbar-color", value: "#f43f5e #f4f4f5" }] },
+    {
+      label: "rose pill",
+      props: [
+        { property: "scrollbar-color", value: "#f43f5e #f4f4f5" },
+        { property: "background", value: "#f4f4f5", on: ":hover" },
+        { property: "padding", value: "8px", when: "(max-width: 640px)" },
+      ],
+    },
   ];
   app.win.fetch = async (url, init = {}) => {
     sent.push({ url, init });
@@ -2881,7 +2903,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   const area = box.children[1];
   assert.equal(box.children[0].children[0].nodeValue, "Number of variants");
   assert.equal(count.type, "number", "the box asks how many variants first");
-  assert.deepEqual([count.min, count.max, count.value], ["2", "5", "3"], "three unless the user says otherwise");
+  assert.deepEqual([count.min, count.max, count.value], ["2", "10", "3"], "three unless the user says otherwise");
   assert.equal(area.getAttribute("aria-label"), "What to vary");
   assert.equal(area.placeholder, "Optional comment, such as: thinner and darker");
   count.value = "2";
@@ -2930,8 +2952,28 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#f43f5e #f4f4f5");
 
+  // A state and a breakpoint cannot live in the element's own style, so they go
+  // into a stylesheet of their own, one block for each.
+  const sheets = () => app.doc.body.children.filter((node) => node.tagName === "STYLE");
+  assert.equal(sheets().length, 1, "one sheet for the element");
+  assert.equal(sheets()[0].textContent, "p:hover{background: #f4f4f5}\n@media (max-width: 640px){p{padding: 8px}}");
+  assert.match(app.win.__edityy_changes(), /- `background` on `:hover`: `unset` → `#f4f4f5`/);
+  assert.match(app.win.__edityy_changes(), /- `padding` in `@media \(max-width: 640px\)`: `unset` → `8px`/);
+
+  // The first variation has no rule, so the sheet goes with the one that had it.
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(sheets().length, 0, "no rule, no sheet");
+  quiet(() => app.fire("keydown", { key: "2" }));
+
   // Escape puts the strip away, and the picks stay: they are ordinary edits.
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(strip.hidden, true);
   assert.match(app.win.__edityy_changes(), /- `scrollbar-color`: `unset` → `#f43f5e #f4f4f5`/);
+  assert.equal(sheets().length, 1, "the sheet stays while its edit does");
+
+  // Reverting the element takes the rule and its sheet away.
+  const undo = openEdits(app).children[0].children[0].children[1];
+  quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
+  assert.equal(sheets().length, 0, "a reverted element leaves no sheet behind");
+  assert.equal(el.style.getPropertyValue("scrollbar-color"), "", "and no inline style");
 });

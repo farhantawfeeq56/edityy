@@ -773,12 +773,87 @@
 
   /* -------------------------------------------------------------- changes */
 
+  // A state, a pseudo-element or a breakpoint cannot live in an element's own
+  // style, so such a declaration is a rule in a small stylesheet Edityy adds for
+  // that element. A rule is held under a key: "@" then the media condition, the
+  // state, and the property — "@(max-width: 640px)|:hover|background".
+  function ruleOf(key) {
+    if (key.charAt(0) !== "@") return null;
+    var parts = key.slice(1).split("|");
+    return parts.length === 3 ? { when: parts[0], on: parts[1], property: parts[2] } : null;
+  }
+
+  /** The key a variation's declaration is written under: its own style, or its rule. */
+  function propKey(declaration) {
+    if (!declaration.on && !declaration.when) return declaration.property;
+    return "@" + (declaration.when || "") + "|" + (declaration.on || "") + "|" + declaration.property;
+  }
+
+  /** What a property holds now: its inline value, or the rule in the sheet. */
+  function readProp(rec, prop) {
+    if (ruleOf(prop)) return rec.rules[prop] || "";
+    return rec.el.style.getPropertyValue(prop);
+  }
+
+  /** Write one property: the element's own style, or the rule that names it. */
+  function writeProp(rec, prop, value) {
+    if (ruleOf(prop)) {
+      if (value) rec.rules[prop] = value;
+      else delete rec.rules[prop];
+      drawRules(rec);
+      return;
+    }
+    // `value` is a string, and "" means "not set": removeProperty empties it
+    // without leaving a declaration behind, while setProperty("") would write one
+    // that overrides the stylesheet with nothing.
+    if (value) rec.el.style.setProperty(prop, value);
+    else rec.el.style.removeProperty(prop);
+  }
+
+  /**
+   * Draw the rules an element holds into its own stylesheet, or take the sheet
+   * away when it holds none. One block for each state and breakpoint.
+   *
+   * shortcut: the sheet is the last one in the head, so a page that injects its
+   * own rule for the same element afterwards wins; upgrade by appending the rule
+   * with the element's id.
+   */
+  function drawRules(rec) {
+    var keys = Object.keys(rec.rules);
+    if (!keys.length) {
+      if (rec.sheet && rec.sheet.parentElement) rec.sheet.parentElement.removeChild(rec.sheet);
+      rec.sheet = null;
+      return;
+    }
+    if (!rec.sheet) {
+      rec.sheet = document.createElement("style");
+      rec.sheet.setAttribute("data-edityy-variation", "");
+      (document.head || document.body).appendChild(rec.sheet);
+    }
+    var selector = rec.selector || selectorFor(rec.el);
+    var groups = [];
+    var at = {};
+    keys.forEach(function (key) {
+      var rule = ruleOf(key);
+      var id = rule.when + "|" + rule.on;
+      if (!at[id]) {
+        at[id] = { when: rule.when, on: rule.on, decls: [] };
+        groups.push(at[id]);
+      }
+      at[id].decls.push(rule.property + ": " + rec.rules[key]);
+    });
+    rec.sheet.textContent = groups.map(function (group) {
+      var block = selector + group.on + "{" + group.decls.join("; ") + "}";
+      return group.when ? "@media " + group.when + "{" + block + "}" : block;
+    }).join("\n");
+  }
+
   /** The change record for an element, created on first touch. */
   function record(el) {
     for (var i = 0; i < changes.length; i++) {
       if (changes[i].el === el) return changes[i];
     }
-    var rec = { el: el, props: {}, set: {}, was: {}, text: null, layoutMode: null, created: false };
+    var rec = { el: el, props: {}, set: {}, was: {}, rules: {}, text: null, layoutMode: null, created: false };
     changes.push(rec);
     return rec;
   }
@@ -800,15 +875,9 @@
   function applyTo(el, prop, value) {
     var rec = record(el);
     remember(rec, prop);
-    var was = el.style.getPropertyValue(prop);
-    // `value` is a string, and "" means "not set": removeProperty empties it
-    // without leaving a declaration behind, while setProperty("") would write one
-    // that overrides the stylesheet with nothing — the bug a control that writes
-    // "" to mean "off" would otherwise cause, and silently break the revert too,
-    // since an empty value records nothing to put back.
-    if (value) el.style.setProperty(prop, value);
-    else el.style.removeProperty(prop); // back to the stylesheet's value
-    step(rec, prop, was, el.style.getPropertyValue(prop));
+    var was = readProp(rec, prop);
+    writeProp(rec, prop, value);
+    step(rec, prop, was, readProp(rec, prop));
     return rec;
   }
 
@@ -865,8 +934,7 @@
   /** Write a step's values back without recording anything. */
   function replay(target, values) {
     Object.keys(values).forEach(function (prop) {
-      if (values[prop]) target.rec.el.style.setProperty(prop, values[prop]);
-      else target.rec.el.style.removeProperty(prop);
+      writeProp(target.rec, prop, values[prop]);
     });
     refit();
     tally();
@@ -977,6 +1045,14 @@
    */
   function remember(rec, prop) {
     if (prop in rec.props) return;
+    // A rule is ours alone: the page's own value for a state, a pseudo-element or
+    // a breakpoint is not read, so there is nothing to put back but the rule.
+    if (ruleOf(prop)) {
+      rec.props[prop] = "";
+      rec.set[prop] = false;
+      rec.was[prop] = "";
+      return;
+    }
     // The computed value as well, for the edits list: the inline value before is
     // usually nothing at all, and "nothing → 40px" tells a reader very little.
     var view = window.getComputedStyle(rec.el);
@@ -988,8 +1064,8 @@
   /** Put one property back exactly as it was: its value, or not set at all. */
   function restore(rec, prop) {
     if (!(prop in rec.props)) return;
-    if (rec.set[prop] && rec.props[prop]) rec.el.style.setProperty(prop, rec.props[prop]);
-    else rec.el.style.removeProperty(prop);
+    if (rec.set[prop] && rec.props[prop]) writeProp(rec, prop, rec.props[prop]);
+    else writeProp(rec, prop, "");
   }
 
   /** Undo every property and the text of one element. */
@@ -3970,15 +4046,20 @@ function decorations() {
    */
   function diff(rec) {
     var props = [];
-    Object.keys(rec.props).forEach(function (prop) {
-      if (OWN[prop]) return;
-      var before = rec.set[prop] ? rec.props[prop] : "";
-      var after = rec.el.style.getPropertyValue(prop);
+    Object.keys(rec.props).forEach(function (key) {
+      if (OWN[key]) return;
+      var rule = ruleOf(key);
+      // A rule has no value before it: the page's own rule for this element is
+      // not read, so the edit is the rule and nothing else.
+      var before = rule ? "" : rec.set[key] ? rec.props[key] : "";
+      var after = readProp(rec, key);
       if (after === before) return;
-      var entry = { prop: prop, before: rec.was[prop] || before, after: after };
+      var entry = { prop: rule ? rule.property : key, before: rec.was[key] || before, after: after };
+      if (rule && rule.on) entry.on = rule.on;
+      if (rule && rule.when) entry.when = rule.when;
       // Only while the family is still the Google font that was picked: an undo
       // or a later pick puts a different family there.
-      if (prop === "font-family" && rec.googleFont && faceName(after).toLowerCase() === rec.googleFont.toLowerCase()) {
+      if (!rule && key === "font-family" && rec.googleFont && faceName(after).toLowerCase() === rec.googleFont.toLowerCase()) {
         entry.googleFont = rec.googleFont;
       }
       props.push(entry);
@@ -4114,7 +4195,8 @@ function decorations() {
         out.push("- Source: `" + item.source + "`" + (item.sourceIsOwn ? "" : " (the nearest element with a known location)"));
       }
       item.props.forEach(function (c) {
-        out.push("- `" + c.prop + "`: `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
+        out.push("- `" + c.prop + "`" + (c.on ? " on `" + c.on + "`" : "") + (c.when ? " in `@media " + c.when + "`" : "") +
+          ": `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
         if (c.googleFont) out.push("- Font: " + googleFontNote(c.googleFont));
       });
       if (item.added) {
@@ -4372,7 +4454,7 @@ function decorations() {
       });
   }
 
-  /** The answer arrived: the strip at the bottom right, and the keys 1 to 5. */
+  /** The answer arrived: the strip at the bottom right, and its keys. */
   function showVariants(list) {
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
@@ -4399,7 +4481,7 @@ function decorations() {
     if (!variation || !variationFor) return;
     var rec = record(variationFor);
     var next = {};
-    variation.props.forEach(function (p) { next[p.property] = p.value; });
+    variation.props.forEach(function (p) { next[propKey(p)] = p.value; });
     // What this variation does not set goes back to the page's own value, so a
     // key press shows the whole variation and never a mix of two. It goes back
     // through applyTo, so undo steps over it like any other write.
@@ -4435,7 +4517,8 @@ function decorations() {
       row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
       var key = document.createElement("span");
       key.className = "key";
-      key.appendChild(text(String(i + 1)));
+      // The tenth row wears 0: there is no key for 10 on a keyboard.
+      key.appendChild(text(i === 9 ? "0" : String(i + 1)));
       row.appendChild(key);
       var words = document.createElement("span");
       words.className = "words";
@@ -4478,7 +4561,7 @@ function decorations() {
     var count = document.createElement("input");
     count.type = "number";
     count.min = "2";
-    count.max = "5";
+    count.max = "10";
     count.step = "1";
     count.value = String(variationCount);
     count.disabled = variationWaiting;
@@ -4513,7 +4596,7 @@ function decorations() {
     var send = button("element-action element-comment-action", "", "Send the variations request to the agent", function () {
       // A number the field cannot hold keeps the last one it could.
       var asked = Math.round(Number(count.value));
-      variationCount = asked >= 2 && asked <= 5 ? asked : variationCount;
+      variationCount = asked >= 2 && asked <= 10 ? asked : variationCount;
       variationPrompt = String(area.value || "").trim();
       variationWaiting = true;
       variationWords = "Waiting for your agent. Ask it: vartest";
@@ -4634,7 +4717,7 @@ function decorations() {
             before: rec.props[prop],
             set: rec.set[prop],
             was: rec.was[prop],
-            now: rec.el.style.getPropertyValue(prop),
+            now: readProp(rec, prop),
           };
           any = true;
         });
@@ -4677,8 +4760,7 @@ function decorations() {
         rec.props[prop] = p.before;
         rec.set[prop] = !!p.set;
         rec.was[prop] = p.was;
-        if (p.now) el.style.setProperty(prop, p.now);
-        else el.style.removeProperty(prop);
+        writeProp(rec, prop, p.now || "");
       });
       // Text only where it is still one run of words: anything else would
       // destroy elements a framework has rendered inside it since.
@@ -5045,12 +5127,13 @@ function decorations() {
 
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
-    // 1 to 5 pick a variation while the strip is up, which is what the strip
-    // says on each row. A digit in a field belongs to the field.
-    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(String(e.key || ""))) {
+    // 1 to 9 pick a variation while the strip is up, and 0 picks the tenth,
+    // which is what the strip says on each row. A digit in a field belongs to the
+    // field.
+    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var field = e.target;
       var typing = editing || (field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.isContentEditable));
-      var index = Number(e.key) - 1;
+      var index = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!typing && index < variantList.length) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();

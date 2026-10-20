@@ -178,7 +178,7 @@ It reads from the directory it is started in. Pass `--root <dir>` to read from a
 ## Style variations
 
 Select one element and choose **Variations** in its actions. The box asks two
-things: how many variants to make, 2 to 5, and an optional comment, such as
+things: how many variants to make, 2 to 10, and an optional comment, such as
 "thinner and darker". Press **Send to agent**.
 
 The box then says `Waiting for your agent. Ask it: vartest`. In your agent, type
@@ -191,25 +191,40 @@ Your agent then has one job, in two tool calls:
    element's tag, its selector and a few current values — about 800 characters.
    The agent never sees your code for this.
 2. `place_variations` takes the answer: exactly that many variations, each a
-   short label and a list of plain declarations.
+   short label and a list of declarations.
 
 ```
 thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
 rose pill | scrollbar-color: #f43f5e #f4f4f5
+notched | on: ::-webkit-scrollbar-thumb, background: #f43f5e
+narrow | when: (max-width: 640px), padding: 8px
 ```
 
-A strip at the bottom right then shows the variations. Keys `1` to `5` switch
-the real element between them, and **Keep** puts the strip away. What is left
-on the element is an ordinary edit: **Save to project** and `get_visual_changes`
-carry it like any other, and Escape or leaving the mode reverts it.
+A strip at the bottom right then shows the variations. Keys `1` to `9` pick one
+and `0` picks the tenth, and **Keep** puts the strip away. What is left on the
+element is an ordinary edit: **Save to project** and `get_visual_changes` carry
+it like any other, and Escape or leaving the mode reverts it.
+
+### States, pseudo-elements and breakpoints
+
+A declaration that carries `on` is a state or a pseudo-element of the element
+itself: `:hover`, `:focus-visible`, `::before`, `::-webkit-scrollbar-thumb`.
+A declaration that carries `when` is a breakpoint, such as
+`(max-width: 640px)`. The browser cannot show either in the element's own
+inline style, so Edityy writes them into a small stylesheet it adds to the page
+for that element, and takes the sheet away when the edit is reverted or the
+mode ends.
+
+They travel with the edit: **Save to project** and the copied Markdown name the
+state or the breakpoint beside the property, and your agent writes the rule in
+your own stylesheet. A `::before` or `::after` needs a `content` value to show
+at all.
 
 The endpoint is `POST`, `GET` and `DELETE /__edityy/variations`. A request and
 its answer are written to `.edityy/variation-request.json` and
 `.edityy/variation-response.json`, which the MCP server reads. The page sends
 only plain values, and an answer is checked before the page shows it: a custom
-property, a pseudo-element, a state, an at-rule, `!important` or `url()` is
-refused. Words in a stylesheet — a hover state, a pseudo-element, a breakpoint —
-need a temporary stylesheet, which this version does not have.
+property, an at-rule in place of `when`, `!important` or `url()` is refused.
 
 **Next.js** needs one more route file, next to the one for the edits:
 
@@ -257,7 +272,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
   - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
   - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
-- **Variations** in the element actions asks your coding agent for style variations of that one element. The box takes a number of variants and an optional comment, and tells you to type `vartest` in your agent. The strip at the bottom right shows the variations, keys `1` to `5` switch the element between them, and the one you keep is an ordinary edit. See [Style variations](#style-variations).
+- **Variations** in the element actions asks your coding agent for style variations of that one element. The box takes a number of variants, 2 to 10, and an optional comment, and tells you to type `vartest` in your agent. The strip at the bottom right shows the variations, keys `1` to `9` and `0` switch the element between them, and the one you keep is an ordinary edit. A variation can also change a state or a breakpoint. See [Style variations](#style-variations).
 - Keys: Shift+A wraps selected siblings in a column flex container. Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons. Shift+Arrow does not extend the selection.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
