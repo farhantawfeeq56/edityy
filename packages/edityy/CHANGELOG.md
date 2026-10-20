@@ -4,6 +4,23 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.4.1 — 2026-10-20
+
+### Added
+
+- A numeric style field turns under the pointer: one wheel notch is one step, a
+  4px sideways drag is one step, and a click still puts the caret in to type.
+  The value stops at the field's own limits, and one drag is one undo step. A
+  one-time line says "Scroll to adjust", and after it the pointer and the field's
+  outline say the same thing. (#197)
+- The font control lists the face the element wears now, even when the page does
+  not declare it, so the list always offers a way back to that face. (#197)
+
+### Changed
+
+- The Google Fonts catalog answers a search instead of loading when the list
+  opens, and only the rows that are drawn are previewed. (#197)
+
 ## 0.4.0 — 2026-10-19
 
 ### Changed
