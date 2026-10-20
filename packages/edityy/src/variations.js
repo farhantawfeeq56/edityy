@@ -22,6 +22,8 @@ const PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
 const MAX_VARIATIONS = 5;
 const MAX_PROPERTIES = 12;
+/** The element context the page sends: its own short list of current values. */
+const MAX_VALUES = 16;
 /** The limit of the element context, in characters. The page sends under 3k. */
 const MAX_CONTEXT = 4000;
 
@@ -37,7 +39,7 @@ export function checkVariationRequest(request) {
   if (!element || typeof element !== "object" || Array.isArray(element)) invalid("element is missing");
   if (typeof element.tag !== "string" || !/^[a-z][a-z0-9-]{0,49}$/.test(element.tag)) invalid("element tag is invalid");
   if (typeof element.selector !== "string" || !element.selector.trim() || element.selector.length > 200) invalid("selector must be 1 to 200 characters");
-  if (!Array.isArray(element.values) || element.values.length > MAX_PROPERTIES) invalid(`element values must contain at most ${MAX_PROPERTIES} entries`);
+  if (!Array.isArray(element.values) || element.values.length > MAX_VALUES) invalid(`element values must contain at most ${MAX_VALUES} entries`);
   let contextSize = element.tag.length + element.selector.length + request.prompt.length;
   const values = element.values.map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) invalid("each current value must be an object");

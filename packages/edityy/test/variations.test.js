@@ -28,6 +28,9 @@ test("a request keeps its shape, and its prompt is trimmed", () => {
   const checked = checkVariationRequest(request);
   assert.equal(checked.prompt, "5 scrollbar variations, thinner and darker");
   assert.deepEqual(checked.element, request.element);
+  // The page reads fifteen computed values; all of them have to fit.
+  const values = Array.from({ length: 15 }, (_, i) => ({ property: "color", value: "red" + i }));
+  assert.equal(checkVariationRequest({ ...request, element: { ...request.element, values } }).element.values.length, 15);
 });
 
 test("a request the page could not have sent is refused", () => {
@@ -46,7 +49,7 @@ test("a request the page could not have sent is refused", () => {
     { ...request, element: { ...request.element, values: [{ property: "color", value: "red\n!important" }] } },
     {
       ...request,
-      element: { ...request.element, values: Array.from({ length: 13 }, () => ({ property: "color", value: "red" })) },
+      element: { ...request.element, values: Array.from({ length: 17 }, () => ({ property: "color", value: "red" })) },
     },
     { ...request, element: { ...request.element, values: [{ property: "color", value: "x".repeat(400) }] } },
   ];
