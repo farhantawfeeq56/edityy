@@ -1,11 +1,14 @@
 /*
- * A stdio MCP server that hands a coding agent the edits saved from the page.
+ * A stdio MCP server that hands a coding agent what the page asked for.
  *
  *   npx edityy mcp
  *
- * The page's "Save to project" writes `.edityy/changes.json` (index.js). This
- * serves that file to an agent through two tools: one reads the pending edits,
- * one clears them once they are in the code.
+ * The page writes two things: the edits saved with "Save to project"
+ * (`.edityy/changes.json`, from index.js), and a variation request — one
+ * element, one sentence (`.edityy/variation-request.json`, from variations.js).
+ * This serves both to an agent through four tools: read the edits, clear them
+ * once they are in the code, read the variation request, and place the
+ * variations the agent answers with.
  *
  * MCP over stdio is newline-delimited JSON-RPC 2.0, and this server needs four
  * methods of it, so it is written out here rather than pulled in as an SDK: the

@@ -4264,13 +4264,15 @@ function decorations() {
   // The values the agent gets: a short list of computed values, so a typical
   // request stays under about 800 characters and the agent never sees the code.
   var CONTEXT_PROPS = ["display", "color", "background-color", "border-color", "border-width", "border-style", "border-radius", "font-family", "font-size", "font-weight", "line-height", "padding", "margin", "width", "height"];
-  // How often the page asks whether the agent has answered.
+  // How often the page asks whether the agent has answered, and for how long.
   var POLL_DELAY = 1000;
+  var MAX_POLLS = 120;
 
   var variationFor = null; // the element the waiting request is about
   var variationId = ""; // the pending request, "" when there is none
   var variationWaiting = false;
   var variationTimer = 0;
+  var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var variationPrompt = "";
   var variationBoxFor = null; // the element whose prompt box is open
@@ -4321,6 +4323,7 @@ function decorations() {
       if (!j || !j.ok) throw new Error((j && j.error) || "The request was refused");
       variationFor = el;
       variationId = j.requestId || id;
+      variationPolls = 0;
       pollVariations(); // at once: an answer already waiting is not waited for
     }).catch(function (error) {
       failed(error.message || "Could not ask the dev server");
@@ -4331,6 +4334,16 @@ function decorations() {
   function pollVariations() {
     if (!variationId) return;
     var id = variationId;
+    variationPolls += 1;
+    if (variationPolls > MAX_POLLS) {
+      // Two minutes of asking: the agent is not coming, so the box says so
+      // instead of waiting in silence.
+      variationId = "";
+      variationWaiting = false;
+      variationWords = "The agent did not answer. Ask again when it is ready.";
+      syncElementMenu();
+      return;
+    }
     window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(id), { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -4357,6 +4370,7 @@ function decorations() {
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
     variationId = "";
+    variationPolls = 0;
     variationWaiting = false;
     variationWords = "";
     variationBoxFor = null;
@@ -4380,8 +4394,12 @@ function decorations() {
     var next = {};
     variation.props.forEach(function (p) { next[p.property] = p.value; });
     // What this variation does not set goes back to the page's own value, so a
-    // key press shows the whole variation and never a mix of two.
-    variantProps.forEach(function (prop) { if (!(prop in next)) restore(rec, prop); });
+    // key press shows the whole variation and never a mix of two. It goes back
+    // through applyTo, so undo steps over it like any other write.
+    variantProps.forEach(function (prop) {
+      if (prop in next) return;
+      applyTo(variationFor, prop, rec.set[prop] ? rec.props[prop] : "");
+    });
     Object.keys(next).forEach(function (prop) { applyTo(variationFor, prop, next[prop]); });
     variantProps = Object.keys(next);
     variantAt = index;
@@ -4430,6 +4448,7 @@ function decorations() {
       });
     }
     variationId = "";
+    variationPolls = 0;
     variationWaiting = false;
     variationWords = "";
     variationBoxFor = null;
