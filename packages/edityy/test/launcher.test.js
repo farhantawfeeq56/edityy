@@ -2564,8 +2564,45 @@ test("edits survive a reload, and the mode comes back on", async () => {
   assert.equal(store.getItem("edityy:/"), null);
 });
 
-test("an edit whose element is gone is dropped, not applied somewhere else", async () => {
+test("a rule kept in the session comes back with its stylesheet", async () => {
   const store = memoryStorage();
+  store.setItem(
+    "edityy:/",
+    JSON.stringify({
+      v: 1,
+      edits: [
+        {
+          selector: "#intro",
+          props: {
+            "@|:hover|background": { before: "", set: false, was: "", now: "red" },
+            "@(max-width: 640px)||padding": { before: "", set: false, was: "", now: "8px" },
+          },
+          text: null,
+          added: [],
+        },
+      ],
+    }),
+  );
+  const dom = fakeDom();
+  dom.win.sessionStorage = store;
+  const fresh = dom.text("p", "hello");
+  fresh.id = "intro";
+  dom.doc.querySelector = (sel) => (sel === "#intro" ? fresh : null);
+  const app = dom.run();
+  await load(dom.win);
+  const sheets = () => dom.doc.body.children.filter((node) => node.tagName === "STYLE");
+  assert.equal(sheets().length, 1, "the rule comes back in a sheet of its own");
+  assert.equal(sheets()[0].textContent, "#intro:hover{background: red}\n@media (max-width: 640px){#intro{padding: 8px}}");
+
+  // Leaving the mode takes the sheet away with the rule.
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(sheets().length, 0);
+});
+
+test("an edit whose element is gone is dropped, not applied somewhere else", async () => {  const store = memoryStorage();
   store.setItem("edityy:/", JSON.stringify({ v: 1, edits: [{ selector: "#gone", props: { color: { before: "", set: false, was: "red", now: "blue" } }, text: null, added: [] }] }));
   const dom = fakeDom();
   dom.win.sessionStorage = store;
