@@ -1198,7 +1198,6 @@ test("one control opens at a time, under the dock, and Escape closes it", () => 
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(pop.hidden, true, "the control closes");
   assert.equal(app.root.nodes.dock.hidden, false, "but the dock stays");
-  app.action("Edit text");
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(app.root.nodes.dock.hidden, false, "Escape closes text editing");
   quiet(() => app.fire("keydown", { key: "Escape" }));
@@ -1549,10 +1548,15 @@ test("selecting text shows actions without editing until Edit text is chosen", (
   const p = selectText(app, false);
   assert.equal(p.getAttribute("contenteditable"), undefined);
   assert.equal(app.root.nodes["element-menu"].hidden, false);
-  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Variations", "Delete"]);
+  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Comment", "Variations", "Delete"]);
   app.action("Edit text");
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
-  assert.equal(app.root.nodes["element-menu"].hidden, true);
+  // The menu stays, with the one button that ends the edit.
+  const done = app.root.nodes["element-menu"].children[0].children[0];
+  assert.equal(done.getAttribute("aria-label"), "Done editing the text");
+  quiet(() => { for (const fn of done.bubbles.click.bubble) fn({}); });
+  assert.equal(p.getAttribute("contenteditable"), undefined, "Done gives the words back");
+  assert.deepEqual(app.root.nodes["element-menu"].children[0].children.map((button) => button.getAttribute("aria-label")), ["Edit text", "Move", "Comment", "Variations", "Delete"], "and the actions are back");
 });
 
 test("a comment is written on the element and reaches the agent's Markdown", () => {
@@ -1571,7 +1575,7 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   assert.equal(area.getAttribute("aria-label"), "Comment", "the box opens a field to write in");
   area.value = "  make this bigger  ";
   pressButton(inMenu("Save comment"));
-  assert.deepEqual(menu.children[0].children.map((b) => b.getAttribute("aria-label")), ["Edit text", "Move", "Parent", "Child", "Comment", "Variations", "Delete"], "the buttons are back");
+  assert.deepEqual(menu.children[0].children.map((b) => b.getAttribute("aria-label")), ["Edit text", "Move", "Comment", "Variations", "Delete"], "the buttons are back");
   assert.match(app.win.__edityy_changes(), /- Comment: "make this bigger"/);
   // Reopening shows what was written, and an emptied field takes it off again.
   app.action("Comment");
@@ -1631,7 +1635,7 @@ test("a container gets no caret, because its children are not text to rewrite", 
   assert.equal(card.getAttribute("contenteditable"), undefined);
 });
 
-test("element actions navigate, delete reversibly, and disable unavailable targets", () => {
+test("element actions delete reversibly, and disable unavailable targets", () => {
   const { run, el } = fakeDom();
   const app = run();
   const parent = el("main");
@@ -1646,11 +1650,6 @@ test("element actions navigate, delete reversibly, and disable unavailable targe
     app.hover(selected);
     app.clickPage();
   });
-  assert.equal(app.root.nodes["element-menu"].children[0].children[2].disabled, false);
-  app.action("Child");
-  assert.equal(app.root.selection().el, child);
-  app.action("Parent");
-  assert.equal(app.root.selection().el, selected);
   app.action("Delete");
   assert.equal(parent.children.includes(selected), false);
   assert.match(app.win.__edityy_changes(), /- Removed: section/);
@@ -1730,11 +1729,30 @@ test("the words being edited get no second ring on top of Edityy's own frame", (
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app, true);
-  app.action("Edit text");
   // The browser draws a focus ring on any focused element. Edityy already draws
   // a selection frame, so the words ended up with two outlines, one of them not
   // ours. The frame is the ring.
   assert.equal(p.style.getPropertyValue("outline"), "none");
+});
+
+test("a click in the words being typed is the caret's, and a click elsewhere ends the edit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app, true);
+  const menu = app.root.nodes["element-menu"];
+  // The click is swallowed by the page handler normally. In the words being
+  // typed it must not be: the browser has to place the caret where it landed.
+  app.hover(p);
+  app.clickPage();
+  assert.equal(p.getAttribute("contenteditable"), "plaintext-only", "the words are still being typed");
+  assert.equal(menu.hidden, false, "and the menu is still there");
+  assert.equal(menu.children[0].children[0].getAttribute("aria-label"), "Done editing the text");
+
+  const other = app.el("h2", { text: "other" });
+  app.hover(other);
+  app.clickPage();
+  assert.equal(p.getAttribute("contenteditable"), undefined, "a click elsewhere hands the words back");
+  assert.equal(app.root.selection().el, other);
 });
 
 test("an element's own inline outline survives being edited", () => {
@@ -2947,13 +2965,23 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   area.value = "  thinner and darker  ";
   const ask = inMenu("Send the variations request to the agent");
   for (const fn of ask.bubbles.click.bubble) fn({});
-  // The box says what to type, and neither the fields nor Send take a second request.
+  // The box morphs to the waiting card: the words, the keyword as a chip, the
+  // connect hint, and the X. The fields and Send are gone.
   const waiting = menu.children[0];
-  assert.match(waiting.children[2].children[0].nodeValue, /Waiting for your agent\. Ask it: vartest/);
-  assert.match(waiting.children[3].children[0].nodeValue, /npx edityy mcp/, "and how to connect the server");
-  assert.equal(waiting.children[1].disabled, true);
-  assert.equal(waiting.children[0].children[1].disabled, true);
-  assert.equal(inMenu("Send the variations request to the agent").disabled, true);
+  assert.equal(waiting.className, "wait");
+  assert.equal(waiting.children.length, 3);
+  const head = waiting.children[0];
+  assert.equal(head.className, "wait-head");
+  assert.equal(head.children[0].children[1].nodeValue, "Waiting for your agent");
+  assert.equal(head.children[1].getAttribute("aria-label"), "Cancel the variation request");
+  assert.deepEqual(waiting.children[1].children.map((node) => node.nodeValue ?? node.children[0].nodeValue), ["Ask it:", "vartest"]);
+  assert.deepEqual(
+    waiting.children[2].children.map((node) => node.nodeValue ?? node.children[0].nodeValue),
+    ["Not connected? Add it:", "npx edityy mcp"],
+    "and how to connect the server",
+  );
+  assert.equal(inMenu("Send the variations request to the agent"), undefined, "the fields are put away");
+  assert.equal(inMenu("What to vary"), undefined);
 
   await tick();
   const request = JSON.parse(sent[0].init.body);

@@ -89,6 +89,7 @@
     "undo-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>',
     "unlink": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /> <path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /> <line x1="8" x2="8" y1="2" y2="5" /> <line x1="2" x2="5" y1="8" y2="8" /> <line x1="16" x2="16" y1="19" y2="22" /> <line x1="19" x2="22" y1="16" y2="16" /></svg>',
     "unfold-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12h6" /> <path d="M8 12H2" /> <path d="M12 2v2" /> <path d="M12 8v2" /> <path d="M12 14v2" /> <path d="M12 20v2" /> <path d="m19 15 3-3-3-3" /> <path d="m5 9-3 3 3 3" /></svg>',
+    "x": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
 
@@ -490,8 +491,24 @@
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
     ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-action.delete{color:var(--muted)}",
+    // The one button of the done card wears its words, not a 34px square.
+    ".element-action.done{width:auto;padding:0 14px}",
     ".element-action>svg{width:18px;height:18px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
+    // The waiting state of a variation request: what to type, and the X that puts
+    // the box away. The words stay quiet, the two commands the user copies are
+    // chips, and the connect hint is set off by a hairline.
+    ".wait{display:flex;flex-direction:column;gap:10px;width:240px}",
+    ".wait-head{display:flex;align-items:center;justify-content:space-between;gap:6px}",
+    ".wait-title{display:flex;align-items:center;gap:8px;margin:0;font:500 13px/1.3 inherit;color:var(--ink)}",
+    ".wait-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--accent);animation:waitPulse 1.4s ease-in-out infinite}",
+    "@keyframes waitPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}",
+    ".wait-line{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12px/1.3 inherit;color:var(--muted)}",
+    ".wait-hint{margin:0;padding-top:9px;border-top:1px solid var(--ink-8);display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 11px/1.3 inherit;color:var(--muted)}",
+    ".wait-chip{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:6px;background:var(--ink-6);color:var(--ink);font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}",
+    ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
+    ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
+    ".wait-x>svg{width:14px;height:14px;display:block}",
     ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
     "transition:background-color .13s ease,border-color .13s ease}",
     ".element-comment-text:hover{background:var(--fill-hover)}",
@@ -523,7 +540,7 @@
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
     "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}}",
+    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}.wait-dot{animation:none}}",
     // Two pairs of sides, each pair with the link that ties it. A box is even
     // both ways far more often than not, so a tied pair is ONE field: top follows
     // the same value as bottom, and left the same as right.
@@ -560,7 +577,7 @@
     ".chg .ic{width:30px;height:30px;flex:none}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     // A note in the element card sits in its own gap, not on a margin of its own.
-    ".element-comment>.note{margin:0}",
+    ".element-comment .note{margin:0}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".cta:hover{background:var(--muted)}",
@@ -1037,6 +1054,7 @@
     restore(record(editing), "outline");
     if (editing.blur) editing.blur();
     editing = null;
+    openDone = false; // the menu goes back to the actions it offers
   }
 
   /**
@@ -1266,7 +1284,7 @@
   function syncElementMenu() {
     // An open dock control takes the screen from the menu, and a caret in the
     // words leaves it nothing to offer: both close it until they are done.
-    if (!active || !selected || selectedItems.length !== 1 || moving || editing || dockOpen()) {
+    if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen()) {
       commentFor = null;
       openComment = null;
       elementMenu.hidden = true;
@@ -1280,6 +1298,16 @@
     if (variationBoxFor && variationBoxFor !== selected) {
       variationBoxFor = null;
       openVariationBox = null;
+    }
+    if (editing) {
+      // The words are being typed: the menu offers the one thing left to do.
+      if (!openDone) {
+        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+        elementMenu.appendChild(doneBox());
+        openDone = true;
+      }
+      placeElementMenu();
+      return;
     }
     if (variationBoxFor) {
       // Rebuilt only when the words change — the prompt, then the waiting — so a
@@ -1309,23 +1337,11 @@
     actions.className = "element-menu-actions";
     var edit = actionButton("Edit text", function () {
       if (selectedKind === "text") editText(selected);
-      elementMenu.hidden = true;
+      syncElementMenu();
     }, svg(MENU_ICONS.edit));
     edit.disabled = !canEditText(selected);
     actions.appendChild(edit);
     actions.appendChild(actionButton("Move", function () { startMove(); }, svg(MENU_ICONS.move)));
-    var parent = selectable(selected.parentElement) ? selected.parentElement : null;
-    var parentButton = actionButton("Parent", function () {
-      if (parent) select(parent, { el: parent, kind: kind(parent) });
-    }, svg(MENU_ICONS.parent));
-    parentButton.disabled = !parent;
-    actions.appendChild(parentButton);
-    var child = Array.prototype.filter.call(selected.children || [], selectable)[0] || null;
-    var childButton = actionButton("Child", function () {
-      if (child) select(child, { el: child, kind: kind(child) });
-    }, svg(MENU_ICONS.child));
-    childButton.disabled = !child;
-    actions.appendChild(childButton);
     actions.appendChild(actionButton("Comment", function () {
       commentFor = selected;
       syncElementMenu();
@@ -1790,8 +1806,6 @@ function faces() {
   var MENU_ICONS = {
     edit: "pencil",
     move: "move",
-    parent: "arrow-up",
-    child: "arrow-down",
     comment: "message-square",
     variations: "sparkles",
     delete: "trash-2",
@@ -4366,6 +4380,7 @@ function decorations() {
   var variationBoxFor = null; // the element whose prompt box is open
   var openVariationBox = null;
   var openVariationBoxState = "";
+  var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
   var variantProps = []; // the properties the last variation wrote
@@ -4551,10 +4566,68 @@ function decorations() {
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
   }
 
+  /** The menu while an element's words are being typed: the one way out. */
+  function doneBox() {
+    var box = document.createElement("div");
+    box.className = "element-menu-actions";
+    var done = button("element-action done", "", "Done editing the text", function () {
+      stopEditing();
+      syncElementMenu();
+    }, "done-editing");
+    done.appendChild(say("Done"));
+    box.appendChild(done);
+    return box;
+  }
+
+  /** A line of words in the element card. */
+  function noteBox(words) {
+    var note = document.createElement("p");
+    note.className = "note";
+    note.appendChild(text(words));
+    return note;
+  }
+
+  /** A line of the waiting card: a few words, then the command they name. */
+  function waitLine(cls, words, command) {
+    var line = document.createElement("p");
+    line.className = cls;
+    line.appendChild(text(words));
+    var chip = document.createElement("span");
+    chip.className = "wait-chip";
+    chip.appendChild(text(command));
+    line.appendChild(chip);
+    return line;
+  }
+
   /** The box that asks how many variations and what to vary, in the element's own card. */
   function variationBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
+    if (variationWaiting) {
+      // The request is out: nothing left to fill in, only what to type in the
+      // agent, and the X that puts the box away so the page is the page again.
+      box.className = "wait";
+      var head = document.createElement("div");
+      head.className = "wait-head";
+      var title = document.createElement("p");
+      title.className = "wait-title";
+      var dot = document.createElement("span");
+      dot.className = "wait-dot";
+      title.appendChild(dot);
+      title.appendChild(text("Waiting for your agent"));
+      head.appendChild(title);
+      head.appendChild(button("wait-x", svg("x"), "Cancel the variation request", function () {
+        closeVariants();
+        syncElementMenu();
+      }, "cancel-variations"));
+      box.appendChild(head);
+      box.appendChild(waitLine("wait-line", "Ask it:", "vartest"));
+      // The page cannot see whether the agent has the server, so it says how to
+      // add it, set off from the line above.
+      box.appendChild(waitLine("wait-hint", "Not connected? Add it:", "npx edityy mcp"));
+      openVariationBox = box;
+      return box;
+    }
     var countRow = document.createElement("label");
     countRow.className = "element-comment-count";
     countRow.appendChild(text("Number of variants"));
@@ -4564,7 +4637,6 @@ function decorations() {
     count.max = "10";
     count.step = "1";
     count.value = String(variationCount);
-    count.disabled = variationWaiting;
     countRow.appendChild(count);
     box.appendChild(countRow);
     var area = document.createElement("textarea");
@@ -4574,22 +4646,8 @@ function decorations() {
     area.placeholder = "Optional comment, such as: thinner and darker";
     area.setAttribute("aria-label", "What to vary");
     area.value = variationPrompt;
-    area.disabled = variationWaiting;
     box.appendChild(area);
-    if (variationWords) {
-      var note = document.createElement("p");
-      note.className = "note";
-      note.appendChild(text(variationWords));
-      box.appendChild(note);
-    }
-    if (variationWaiting) {
-      // The page cannot see whether the agent has the server, so it says how to
-      // add it beside what to type.
-      var how = document.createElement("p");
-      how.className = "note";
-      how.appendChild(text("Not connected? Add the Edityy MCP with npx edityy mcp."));
-      box.appendChild(how);
-    }
+    if (variationWords) box.appendChild(noteBox(variationWords));
     openVariationBox = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -4599,7 +4657,7 @@ function decorations() {
       variationCount = asked >= 2 && asked <= 10 ? asked : variationCount;
       variationPrompt = String(area.value || "").trim();
       variationWaiting = true;
-      variationWords = "Waiting for your agent. Ask it: vartest";
+      variationWords = ""; // the waiting card says what to type
       syncElementMenu();
       requestVariations(el, variationCount, variationPrompt, function (problem) {
         variationWaiting = false;
@@ -4607,8 +4665,7 @@ function decorations() {
         syncElementMenu();
       });
     }, "send-variations");
-    send.appendChild(say(variationWaiting ? "Waiting…" : "Send to agent"));
-    send.disabled = variationWaiting;
+    send.appendChild(say("Send to agent"));
     actions.appendChild(send);
     var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
       closeVariants();
@@ -4618,7 +4675,7 @@ function decorations() {
     actions.appendChild(cancel);
     box.appendChild(actions);
     // A box opened by a click is ready to type into.
-    setTimeout(function () { if (area.focus && !variationWaiting) area.focus(); }, 0);
+    setTimeout(function () { if (area.focus) area.focus(); }, 0);
     return box;
   }
 
@@ -5112,6 +5169,12 @@ function decorations() {
   function onClick(e) {
     // Edityy's own chrome keeps its clicks.
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    // A click in the words being typed belongs to the caret: it lands where the
+    // pointer did, and the menu stays out of the way until Done.
+    if (editing) {
+      var inWords = pickAt(e.clientX, e.clientY);
+      if (inWords && (inWords.el === editing || (editing.contains && editing.contains(inWords.el)))) return;
+    }
     // Everything else is swallowed: a link must not navigate, and the page's own
     // handlers must not run against an element that is mid-edit.
     e.preventDefault();
