@@ -5,7 +5,8 @@
  *
  * The page writes two things: the edits saved with "Save to project"
  * (`.edityy/changes.json`, from index.js), and a variation request — one
- * element, one sentence (`.edityy/variation-request.json`, from variations.js).
+ * element, a number of variations and an optional comment
+ * (`.edityy/variation-request.json`, from variations.js).
  * This serves both to an agent through four tools: read the edits, clear them
  * once they are in the code, read the variation request, and place the
  * variations the agent answers with.
@@ -47,15 +48,16 @@ const TOOLS = [
   {
     name: "get_variation_request",
     description:
-      "Read the style variations the user asked for on one element of their running site. " +
-      "Returns the one-sentence request, the element's selector and tag, and its current values. " +
-      "Answer with 2 to 5 variations of plain CSS declarations, then call place_variations.",
+      "The user typed vartest: read the style variations they asked for on one element of their running site. " +
+      "Returns the number of variations, their optional comment, the element's selector and tag, and its current values. " +
+      "Answer with that many variations of plain CSS declarations, then call place_variations.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "place_variations",
     description:
       "Place the style variations for a pending variation request, for the user to try on the live element. " +
+      "Place exactly the number get_variation_request returned. " +
       "Each variation is a label and plain standard CSS declarations. No custom properties, " +
       "pseudo-elements, states, at-rules or !important.",
     inputSchema: {
@@ -156,14 +158,14 @@ export async function handle(message, root) {
         if (params?.name === "get_variation_request") {
           const request = await readVariationRequest(root);
           return reply({
-            content: [{ type: "text", text: request ? requestText(request) : "No pending variation request. The user has not asked for variations yet." }],
+            content: [{ type: "text", text: request ? requestText(request) : "No pending variation request. In the browser, select an element, choose Variations, then Send to agent." }],
           });
         }
         if (params?.name === "place_variations") {
           const placed = await placeVariations(params?.arguments, root);
           const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
           return reply({
-            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one:\n\n${labels}` }],
+            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one with keys 1 to ${placed.variations.length}:\n\n${labels}` }],
           });
         }
         return fail(-32602, `Unknown tool: ${params?.name}`);

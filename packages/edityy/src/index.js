@@ -436,7 +436,7 @@ async function saveFromNode(req, res, root, allowedHosts) {
   }
 }
 
-/** A variation request is one sentence and a few values: 16 KB is plenty. */
+/** A variation request is a number and an optional comment: 16 KB is plenty. */
 const VARIATION_LIMIT = 16 * 1024;
 
 /**

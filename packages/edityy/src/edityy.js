@@ -496,6 +496,9 @@
     "transition:background-color .13s ease,border-color .13s ease}",
     ".element-comment-text:hover{background:var(--fill-hover)}",
     ".element-comment-text:focus{background:var(--fill-open)}",
+    // How many variations to ask for: a label and the field, on one line.
+    ".element-comment-count{display:flex;align-items:center;justify-content:space-between;gap:8px;font:400 12px/1.2 inherit;color:var(--muted)}",
+    ".element-comment-count input{width:64px;height:32px;padding:0 8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 14px/1 inherit}",
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
@@ -556,6 +559,8 @@
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
+    // A note in the element card sits in its own gap, not on a margin of its own.
+    ".element-comment>.note{margin:0}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".cta:hover{background:var(--muted)}",
@@ -4275,6 +4280,7 @@ function decorations() {
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var variationPrompt = "";
+  var variationCount = 3; // how many variations the next request asks for
   var variationBoxFor = null; // the element whose prompt box is open
   var openVariationBox = null;
   var openVariationBoxState = "";
@@ -4305,16 +4311,17 @@ function decorations() {
 
   /**
    * Ask the dev server for variations of one element. The agent reads the same
-   * request over MCP; `failed` is told why a request did not go out.
+   * request over MCP when the user types vartest; `failed` is told why a request
+   * did not go out.
    */
-  function requestVariations(el, prompt, failed) {
+  function requestVariations(el, count, prompt, failed) {
     if (typeof window.fetch !== "function") return failed("Cannot ask here");
     var id = newId();
     window.fetch(VARIATIONS_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ id: id, prompt: prompt, element: contextFor(el) }),
+      body: JSON.stringify({ id: id, count: count, prompt: prompt, element: contextFor(el) }),
     }).then(function (r) {
       // Next.js answers 404 until its route file is added.
       if (r.status === 404) throw new Error("No variations endpoint");
@@ -4340,7 +4347,7 @@ function decorations() {
       // instead of waiting in silence.
       variationId = "";
       variationWaiting = false;
-      variationWords = "The agent did not answer. Ask again when it is ready.";
+      variationWords = "The agent did not answer. Ask it vartest with the Edityy MCP connected.";
       syncElementMenu();
       return;
     }
@@ -4461,14 +4468,27 @@ function decorations() {
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
   }
 
-  /** The box that asks what to vary, in the element's own card. */
+  /** The box that asks how many variations and what to vary, in the element's own card. */
   function variationBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
+    var countRow = document.createElement("label");
+    countRow.className = "element-comment-count";
+    countRow.appendChild(text("Number of variants"));
+    var count = document.createElement("input");
+    count.type = "number";
+    count.min = "2";
+    count.max = "5";
+    count.step = "1";
+    count.value = String(variationCount);
+    count.disabled = variationWaiting;
+    countRow.appendChild(count);
+    box.appendChild(countRow);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
     area.rows = 2;
-    area.placeholder = "One sentence, such as: thinner and darker scrollbar";
+    area.maxLength = 240;
+    area.placeholder = "Optional comment, such as: thinner and darker";
     area.setAttribute("aria-label", "What to vary");
     area.value = variationPrompt;
     area.disabled = variationWaiting;
@@ -4479,28 +4499,34 @@ function decorations() {
       note.appendChild(text(variationWords));
       box.appendChild(note);
     }
+    if (variationWaiting) {
+      // The page cannot see whether the agent has the server, so it says how to
+      // add it beside what to type.
+      var how = document.createElement("p");
+      how.className = "note";
+      how.appendChild(text("Not connected? Add the Edityy MCP with npx edityy mcp."));
+      box.appendChild(how);
+    }
     openVariationBox = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
-    var ask = button("element-action element-comment-action", "", "Ask for variations of this element", function () {
-      var prompt = String(area.value || "").trim();
-      if (!prompt) {
-        if (area.focus) area.focus();
-        return;
-      }
-      variationPrompt = prompt;
+    var send = button("element-action element-comment-action", "", "Send the variations request to the agent", function () {
+      // A number the field cannot hold keeps the last one it could.
+      var asked = Math.round(Number(count.value));
+      variationCount = asked >= 2 && asked <= 5 ? asked : variationCount;
+      variationPrompt = String(area.value || "").trim();
       variationWaiting = true;
-      variationWords = "Waiting for your agent…";
+      variationWords = "Waiting for your agent. Ask it: vartest";
       syncElementMenu();
-      requestVariations(el, prompt, function (problem) {
+      requestVariations(el, variationCount, variationPrompt, function (problem) {
         variationWaiting = false;
         variationWords = problem;
         syncElementMenu();
       });
-    }, "ask-variations");
-    ask.appendChild(say(variationWaiting ? "Waiting…" : "Ask"));
-    ask.disabled = variationWaiting;
-    actions.appendChild(ask);
+    }, "send-variations");
+    send.appendChild(say(variationWaiting ? "Waiting…" : "Send to agent"));
+    send.disabled = variationWaiting;
+    actions.appendChild(send);
     var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
       closeVariants();
       syncElementMenu();

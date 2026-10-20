@@ -155,10 +155,11 @@ tools:
 - `get_visual_changes` returns the edits in `.edityy/changes.json`, as the same
   Markdown that "Copy for an agent" copies;
 - `clear_visual_changes` deletes them once they are in the code;
-- `get_variation_request` returns the style variations the user asked for on one
-  element, with its tag, selector and current values;
-- `place_variations` takes the answer: 2 to 5 variations of plain CSS
-declarations, for the user to try on the live element.
+- `get_variation_request` returns what the user asked for on one element: the
+  number of variations, their optional comment, the element tag, selector and
+  current values;
+- `place_variations` takes the answer: that many variations of plain CSS
+  declarations, for the user to try on the live element.
 
 Claude Code:
 
@@ -176,17 +177,21 @@ It reads from the directory it is started in. Pass `--root <dir>` to read from a
 
 ## Style variations
 
-Select one element, choose **Variations** in its actions, and write one
-sentence: "5 scrollbar variations, thinner and darker." The page posts the
-request to the dev server, and the box says "Waiting for your agent…".
+Select one element and choose **Variations** in its actions. The box asks two
+things: how many variants to make, 2 to 5, and an optional comment, such as
+"thinner and darker". Press **Send to agent**.
+
+The box then says `Waiting for your agent. Ask it: vartest`. In your agent, type
+`vartest`. If the agent has no Edityy server yet, add one with
+`npx edityy mcp` and ask again.
 
 Your agent then has one job, in two tool calls:
 
-1. `get_variation_request` returns the sentence, the element's tag, its
-   selector and a few current values — about 800 characters. The agent never
-   sees your code for this.
-2. `place_variations` takes the answer: 2 to 5 variations, each a short label
-   and a list of plain declarations.
+1. `get_variation_request` returns the number of variations, the comment, the
+   element's tag, its selector and a few current values — about 800 characters.
+   The agent never sees your code for this.
+2. `place_variations` takes the answer: exactly that many variations, each a
+   short label and a list of plain declarations.
 
 ```
 thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
@@ -252,7 +257,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
   - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
   - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
-- **Variations** in the element actions asks your coding agent for a few style variations of that one element. The strip at the bottom right shows them, keys `1` to `5` switch the element between them, and the one you keep is an ordinary edit. See [Style variations](#style-variations).
+- **Variations** in the element actions asks your coding agent for style variations of that one element. The box takes a number of variants and an optional comment, and tells you to type `vartest` in your agent. The strip at the bottom right shows the variations, keys `1` to `5` switch the element between them, and the one you keep is an ordinary edit. See [Style variations](#style-variations).
 - Keys: Shift+A wraps selected siblings in a column flex container. Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons. Shift+Arrow does not extend the selection.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 

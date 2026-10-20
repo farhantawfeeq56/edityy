@@ -19,15 +19,21 @@ import {
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-variations-"));
 const request = {
   id: "v123abc",
-  prompt: "  5 scrollbar variations, thinner and darker  ",
+  count: 2,
+  prompt: "  thinner and darker  ",
   element: { tag: "div", selector: "main > div.scroll", values: [{ property: "overflow-y", value: "auto" }] },
 };
 const answer = (variations) => ({ requestId: "v123abc", variations });
 
 test("a request keeps its shape, and its prompt is trimmed", () => {
   const checked = checkVariationRequest(request);
-  assert.equal(checked.prompt, "5 scrollbar variations, thinner and darker");
+  assert.equal(checked.prompt, "thinner and darker");
+  assert.equal(checked.count, 2);
   assert.deepEqual(checked.element, request.element);
+  // The comment is optional: a count and an element are a whole request.
+  const bare = checkVariationRequest({ ...request, prompt: undefined });
+  assert.equal(bare.prompt, "");
+  assert.equal(checkVariationRequest({ ...request, prompt: "" }).prompt, "");
   // The page reads fifteen computed values; all of them have to fit.
   const values = Array.from({ length: 15 }, (_, i) => ({ property: "color", value: "red" + i }));
   assert.equal(checkVariationRequest({ ...request, element: { ...request.element, values } }).element.values.length, 15);
@@ -39,7 +45,11 @@ test("a request the page could not have sent is refused", () => {
     [],
     { ...request, id: "not a valid id" },
     { ...request, id: undefined },
-    { ...request, prompt: "   " },
+    { ...request, count: undefined },
+    { ...request, count: 1 },
+    { ...request, count: 6 },
+    { ...request, count: "3" },
+    { ...request, count: 2.5 },
     { ...request, prompt: "x".repeat(241) },
     { ...request, element: { ...request.element, tag: "DIV><script" } },
     { ...request, element: { ...request.element, selector: "" } },
@@ -116,7 +126,7 @@ test("a placed answer is read back only by the request that asked for it", async
   const root = tmp();
   assert.equal(await readVariationRequest(root), null);
   await writeVariationRequest(request, root);
-  assert.equal((await readVariationRequest(root)).prompt, "5 scrollbar variations, thinner and darker");
+  assert.equal((await readVariationRequest(root)).prompt, "thinner and darker");
   assert.doesNotThrow(() => readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8"));
 
   const placed = await placeVariations(
@@ -147,12 +157,25 @@ test("an answer without a request is refused, and a new request drops the old an
   assert.equal(await readVariationResponse("v123abc", root), null, "the old answer is gone");
 });
 
+test("an answer is the number of variations the user asked for, or it is refused", () => {
+  const three = answer([
+    { label: "one", props: [{ property: "color", value: "red" }] },
+    { label: "two", props: [{ property: "color", value: "blue" }] },
+    { label: "three", props: [{ property: "color", value: "green" }] },
+  ]);
+  assert.equal(checkVariations(three, "v123abc", 3).variations.length, 3);
+  assert.throws(() => checkVariations(three, "v123abc", 2), { status: 400 }, "two asked, three placed");
+});
+
 test("the agent reads a short request, not the page", () => {
   const text = requestText(checkVariationRequest(request));
   assert.match(text, /thinner and darker/);
+  assert.match(text, /vartest/, "the word the user typed in their agent");
   assert.match(text, /`main > div\.scroll` \(a `div`\)/);
   assert.match(text, /overflow-y: auto/);
+  assert.match(text, /Make exactly 2 variations/);
   assert.match(text, /requestId: `v123abc`/);
   assert.match(text, /plain standard CSS properties/);
   assert.ok(text.length < 1200, `the request is short (${text.length} characters)`);
+  assert.match(requestText(checkVariationRequest({ ...request, prompt: "" })), /wrote no comment/);
 });

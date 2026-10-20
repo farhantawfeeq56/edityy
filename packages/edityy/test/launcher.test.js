@@ -2876,20 +2876,31 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
     .flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
   app.action("Variations");
-  const area = menu.children[0].children[0];
+  const box = menu.children[0];
+  const count = box.children[0].children[1];
+  const area = box.children[1];
+  assert.equal(box.children[0].children[0].nodeValue, "Number of variants");
+  assert.equal(count.type, "number", "the box asks how many variants first");
+  assert.deepEqual([count.min, count.max, count.value], ["2", "5", "3"], "three unless the user says otherwise");
   assert.equal(area.getAttribute("aria-label"), "What to vary");
+  assert.equal(area.placeholder, "Optional comment, such as: thinner and darker");
+  count.value = "2";
   area.value = "  thinner and darker  ";
-  const ask = inMenu("Ask for variations of this element");
+  const ask = inMenu("Send the variations request to the agent");
   for (const fn of ask.bubbles.click.bubble) fn({});
-  // The box says it is waiting, and neither the field nor Ask takes a second request.
-  assert.match(menu.children[0].children[1].children[0].nodeValue, /Waiting for your agent…/);
-  assert.equal(menu.children[0].children[0].disabled, true);
-  assert.equal(inMenu("Ask for variations of this element").disabled, true);
+  // The box says what to type, and neither the fields nor Send take a second request.
+  const waiting = menu.children[0];
+  assert.match(waiting.children[2].children[0].nodeValue, /Waiting for your agent\. Ask it: vartest/);
+  assert.match(waiting.children[3].children[0].nodeValue, /npx edityy mcp/, "and how to connect the server");
+  assert.equal(waiting.children[1].disabled, true);
+  assert.equal(waiting.children[0].children[1].disabled, true);
+  assert.equal(inMenu("Send the variations request to the agent").disabled, true);
 
   await tick();
   const request = JSON.parse(sent[0].init.body);
   assert.equal(sent[0].url, "/__edityy/variations");
   assert.equal(sent[0].init.method, "POST");
+  assert.equal(request.count, 2, "the number the user chose");
   assert.equal(request.prompt, "thinner and darker");
   assert.equal(request.element.tag, "p", "the tag, not the source code");
   assert.equal(request.element.selector, "p");
@@ -2899,7 +2910,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
   assert.equal(polls, 2);
   assert.equal(strip.hidden, false, "the strip is up");
-  assert.equal(inMenu("Ask for variations of this element"), undefined, "the prompt box is done");
+  assert.equal(inMenu("Send the variations request to the agent"), undefined, "the prompt box is done");
   const rows = strip.children.slice(1);
   assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);
   assert.deepEqual(rows.map((r) => r.children[0].children[0].nodeValue), ["1", "2"], "each row says its key");

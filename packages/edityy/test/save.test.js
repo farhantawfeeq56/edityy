@@ -214,6 +214,7 @@ test("a value from the page cannot break out of its place in the Markdown", asyn
 
 const variation = {
   id: "v123abc",
+  count: 2,
   prompt: "  thinner and darker scrollbar  ",
   element: { tag: "div", selector: "main > div", values: [{ property: "overflow-y", value: "auto" }] },
 };
@@ -267,9 +268,9 @@ test("the variation endpoint refuses another site, a bad body and a wrong method
   assert.equal((await send(root, variationRequest("POST", body, { "sec-fetch-site": "cross-site" }))).status, 403);
   assert.equal((await send(root, variationRequest("POST", body, { host: "evil.example:3000" }))).status, 403);
   assert.equal((await send(root, variationRequest("POST", "{not json"))).status, 400);
-  const refused = await send(root, variationRequest("POST", JSON.stringify({ ...variation, prompt: "   " })));
+  const refused = await send(root, variationRequest("POST", JSON.stringify({ ...variation, count: 9 })));
   assert.equal(refused.status, 400);
-  assert.match(refused.body.error, /prompt/);
+  assert.match(refused.body.error, /count/);
   assert.equal((await send(root, variationRequest("POST", JSON.stringify({ ...variation, element: { ...variation.element, values: [{ property: "color", value: "red;}" }] } })))).status, 400);
   assert.equal((await send(root, variationRequest("PUT", body))).status, 405);
   assert.equal(existsSync(join(root, VARIATION_REQUEST_FILE)), false, "nothing was written");

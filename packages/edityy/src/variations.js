@@ -1,6 +1,6 @@
 /*
- * A variation request: one element, one sentence from the user, and the few
- * declarations that come back from the coding agent.
+ * A variation request: one element, a number of variations, an optional comment
+ * from the user, and the declarations that come back from the coding agent.
  *
  * The page writes the request, the agent reads it over MCP and answers with
  * declarations, and the page reads the answer back. Everything the two sides
@@ -20,8 +20,11 @@ const ID = /^[\w-]{1,80}$/;
 const PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 /** A value with no rule, no block, no function that reaches the network, no bang. */
 const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
+const MIN_VARIATIONS = 2;
 const MAX_VARIATIONS = 5;
 const MAX_PROPERTIES = 12;
+/** The comment is optional, so an empty one is a request too. */
+const MAX_COMMENT = 240;
 /** The element context the page sends: its own short list of current values. */
 const MAX_VALUES = 16;
 /** The limit of the element context, in characters. The page sends under 3k. */
@@ -34,13 +37,19 @@ function invalid(message) {
 export function checkVariationRequest(request) {
   if (!request || typeof request !== "object" || Array.isArray(request)) invalid("expected an object");
   if (typeof request.id !== "string" || !ID.test(request.id)) invalid("id is invalid");
-  if (typeof request.prompt !== "string" || !request.prompt.trim() || request.prompt.length > 240) invalid("prompt must be 1 to 240 characters");
+  const count = request.count;
+  if (!Number.isInteger(count) || count < MIN_VARIATIONS || count > MAX_VARIATIONS) {
+    invalid(`count must be a whole number from ${MIN_VARIATIONS} to ${MAX_VARIATIONS}`);
+  }
+  if (request.prompt !== undefined && typeof request.prompt !== "string") invalid("prompt must be a string");
+  const prompt = (request.prompt || "").trim();
+  if (prompt.length > MAX_COMMENT) invalid(`prompt must be at most ${MAX_COMMENT} characters`);
   const element = request.element;
   if (!element || typeof element !== "object" || Array.isArray(element)) invalid("element is missing");
   if (typeof element.tag !== "string" || !/^[a-z][a-z0-9-]{0,49}$/.test(element.tag)) invalid("element tag is invalid");
   if (typeof element.selector !== "string" || !element.selector.trim() || element.selector.length > 200) invalid("selector must be 1 to 200 characters");
   if (!Array.isArray(element.values) || element.values.length > MAX_VALUES) invalid(`element values must contain at most ${MAX_VALUES} entries`);
-  let contextSize = element.tag.length + element.selector.length + request.prompt.length;
+  let contextSize = element.tag.length + element.selector.length + prompt.length;
   const values = element.values.map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) invalid("each current value must be an object");
     if (typeof entry.property !== "string" || !PROPERTY.test(entry.property)) invalid("current property is invalid");
@@ -49,14 +58,18 @@ export function checkVariationRequest(request) {
     return { property: entry.property, value: entry.value };
   });
   if (contextSize > MAX_CONTEXT) invalid("element context is too large");
-  return { id: request.id, prompt: request.prompt.trim(), element: { tag: element.tag, selector: element.selector, values } };
+  return { id: request.id, count: count, prompt: prompt, element: { tag: element.tag, selector: element.selector, values } };
 }
 
-export function checkVariations(response, expectedId) {
+export function checkVariations(response, expectedId, count) {
   if (!response || typeof response !== "object" || Array.isArray(response)) invalid("expected an object");
   if (response.requestId !== expectedId) invalid("request id does not match");
-  if (!Array.isArray(response.variations) || response.variations.length < 2 || response.variations.length > MAX_VARIATIONS) {
-    invalid(`variations must contain 2 to ${MAX_VARIATIONS} entries`);
+  // The user chose the number before asking, so an answer of another size is
+  // not the answer they asked for.
+  const least = count || MIN_VARIATIONS;
+  const most = count || MAX_VARIATIONS;
+  if (!Array.isArray(response.variations) || response.variations.length < least || response.variations.length > most) {
+    invalid(count ? `variations must contain exactly ${count} entries` : `variations must contain ${MIN_VARIATIONS} to ${MAX_VARIATIONS} entries`);
   }
   const variations = response.variations.map((variation) => {
     if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
@@ -112,7 +125,7 @@ export async function readVariationRequest(root = process.cwd()) {
 export async function placeVariations(response, root = process.cwd()) {
   const request = await readVariationRequest(root);
   if (!request) throw new Error("There is no pending variation request.");
-  const checked = checkVariations(response, request.id);
+  const checked = checkVariations(response, request.id, request.count);
   await store(root, VARIATION_RESPONSE_FILE, checked);
   return checked;
 }
@@ -132,17 +145,21 @@ export async function clearVariations(root = process.cwd()) {
 /** The pending request as text for the agent: about 800 characters. */
 export function requestText(request) {
   const values = request.element.values.map((v) => `${v.property}: ${v.value}`).join("; ");
+  const asked = request.prompt
+    ? `The user selected one element and wrote: ${JSON.stringify(request.prompt)}`
+    : "The user selected one element and wrote no comment.";
   return [
     "# Variation request from Edityy",
     "",
-    `The user selected one element and asked for: ${JSON.stringify(request.prompt)}`,
+    `The user typed \`vartest\` in their agent. ${asked}`,
     "",
     `- Element: \`${request.element.selector}\` (a \`${request.element.tag}\`)`,
     `- Current values: ${values ? "`" + values + "`" : "none read"}`,
+    `- Variations the user asked for: ${request.count}`,
     "",
     "Answer with the declarations only, then call place_variations:",
     "",
-    "1. Make 2 to 5 variations. Give each one a short label of two or three words.",
+    `1. Make exactly ${request.count} variations. Give each one a short label of two or three words.`,
     "2. In each variation, use plain standard CSS properties and plain values.",
     "3. Do not use custom properties, pseudo-elements, hover or other states,",
     "   at-rules, media queries, `!important`, or `url()`.",

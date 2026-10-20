@@ -97,11 +97,13 @@ test("a variation request goes to the agent, and its answer goes back to the pag
   assert.match(none.result.content[0].text, /No pending variation request/);
 
   await writeVariationRequest(
-    { id: "v123abc", prompt: "thinner and darker scrollbar", element: { tag: "div", selector: "main > div", values: [{ property: "overflow-y", value: "auto" }] } },
+    { id: "v123abc", count: 2, prompt: "thinner and darker scrollbar", element: { tag: "div", selector: "main > div", values: [{ property: "overflow-y", value: "auto" }] } },
     root
   );
   const got = await call(root, "tools/call", { name: "get_variation_request", arguments: {} });
+  assert.match(got.result.content[0].text, /vartest/);
   assert.match(got.result.content[0].text, /thinner and darker scrollbar/);
+  assert.match(got.result.content[0].text, /Make exactly 2 variations/);
   assert.match(got.result.content[0].text, /main > div/);
   assert.match(got.result.content[0].text, /requestId: `v123abc`/);
   assert.doesNotMatch(got.result.content[0].text, /visual edits/i, "the agent is not sent the saved edits");
