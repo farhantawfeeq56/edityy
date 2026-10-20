@@ -397,6 +397,13 @@
     // without moving many times as far, so it takes the scale that moves the same
     // few pixels: down in .08s, back in .2s.
     ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96);transition-duration:.13s,.13s,.08s}",
+    // A number is a value to turn, not only to type, so the pointer says so: the
+    // two arrows over the digits, and the sideways arrows once a drag starts. A
+    // focused field takes the text caret back, because typing is the way in.
+    ".fld input[type=number],.sides-pair input[type=number],.value-field input[type=number],.pop .weight-control>input{cursor:ns-resize}",
+    ".fld input[type=number]:focus,.sides-pair input[type=number]:focus,.value-field input[type=number]:focus,.pop .weight-control>input:focus{cursor:text}",
+    "[data-scrub]{cursor:ew-resize}",
+    ".fld:hover,.sides-pair>label:hover{border-color:var(--ink-25)}",
     ".fld input[type=number],.sides-pair input[type=number],.value-field input[type=number],.pop .weight-control>input{width:5ch;min-width:0;height:100%;border:0;border-radius:0;padding:0;background:transparent;color:var(--ink);",
     "font:500 14px/1 inherit;outline:none;font-variant-numeric:tabular-nums;box-shadow:none}",
     // The chip is the thing that answers, so the field inside it never lights, and
@@ -573,6 +580,8 @@
     "</div>",
     "</div>",
     '<div class="tip" id="tip" role="tooltip" hidden></div>',
+    // The line a number says once: the wheel turns it. It reuses the tip's face.
+    '<div class="tip" id="hint" role="status" hidden></div>',
   ].join("");
 
   var $ = function (id) {
@@ -596,6 +605,11 @@
   var pop = $("pop");
   var review = $("review");
   var tip = $("tip");
+  var hint = $("hint");
+  // The hint is a once-in-a-page offer: after it, the pointer says the same
+  // thing, so the words would only repeat themselves.
+  var hintDone = false;
+  var hintTimer = 0;
   // The control that is open, "" for none.
   var openKey = "";
   var countBadge = $("count");
@@ -1827,6 +1841,8 @@ function faces() {
     // The panel rises under the control the pointer is on: the tooltip would
     // stand on top of it.
     hideTip(true);
+    // The hint points at a value that is on its way out with the panel.
+    hideHint();
     // One thing open at a time: a list drawn in the row closes with the control
     // that opens, because the two would stand in the same place.
     closeList();
@@ -1984,8 +2000,8 @@ function faces() {
 
     var find = document.createElement("input");
     find.type = "search";
-    find.placeholder = "Search fonts";
-    find.setAttribute("aria-label", "Search fonts");
+    find.placeholder = "Search for more fonts";
+    find.setAttribute("aria-label", "Search for more fonts");
     find.addEventListener("input", function () {
       // One draw for each pause in the typing, not for each key: a draw can
       // request previews.
@@ -2029,22 +2045,27 @@ function faces() {
       if (!open()) return;
       var q = String(find.value || "").trim().toLowerCase();
       var rows = local.filter(function (f) { return !q || f.label.toLowerCase().indexOf(q) !== -1; });
+      // At rest the list is the faces the page has, and the face the element
+      // wears now, even when the page does not declare it: a list without that
+      // face offers no way back to it.
+      var now = faceName(current);
+      if (!q && now && !GENERIC.test(now) && !rows.some(function (f) { return f.label === now; })) {
+        rows = [{ label: now, stack: current, v: current }].concat(rows);
+      }
       var drawn = [];
-      var more = 0;
-      for (var i = 0; google && i < google.length; i++) {
+      // The catalog answers a search, not an open: typing is how a user asks
+      // for more faces than the page already has.
+      for (var i = 0; q && google && i < google.length && rows.length < MAX_ROWS; i++) {
         var f = google[i];
-        if (mine[f.label] || (q && f.key.indexOf(q) === -1)) continue;
-        if (rows.length < MAX_ROWS) {
-          rows.push(f);
-          drawn.push(f);
-        } else more++;
+        if (mine[f.label] || f.key.indexOf(q) === -1) continue;
+        rows.push(f);
+        drawn.push(f);
       }
       while (list.firstChild) list.removeChild(list.firstChild);
       rows.forEach(function (f) { list.appendChild(option(f, current, pick)); });
       previewFaces(drawn);
       if (failed) say("Google Fonts did not load. Close and open this control to try again.");
-      else if (!google) say("Loading Google Fonts…");
-      else if (more) say("Search for more fonts");
+      else if (!google && q) say("Loading Google Fonts…");
       else if (!rows.length) say("No font has that name.");
       else say("");
     }
@@ -2219,6 +2240,134 @@ function icons(items, current, onPick, cls) {
     return mark;
   }
 
+  /** The number a field holds, written back clean: a step of 0.1 must land on
+      0.3, not on 0.30000000000000004. */
+  function putNumber(input, next) {
+    var step = Number(input.step) || 1;
+    var min = input.min === "" ? -Infinity : Number(input.min);
+    var max = input.max === "" ? Infinity : Number(input.max);
+    next = Math.round(next / step) * step;
+    next = Math.max(min, Math.min(max, next));
+    var dot = String(step).indexOf(".");
+    input.value = String(Number(next.toFixed(dot === -1 ? 0 : String(step).length - dot - 1)));
+    // The field's own listeners write the edit, the same way typing does.
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  /**
+   * A number field that turns under the pointer. A wheel notch is one step and
+   * the page does not scroll while the pointer is on the value; a sideways drag
+   * is the fast way, 4px to a step; a click still puts the caret in to type.
+   */
+  function scrub(input) {
+    var held = false; // the pointer is down on the value
+    var dragged = false; // and it has moved far enough to mean a drag
+    var fromX = 0;
+    var fromValue = 0;
+    var idle = 0;
+    var step = function () { return Number(input.step) || 1; };
+
+    input.addEventListener("pointerenter", function () { valueHint(input); });
+
+    input.addEventListener("wheel", function (e) {
+      if (!e.deltaY) return; // a sideways wheel belongs to the page
+      e.preventDefault();
+      clearTimeout(idle);
+      hold();
+      putNumber(input, (Number(input.value) || 0) + (e.deltaY < 0 ? step() : -step()));
+      // A burst of notches is one undo step: it lets go when the wheel rests.
+      idle = setTimeout(release, 400);
+    }, { passive: false });
+
+    input.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      // The caret waits: a press that moves is a drag and a press that stays is
+      // a click, so the two gestures can start the same way.
+      e.preventDefault();
+      held = true;
+      dragged = false;
+      fromX = e.clientX;
+      fromValue = Number(input.value) || 0;
+      if (input.setPointerCapture) input.setPointerCapture(e.pointerId);
+    });
+
+    input.addEventListener("pointermove", function (e) {
+      if (!held) return;
+      var dx = e.clientX - fromX;
+      if (!dragged) {
+        if (Math.abs(dx) < 3) return; // still a press, not a drag
+        dragged = true;
+        input.setAttribute("data-scrub", "");
+      }
+      hold();
+      putNumber(input, fromValue + Math.round(dx / 4) * step());
+    });
+
+    function letGo() {
+      if (!held) return;
+      held = false;
+      input.removeAttribute("data-scrub");
+      if (dragged) {
+        release();
+        return;
+      }
+      // A click is the precise way: the value is taken whole, ready to type over.
+      input.focus();
+      // Chrome refuses a selection on a number field, so the pick is the best it
+      // can do there; the caret still lands in the value.
+      try {
+        input.select();
+      } catch {
+        // No selection on this field type.
+      }
+    }
+    input.addEventListener("pointerup", letGo);
+    input.addEventListener("pointercancel", letGo);
+  }
+
+  /** Put the hint away now, and stop it coming back on its own. */
+  function hideHint() {
+    clearTimeout(hintTimer);
+    hint.hidden = true;
+  }
+
+  /** One line over the first number the pointer meets, for about a second. */
+  function valueHint(input) {
+    if (hintDone || !input.getBoundingClientRect) return;
+    hintDone = true;
+    var box = input.getBoundingClientRect();
+    // Above the value, unless it stands near the top of the screen: a line that
+    // runs off the edge says nothing.
+    var above = box.top > 46;
+    var rest = above ? TIP_REST : TIP_BELOW;
+    hint.textContent = "Scroll to adjust";
+    hint.dataset.side = above ? "top" : "bottom";
+    hint.style.left = box.left + box.width / 2 + "px";
+    hint.style.top = (above ? box.top - 8 : box.bottom + 8) + "px";
+    hint.style.transform = rest;
+    hint.hidden = false;
+    if (moves(hint)) {
+      hint.animate(
+        [
+          { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)" },
+          { opacity: 1, transform: rest },
+        ],
+        { duration: 200, easing: ARRIVE }
+      );
+    }
+    hintTimer = setTimeout(function () {
+      if (!moves(hint)) {
+        hint.hidden = true;
+        return;
+      }
+      var out = hint.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: LEAVE, fill: "forwards" });
+      out.onfinish = function () {
+        hint.hidden = true;
+        out.cancel();
+      };
+    }, 1000);
+  }
+
   /**
    * A number field, for size, tracking, gaps and the rest. A label may be a
    * glyph instead of the word: the glyph stands where the word would, and the
@@ -2253,6 +2402,7 @@ function icons(items, current, onPick, cls) {
     });
     input.addEventListener("change", release);
     row.appendChild(input);
+    scrub(input);
     (parent || pop).appendChild(row);
     return row;
   }
@@ -2666,6 +2816,7 @@ function icons(items, current, onPick, cls) {
     percent.max = 100;
     percent.step = 1;
     percent.setAttribute("aria-label", "Alpha");
+    scrub(percent);
     percent.addEventListener("input", function () {
       if (percent.value === "") return;
       var value = Math.max(0, Math.min(100, Number(percent.value)));
@@ -2807,6 +2958,7 @@ function icons(items, current, onPick, cls) {
       });
       input.addEventListener("change", release);
       cell.appendChild(input);
+      scrub(input);
       row.appendChild(cell);
       return { cell: cell, input: input };
     }
@@ -2907,6 +3059,7 @@ function icons(items, current, onPick, cls) {
         });
         input.addEventListener("change", release);
         row.appendChild(input);
+        scrub(input);
         row.appendChild(customSelect(info.values.map(function (value) {
           var labels = { 300: "Light", 400: "Regular", 500: "Medium", 600: "Semibold", 700: "Bold", 800: "Extra bold", 900: "Black" };
           return { value: value, label: labels[value] ? labels[value] + " (" + value + ")" : String(value) };

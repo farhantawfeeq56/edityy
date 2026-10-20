@@ -110,6 +110,7 @@ function fakeDom() {
     releasePointerCapture() {},
     focus() {},
     blur() {},
+    select() {},
     childNodes: [],
     children: [],
     disabled: false,
@@ -157,6 +158,12 @@ function fakeDom() {
     removeEventListener: (type, fn) => {
       const bucket = bubble(node, type);
       bucket.splice(bucket.indexOf(fn), 1);
+    },
+    // Its own listeners only: the payload fires an input on the field it turns,
+    // and every listener that writes an edit is on that field.
+    dispatchEvent: (event) => {
+      for (const fn of bubble(node, event.type)) fn(event);
+      return true;
     },
     getBoundingClientRect: () => attrs.rect ?? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 },
     // The stub has no selector engine. One query is answered — a class name,
@@ -1314,21 +1321,26 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   await reopen();
   assert.equal(requests.length, 2, "the retry");
   const rows = () => pop.children[1].children.map((b) => b.getAttribute("aria-label"));
-  assert.deepEqual(rows().slice(5), ["Inter", "Lora"], "the catalog after the page's faces, and no icon fonts");
-  assert.equal(links().length, 1, "one preview request for all the rows drawn");
-  assert.match(links()[0].href, /family=Inter&family=Lora&text=/);
+  // The catalog answers the search, not the open: at rest the list is the
+  // page's own faces and the face the element wears now.
+  assert.deepEqual(rows(), ["System UI", "Helvetica", "Georgia", "Times New Roman", "Courier New"], "no catalog rows at rest");
+  assert.equal(links().length, 0, "no preview is requested for rows nobody sees");
+  assert.equal(pop.children[0].placeholder, "Search for more fonts");
+  assert.doesNotMatch(pop.children[2].textContent, /Search for more fonts/);
 
-  // Open again: the catalog and the previews are kept, not requested again.
+  // Open again: the catalog is kept, not requested again.
   quiet(() => press(app, "family"));
   await reopen();
   assert.equal(requests.length, 2);
-  assert.equal(links().length, 1);
+  assert.equal(links().length, 0);
 
-  // The search narrows the list.
+  // Typing asks for more: the catalog answers the search.
   pop.children[0].value = "lo";
   for (const fn of pop.children[0].bubbles.input.bubble) fn({});
   await new Promise((r) => setTimeout(r, 150));
   assert.deepEqual(rows(), ["Lora"]);
+  assert.equal(links().length, 1, "one preview request for the rows drawn");
+  assert.match(links()[0].href, /family=Lora&text=/);
 
   // A pick writes the stack and loads the whole family, once.
   pickOption(pop, "Lora");
@@ -1337,6 +1349,11 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   assert.equal(links()[1].href, "https://fonts.googleapis.com/css2?family=Lora:wght@300;400;700&display=swap");
   pickOption(pop, "Lora");
   assert.equal(links().length, 2, "a second pick makes no second request");
+
+  // Reopening offers the face the element wears, even when the page does not
+  // declare it, so the list always has a way back to it.
+  await reopen();
+  assert.equal(rows()[0], "Lora");
   // The project does not load Lora, so the agent is told to add it.
   assert.match(app.win.__edityy_changes(), /- Font: `Lora` is a Google font that the project does not load\./);
   quiet(() => press(app, "weight"));
@@ -1963,6 +1980,47 @@ test("a border colour comes with a width, or it is a colour nobody sees", () => 
   typeInto(pop(app), "Border width", 0);
   assert.equal(p.style.getPropertyValue("border-width"), "0px");
   assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
+});
+
+test("a number turns under the wheel and under a sideways drag", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(app.root.nodes.pop, "Border");
+  });
+  const input = all(pop(app)).find((n) => n.getAttribute?.("aria-label") === "Border width");
+  let stopped = 0;
+  const wheel = (notches) => {
+    for (const fn of input.bubbles.wheel.bubble) {
+      fn({ deltaY: notches, preventDefault: () => (stopped += 1) });
+    }
+  };
+  const drag = (to) => {
+    for (const fn of input.bubbles.pointerdown.bubble) fn({ pointerType: "mouse", button: 0, clientX: 100, preventDefault() {} });
+    for (const fn of input.bubbles.pointermove.bubble) fn({ clientX: to });
+    for (const fn of input.bubbles.pointerup.bubble) fn({});
+  };
+
+  wheel(-1);
+  assert.equal(p.style.getPropertyValue("border-width"), "1px", "one notch is one step");
+  assert.equal(stopped, 1, "the value takes the wheel, so the page does not scroll");
+
+  // 4px of travel is one step, the same step the wheel and the arrows take.
+  drag(140);
+  assert.equal(p.style.getPropertyValue("border-width"), "11px");
+  assert.equal(input.value, "11");
+
+  // The floor holds however far the drag goes.
+  drag(-2000);
+  assert.equal(p.style.getPropertyValue("border-width"), "0px");
+  assert.equal(input.value, "0");
+
+  // A press that never moves is the precise way in: the value is not turned.
+  for (const fn of input.bubbles.pointerdown.bubble) fn({ pointerType: "mouse", button: 0, clientX: 100, preventDefault() {} });
+  for (const fn of input.bubbles.pointerup.bubble) fn({});
+  assert.equal(input.value, "0", "a click is entry, not adjustment");
 });
 
 test("no colour of ours stands in for one the page never wrote", () => {
