@@ -69,7 +69,7 @@ Edits are not written to your source by Edityy itself: the agent does that, whic
 | Path | What |
 | --- | --- |
 | `packages/edityy` | The published npm package: the middleware, the Vite plugin, the launcher and the MCP server. |
-| `app` | A one-page site for this repo. Not the product. |
+| `app` | The site for this repo: a landing page and a docs site. Not the product. |
 | `DESIGN.md` | Visual language. |
 
 ## Development
