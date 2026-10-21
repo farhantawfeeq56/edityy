@@ -28,8 +28,8 @@ All notable changes to the `edityy` package. The format follows
   the answer live in `.edityy/variation-request.json` and
   `.edityy/variation-response.json`. (#199)
 - A new endpoint, `POST`, `GET` and `DELETE /__edityy/variations`, and a
-  Next.js route file for it:
-  `app/%5F%5Fedityy/variations/route.ts`. (#199)
+  Next.js route file for it: `app/edityy/variations/route.ts`, with a rewrite
+  from `/__edityy/variations` onto it. (#199)
 
 ### Changed
 

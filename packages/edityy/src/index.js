@@ -513,7 +513,7 @@ function readBody(req, limit = SAVE_LIMIT) {
  * The save endpoint as a fetch-style route handler, for frameworks whose pages
  * the middleware never sees — Next.js above all:
  *
- *   // app/%5F%5Fedityy/changes/route.ts  (Next serves %5F as "_")
+ *   // app/edityy/changes/route.ts  (the app rewrites /__edityy/changes onto it)
  *   import { changesRoute } from "edityy";
  *   export const POST = changesRoute();
  *
@@ -546,7 +546,7 @@ export function changesRoute(options = {}) {
 /**
  * The variation endpoint as fetch-style route handlers, for Next.js:
  *
- *   // app/%5F%5Fedityy/variations/route.ts
+ *   // app/edityy/variations/route.ts  (the app rewrites /__edityy/variations onto it)
  *   import { variationsRoute } from "edityy";
  *   export const { GET, POST, DELETE } = variationsRoute();
  *

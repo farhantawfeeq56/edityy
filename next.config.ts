@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   ...(process.env.NODE_ENV === "development" && {
     instrumentationClientInject: ["edityy/client"],
   }),
+  // The package's endpoints answer under /__edityy. Next reads a folder that
+  // starts with "_" as a private folder and never routes it, so the route
+  // lives in a folder with an ordinary name and this rewrite maps the
+  // reserved path onto it.
+  async rewrites() {
+    return [{ source: "/__edityy/variations", destination: "/edityy/variations" }];
+  },
 };
 
 export default nextConfig;

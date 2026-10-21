@@ -88,8 +88,10 @@ serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
 `launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
-private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`. Use this
-approach also on Next.js before 15.3, which has no `instrumentation-client` file.
+private and never routes it, so the route lives at
+`app/edityy/edityy.js/route.ts` and the app rewrites `/__edityy/edityy.js` onto
+it. Use this approach also on Next.js before 15.3, which has no
+`instrumentation-client` file.
 
 To save edits to the project from Next.js, add the route in
 [Save edits to the project](#save-edits-to-the-project).
@@ -133,14 +135,22 @@ subdomains, and `true` takes every host.
 Each change is checked before it is written, and the `markdown` field is made
 from the checked changes. The page cannot put its own text there.
 
-**Next.js** needs one route file. Next treats a folder that starts with `_` as
-private, so the folder name spells the underscores as `%5F`:
+**Next.js** needs one route file and one rewrite. Next treats a folder that
+starts with `_` as private and never routes it, so the route lives in a folder
+with an ordinary name and the app rewrites the path onto it:
 
 ```ts
-// app/%5F%5Fedityy/changes/route.ts
+// app/edityy/changes/route.ts
 import { changesRoute } from "edityy";
 
 export const POST = changesRoute();
+```
+
+```ts
+// next.config.ts
+async rewrites() {
+  return [{ source: "/__edityy/changes", destination: "/edityy/changes" }];
+}
 ```
 
 The route answers 404 unless `NODE_ENV` is `development`, so it writes nothing in
@@ -239,13 +249,21 @@ file, marked as taken back, and the agent is told not to answer it, so a
 withdrawal is not the same as a request that was never made. A new request
 replaces it.
 
-**Next.js** needs one more route file, next to the one for the edits:
+**Next.js** needs one more route file and one more rewrite, next to the one for
+the edits:
 
 ```ts
-// app/%5F%5Fedityy/variations/route.ts
+// app/edityy/variations/route.ts
 import { variationsRoute } from "edityy";
 
 export const { GET, POST, DELETE } = variationsRoute();
+```
+
+```ts
+// next.config.ts
+async rewrites() {
+  return [{ source: "/__edityy/variations", destination: "/edityy/variations" }];
+}
 ```
 
 ## What it does
