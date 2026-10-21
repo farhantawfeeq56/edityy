@@ -17,6 +17,7 @@ const want = [
   "src/index.d.ts",
   "src/index.js",
   "src/mcp.js",
+  "src/variations.js",
   "src/vite.d.ts",
   "src/vite.js",
 ];
