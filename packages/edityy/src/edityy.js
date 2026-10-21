@@ -542,7 +542,7 @@
     // travels under the pointer, which one square cannot do, so the fill is the
     // one it lands in.
     ".element-action{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;padding:0;",
-    "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer;",
+    "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer}",
     ".element-action:hover{background:var(--ink-6);color:var(--ink)}",
     ".element-action:active{transform:scale(.94)}",
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
@@ -4218,8 +4218,7 @@ function decorations() {
         { duration: T.rise, easing: ARRIVE }
       );
       animate(label, slide, { duration: T.settle, easing: ARRIVE });
-    } else if (warm) {
-      // Closed a moment ago: no second rise, only a quick fade in place.
+    } else if (warm) {      // Closed a moment ago: no second rise, only a quick fade in place.
       animateFrom(tip, [{ opacity: 1 }], { duration: T.fade, easing: STANDARD });
       animate(label, slide, { duration: T.settle, easing: ARRIVE });
     } else {
