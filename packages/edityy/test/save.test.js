@@ -286,7 +286,10 @@ test("the variation endpoint takes a request, reports the wait, then the answer"
 
   const cleared = await send(root, variationRequest("DELETE"));
   assert.deepEqual(cleared, { status: 200, body: { ok: true } });
-  assert.equal(existsSync(join(root, VARIATION_REQUEST_FILE)), false);
+  // The request is kept, marked as taken back, so the agent can tell a
+  // withdrawal from a request that was never made.
+  assert.equal(JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8")).status, "cancelled");
+  assert.equal(existsSync(join(root, ".edityy/variation-response.json")), false);
 });
 
 test("the variation endpoint refuses another site, a bad body and a wrong method", async () => {

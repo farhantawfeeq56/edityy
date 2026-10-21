@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { CHANGES_FILE, writeChanges } from "../src/index.js";
 import { handle } from "../src/mcp.js";
-import { readVariationResponse, writeVariationRequest } from "../src/variations.js";
+import { clearVariations, readVariationResponse, writeVariationRequest } from "../src/variations.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-mcp-"));
 const call = (root, method, params, id = 1) => handle({ jsonrpc: "2.0", id, method, params }, root);
@@ -144,4 +144,47 @@ test("an answer with no pending request is refused", async () => {
   });
   assert.equal(refused.result.isError, true);
   assert.match(refused.result.content[0].text, /no pending variation request/i);
+});
+
+test("a request the user took back is not answered, and says so", async () => {
+  const root = tmp();
+  await writeVariationRequest(
+    { id: "v123abc", count: 2, prompt: "", element: { tag: "h1", selector: "main > h1", values: [] } },
+    root
+  );
+  await clearVariations(root);
+  const got = await call(root, "tools/call", { name: "get_variation_request", arguments: {} });
+  assert.match(got.result.content[0].text, /withdrew the last variation request/i);
+  assert.match(got.result.content[0].text, /Do not answer it/);
+  assert.doesNotMatch(got.result.content[0].text, /requestId: `v123abc`/, "a withdrawn request is not for answering");
+  const refused = await call(root, "tools/call", {
+    name: "place_variations",
+    arguments: { requestId: "v123abc", variations: [{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }] },
+  });
+  assert.equal(refused.result.isError, true);
+  assert.match(refused.result.content[0].text, /withdrew the request/i);
+});
+
+test("more variations than the user asked for use the first ones, and say so", async () => {
+  const root = tmp();
+  await writeVariationRequest(
+    { id: "v123abc", count: 2, prompt: "", element: { tag: "h1", selector: "main > h1", values: [] } },
+    root
+  );
+  const placed = await call(root, "tools/call", {
+    name: "place_variations",
+    arguments: {
+      requestId: "v123abc",
+      variations: [
+        { label: "one", props: [{ property: "color", value: "red" }] },
+        { label: "two", props: [{ property: "color", value: "blue" }] },
+        { label: "three", props: [{ property: "color", value: "green" }] },
+      ],
+    },
+  });
+  assert.equal(placed.result.isError, undefined);
+  assert.match(placed.result.content[0].text, /Placed 2 variations/);
+  assert.match(placed.result.content[0].text, /the first 2 of your 3 are used/);
+  assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2);
+  assert.equal((await readVariationResponse("v123abc", root)).variations[1].label, "two");
 });

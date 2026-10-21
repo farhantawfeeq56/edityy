@@ -16,6 +16,8 @@ export const VARIATIONS_PATH = "/__edityy/variations";
 export const VARIATION_REQUEST_FILE = ".edityy/variation-request.json";
 const VARIATION_RESPONSE_FILE = ".edityy/variation-response.json";
 const ID = /^[\w-]{1,80}$/;
+/** A request is waiting for an answer, or the user took it back. */
+const STATUS = ["pending", "cancelled"];
 /** A standard property: no custom property, no vendor-free-anything, no selector. */
 const PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 /** A value with no rule, no block, no function that reaches the network, no bang. */
@@ -58,20 +60,32 @@ export function checkVariationRequest(request) {
     return { property: entry.property, value: entry.value };
   });
   if (contextSize > MAX_CONTEXT) invalid("element context is too large");
-  return { id: request.id, count: count, prompt: prompt, element: { tag: element.tag, selector: element.selector, values } };
+  const status = request.status === undefined ? "pending" : request.status;
+  if (!STATUS.includes(status)) invalid("status is invalid");
+  return { id: request.id, count: count, prompt: prompt, element: { tag: element.tag, selector: element.selector, values }, status };
 }
 
 export function checkVariations(response, expectedId, count) {
   if (!response || typeof response !== "object" || Array.isArray(response)) invalid("expected an object");
-  if (response.requestId !== expectedId) invalid("request id does not match");
-  // The user chose the number before asking, so an answer of another size is
-  // not the answer they asked for.
-  const least = count || MIN_VARIATIONS;
-  const most = count || MAX_VARIATIONS;
-  if (!Array.isArray(response.variations) || response.variations.length < least || response.variations.length > most) {
-    invalid(count ? `variations must contain exactly ${count} entries` : `variations must contain ${MIN_VARIATIONS} to ${MAX_VARIATIONS} entries`);
+  if (response.requestId !== expectedId) {
+    // The user asked again while the agent was working. The new number and the
+    // new id are in the message, so the agent can answer it in one step.
+    invalid(
+      `the request changed: the user now asks for ${count || MIN_VARIATIONS} variations, requestId ${expectedId}. Read the request again and answer with that id`
+    );
   }
-  const variations = response.variations.map((variation) => {
+  // The user chose the number before asking, so an answer of another size is
+  // not the answer they asked for. More is not a failure: the first ones are
+  // the ones they see. Fewer is a failure, and the message says so.
+  const asked = count || MIN_VARIATIONS;
+  const most = count || MAX_VARIATIONS;
+  if (!Array.isArray(response.variations)) invalid(`variations must be a list of ${asked} entries`);
+  if (count) {
+    if (response.variations.length < asked) invalid(`the user asked for ${asked} variations; you sent ${response.variations.length}`);
+  } else if (response.variations.length < MIN_VARIATIONS || response.variations.length > MAX_VARIATIONS) {
+    invalid(`variations must contain ${MIN_VARIATIONS} to ${MAX_VARIATIONS} entries`);
+  }
+  const variations = (count ? response.variations.slice(0, most) : response.variations).map((variation) => {
     if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
     if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each label must be 1 to 50 characters");
     if (!Array.isArray(variation.props) || variation.props.length < 1 || variation.props.length > MAX_PROPERTIES) invalid(`each variation must have 1 to ${MAX_PROPERTIES} properties`);
@@ -127,6 +141,8 @@ async function store(root, file, value) {
 
 export async function writeVariationRequest(request, root = process.cwd()) {
   const checked = checkVariationRequest(request);
+  // The page can only make a request that waits for an answer.
+  checked.status = "pending";
   await store(root, VARIATION_REQUEST_FILE, checked);
   await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
   return checked;
@@ -140,6 +156,7 @@ export async function readVariationRequest(root = process.cwd()) {
 export async function placeVariations(response, root = process.cwd()) {
   const request = await readVariationRequest(root);
   if (!request) throw new Error("There is no pending variation request.");
+  if (request.status === "cancelled") throw new Error("The user withdrew the request. Do not answer it.");
   const checked = checkVariations(response, request.id, request.count);
   await store(root, VARIATION_RESPONSE_FILE, checked);
   return checked;
@@ -151,9 +168,22 @@ export async function readVariationResponse(id, root = process.cwd()) {
   return checkVariations(response, id);
 }
 
-/** Forget the request and any answer to it. */
+/**
+ * The user took the request back, so no agent answers it late.
+ *
+ * The request is kept, marked as cancelled, and the answer to it is dropped.
+ * The agent can then tell a withdrawal from a request that was never made.
+ */
 export async function clearVariations(root = process.cwd()) {
-  await rm(join(root, VARIATION_REQUEST_FILE), { force: true });
+  const path = join(root, VARIATION_REQUEST_FILE);
+  let request = null;
+  try {
+    request = checkVariationRequest(JSON.parse(await readFile(path, "utf8")));
+  } catch {
+    request = null; // a file that is not a request is not worth keeping
+  }
+  if (request) await store(root, VARIATION_REQUEST_FILE, { ...request, status: "cancelled" });
+  else await rm(path, { force: true });
   await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
 }
 

@@ -51,6 +51,7 @@ test("a request the page could not have sent is refused", () => {
     { ...request, count: "3" },
     { ...request, count: 2.5 },
     { ...request, prompt: "x".repeat(241) },
+    { ...request, status: "weird" },
     { ...request, element: { ...request.element, tag: "DIV><script" } },
     { ...request, element: { ...request.element, selector: "" } },
     { ...request, element: { ...request.element, values: [{ property: "--evil", value: "x" }] } },
@@ -180,6 +181,7 @@ test("a placed answer is read back only by the request that asked for it", async
   assert.equal(await readVariationRequest(root), null);
   await writeVariationRequest(request, root);
   assert.equal((await readVariationRequest(root)).prompt, "thinner and darker");
+  assert.equal((await readVariationRequest(root)).status, "pending");
   assert.doesNotThrow(() => readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8"));
 
   const placed = await placeVariations(
@@ -194,8 +196,24 @@ test("a placed answer is read back only by the request that asked for it", async
   assert.equal(await readVariationResponse("another", root), null, "the id has to match");
 
   await clearVariations(root);
-  assert.equal(await readVariationRequest(root), null);
+  assert.equal((await readVariationRequest(root)).status, "cancelled", "the request is kept, marked as taken back");
   assert.equal(await readVariationResponse("v123abc", root), null);
+});
+
+test("a request the user took back is kept, and no answer goes to it", async () => {
+  const root = tmp();
+  await writeVariationRequest(request, root);
+  await clearVariations(root);
+  assert.equal((await readVariationRequest(root)).status, "cancelled");
+  await assert.rejects(
+    placeVariations(answer([{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }]), root),
+    /withdrew the request/i
+  );
+  assert.equal(await readVariationResponse("v123abc", root), null, "no answer reaches the page");
+  // A new request is pending again, and the old one is gone.
+  await writeVariationRequest({ ...request, id: "v456def" }, root);
+  assert.equal((await readVariationRequest(root)).status, "pending");
+  assert.equal((await readVariationRequest(root)).id, "v456def");
 });
 
 test("an answer without a request is refused, and a new request drops the old answer", async () => {
@@ -210,14 +228,37 @@ test("an answer without a request is refused, and a new request drops the old an
   assert.equal(await readVariationResponse("v123abc", root), null, "the old answer is gone");
 });
 
-test("an answer is the number of variations the user asked for, or it is refused", () => {
+test("an answer is the number of variations the user asked for", () => {
   const three = answer([
     { label: "one", props: [{ property: "color", value: "red" }] },
     { label: "two", props: [{ property: "color", value: "blue" }] },
     { label: "three", props: [{ property: "color", value: "green" }] },
   ]);
   assert.equal(checkVariations(three, "v123abc", 3).variations.length, 3);
-  assert.throws(() => checkVariations(three, "v123abc", 2), { status: 400 }, "two asked, three placed");
+  // Fewer than the user asked for is a failure, and the message says so.
+  assert.throws(() => checkVariations(three, "v123abc", 4), { status: 400 }, "four asked, three placed");
+  assert.throws(() => checkVariations(three, "v123abc", 4), /the user asked for 4 variations; you sent 3/);
+  // More is not a failure: the first ones are the ones the user sees.
+  const two = checkVariations(three, "v123abc", 2);
+  assert.equal(two.variations.length, 2);
+  assert.deepEqual(two.variations.map((v) => v.label), ["one", "two"]);
+});
+
+test("an answer for a request that changed says what to answer instead", () => {
+  const three = answer([
+    { label: "one", props: [{ property: "color", value: "red" }] },
+    { label: "two", props: [{ property: "color", value: "blue" }] },
+  ]);
+  // The id does not match: the user asked again while the agent was working.
+  assert.throws(
+    () => checkVariations({ ...three, requestId: "v-old" }, "v-new", 3),
+    { status: 400 },
+    "the old request is refused"
+  );
+  assert.throws(
+    () => checkVariations({ ...three, requestId: "v-old" }, "v-new", 3),
+    /the request changed: the user now asks for 3 variations, requestId v-new/
+  );
 });
 
 test("the agent reads a short request, not the page", () => {
