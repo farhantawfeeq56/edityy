@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+// The motion tokens. The same file the editor chrome reads its timings from,
+// so the site and the chrome run on one set of them.
+import "edityy/motion.css";
 import "./globals.css";
 
 // Plus Jakarta Sans, self-hosted from app/fonts so the build never reaches for

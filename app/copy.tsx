@@ -35,9 +35,17 @@ export function CopyButton({
     <button
       type="button"
       onClick={copy}
-      className={`rounded-full px-3 py-1.5 text-[0.75rem] font-medium transition-colors duration-150 ${className}`}
+      className={`rounded-full px-3 py-1.5 text-[0.75rem] font-medium tint ${className}`}
     >
-      <span aria-live="polite">{copied ? "Copied" : label}</span>
+      {/* The words change in place. The live region is the outer span, so it
+          is the same region before and after: a reader hears the change, and
+          the new words rise into the place the old ones left. The key is what
+          makes the rise happen again. */}
+      <span aria-live="polite">
+        <span key={copied ? "copied" : "idle"} className="say">
+          {copied ? "Copied" : label}
+        </span>
+      </span>
     </button>
   );
 }

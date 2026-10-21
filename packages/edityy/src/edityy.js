@@ -100,6 +100,58 @@
     return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + glyph + "</svg>";
   };
 
+  // The motion tokens. The values live in src/motion.css, which the site
+  // imports, so the site and the chrome run on the same timings. The chrome
+  // carries the same values as a fallback, because it runs inside a shadow
+  // root on somebody else's page and cannot read that file.
+  // test/motion.test.js holds the two copies together.
+  //
+  // A curve, and what it is for. Arrive is a long ease-out, so the way in is
+  // felt. Leave is a short ease-in, so the way out is not waited for. Standard
+  // is the even curve for a value under the pointer. Travel carries the orb's
+  // shrink and its journey in one move. Breathe is the only one that never
+  // arrives: it is the loop that says "waiting".
+  var EASE = {
+    arrive: "cubic-bezier(0.23, 1, 0.32, 1)",
+    leave: "cubic-bezier(0.4, 0, 1, 1)",
+    standard: "cubic-bezier(0, 0, 0.2, 1)",
+    travel: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    breathe: "ease-in-out"
+  };
+  // A duration, and what it is for. Press goes down fast, because the hand is
+  // quick, and comes back slow, because the release settles. Fade is a short
+  // disappearance. Tint is a colour change. Slide is a value moving under the
+  // pointer. Settle is a value coming to rest. Enter is a surface arriving.
+  // Rise is a surface rising, or a long journey across the dock. Move is the
+  // orb's own journey. Pulse is the waiting loop.
+  var TIME = {
+    press: 80,
+    fade: 120,
+    tint: 130,
+    slide: 150,
+    settle: 200,
+    enter: 220,
+    rise: 260,
+    move: 300,
+    pulse: 1400
+  };
+  var EASE_NAMES = ["arrive", "leave", "standard", "travel", "breathe"];
+  var TIME_NAMES = ["press", "fade", "tint", "slide", "settle", "enter", "rise", "move", "pulse"];
+  // The tokens the chrome wears. Each one reads the page's own token first and
+  // falls back to the value here, so a page that sets --edityy-* on :root gets
+  // its own timing and a page that sets nothing gets the chrome's.
+  // Custom properties are not reset by all:initial.
+  var hostTokens = ":host{";
+  EASE_NAMES.forEach(function (name) {
+    hostTokens += "--" + name + ":var(--edityy-ease-" + name + "," + EASE[name] + ");";
+  });
+  TIME_NAMES.forEach(function (name) {
+    hostTokens += "--" + name + ":var(--edityy-" + name + "," + TIME[name] + "ms);";
+  });
+  hostTokens += "}";
+  // The tokens, for a page that wants to read them.
+  window.__edityyMotion = { ease: EASE, time: TIME };
+
   // DESIGN.md is the source of truth for the five values below: Primary
   // #16233a, On-primary #ffffff, Secondary #465a78, Muted #465a78, hairline
   // #16233a1a, Accent-rose #b6cbe8 for state, Tertiary #2f5fa8 for focus. The
@@ -116,10 +168,9 @@
     // sheet would win, but `all:initial` resets colour itself, so a :host{color}
     // written before it is wiped and every icon goes back to its own ink.
     ":host{all:initial;color:var(--ink)}",
-    // The motion, after interior.dev: things arrive on a long ease-out and leave
-    // on a short ease-in, so the way in is felt and the way out is not waited for.
-    // Custom properties are not reset by all:initial.
-    ":host{--arrive:cubic-bezier(.23,1,.32,1);--leave:cubic-bezier(.4,0,1,1)}",
+    // The motion, in one rule, so no animation in the chrome can invent a
+    // duration or a curve of its own.
+    hostTokens,
     // The five values, and the steps drawn from them. The numbers on an ink or
     // a rose step are its alpha percentage: colour-mix against transparent
     // keeps the alpha and the colour, so a step holds whatever the ink is.
@@ -165,20 +216,21 @@
     // is never one of row.children. It fades in where it first lands, and moves
     // only once it is on show (data-glide=warm).
     ".row:before{content:\"\";position:absolute;left:0;top:3px;height:30px;width:var(--glide-w,30px);border-radius:7px;",
-    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
-    ".row[data-glide]:before{opacity:1;transition:opacity .1s var(--arrive)}",
-    ".row[data-glide=warm]:before{transition:opacity .1s var(--arrive),transform .26s var(--arrive),width .26s var(--arrive)}",
+    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity var(--fade) var(--leave)}",
+    ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
+    ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
     ".row>*{position:relative}",
     ".row .ic:hover{background:transparent}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:30px;height:30px;display:grid;place-items:center;border:0;padding:0;",
-    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;",
-    // The press goes down fast and comes back slower: the hand is quick, the
-    // release settles.
-    "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
+    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}",
     ".ic:hover{background:var(--ink-6);color:var(--ink)}",
-    ".ic:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
+    ".ic:active{transform:scale(.94)}",
+    // A control that joins the row arrives, so the row's edge is not the only
+    // thing that moves.
+    ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
+    "@keyframes rowIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
     ".ic[aria-expanded=true]{background:var(--ink-12);color:var(--ink)}",
     ".ic.add{color:var(--muted)}",
@@ -206,16 +258,20 @@
     "font:500 13px/28px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
     ".custom-select-trigger{width:100%;border:1px solid var(--ink-10);border-radius:8px;padding:6px 8px;",
-    "background:var(--paper);color:var(--ink);font:500 13px/1 inherit;text-align:left;cursor:pointer;",
-    "transition:background-color .13s ease,border-color .13s ease}",
+    "background:var(--paper);color:var(--ink);font:500 13px/1 inherit;text-align:left;cursor:pointer}",
     ".custom-select-trigger:hover{background:var(--fill-hover)}",
     ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted);",
     "outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    // A list that comes out of its control is a surface, and a surface
+    // arrives. The same entrance the panel over the dock has, so the two
+    // dropdowns in the chrome feel like one thing.
     ".custom-select-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:2;display:flex;flex-direction:column;",
     "max-height:180px;overflow-y:auto;padding:4px;background:var(--paper);border:1px solid var(--ink-10);border-radius:8px;",
-    "box-shadow:0 8px 18px var(--ink-12)}",
+    "box-shadow:0 8px 18px var(--ink-12);transform-origin:50% 100%;animation:menuIn var(--enter) var(--arrive)}",
+    "@keyframes menuIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}",
     ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--ink);text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
     ".custom-option:hover,.custom-option[aria-pressed=true]{background:var(--ink-6)}",
+    ".custom-option:active{transform:scale(.98)}",
     ".size-control .custom-select{width:26px;flex:none}",
     ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
     // Upward, like every other list in the dock: the size button sits 24px above
@@ -262,7 +318,7 @@
     ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px var(--ink-10),0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
     "box-shadow:0 0 0 1px var(--ink-10),inset 0 0 0 1px var(--ink-10);pointer-events:none;will-change:width,height;",
-    "transition:width .15s cubic-bezier(0,0,.2,1),height .15s cubic-bezier(0,0,.2,1)}",
+    "transition:width var(--slide) var(--standard),height var(--slide) var(--standard)}",
     ".field[data-dragging=true] .field-thumb{width:20px;height:20px}",
     // The sliders: one 20px track, a 10px cap at each end that carries the
     // colour the track stops short of, and a 16px dot with the same white ring.
@@ -294,8 +350,7 @@
     // with ink alpha because it stands on paper and the ramp has no grey to
     // fill it with.
     ".icon-button{display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border:0;",
-    "border-radius:50%;padding:0;background:var(--ink-6);color:var(--ink);cursor:pointer;",
-    "transition:transform .25s ease,background-color .1s cubic-bezier(0,0,.2,1),box-shadow .1s cubic-bezier(0,0,.2,1)}",
+    "border-radius:50%;padding:0;background:var(--ink-6);color:var(--ink);cursor:pointer}",
     ".icon-button:hover{background:var(--ink-10)}",
     ".icon-button:active{transform:scale(.97)}",
     ".icon-button>svg{width:16px;height:16px;display:block}",
@@ -339,7 +394,7 @@
     ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
-    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
+    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
@@ -356,9 +411,8 @@
     ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
     "border-radius:8px;padding:7px 10px;",
     "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer;",
-    "transition:background .12s ease,color .12s ease,transform .2s var(--arrive)}",
     ".opt:hover{background:var(--ink-6)}",
-    ".opt:active{transform:scale(.98);transition-duration:.12s,.12s,.08s}",
+    ".opt:active{transform:scale(.98)}",
     ".opt[aria-pressed=true]{background:var(--ink-12)}",
     ".opts{display:flex;gap:2px;padding:2px}",
     // The alignment control lays its row out as a real 3x3 grid instead. A cell
@@ -391,13 +445,12 @@
     // than what it holds.
     ".fld,.sides-pair>label,.value-field,.pop .weight-control{display:flex;align-items:center;gap:6px;height:30px;padding:0 6px;",
     "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
-    "transition:background-color .13s ease,border-color .13s ease,transform .2s var(--arrive)}",
     ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
     ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open)}",
     // A chip that is wider than the dock's 34px square cannot take the dock's .94
     // without moving many times as far, so it takes the scale that moves the same
-    // few pixels: down in .08s, back in .2s.
-    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96);transition-duration:.13s,.13s,.08s}",
+    // few pixels: down on the press, back on the release.
+    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96)}",
     // A number is a value to turn, not only to type, so the pointer says so: the
     // two arrows over the digits, and the sideways arrows once a drag starts. A
     // focused field takes the text caret back, because typing is the way in.
@@ -422,7 +475,7 @@
     // A field that holds words cannot be as wide as its value, so the search keeps
     // the panel's width. It takes the same hover and the same focus as a chip.
     "input[type=search]{width:100%;margin-bottom:6px;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
-    "background:var(--paper);font-variant-numeric:normal;transition:background-color .13s ease,border-color .13s ease}",
+    "background:var(--paper);font-variant-numeric:normal}",
     "input[type=search]:hover{background:var(--fill-hover)}",
     "input[type=search]:focus{background:var(--fill-open)}",
     // The cobalt ring is the keyboard's, on the buttons and the lists that take the
@@ -442,12 +495,16 @@
     // transform only: a scale from the centre and a translate to the pointer are
     // the same property, so the shrink and the travel animate as one move. The
     // default centre origin is what makes the dot land exactly under the pointer.
-    "transition:transform .3s cubic-bezier(.2,.8,.2,1),background .15s}",
+    "transition:transform var(--move) var(--travel),background-color var(--slide) var(--standard)}",
+    // Once the dot has travelled out of the orb, the transform stops being
+    // transitioned: the dot belongs under the cursor, not a third of a second
+    // behind it.
+    "#launch[data-tracking]{transition:background-color var(--slide) var(--standard)}",
     "#launch:hover{background:var(--muted)}",
     "#launch:focus-visible{outline:2px solid var(--ink);outline-offset:3px}",
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
-    "#label{transition:opacity .12s ease-out}",
+    "#label{transition:opacity var(--fade) var(--standard)}",
     // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
     // it off the content, as an outside stroke does), with no radius. The frame
     // is the positioning parent for the handles, and one colour dresses the
@@ -484,9 +541,8 @@
     // one it lands in.
     ".element-action{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;padding:0;",
     "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer;",
-    "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
     ".element-action:hover{background:var(--ink-6);color:var(--ink)}",
-    ".element-action:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
+    ".element-action:active{transform:scale(.94)}",
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
     ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-action.delete{color:var(--muted)}",
@@ -500,7 +556,10 @@
     ".wait{display:flex;flex-direction:column;gap:10px;width:240px}",
     ".wait-head{display:flex;align-items:center;justify-content:space-between;gap:6px}",
     ".wait-title{display:flex;align-items:center;gap:8px;margin:0;font:500 13px/1.3 inherit;color:var(--ink)}",
-    ".wait-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--accent);animation:waitPulse 1.4s ease-in-out infinite}",
+    // The dot rests where the pulse rests, so a reader who has asked for less
+    // motion sees the same dot, only still.
+    ".wait-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--accent);opacity:.3;transform:scale(.8);",
+    "animation:waitPulse var(--pulse) var(--breathe) infinite}",
     "@keyframes waitPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}",
     ".wait-line{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12px/1.3 inherit;color:var(--muted)}",
     ".wait-say{margin:0;font:400 12px/1.3 inherit;color:var(--muted)}",
@@ -509,8 +568,7 @@
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit;",
-    "transition:background-color .13s ease,border-color .13s ease}",
+    ".element-comment-text{width:100%;resize:vertical;padding:8px;border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--ink);font:400 16px/1.4 inherit}",
     ".element-comment-text:hover{background:var(--fill-hover)}",
     ".element-comment-text:focus{background:var(--fill-open)}",
     // How many variations to ask for: a label and the field, on one line.
@@ -523,7 +581,8 @@
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
     ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;width:max-content;max-width:min(280px,calc(100vw - 24px));background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
-    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
+    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto;transform-origin:100% 100%;animation:stripIn var(--enter) var(--arrive)}",
+    "@keyframes stripIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}",
     // The head names the strip and the element it varies, and holds the one
     // action that ends it. It is a row, not a title: the tag sits in the same
     // line, in the muted tone of a caption.
@@ -533,7 +592,7 @@
     // Keep is small and quiet: it is the last step, and it is worth nothing
     // until a variation is on the element.
     ".variants-keep{margin-left:auto;height:28px;padding:0 10px;border:0;border-radius:8px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-20);",
-    "color:var(--ink);font:500 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
+    "color:var(--ink);font:500 13px/1 inherit;cursor:pointer}",
     ".variants-keep:hover:not(:disabled){background:var(--ink-6)}",
     ".variants-keep:disabled{opacity:.4;cursor:default}",
     ".variants-keep:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
@@ -541,21 +600,28 @@
     // head stays put. A hairline under the head sets the list apart.
     ".variants-list{display:flex;flex-direction:column;gap:2px;max-height:min(46vh,376px);overflow-y:auto;overscroll-behavior:contain;padding:8px 6px;border-top:1px solid var(--ink-10)}",
     ".variant{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border:0;border-radius:8px;background:transparent;",
-    "color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
+    "color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer}",
     ".variant:hover{background:var(--ink-4)}",
-    ".variant:active{transform:scale(.98);transition-duration:.13s,.08s}",
+    ".variant:active{transform:scale(.98)}",
     ".variant[aria-pressed=true]{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink-15)}",
     ".variant:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".variant .key{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:6px;background:var(--ink-6);",
-    "color:var(--muted);font:500 12px/1 inherit}",
+    "color:var(--muted);font:500 12px/1 inherit;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     // The one on the element wears the cobalt of an active state, on paper text.
     ".variant[aria-pressed=true] .key{background:var(--accent);color:var(--paper)}",
     ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-    ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
+    // The placement cursor. It fades in where it stands rather than appearing,
+    // because it is a target the pointer is about to aim at.
+    ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none;opacity:0;",
+    "transition:opacity var(--fade) var(--standard)}",
+    ".insert[data-on]{opacity:1}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
     "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
     "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
-    "@media (prefers-reduced-motion:reduce){#launch,#label,.ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,.row:before,.row[data-glide]:before,.row[data-glide=warm]:before{transition:none}.pop{animation:none}.wait-dot{animation:none}}",
+    // The reduced-motion policy, in one rule: every duration collapses, every
+    // animation runs once and stops, every delay goes. The same rule, in the
+    // same words, is in src/motion.css for the site.
+    "@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;transition-delay:0ms!important}}",
     // Two pairs of sides, each pair with the link that ties it. A box is even
     // both ways far more often than not, so a tied pair is ONE field: top follows
     // the same value as bottom, and left the same as right.
@@ -594,16 +660,34 @@
     // A note in the element card sits in its own gap, not on a margin of its own.
     ".element-comment .note{margin:0}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
-    "font:500 14px/1 inherit;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
+    "font:500 14px/1 inherit;cursor:pointer;min-width:11rem;text-align:center}",
     ".cta:hover{background:var(--muted)}",
-    ".cta:active:not(:disabled){transform:translateY(1px);transition-duration:.13s,.08s}",
+    ".cta:active:not(:disabled){transform:translateY(1px)}",
     // The words of a button that answers (Copied, Saved) change in place: the
     // old words leave, the new ones rise in, and the button does not move.
+    // The button is as wide as its longest wording, so the words change inside
+    // a box that stays where it was.
     ".say{display:inline-block}",
     ".cta:disabled{opacity:.4;cursor:default;background:var(--ink)}",
     ".cta.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-20)}",
     ".cta.ghost:hover{background:var(--ink-6)}",
     ".cta.ghost:disabled{background:transparent}",
+    // The press and the tint, in one place. Every control that answers the
+    // pointer gives the same answers: a colour that changes, a press that goes
+    // down fast and comes back slow, and nothing else.
+    //
+    // The press is a duration the control sets for itself, and the press rule
+    // swaps it. A transition reads its duration in the state it is in, so the
+    // way down is quick and the way back is the release — with no list of
+    // durations to keep in step with the list of properties.
+    ".ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control{",
+    "--press-dur:var(--settle);",
+    "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--press-dur) var(--arrive)}",
+    ".ic:active,.opt:active,.cta:active:not(:disabled),.element-action:active,.variant:active,.icon-button:active,",
+    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{--press-dur:var(--press)}",
+    // A control that only changes colour, and is never pressed.
+    ".custom-select-trigger,input[type=search],.element-comment-text,.variants-keep{",
+    "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
     '<div class="frame" id="hover" hidden></div>',
@@ -622,7 +706,7 @@
     // The variations of one element, at the bottom right, and the keys that
     // switch between them.
     '<div class="variants" id="variants" hidden role="group" aria-label="Style variations"></div>',
-    '<div class="insert" id="insert" hidden>',
+    '<div class="insert" id="insert" aria-hidden="true">',
     svg("plus"),
     "</div>",
     "<div id=\"dock\" hidden>",
@@ -669,8 +753,16 @@
   // thing, so the words would only repeat themselves.
   var hintDone = false;
   var hintTimer = 0;
+  // How long the hint stays up before it goes. A time, not a motion: it says
+  // how long the reader has to read it, not how long anything takes to move.
+  var HINT_HOLD = 1000;
   // The control that is open, "" for none.
   var openKey = "";
+  // The panel's own fade, while it is on its way out.
+  var popLeaving = null;
+  // The dock's own fade, and the element card's.
+  var dockLeaving = null;
+  var menuLeaving = null;
   var countBadge = $("count");
   // The `+` sits at the end of the row and a revealed control goes in before it,
   // so adding one grows the row leftwards from the button that added it.
@@ -1137,13 +1229,58 @@
   // inwards. The handle shapes that line sizes are the stylesheet's.
   var LINE = 1.5;
 
-  /** Pin a frame to a target rectangle, in the ramp value that opposes it. */
-  function place(frame, rect, el) {
-    frame.style.left = rect.left - LINE / 2 + "px";
-    frame.style.top = rect.top - LINE / 2 + "px";
-    frame.style.width = rect.width + LINE + "px";
-    frame.style.height = rect.height + LINE + "px";
+  /**
+   * Put a frame on an element.
+   *
+   * A frame that follows the pointer does not move within an element, so it is
+   * put there directly. Between elements it travels: a frame that teleports
+   * from one element to the next is the one piece of the chrome the eye cannot
+   * follow, and the pointer is the thing the eye is following.
+   */
+  function place(frame, rect, el, travel) {
+    var next = {
+      left: rect.left - LINE / 2,
+      top: rect.top - LINE / 2,
+      width: rect.width + LINE,
+      height: rect.height + LINE
+    };
+    var was = frame._rect;
+    frame._rect = next;
     frame.style.setProperty("--frame", frameInk(el));
+    if (!travel || !was || !moves(frame)) {
+      applyRect(frame, next);
+      return;
+    }
+    if (was.left === next.left && was.top === next.top && was.width === next.width && was.height === next.height) {
+      applyRect(frame, next);
+      return;
+    }
+    // The frame travels from where it is to where it is going. Its own style
+    // is left where it is until the travel is done, so a frame that is already
+    // travelling is read from where it is showing and not from where it was.
+    var run = animateFrom(
+      frame,
+      [{ left: next.left + "px", top: next.top + "px", width: next.width + "px", height: next.height + "px" }],
+      { duration: T.settle, easing: TRAVEL, fill: "forwards" }
+    );
+    if (!run) {
+      applyRect(frame, next);
+      return;
+    }
+    run.onfinish = function () {
+      // A later travel owns the frame now: leave its style alone.
+      if (frame._rect !== next) return;
+      applyRect(frame, next);
+      run.cancel();
+    };
+  }
+
+  /** Put a frame where it belongs. */
+  function applyRect(frame, rect) {
+    frame.style.left = rect.left + "px";
+    frame.style.top = rect.top + "px";
+    frame.style.width = rect.width + "px";
+    frame.style.height = rect.height + "px";
   }
 
   /**
@@ -1243,7 +1380,13 @@
     // box to frame: measured, it is a dot in the top-left corner.
     var items = moving ? [] : selectedItems;
     var count = items.length;
+    var wasHidden = selBox.hidden;
     selBox.hidden = !count;
+    // The frame arrives rather than appearing: a selection that pops on is a
+    // selection that startles.
+    if (wasHidden && !selBox.hidden) {
+      animate(selBox, [{ opacity: 0 }, { opacity: 1 }], { duration: T.fade, easing: ARRIVE });
+    }
     for (var i = 1; i < count; i++) {
       if (!extraSelectionFrames[i - 1]) {
         var frame = document.createElement("div");
@@ -1302,7 +1445,7 @@
     if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen()) {
       commentFor = null;
       openComment = null;
-      elementMenu.hidden = true;
+      hideMenu();
       return;
     }
     // The selection moved on: the box belonged to the element before.
@@ -1317,8 +1460,7 @@
     if (editing) {
       // The words are being typed: the menu offers the one thing left to do.
       if (!openDone) {
-        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
-        elementMenu.appendChild(doneBox());
+        drawMenu(doneBox());
         openDone = true;
       }
       placeElementMenu();
@@ -1329,8 +1471,7 @@
       // refit mid-sentence leaves the caret and the words alone.
       var state = variationWaiting ? "waiting" : "prompt";
       if (!openVariationBox || openVariationBoxState !== state) {
-        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
-        elementMenu.appendChild(variationBox(variationBoxFor));
+        drawMenu(variationBox(variationBoxFor));
         openVariationBoxState = state;
       }
       placeElementMenu();
@@ -1340,14 +1481,12 @@
       // A refit (a scroll, a resize) must not throw the words away mid-sentence,
       // so an open box is only placed again, and never built again.
       if (!openComment) {
-        while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
-        elementMenu.appendChild(commentBox(commentFor));
+        drawMenu(commentBox(commentFor));
       }
       placeElementMenu();
       return;
     }
     openComment = null;
-    while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var edit = actionButton("Edit text", function () {
@@ -1372,15 +1511,82 @@
       syncElementMenu();
     }, svg(MENU_ICONS.variations)));
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
-    elementMenu.appendChild(actions);
+    drawMenu(actions);
     placeElementMenu();
+  }
+
+  /**
+   * Put the element's card away: it fades out where it stands, the way it
+   * came.
+   */
+  function hideMenu() {
+    if (elementMenu.hidden) return;
+    if (menuLeaving) return;
+    if (!moves(elementMenu)) {
+      elementMenu.hidden = true;
+      return;
+    }
+    var out = sink(elementMenu, "", 4);
+    if (!out) {
+      elementMenu.hidden = true;
+      return;
+    }
+    // A card that is on its way out takes no clicks: it is leaving.
+    elementMenu.style.pointerEvents = "none";
+    menuLeaving = out;
+    out.onfinish = function () {
+      menuLeaving = null;
+      elementMenu.hidden = true;
+      out.cancel();
+    };
+  }
+
+  /** Bring the card back: a fade that was leaving is put away. */
+  function showMenu() {
+    if (menuLeaving) {
+      menuLeaving.cancel();
+      menuLeaving = null;
+      elementMenu.style.pointerEvents = "";
+    }
+    elementMenu.hidden = false;
+  }
+
+  /** Put the card away at once, with no fade. For the times it has to go now. */
+  function menuAway() {
+    if (menuLeaving) {
+      menuLeaving.cancel();
+      menuLeaving = null;
+      elementMenu.style.pointerEvents = "";
+    }
+    elementMenu.hidden = true;
+  }
+
+  /**
+   * Put a card in the element's menu.
+   *
+   * When the card is a different one from the one that was there, the new card
+   * arrives. A card that swaps its whole contents under the reader's eyes is a
+   * card that stutters, and the prompt card becoming the waiting card is the
+   * biggest swap of them all.
+   */
+  function drawMenu(box) {
+    var wasVisible = !elementMenu.hidden;
+    while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+    elementMenu.appendChild(box);
+    if (wasVisible) {
+      animate(
+        box,
+        [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }],
+        { duration: T.enter, easing: ARRIVE }
+      );
+    }
   }
 
   /** The menu is placed at the element: under it where the page has room, over
    * it where it does not, and never past the viewport edge. */
   function placeElementMenu() {
     var appearing = elementMenu.hidden;
-    elementMenu.hidden = false;
+    showMenu();
     var rect = selected.getBoundingClientRect();
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
@@ -1449,9 +1655,27 @@
       rec.source = sourceOf(el);
     }
     rec.removed = { parent: el.parentElement, before: el.nextSibling };
-    el.parentElement.removeChild(el);
-    select(null);
-    tally();
+    // The element leaves the way it came. Only its opacity is touched, and the
+    // value it had is put back, so an undo brings the element back as it was.
+    var was = el.style.opacity;
+    if (!moves(el)) {
+      el.parentElement.removeChild(el);
+      select(null);
+      tally();
+      return;
+    }
+    animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, easing: LEAVE }).onfinish = function () {
+      // The element came back while it was fading: an undo put it back, and
+      // it stays.
+      if (changes.indexOf(rec) === -1) {
+        el.style.opacity = was;
+        return;
+      }
+      el.style.opacity = was;
+      if (el.parentElement) el.parentElement.removeChild(el);
+      select(null);
+      tally();
+    };
   }
 
   function extendSelection(el) {
@@ -1863,16 +2087,50 @@ function faces() {
 
   /* ---------------------------------------------------------------- motion */
 
-  // The curves on :host, for the animations started from here.
-  var ARRIVE = "cubic-bezier(.23,1,.32,1)";
-  var LEAVE = "cubic-bezier(.4,0,1,1)";
+  // The curves and the durations, read from the tokens the chrome wears. A
+  // page that sets its own --edityy-* tokens gets its own timing here too, so
+  // the CSS and the animations started from here cannot disagree.
+  function token(name, fallback) {
+    var v = "";
+    try {
+      v = getComputedStyle(host).getPropertyValue(name);
+    } catch {
+      v = "";
+    }
+    return (v || "").trim() || fallback;
+  }
+
+  function ms(name, fallback) {
+    var n = parseFloat(token(name, ""));
+    return isNaN(n) ? fallback : n;
+  }
+
+  var ARRIVE = token("--arrive", EASE.arrive);
+  var LEAVE = token("--leave", EASE.leave);
+  var STANDARD = token("--standard", EASE.standard);
+  var TRAVEL = token("--travel", EASE.travel);
+  var T = {
+    press: ms("--press", TIME.press),
+    fade: ms("--fade", TIME.fade),
+    tint: ms("--tint", TIME.tint),
+    slide: ms("--slide", TIME.slide),
+    settle: ms("--settle", TIME.settle),
+    enter: ms("--enter", TIME.enter),
+    rise: ms("--rise", TIME.rise),
+    move: ms("--move", TIME.move),
+    pulse: ms("--pulse", TIME.pulse)
+  };
+
+  // The question of less motion, asked once and kept. A media query list is
+  // live: it says yes now if the reader changed their mind since the last time.
+  var lessMotion =
+    typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
 
   /** May this element animate? Not when the user asks for less motion, and not
    * in a browser without the Web Animations API, where it just changes. */
   function moves(el) {
     if (!el || typeof el.animate !== "function") return false;
-    var q = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)");
-    return !(q && q.matches);
+    return !(lessMotion && lessMotion.matches);
   }
 
   /** Run `fn` in the next frame, or now where there are no frames. */
@@ -1891,10 +2149,80 @@ function faces() {
     base = base || "";
     var from = (base + " translateY(" + dy + "px) scale(.96)").trim();
     el.style.transformOrigin = origin || "";
-    el.animate(
+    var run = el.animate(
       [{ opacity: 0, transform: from }, { opacity: 1, transform: base || "none" }],
-      { duration: 220, easing: ARRIVE }
+      { duration: T.enter, easing: ARRIVE }
     );
+    // The origin belongs to the animation, not to the element: left behind, it
+    // would be the origin of the next one, and the next one may want another.
+    run.onfinish = function () {
+      if (el.style.transformOrigin === (origin || "")) el.style.transformOrigin = "";
+    };
+  }
+
+  /**
+   * Take a surface away: it fades and falls, a little smaller than it was.
+   * `base` is the transform the surface already wears.
+   */
+  function sink(el, base, dy) {
+    if (!moves(el)) return null;
+    base = base || "";
+    var to = (base + " translateY(" + dy + "px) scale(.96)").trim();
+    return el.animate(
+      [{ opacity: 1, transform: base || "none" }, { opacity: 0, transform: to }],
+      { duration: T.fade, easing: LEAVE, fill: "forwards" }
+    );
+  }
+
+  /**
+   * Animate from where the element is now, not from where it was.
+   *
+   * An animation that is interrupted — a tooltip still rising when the pointer
+   * leaves, a label that changes twice — would otherwise jump to the start of
+   * the next animation. This reads the value the element is showing now, the
+   * running animation and all, and starts there.
+   */
+  function animateFrom(el, to, options) {
+    if (!moves(el)) return null;
+    var view = null;
+    try {
+      view = getComputedStyle(el);
+    } catch {
+      view = null;
+    }
+    var from = to[0];
+    if (view) {
+      from = {};
+      Object.keys(to[0]).forEach(function (prop) {
+        var v = view.getPropertyValue(prop);
+        from[prop] = v === "" || v == null ? to[0][prop] : v;
+      });
+    }
+    var frames = [from];
+    to.forEach(function (frame) {
+      frames.push(frame);
+    });
+    return el.animate(frames, options);
+  }
+
+  /**
+   * The transform a tip has to start from to travel from `fromX` to `x`: where
+   * it is now, moved back to the control it came from.
+   *
+   * The tip's own left is already the new one by the time it travels, so the
+   * transform is what carries it back and then forward. It starts from the
+   * transform the tip is showing now, rise and all, so a tip that is still
+   * rising does not jump on its way across.
+   */
+  function travelFrom(fromX, x) {
+    var current = "";
+    try {
+      current = getComputedStyle(tip).getPropertyValue("transform");
+    } catch {
+      current = "";
+    }
+    if (!current || current === "none") return "translate(-50%,-100%)";
+    return current + " translateX(" + (fromX - x) + "px)";
   }
 
   /**
@@ -1909,18 +2237,22 @@ function faces() {
       return;
     }
     var ticket = (b._relabel = (b._relabel || 0) + 1);
-    old.animate(
-      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-4px)" }],
-      { duration: 100, easing: LEAVE, fill: "forwards" }
+    // The old words leave from wherever they are: a relabel that lands while
+    // the last one is still going does not make them jump back.
+    animateFrom(
+      old,
+      [{ opacity: 0, transform: "translateY(-4px)" }],
+      { duration: T.fade, easing: LEAVE, fill: "forwards" }
     ).onfinish = function () {
       // A later relabel owns the button now: leave its words alone.
       if (b._relabel !== ticket) return;
       var next = say(words);
       b.textContent = "";
       b.appendChild(next);
-      next.animate(
+      animate(
+        next,
         [{ opacity: 0, transform: "translateY(6px)", filter: "blur(2px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }],
-        { duration: 220, easing: ARRIVE }
+        { duration: T.enter, easing: ARRIVE }
       );
     };
   }
@@ -1931,6 +2263,12 @@ function faces() {
     span.className = "say";
     span.textContent = words;
     return span;
+  }
+
+  /** Run an animation with frames of its own. */
+  function animate(el, frames, options) {
+    if (!moves(el)) return null;
+    return el.animate(frames, options);
   }
 
   /** A run of label text, as a text node. Anything that is not markup. */
@@ -1985,12 +2323,12 @@ function faces() {
     syncSelectionFrames();
     // The placement cursor is on: the dock yields, and the pointer picks the
     // place the element drops into.
-    elementMenu.hidden = true;
+    menuAway();
     insertion = null;
     pointerX = null;
     pointerY = null;
-    dock.hidden = true;
-    insertLine.hidden = true;
+    dockAway();
+    delete insertLine.dataset.on;
     hideHover();
     show("");
   }
@@ -2010,11 +2348,24 @@ function faces() {
     // One thing open at a time: a list drawn in the row closes with the control
     // that opens, because the two would stand in the same place.
     closeList();
-    // A panel that closes fades out instead of going in one frame.
-    var leave = !key && !pop.hidden && !dock.hidden && pop.firstChild && moves(pop) ? ghostOf(pop) : null;
-    // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
-    // so it has to be copied before anything is removed from under it.
-    while (pop.firstChild) pop.removeChild(pop.firstChild);
+    // A panel that is on its way out is brought back: the fade that was
+    // leaving is put away, or it would hold the new words at nothing.
+    if (popLeaving) {
+      popLeaving.cancel();
+      popLeaving = null;
+    }
+    // Was there a panel to leave? The copy is made before the panel is
+    // emptied, so the old words are still there to be copied.
+    var wasVisible = !pop.hidden && !!pop.firstChild;
+    // A panel that is replaced leaves a copy behind: the old words stay while
+    // the new ones arrive. A panel that closes leaves no copy, because a copy
+    // in the dock would be invisible in the one case where the dock is going
+    // too — so the panel itself fades out where it stands.
+    //
+    // A panel that shows the same control with new words in it is not
+    // replaced: it is the same list with one more row, and a copy of it
+    // fading away under the reader's eyes would be noise.
+    var leaving = wasVisible && key && key !== openKey && moves(pop) ? ghostOf(pop) : null;
     var wasOpen = dockOpen();
     if (key !== openKey) release();
     openKey = key;
@@ -2033,10 +2384,28 @@ function faces() {
     // exactly as it was.
     if (wasOpen !== dockOpen()) syncElementMenu();
     if (!key) {
+      if (wasVisible && moves(pop)) {
+        // The panel fades out where it stands, and is put away when it is gone.
+        var out = sink(pop, "", 4);
+        if (out) {
+          popLeaving = out;
+          out.onfinish = function () {
+            popLeaving = null;
+            pop.hidden = true;
+            out.cancel();
+          };
+          return;
+        }
+      }
+      // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
+      // so it has to be copied before anything is removed from under it.
+      while (pop.firstChild) pop.removeChild(pop.firstChild);
       pop.hidden = true;
-      if (leave) leave();
       return;
     }
+    // Emptied by hand rather than with innerHTML: children is a live HTMLCollection,
+    // so it has to be copied before anything is removed from under it.
+    while (pop.firstChild) pop.removeChild(pop.firstChild);
     pop.hidden = false;
     // `+` is not a control and is not in ICONS, so it needs its own way in. Every
     // other key is either one of the seven or one that the `+` just added, and
@@ -2045,6 +2414,25 @@ function faces() {
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
     placePop(key);
+    if (leaving) {
+      // The old words go, the new ones arrive, and the two cross.
+      leaving();
+      enterPop();
+    }
+  }
+
+  /**
+   * The panel's own arrival, for the case the CSS keyframe cannot cover: the
+   * panel was already open, and its content has been replaced. The keyframe
+   * plays when the panel comes back from being hidden, not when its content
+   * changes under it.
+   */
+  function enterPop() {
+    animate(
+      pop,
+      [{ opacity: 0, transform: "translateY(6px) scale(.95)" }, { opacity: 1, transform: "none" }],
+      { duration: T.enter, easing: ARRIVE }
+    );
   }
 
   /**
@@ -2076,7 +2464,7 @@ function faces() {
    * emptied. The panel is rebuilt from nothing each time it opens, so its
    * leaving has to be played on a copy. Call the result once the panel is empty.
    */
-  function ghostOf(panel) {
+  function ghostOf(panel, into) {
     var ghost = panel.cloneNode(true);
     var lists = panel.querySelectorAll(".list");
     var tops = [];
@@ -2089,18 +2477,18 @@ function faces() {
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.pointerEvents = "none";
       ghost.style.animation = "none";
-      dock.insertBefore(ghost, panel);
+      (into || dock).insertBefore(ghost, panel);
       // The copy starts at the top: put each list back where the user left it.
       ghost.scrollTop = top;
       var copies = ghost.querySelectorAll(".list");
       for (var k = 0; k < copies.length && k < tops.length; k++) copies[k].scrollTop = tops[k];
       ghost.animate(
         [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(4px) scale(.97)" }],
-        { duration: 130, easing: LEAVE, fill: "forwards" }
+        { duration: T.fade, easing: LEAVE, fill: "forwards" }
       );
       setTimeout(function () {
         if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-      }, 160);
+      }, T.fade + 40);
     };
   }
 
@@ -2440,7 +2828,10 @@ function icons(items, current, onPick, cls) {
       hold();
       putNumber(input, (Number(input.value) || 0) + (e.deltaY < 0 ? step() : -step()));
       // A burst of notches is one undo step: it lets go when the wheel rests.
-      idle = setTimeout(release, 400);
+      idle = setTimeout(function () {
+        release();
+        settleBeat();
+      }, 400);
     }, { passive: false });
 
     input.addEventListener("pointerdown", function (e) {
@@ -2473,6 +2864,7 @@ function icons(items, current, onPick, cls) {
       input.removeAttribute("data-scrub");
       if (dragged) {
         release();
+        settleBeat();
         return;
       }
       // A click is the precise way: the value is taken whole, ready to type over.
@@ -2487,6 +2879,19 @@ function icons(items, current, onPick, cls) {
     }
     input.addEventListener("pointerup", letGo);
     input.addEventListener("pointercancel", letGo);
+
+    /**
+     * The value has come to rest, and says so: a small beat, the same one the
+     * edits count gives when it changes. A number that simply stops is a number
+     * the reader has to check.
+     */
+    function settleBeat() {
+      animate(
+        input,
+        [{ transform: "scale(1)" }, { transform: "scale(1.05)" }, { transform: "scale(1)" }],
+        { duration: T.settle, easing: ARRIVE }
+      );
+    }
   }
 
   /** Put the hint away now, and stop it coming back on its own. */
@@ -2511,12 +2916,13 @@ function icons(items, current, onPick, cls) {
     hint.style.transform = rest;
     hint.hidden = false;
     if (moves(hint)) {
-      hint.animate(
+      animate(
+        hint,
         [
           { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)" },
           { opacity: 1, transform: rest },
         ],
-        { duration: 200, easing: ARRIVE }
+        { duration: T.settle, easing: ARRIVE }
       );
     }
     hintTimer = setTimeout(function () {
@@ -2524,12 +2930,16 @@ function icons(items, current, onPick, cls) {
         hint.hidden = true;
         return;
       }
-      var out = hint.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: LEAVE, fill: "forwards" });
+      var out = animateFrom(hint, [{ opacity: 0 }], { duration: T.fade, easing: LEAVE, fill: "forwards" });
+      if (!out) {
+        hint.hidden = true;
+        return;
+      }
       out.onfinish = function () {
         hint.hidden = true;
         out.cancel();
       };
-    }, 1000);
+    }, HINT_HOLD);
   }
 
   /**
@@ -2576,8 +2986,18 @@ function icons(items, current, onPick, cls) {
 
   /** Hide the list that is showing, so nothing else has to stand beside it. */
   function closeList() {
-    if (openList) openList.hidden = true;
+    var list = openList;
     openList = null;
+    if (!list) return;
+    if (moves(list)) {
+      // The list leaves the way it came: a copy of it fades out where it
+      // stood, and the list itself is put away at once.
+      var ghost = ghostOf(list, list.parentElement);
+      list.hidden = true;
+      ghost();
+      return;
+    }
+    list.hidden = true;
   }
 
   /** A custom list that keeps its value editable through the paired input.
@@ -3582,6 +4002,10 @@ function decorations() {
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     while (row.firstChild) row.removeChild(row.firstChild);
+    // The hover fill belongs to the row of the last element: a row that is
+    // rebuilt has a different set of controls, and a fill that glided to a
+    // control that is no longer there would glide across empty paper.
+    delete row.dataset.glide;
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
     var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
@@ -3801,25 +4225,31 @@ function decorations() {
     if (shown && from !== null) {
       // On show already: the box travels from the last control to this one,
       // and the new words come in from the side it travelled from.
-      tip.animate(
-        [{ transform: "translate(calc(-50% + " + (from - x) + "px)," + (above ? "-100%" : "0") + ")" }, { transform: rest }],
-        { duration: 260, easing: ARRIVE }
+      //
+      // It travels from where it is, not from where it was: a tip that is
+      // still rising when the pointer crosses the row must not jump to full
+      // size the moment it starts to travel.
+      animate(
+        tip,
+        [{ transform: travelFrom(from, x) }, { transform: rest }],
+        { duration: T.rise, easing: ARRIVE }
       );
-      label.animate(slide, { duration: 200, easing: ARRIVE });
+      animate(label, slide, { duration: T.settle, easing: ARRIVE });
     } else if (warm) {
       // Closed a moment ago: no second rise, only a quick fade in place.
-      tip.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: ARRIVE });
-      label.animate(slide, { duration: 200, easing: ARRIVE });
+      animateFrom(tip, [{ opacity: 1 }], { duration: T.fade, easing: STANDARD });
+      animate(label, slide, { duration: T.settle, easing: ARRIVE });
     } else {
       // The first of the group rises out of the control, a little blurred.
-      tip.animate(
+      animate(
+        tip,
         [
           { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)", filter: "blur(4px)" },
           { opacity: 1, transform: rest, filter: "blur(0px)" },
         ],
-        { duration: 240, easing: ARRIVE }
+        { duration: T.rise, easing: ARRIVE }
       );
-      label.animate([{ opacity: 0, transform: "translateY(9px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: ARRIVE });
+      animate(label, [{ opacity: 0, transform: "translateY(9px)" }, { opacity: 1, transform: "none" }], { duration: T.enter, easing: ARRIVE });
     }
   }
 
@@ -3859,12 +4289,12 @@ function decorations() {
       return;
     }
     var rest = tip.dataset.side === "bottom" ? TIP_BELOW : TIP_REST;
-    var out = tip.animate(
-      [
-        { opacity: 1, transform: rest, filter: "blur(0px)" },
-        { opacity: 0, transform: rest + " translateY(2.5px) scale(.96)", filter: "blur(2px)" },
-      ],
-      { duration: 120, easing: LEAVE, fill: "forwards" }
+    // The tip leaves from wherever it is: a tip that is still rising when the
+    // pointer goes does not jump to full size on its way out.
+    var out = animateFrom(
+      tip,
+      [{ opacity: 0, transform: rest + " translateY(2.5px) scale(.96)", filter: "blur(2px)" }],
+      { duration: T.fade, easing: LEAVE, fill: "forwards" }
     );
     tipLeaving = out;
     out.onfinish = function () {
@@ -3903,9 +4333,13 @@ function decorations() {
     if (row.dataset.glide !== undefined) return;
     // It fades in where it lands, and only travels from the next control on.
     row.dataset.glide = "";
-    nextFrame(function () {
-      if (row.dataset.glide !== undefined) row.dataset.glide = "warm";
-    });
+    var warm = function () {
+      if (row.dataset.glide === "") row.dataset.glide = "warm";
+    };
+    nextFrame(warm);
+    // A frame that never comes would leave the fill cold for the rest of the
+    // session, and it would never travel again.
+    setTimeout(warm, 60);
   }
 
   function glideOff() {
@@ -4007,6 +4441,10 @@ function decorations() {
         var rec = record(selected);
         rec.added = (rec.added || []).concat(key);
         buildRow();
+        // The control that was just picked arrives, so the row's edge is not
+        // the only thing that moves.
+        var control = icon(key);
+        if (control) control.className = control.className + " arriving";
         toggle(key); // straight into the control that was just picked
       }
     );
@@ -4019,7 +4457,9 @@ function decorations() {
     var dockWasHidden = dock.hidden;
     var multi = selectedItems.length > 1;
     var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
-    dock.hidden = multi || (!on && !(active && !selected));
+    // Whether the dock should be up. It is put away at the end, so a dock
+    // that is leaving is not taken back and then put away again.
+    var want = multi || (!on && !(active && !selected));
     row.hidden = !on || multi;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this
@@ -4034,24 +4474,74 @@ function decorations() {
       rowFor = selected;
     }
     if (!active) {
-      dock.hidden = true;
+      want = true;
       show("");
     } else if (multi) {
-      dock.hidden = true;
+      want = true;
       show("");
     } else if (moving) {
-      dock.hidden = true;
+      want = true;
       show("");
     } else if (!selected) {
       // Nothing to change yet: the dock holds the edits button alone.
-      dock.hidden = false;
+      want = false;
       row.hidden = true;
       show("");
     } else if (!on) {
-      dock.hidden = true;
+      want = true;
       show("");
     }
+    if (want) hideDock();
+    else showDock();
     if (dockWasHidden && !dock.hidden) rise(dock, "translateX(-50%)", 8, "50% 100%");
+  }
+
+  /**
+   * Put the dock away: it fades out where it stands, the way it came.
+   *
+   * A dock that leaves in one frame is a dock that was snatched away, and the
+   * reader was not done with it.
+   */
+  function hideDock() {
+    if (dock.hidden) return;
+    if (dockLeaving) return;
+    if (!moves(dock)) {
+      dock.hidden = true;
+      return;
+    }
+    var out = sink(dock, "translateX(-50%)", 8);
+    if (!out) {
+      dock.hidden = true;
+      return;
+    }
+    // A dock that is on its way out takes no clicks: it is leaving.
+    dock.style.pointerEvents = "none";
+    dockLeaving = out;
+    out.onfinish = function () {
+      dockLeaving = null;
+      dock.hidden = true;
+      out.cancel();
+    };
+  }
+
+  /** Bring the dock back: a fade that was leaving is put away. */
+  function showDock() {
+    if (dockLeaving) {
+      dockLeaving.cancel();
+      dockLeaving = null;
+      dock.style.pointerEvents = "";
+    }
+    dock.hidden = false;
+  }
+
+  /** Put the dock away at once, with no fade. For the times it has to go now. */
+  function dockAway() {
+    if (dockLeaving) {
+      dockLeaving.cancel();
+      dockLeaving = null;
+      dock.style.pointerEvents = "";
+    }
+    dock.hidden = true;
   }
 
   /* --------------------------------------------------------- element menu */
@@ -4253,11 +4743,12 @@ function decorations() {
     // The number answers the edit that changed it: it pops in when it first
     // appears, and gives a small beat when it changes after that.
     if (n && n !== was && moves(countBadge)) {
-      countBadge.animate(
+      animate(
+        countBadge,
         was
           ? [{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }]
           : [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "scale(1)" }],
-        { duration: was ? 260 : 220, easing: ARRIVE }
+        { duration: was ? T.rise : T.enter, easing: ARRIVE }
       );
     }
     // An open list shows the edits, so redraw it when they change. Do not redraw
@@ -4270,10 +4761,45 @@ function decorations() {
    * The edits, one line per element: its name selects it, the arrow reverts it,
    * and one button copies them all for a coding agent.
    */
+  // The edits panel, kept between redraws.
+  var changesPanel = null;
+
   function listChanges() {
     var items = report();
-    var list = document.createElement("div");
-    list.className = "list";
+    // The edits panel: its rows and the two buttons under them. They are kept
+    // between redraws, so a change that lands while the panel is open does not
+    // throw away the scroll position, or a word that is still fading in.
+    if (!changesPanel) {
+      changesPanel = {};
+      changesPanel.list = document.createElement("div");
+      changesPanel.list.className = "list";
+      changesPanel.actions = document.createElement("div");
+      changesPanel.actions.className = "bar2";
+      var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
+        copyText(markdown(report()), function (ok) {
+          relabel(changesPanel.copy, ok ? "Copied" : "Copy failed");
+          setTimeout(function () { relabel(changesPanel.copy, "Copy for an agent"); }, 1600);
+        });
+      }, "copy");
+      copy.appendChild(say("Copy for an agent"));
+      changesPanel.copy = copy;
+      var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
+        saveEdits(function (message) {
+          relabel(changesPanel.save, message);
+          setTimeout(function () { relabel(changesPanel.save, "Save to project"); }, 2400);
+        });
+      }, "save");
+      save.appendChild(say("Save to project"));
+      changesPanel.save = save;
+      changesPanel.actions.appendChild(copy);
+      changesPanel.actions.appendChild(save);
+    }
+    var list = changesPanel.list;
+    // The rows are the edits, and the edits have changed, so the rows are
+    // built again. The scroll position is kept: a change that lands while the
+    // reader is down the list must not throw them back to the top.
+    var top = list.scrollTop;
+    while (list.firstChild) list.removeChild(list.firstChild);
     if (!items.length) {
       var empty = document.createElement("p");
       empty.className = "note";
@@ -4308,29 +4834,11 @@ function decorations() {
       line.appendChild(undo);
       list.appendChild(line);
     });
+    list.scrollTop = top;
+    changesPanel.copy.disabled = !items.length;
+    changesPanel.save.disabled = !items.length;
     pop.appendChild(list);
-
-    var actions = document.createElement("div");
-    actions.className = "bar2";
-    var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
-      copyText(markdown(report()), function (ok) {
-        relabel(copy, ok ? "Copied" : "Copy failed");
-        setTimeout(function () { relabel(copy, "Copy for an agent"); }, 1600);
-      });
-    }, "copy");
-    copy.appendChild(say("Copy for an agent"));
-    copy.disabled = !items.length;
-    actions.appendChild(copy);
-    var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
-      saveEdits(function (message) {
-        relabel(save, message);
-        setTimeout(function () { relabel(save, "Save to project"); }, 2400);
-      });
-    }, "save");
-    save.appendChild(say("Save to project"));
-    save.disabled = !items.length;
-    actions.appendChild(save);
-    pop.appendChild(actions);
+    pop.appendChild(changesPanel.actions);
   }
 
   // The dev server's save endpoint (index.js) and the file it writes.
@@ -4590,7 +5098,15 @@ function decorations() {
     variantAt = -1;
     variantProps = [];
     variationFor = null;
-    variantsBox.hidden = true;
+    // The strip leaves the way it came: a copy of it fades out where it
+    // stood, and the strip itself is put away at once.
+    if (moves(variantsBox)) {
+      var ghost = ghostOf(variantsBox, root);
+      variantsBox.hidden = true;
+      ghost();
+    } else {
+      variantsBox.hidden = true;
+    }
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
   }
 
@@ -4930,10 +5446,21 @@ function decorations() {
       "translate(" + (sx - anchorX) + "px," + (sy - anchorY) + "px) scale(" + (active ? POINT : 1) + ")";
   }
 
+  // Whether the first move out of the orb has been asked for. Armed by the
+  // pointer, and spent when the travel it started has finished.
+  var travelArmed = false;
+  launch.addEventListener("transitionend", function (e) {
+    if (!travelArmed || e.propertyName !== "transform") return;
+    // The travel is done: from here the dot is under the cursor, not chasing it.
+    launch.dataset.tracking = "on";
+  });
+
   function enter() {
     active = true;
     keep();
     anchor();
+    travelArmed = false;
+    delete launch.dataset.tracking;
     // Scale from the orb before it travels, so the shrink reads as the beginning
     // of the morph rather than a jump.
     moveTo(anchorX, anchorY);
@@ -4957,6 +5484,10 @@ function decorations() {
 
   function exit() {
     active = false;
+    // The transform transitions again, so the dot travels home and grows back
+    // into the orb in one move.
+    travelArmed = false;
+    delete launch.dataset.tracking;
     // Travel home and grow back into the orb in one transition.
     moveTo(anchorX, anchorY);
     label.style.opacity = "";
@@ -4977,10 +5508,10 @@ function decorations() {
     changes.slice().forEach(revert);
     insertion = null;
     moving = null;
-    elementMenu.hidden = true;
+    menuAway();
     pointerX = null;
     pointerY = null;
-    insertLine.hidden = true;
+    delete insertLine.dataset.on;
     history = [];
     future = [];
     select(null);
@@ -5063,13 +5594,13 @@ function decorations() {
     for (var node = target; node; node = node.parentElement) {
       if (node === moving) {
         insertion = null;
-        insertLine.hidden = true;
+        delete insertLine.dataset.on;
         return;
       }
     }
     if (!target || !target.parentElement || target.parentElement === host) {
       insertion = null;
-      insertLine.hidden = true;
+      delete insertLine.dataset.on;
       return;
     }
     var children = hit.kind === "container"
@@ -5158,7 +5689,7 @@ function decorations() {
     insertLine.style.top = line.top + "px";
     insertLine.style.width = line.width + "px";
     insertLine.style.height = line.height + "px";
-    insertLine.hidden = false;
+    insertLine.dataset.on = "on";
   }
 
   function insertElement(x, y) {
@@ -5167,7 +5698,7 @@ function decorations() {
     insertion.parent.insertBefore(moving, insertion.before || null);
     moving = null;
     insertion = null;
-    insertLine.hidden = true;
+    delete insertLine.dataset.on;
     syncSelectionFrames();
     syncElementMenu();
     syncDock();
@@ -5175,8 +5706,11 @@ function decorations() {
   }
 
   function onMove(e) {
-    // The orb follows the pointer with no lag. The point and insertion preview
-    // use the same pointer event, so neither trails behind the other.
+    // The orb follows the pointer with no lag. The transform is not transitioned
+    // while the mode is on, or the dot would ease a third of a second behind
+    // the cursor. The one move that does travel is the first: out of the orb,
+    // where the eye is looking.
+    travelArmed = true;
     launch.style.transform =
       "translate(" + (e.clientX - anchorX) + "px," + (e.clientY - anchorY) + "px) scale(" + POINT + ")";
     var x = e.clientX;
@@ -5194,7 +5728,7 @@ function decorations() {
         hideHover();
         return;
       }
-      place(hoverBox, el.getBoundingClientRect(), el);
+      place(hoverBox, el.getBoundingClientRect(), el, true);
       hoverBox.hidden = false;
     });
   }
@@ -5259,7 +5793,7 @@ function decorations() {
         insertion = null;
         pointerX = null;
         pointerY = null;
-        insertLine.hidden = true;
+        delete insertLine.dataset.on;
         syncSelectionFrames();
         syncDock();
         syncElementMenu();

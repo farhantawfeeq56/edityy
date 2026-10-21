@@ -23,7 +23,7 @@ export default function DocsLayout({ children }: LayoutProps<"/docs">) {
           <span className="text-[0.875rem] font-medium text-neutral-600">Docs</span>
           <Link
             href="/"
-            className="ml-auto rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+            className="ml-auto rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
           >
             Back to the site
           </Link>

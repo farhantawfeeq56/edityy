@@ -2836,11 +2836,17 @@ test("Escape on an open control puts focus back on its icon", () => {
   assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
 });
 
-test("reduced motion stops the dock and control animations", () => {
+test("reduced motion stops every animation and every transition", () => {
   const { run } = fakeDom();
   const app = run();
-  // The dock stays where it is, so only the popover animates.
-  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}\.pop\{animation:none\}/);
+  // One rule, and it reaches everything the chrome has: every duration
+  // collapses, every animation runs once and stops, every delay goes. A list
+  // of selectors would have to be kept in step with the sheet by hand, and it
+  // would always be one rule behind.
+  assert.match(
+    app.root.innerHTML,
+    /@media \(prefers-reduced-motion:reduce\)\{\*,\*::before,\*::after\{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;transition-delay:0ms!important\}\}/,
+  );
 });
 
 test("Save to project posts the edits as JSON to the dev server", async () => {

@@ -1,5 +1,58 @@
 @import "tailwindcss";
 
+/* The site's own motions, written against the shared tokens.
+ *
+ * A utility rather than a class, so a component asks for "a colour that
+ * changes" or "a lift" and the timing comes from the token. The durations and
+ * the curves live in the package's motion.css, which the layout imports: the
+ * site and the editor chrome run on the same timings. */
+
+/* A colour that changes: the answer to the pointer, in the chrome's own times. */
+@utility tint {
+  transition-property: background-color, border-color, color, text-decoration-color, box-shadow;
+  transition-duration: var(--edityy-tint);
+  transition-timing-function: var(--edityy-ease-standard);
+}
+
+/* A card that lifts: it rises a little and settles back down. */
+@utility lift {
+  transition-property: transform, box-shadow;
+  transition-duration: var(--edityy-settle);
+  transition-timing-function: var(--edityy-ease-arrive);
+}
+
+/* A surface that arrives. */
+@keyframes edityy-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A value that comes to rest and says so. */
+@keyframes edityy-settle {
+  from {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The words of a button that answers: the new ones rise into the place the
+   old ones left. */
+@utility say {
+  display: inline-block;
+  animation: edityy-rise var(--edityy-enter) var(--edityy-ease-arrive);
+}
+
 /* Cobalt on white paper, graded like the reference frame: washed
    highlights, faded shadows, nothing pure black. The neutral
    ramp IS the design: every neutral-* class in the app resolves to one of
@@ -52,6 +105,28 @@ body {
   font-family: var(--font-sans);
   background: var(--color-neutral-50);
   color: var(--color-neutral-900);
+}
+
+/* The header over the page. It is more solid once the page has moved, so the
+   words over it stay readable. The change is driven by the scroll, so it needs
+   no script and no scroll listener. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    .site-header {
+      animation: edityy-header linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 60px;
+    }
+  }
+}
+
+@keyframes edityy-header {
+  from {
+    background-color: rgb(255 255 255 / 0.8);
+  }
+  to {
+    background-color: rgb(255 255 255 / 0.95);
+  }
 }
 
 ::selection {

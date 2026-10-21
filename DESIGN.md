@@ -256,6 +256,50 @@ over-round cards into bubbles.
 - **Floating layer:** translucent paper with backdrop blur, rounded
   `xl`, anchored to the orb's position. One depth level per layer.
 
+## Motion
+
+Motion is quiet and it is named. The timings live in one file,
+`packages/edityy/src/motion.css`, and both the editor chrome and this site
+read them, so a thing that arrives in the editor arrives in the same time on
+the page.
+
+**Five curves, and each one has a job.**
+
+- **Arrive** is a long ease-out, so the way in is felt.
+- **Leave** is a short ease-in, so the way out is not waited for.
+- **Standard** is the even curve for a value under the pointer.
+- **Travel** carries the orb's shrink and its journey in one move.
+- **Breathe** is the only one that never arrives: it is the loop that says
+  "waiting".
+
+**Nine durations, and each one is named for what it is for.** `press` is the
+press going down, `fade` is a short disappearance, `tint` is a colour change,
+`slide` is a value moving under the pointer, `settle` is a value coming to
+rest, `enter` is a surface arriving, `rise` is a surface rising, `move` is
+the orb's own journey, and `pulse` is the waiting loop. A duration is never
+written out in a rule: it is a token, so one change moves everything that
+uses it.
+
+**The rules.**
+
+- Things arrive on the arrive curve and leave on the leave curve. A panel
+  that is dismissed leaves as carefully as it came, and a panel whose
+  content changes under the reader's eyes crosses rather than cuts.
+- A press goes down fast and comes back slow, because the hand is quick and
+  the release settles. Every control that answers the pointer presses the
+  same way, and a control that only changes colour does not press at all.
+- A value that comes to rest says so with a small beat, so the number the
+  reader is looking at is the number.
+- A surface follows the pointer without a delay. The orb is under the cursor,
+  not chasing it.
+- An animation that is interrupted continues from where the element is
+  showing, not from where it was.
+
+**Less motion means no motion.** Under `prefers-reduced-motion: reduce`
+every duration collapses, every animation runs once and stops, and every
+delay goes. The rule is one rule, in the stylesheet and in the chrome, and it
+is not a list of selectors to keep in step with the code by hand.
+
 ## Texture
 
 A fine grain overlay sits above the canvas and below text, at low

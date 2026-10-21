@@ -25,7 +25,7 @@ export function DocsNav({
                 <Link
                   href={page.href}
                   aria-current={active ? "page" : undefined}
-                  className={`block rounded-full border px-3 py-1.5 text-[0.8125rem] transition-colors duration-150 ${
+                  className={`block rounded-full border px-3 py-1.5 text-[0.8125rem] tint ${
                     active
                       ? "border-neutral-200 bg-blush font-medium text-neutral-900"
                       : "border-neutral-200 text-neutral-600 hover:bg-blush/60 hover:text-neutral-900"
@@ -56,7 +56,7 @@ export function DocsNav({
                   <Link
                     href={page.href}
                     aria-current={active ? "page" : undefined}
-                    className={`block rounded-lg px-2 py-1.5 text-[0.875rem] transition-colors duration-150 ${
+                    className={`block rounded-lg px-2 py-1.5 text-[0.875rem] tint ${
                       active
                         ? "bg-blush font-medium text-neutral-900"
                         : "text-neutral-600 hover:bg-blush/60 hover:text-neutral-900"
