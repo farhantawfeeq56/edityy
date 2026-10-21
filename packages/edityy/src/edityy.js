@@ -157,57 +157,56 @@
     "display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{position:relative;display:flex;gap:2px;padding:4px;background:var(--paper);border:1px solid transparent;border-radius:12px;",
-    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
+    ".row{position:relative;display:flex;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
+    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
     // is never one of row.children. It fades in where it first lands, and moves
     // only once it is on show (data-glide=warm).
-    ".row:before{content:\"\";position:absolute;left:0;top:4px;height:34px;width:var(--glide-w,34px);border-radius:8px;",
-    "background:var(--ink-4);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
+    ".row:before{content:\"\";position:absolute;left:0;top:3px;height:30px;width:var(--glide-w,30px);border-radius:7px;",
+    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity .12s var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity .1s var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity .1s var(--arrive),transform .26s var(--arrive),width .26s var(--arrive)}",
     ".row>*{position:relative}",
     ".row .ic:hover{background:transparent}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
-    ".ic{width:34px;height:34px;display:grid;place-items:center;border:0;padding:0;",
-    "border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;",
+    ".ic{width:30px;height:30px;display:grid;place-items:center;border:0;padding:0;",
+    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;",
     // The press goes down fast and comes back slower: the hand is quick, the
     // release settles.
     "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
-    ".ic:hover{background:var(--fill-hover)}",
+    ".ic:hover{background:var(--ink-6);color:var(--ink)}",
     ".ic:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:var(--fill-open)}",
+    ".ic[aria-expanded=true]{background:var(--ink-12);color:var(--ink)}",
     ".ic.add{color:var(--muted)}",
-    ".ic.family-name{display:block;width:92px;max-width:92px;overflow:hidden;",
-    "padding:0 8px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 14px/34px}",
-    ".ic.group-start{margin-left:6px;position:relative}",
-    ".ic.group-start:before{content:\"\";position:absolute;left:-5px;top:8px;width:1px;height:18px;background:var(--ink-15)}",
-    ".ic.size-control{width:86px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px;",
+    ".ic.family-name{display:block;width:84px;max-width:84px;overflow:hidden;",
+    "padding:0 6px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 13px/30px}",
+    ".ic.group-start{margin-left:8px;position:relative}",
+    ".ic.size-control{width:78px;display:flex;align-items:center;gap:2px;position:relative;padding:0 4px;",
     // The rectangle is there before the pointer arrives: a chip that holds a value
     // is a box, at rest and under the caret alike.
-    "border:1px solid var(--ink-15)}",
+    "border:1px solid var(--ink-10)}",
     ".ic.size-control:focus-within{background:var(--fill-open)}",
     // A count the dock wears in its own row: the grid's columns × rows, and the
     // four offsets of an element that is placed absolutely.
-    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px;border:1px solid var(--ink-15)}",
+    ".ic.dock-count{display:flex;align-items:center;gap:2px;width:auto;padding:0 6px;border:1px solid var(--ink-10)}",
     ".dock-count:focus-within{background:var(--fill-open)}",
-    ".ic.dock-count input{width:4ch;height:32px;border:0;padding:0;background:transparent;color:inherit;",
-    "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    ".ic.dock-count input{width:4ch;height:28px;border:0;padding:0;background:transparent;color:inherit;",
+    "font:500 13px/28px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".dock-count input::placeholder{color:var(--muted);opacity:1}",
-    ".dock-count .times{color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;line-height:1}",
+    ".dock-count .times{color:var(--muted);font-family:inherit;font-size:12px;font-weight:500;line-height:1}",
     // The letter of an absolute side, so four numbers in a row still say which
     // side is which without a label over every one of them.
-    ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:10px;",
+    ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:9px;",
     "font-weight:500;line-height:1;letter-spacing:.04em}",
-    ".ic.size-control input{width:48px;height:32px;border:0;padding:0;background:transparent;color:inherit;",
-    "font:500 14px/32px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
+    ".ic.size-control input{width:44px;height:28px;border:0;padding:0;background:transparent;color:inherit;",
+    "font:500 13px/28px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".custom-select{position:relative;flex:1;min-width:0}",
-    ".custom-select-trigger{width:100%;border:1px solid var(--ink-15);border-radius:8px;padding:8px 10px;",
-    "background:var(--paper);color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;",
+    ".custom-select-trigger{width:100%;border:1px solid var(--ink-10);border-radius:8px;padding:6px 8px;",
+    "background:var(--paper);color:var(--ink);font:500 13px/1 inherit;text-align:left;cursor:pointer;",
     "transition:background-color .13s ease,border-color .13s ease}",
     ".custom-select-trigger:hover{background:var(--fill-hover)}",
     ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted);",
@@ -321,7 +320,7 @@
     // Only the icon a control holds, never the box a glyph is drawn in: a Lucide
     // glyph is its own svg inside this one, and sizing that too would draw it 18
     // units wide in a 256 box. The `>` is what keeps this from reaching it.
-    ".ic>svg{width:18px;height:18px;display:block;color:inherit}",
+    ".ic>svg{width:16px;height:16px;display:block;color:inherit}",
     // The text colour is the colour alone: a chip painted in the element own
     // colour. The chip is a real element so it takes focus and shows focus: a
     // background on the button could not be read out by anything, and an empty
@@ -337,7 +336,7 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--fill-open);border:1px solid transparent;border-radius:16px;",
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn .22s var(--arrive)}",
@@ -477,23 +476,23 @@
     "[data-edge=top]{top:-3px}[data-edge=bottom]{bottom:-3px}",
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
-    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:10px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
-    ".element-menu-actions{display:flex;flex-wrap:wrap;gap:4px}",
+    ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
+    ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
     // travels under the pointer, which one square cannot do, so the fill is the
     // one it lands in.
-    ".element-action{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:8px;padding:0;",
-    "background:transparent;color:var(--ink);font:500 14px/1 inherit;cursor:pointer;",
+    ".element-action{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;padding:0;",
+    "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer;",
     "transition:background .13s ease,color .13s ease,transform .2s var(--arrive)}",
-    ".element-action:hover{background:var(--ink-4)}",
+    ".element-action:hover{background:var(--ink-6);color:var(--ink)}",
     ".element-action:active{transform:scale(.94);transition-duration:.13s,.13s,.08s}",
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
     ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-action.delete{color:var(--muted)}",
     // The one button of the done card wears its words, not a 34px square.
-    ".element-action.done{width:auto;padding:0 14px}",
-    ".element-action>svg{width:18px;height:18px;display:block;flex:none;color:inherit}",
+    ".element-action.done{width:auto;padding:0 12px}",
+    ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
@@ -523,8 +522,8 @@
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
-    ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;width:max-content;max-width:min(280px,calc(100vw - 24px));background:var(--paper-88);border:1px solid transparent;border-radius:16px;",
-    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
+    ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;width:max-content;max-width:min(280px,calc(100vw - 24px));background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
+    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
     // The head names the strip and the element it varies, and holds the one
     // action that ends it. It is a row, not a title: the tag sits in the same
     // line, in the muted tone of a caption.
@@ -575,9 +574,9 @@
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:44px;height:44px;background:var(--paper);border:1px solid transparent;",
-    "border-radius:12px;",
-    "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12)}",
+    ".ic.solo{position:relative;width:36px;height:36px;background:var(--paper);border:1px solid var(--ink-10);",
+    "border-radius:10px;",
+    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     ".ic.solo[aria-expanded=true]{background:var(--fill-open)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp.

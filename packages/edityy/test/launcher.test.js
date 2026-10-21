@@ -931,8 +931,8 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const app = run();
   const css = app.root.innerHTML;
   assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
-  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--fill-open\)\}/, "a selected control wears the open fill");
-  assert.match(css, /\.pop\{[^}]*background:var\(--fill-open\)/, "the secondary dock wears the same fill");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--ink-12\);color:var\(--ink\)\}/, "a selected control wears the open fill");
+  assert.match(css, /\.pop\{[^}]*background:var\(--paper\)/, "the secondary dock wears the paper surface");
   quiet(() => selectText(app));
   const row = app.root.nodes.row;
   const tip = app.root.nodes.tip;
