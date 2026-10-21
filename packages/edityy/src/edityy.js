@@ -504,6 +504,7 @@
     ".wait-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--accent);animation:waitPulse 1.4s ease-in-out infinite}",
     "@keyframes waitPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}",
     ".wait-line{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12px/1.3 inherit;color:var(--muted)}",
+    ".wait-say{margin:0;font:400 12px/1.3 inherit;color:var(--muted)}",
     ".wait-hint{margin:0;padding-top:9px;border-top:1px solid var(--ink-8);display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 11px/1.3 inherit;color:var(--muted)}",
     ".wait-chip{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:6px;background:var(--ink-6);color:var(--ink);font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}",
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
@@ -522,10 +523,24 @@
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
-    ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;gap:2px;width:max-content;max-width:min(280px,calc(100vw - 24px));padding:8px;background:var(--paper-88);border:1px solid transparent;border-radius:16px;",
+    ".variants{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;flex-direction:column;width:max-content;max-width:min(280px,calc(100vw - 24px));background:var(--paper-88);border:1px solid transparent;border-radius:16px;",
     "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);pointer-events:auto}",
-    ".variants-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 6px 6px}",
-    ".variants-title{margin:0;font:500 12px/1.3 inherit;color:var(--muted)}",
+    // The head names the strip and the element it varies, and holds the one
+    // action that ends it. It is a row, not a title: the tag sits in the same
+    // line, in the muted tone of a caption.
+    ".variants-head{display:flex;align-items:center;gap:8px;padding:10px 10px 10px 14px}",
+    ".variants-title{margin:0;font:500 13px/1.2 inherit;color:var(--ink)}",
+    ".variants-of{font:400 12px/1.2 inherit;color:var(--muted)}",
+    // Keep is small and quiet: it is the last step, and it is worth nothing
+    // until a variation is on the element.
+    ".variants-keep{margin-left:auto;height:28px;padding:0 10px;border:0;border-radius:8px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink-20);",
+    "color:var(--ink);font:500 13px/1 inherit;cursor:pointer;transition:background .13s ease}",
+    ".variants-keep:hover:not(:disabled){background:var(--ink-6)}",
+    ".variants-keep:disabled{opacity:.4;cursor:default}",
+    ".variants-keep:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    // Ten rows are more than a short window holds, so the list scrolls and the
+    // head stays put. A hairline under the head sets the list apart.
+    ".variants-list{display:flex;flex-direction:column;gap:2px;max-height:min(46vh,376px);overflow-y:auto;overscroll-behavior:contain;padding:8px 6px;border-top:1px solid var(--ink-10)}",
     ".variant{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border:0;border-radius:8px;background:transparent;",
     "color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer;transition:background .13s ease,transform .2s var(--arrive)}",
     ".variant:hover{background:var(--ink-4)}",
@@ -534,7 +549,8 @@
     ".variant:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".variant .key{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:6px;background:var(--ink-6);",
     "color:var(--muted);font:500 12px/1 inherit}",
-    ".variant[aria-pressed=true] .key{background:var(--ink);color:var(--paper)}",
+    // The one on the element wears the cobalt of an active state, on paper text.
+    ".variant[aria-pressed=true] .key{background:var(--accent);color:var(--paper)}",
     ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none}",
     ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
@@ -4521,12 +4537,24 @@ function decorations() {
     title.className = "variants-title";
     title.appendChild(text("Variations"));
     head.appendChild(title);
-    var keep = button("cta ghost", "", "Keep the variation on the element", function () {
+    // The strip floats away from the element, so it says which element it
+    // varies: a caption, in the muted tone.
+    if (variationFor) {
+      var of = document.createElement("span");
+      of.className = "variants-of";
+      of.appendChild(text(variationFor.tagName.toLowerCase()));
+      head.appendChild(of);
+    }
+    var keep = button("variants-keep", "", "Keep the variation on the element", function () {
       closeVariants();
     }, "keep-variation");
     keep.appendChild(say("Keep"));
+    // Keep ends the strip, and it can only end it with something on the element.
+    keep.disabled = variantAt < 0;
     head.appendChild(keep);
     variantsBox.appendChild(head);
+    var list = document.createElement("div");
+    list.className = "variants-list";
     variantList.forEach(function (variation, i) {
       var row = button("variant", "", "Use " + variation.label, function () { pickVariant(i); }, "variant-" + (i + 1));
       row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
@@ -4539,8 +4567,9 @@ function decorations() {
       words.className = "words";
       words.appendChild(text(variation.label));
       row.appendChild(words);
-      variantsBox.appendChild(row);
+      list.appendChild(row);
     });
+    variantsBox.appendChild(list);
   }
 
   /** Put the strip away. A pending request is dropped, so no agent answers it late. */
@@ -4622,10 +4651,14 @@ function decorations() {
       }, "cancel-variations"));
       box.appendChild(head);
       box.appendChild(waitLine("wait-line", "Ask it:", "vartest"));
-      // The user is typing in the agent anyway, so the direction goes there
-      // too. The page cannot see whether the agent has the server, so it says
-      // how to add it, set off from the line above.
-      box.appendChild(waitLine("wait-hint", "Say what you want there. Not connected? Add it:", "npx edityy mcp"));
+      // The user is typing in the agent anyway, so the direction goes there too.
+      var hint = document.createElement("p");
+      hint.className = "wait-say";
+      hint.appendChild(text("Say what you want in the same message."));
+      box.appendChild(hint);
+      // The page cannot see whether the agent has the server, so it says how to
+      // add it, set off from the lines above.
+      box.appendChild(waitLine("wait-hint", "Not connected? Add it:", "npx edityy mcp"));
       openVariationBox = box;
       return box;
     }

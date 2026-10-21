@@ -2965,20 +2965,22 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   area.value = "  thinner and darker  ";
   const ask = inMenu("Send the variations request to the agent");
   for (const fn of ask.bubbles.click.bubble) fn({});
-  // The box morphs to the waiting card: the words, the keyword as a chip, the
-  // connect hint, and the X. The fields and Send are gone.
+  // The box morphs to the waiting card: the words, the keyword as a chip, where
+  // to say what they want, the connect hint, and the X. The fields and Send are
+  // gone.
   const waiting = menu.children[0];
   assert.equal(waiting.className, "wait");
-  assert.equal(waiting.children.length, 3);
+  assert.equal(waiting.children.length, 4);
   const head = waiting.children[0];
   assert.equal(head.className, "wait-head");
   assert.equal(head.children[0].children[1].nodeValue, "Waiting for your agent");
   assert.equal(head.children[1].getAttribute("aria-label"), "Cancel the variation request");
   assert.deepEqual(waiting.children[1].children.map((node) => node.nodeValue ?? node.children[0].nodeValue), ["Ask it:", "vartest"]);
+  assert.equal(waiting.children[2].children[0].nodeValue, "Say what you want in the same message.");
   assert.deepEqual(
-    waiting.children[2].children.map((node) => node.nodeValue ?? node.children[0].nodeValue),
-    ["Say what you want there. Not connected? Add it:", "npx edityy mcp"],
-    "where to say what the user wants, and how to connect the server",
+    waiting.children[3].children.map((node) => node.nodeValue ?? node.children[0].nodeValue),
+    ["Not connected? Add it:", "npx edityy mcp"],
+    "how to connect the server, set off from the lines above",
   );
   assert.equal(inMenu("Send the variations request to the agent"), undefined, "the fields are put away");
   assert.equal(inMenu("What to vary"), undefined);
@@ -2998,18 +3000,29 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(polls, 2);
   assert.equal(strip.hidden, false, "the strip is up");
   assert.equal(inMenu("Send the variations request to the agent"), undefined, "the prompt box is done");
-  const rows = strip.children.slice(1);
+  const rows = strip.children[1].children;
+  assert.equal(strip.children[1].className, "variants-list", "the rows sit in a list of their own");
   assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);
   assert.deepEqual(rows.map((r) => r.children[0].children[0].nodeValue), ["1", "2"], "each row says its key");
   assert.deepEqual(rows.map((r) => r.children[1].children[0].nodeValue), ["thin grey", "rose pill"]);
   assert.equal(rows[0].getAttribute("aria-pressed"), "false", "nothing is on the element yet");
+  // Keep ends the strip, and it waits for a variation to be on the element.
+  const keep = strip.children[0].children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element");
+  assert.equal(keep.disabled, true, "there is nothing to keep yet");
+  assert.equal(strip.children[0].children[0].children[0].nodeValue, "Variations");
+  assert.equal(strip.children[0].children[1].children[0].nodeValue, "p", "the strip says which element it varies");
 
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
   // The strip is drawn again, so the row that is on is the one read back now.
-  assert.equal(strip.children[1].getAttribute("aria-pressed"), "true");
-  assert.equal(strip.children[2].getAttribute("aria-pressed"), "false");
+  assert.equal(strip.children[1].children[0].getAttribute("aria-pressed"), "true");
+  assert.equal(strip.children[1].children[1].getAttribute("aria-pressed"), "false");
+  assert.equal(
+    strip.children[0].children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element").disabled,
+    false,
+    "a variation is on the element, so it can be kept",
+  );
   assert.match(app.win.__edityy_changes(), /- `scrollbar-width`: `unset` → `thin`/);
 
   // The next variation is the whole variation: the width goes back, it is not left over.
