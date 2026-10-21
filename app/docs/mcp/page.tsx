@@ -1,0 +1,111 @@
+import { H1, Lead, P, H2, H3, UL, LI, Code, Pre, Note } from "../ui";
+
+export const metadata = {
+  title: "The MCP server — Edityy Docs",
+  description: "Give a coding agent the saved edits and the variation requests.",
+};
+
+export default function DocsMcp() {
+  return (
+    <>
+      <H1>The MCP server</H1>
+      <Lead>
+        <Code>npx edityy mcp</Code> is a stdio MCP server. It hands the saved edits and the variation requests to a
+        coding agent.
+      </Lead>
+
+      <H2 id="adding">Adding the server</H2>
+      <H3>Claude Code</H3>
+      <Pre file="terminal">{`claude mcp add edityy -- npx edityy mcp`}</Pre>
+      <H3>Cursor, or any client configured with JSON</H3>
+      <Pre file="mcp.json">{`{
+  "mcpServers": {
+    "edityy": { "command": "npx", "args": ["edityy", "mcp"] }
+  }
+}`}</Pre>
+      <P>
+        The server reads from the directory it is started in. Pass <Code>--root &lt;dir&gt;</Code> to read from
+        another one.
+      </P>
+
+      <H2 id="tools">The tools</H2>
+      <P>There are four.</P>
+
+      <H3 id="get-visual-changes">get_visual_changes</H3>
+      <P>
+        Returns the edits in <Code>.edityy/changes.json</Code>, as the same Markdown that <strong>Copy for an agent</strong>{" "}
+        copies. Each edited element comes with a CSS selector, its source location when it is known, every property
+        and text change as before and after, and any comment you wrote about it.
+      </P>
+      <P>Apply them to the source code, then call <Code>clear_visual_changes</Code>.</P>
+
+      <H3 id="clear-visual-changes">clear_visual_changes</H3>
+      <P>
+        Deletes the saved visual edits, so they are not applied twice. Call it only after the code holds the change.
+      </P>
+
+      <H3 id="get-variation-request">get_variation_request</H3>
+      <P>
+        Returns what you asked for on one element: the number of variations, their optional comment, the element’s
+        tag, its selector and its current values. The agent never sees your code for this.
+      </P>
+      <P>
+        Read it at the start of every <Code>vartest</Code>. You may have asked again since the last one, and an answer
+        for an old request is refused.
+      </P>
+
+      <H3 id="place-variations">place_variations</H3>
+      <P>Takes the answer: that many variations of plain CSS declarations, for you to try on the live element.</P>
+      <P>Each variation is a label and a list of declarations.</P>
+      <Pre>{`{
+  "requestId": "the id get_variation_request returned",
+  "variations": [
+    {
+      "label": "thin grey",
+      "props": [
+        { "property": "scrollbar-width", "value": "thin" },
+        { "property": "scrollbar-color", "value": "#8a8a8a transparent" }
+      ]
+    },
+    {
+      "label": "notched",
+      "props": [
+        {
+          "property": "background",
+          "value": "#f43f5e",
+          "on": "::-webkit-scrollbar-thumb"
+        }
+      ]
+    }
+  ]
+}`}</Pre>
+      <UL>
+        <LI>
+          <Code>on</Code> is a state or a pseudo-element, such as <Code>:hover</Code>, <Code>:focus-visible</Code> or{" "}
+          <Code>::before</Code>.
+        </LI>
+        <LI>
+          <Code>when</Code> is a media condition, such as <Code>(max-width: 640px)</Code>.
+        </LI>
+        <LI>
+          A custom property, an at-rule in place of <Code>when</Code>, <Code>!important</Code> or <Code>url()</Code>{" "}
+          is refused.
+        </LI>
+      </UL>
+      <Note title="Place exactly what was asked for">
+        Fewer variations than the request is refused. More is not a refusal, but the first ones are the ones you see.
+      </Note>
+
+      <H2 id="the-files">The files</H2>
+      <P>The server and the page share three files in your project.</P>
+      <Pre>{`.edityy/
+  changes.json             the saved edits
+  variation-request.json   what you asked for
+  variation-response.json  what the agent answered`}</Pre>
+      <P>
+        The folder gets its own <Code>.gitignore</Code>, so pending edits never end up in a commit. Your agent reads
+        the same files the page writes.
+      </P>
+    </>
+  );
+}
