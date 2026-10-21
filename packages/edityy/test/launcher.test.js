@@ -2977,8 +2977,8 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.deepEqual(waiting.children[1].children.map((node) => node.nodeValue ?? node.children[0].nodeValue), ["Ask it:", "vartest"]);
   assert.deepEqual(
     waiting.children[2].children.map((node) => node.nodeValue ?? node.children[0].nodeValue),
-    ["Not connected? Add it:", "npx edityy mcp"],
-    "and how to connect the server",
+    ["Say what you want there. Not connected? Add it:", "npx edityy mcp"],
+    "where to say what the user wants, and how to connect the server",
   );
   assert.equal(inMenu("Send the variations request to the agent"), undefined, "the fields are put away");
   assert.equal(inMenu("What to vary"), undefined);

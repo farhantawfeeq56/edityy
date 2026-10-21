@@ -183,16 +183,20 @@ things: how many variants to make, 2 to 10, and an optional comment, such as
 
 The box then becomes the waiting card: **Waiting for your agent**, the keyword
 `vartest` to type, the command that adds the server, and an **X** that puts the
-card away. In your agent, type `vartest`. If the agent has no Edityy server
-yet, add one with `npx edityy mcp` and ask again.
+card away. In your agent, type `vartest`, and say what you want in the same
+message: the agent follows your own words as well as the comment. If the agent
+has no Edityy server yet, add one with `npx edityy mcp` and ask again.
 
 Your agent then has one job, in two tool calls:
 
 1. `get_variation_request` returns the number of variations, the comment, the
    element's tag, its selector and a few current values — about 800 characters.
-   The agent never sees your code for this.
-2. `place_variations` takes the answer: exactly that many variations, each a
-   short label and a list of declarations.
+   The agent never sees your code for this. Read it at the start of every
+   `vartest`: you may have asked again since the last one.
+2. `place_variations` takes the answer: that many variations, each a short
+   label and a list of declarations. Fewer than you asked for is refused, and
+   the message says so. More is not a refusal: the first ones are the ones you
+   see.
 
 ```
 thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
@@ -226,6 +230,11 @@ its answer are written to `.edityy/variation-request.json` and
 `.edityy/variation-response.json`, which the MCP server reads. The page sends
 only plain values, and an answer is checked before the page shows it: a custom
 property, an at-rule in place of `when`, `!important` or `url()` is refused.
+
+The **X** in the waiting card takes the request back. The request stays in the
+file, marked as taken back, and the agent is told not to answer it, so a
+withdrawal is not the same as a request that was never made. A new request
+replaces it.
 
 **Next.js** needs one more route file, next to the one for the edits:
 

@@ -4622,9 +4622,10 @@ function decorations() {
       }, "cancel-variations"));
       box.appendChild(head);
       box.appendChild(waitLine("wait-line", "Ask it:", "vartest"));
-      // The page cannot see whether the agent has the server, so it says how to
-      // add it, set off from the line above.
-      box.appendChild(waitLine("wait-hint", "Not connected? Add it:", "npx edityy mcp"));
+      // The user is typing in the agent anyway, so the direction goes there
+      // too. The page cannot see whether the agent has the server, so it says
+      // how to add it, set off from the line above.
+      box.appendChild(waitLine("wait-hint", "Say what you want there. Not connected? Add it:", "npx edityy mcp"));
       openVariationBox = box;
       return box;
     }

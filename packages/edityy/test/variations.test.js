@@ -231,4 +231,8 @@ test("the agent reads a short request, not the page", () => {
   assert.match(text, /plain standard CSS properties/);
   assert.ok(text.length < 1400, `the request is short (${text.length} characters)`);
   assert.match(requestText(checkVariationRequest({ ...request, prompt: "" })), /wrote no comment/);
+  // With no direction, the agent is told to cover styles that differ.
+  assert.match(requestText(checkVariationRequest({ ...request, prompt: "" })), /differ from each other/);
+  // The user may have said what they want in their own message to the agent.
+  assert.match(text, /in their own message/);
 });

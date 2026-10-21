@@ -43,7 +43,8 @@ MCP (`npx edityy mcp`). Leaving the mode puts the page back exactly as it was.
 
 One element can also be varied: choose **Variations**, pick how many variants and add an optional comment, then type
 `vartest` in your agent and it answers with that many style variations, including hover states, pseudo-elements and
-breakpoints. Keys `1` to `9` and `0` switch the live element between them, and the one you keep is an ordinary edit.
+breakpoints. Say what you want in the same message, and the agent follows it. Keys `1` to `9` and `0` switch the live
+element between them, and the one you keep is an ordinary edit.
 
 ## The idea
 

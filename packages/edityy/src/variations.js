@@ -162,7 +162,7 @@ export function requestText(request) {
   const values = request.element.values.map((v) => `${v.property}: ${v.value}`).join("; ");
   const asked = request.prompt
     ? `The user selected one element and wrote: ${JSON.stringify(request.prompt)}`
-    : "The user selected one element and wrote no comment.";
+    : "The user selected one element and wrote no comment: they gave no direction, so cover styles that differ from each other.";
   return [
     "# Variation request from Edityy",
     "",
@@ -174,20 +174,22 @@ export function requestText(request) {
     "",
     "Answer with the declarations only, then call place_variations:",
     "",
-    `1. Make exactly ${request.count} variations. Give each one a short label of two or three words.`,
-    "2. In each variation, use plain standard CSS properties and plain values.",
-    "3. A state, a pseudo-element or a breakpoint is a rule: set `on` to `:hover`,",
-    "   `:focus-visible` or `::before`, or set `when` to a media condition such as",
-    "   `(max-width: 640px)`. Leave both out for the element's own style.",
-    "4. `::before` and `::after` need a `content` value to show at all.",
-    "5. Do not use custom properties, at-rules other than a media condition in",
+    `1. Make exactly ${request.count} variations, each with a short label of two or three words. If you send more, the first ones are the ones the user sees.`,
+    "2. The user may have told you in their own message what they want. Follow",
+    "   that when they did: the comment above is only part of what they asked for.",
+    "3. In each variation, use plain standard CSS properties and plain values.",
+    "4. A state, a pseudo-element or a breakpoint is a rule: set `on` to `:hover` or",
+    "   `::before`, or set `when` to a media condition such as `(max-width: 640px)`.",
+    "   Leave both out for the element's own style.",
+    "5. `::before` and `::after` need a `content` value to show at all.",
+    "6. Do not use custom properties, at-rules other than a media condition in",
     "   `when`, `!important`, or `url()`.",
-    "6. Call place_variations with the requestId below and the variations.",
+    "7. Call place_variations with the requestId below and the variations.",
     "",
     `requestId: \`${request.id}\``,
     "",
-    "The user sees each variation on the live element, keys 1 to 9 pick one and",
-    "0 picks the tenth, and the one they keep becomes a normal edit for this project. A state or a",
-    "breakpoint shows on the page only when the user hovers it or narrows the window.",
+    "The user sees each variation on the live element, keys 1 to 9 pick one and 0",
+    "picks the tenth, and the one they keep becomes a normal edit for this project.",
+    "A state or a breakpoint shows only when the user hovers it or narrows the window.",
   ].join("\n");
 }
