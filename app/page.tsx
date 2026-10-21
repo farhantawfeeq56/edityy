@@ -160,6 +160,12 @@ export default function Home() {
             >
               Features
             </a>
+            <Link
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              href="/docs"
+            >
+              Docs
+            </Link>
             <a
               className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
               href={GITHUB}
@@ -201,9 +207,9 @@ export default function Home() {
           </div>
 
           <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
-            <a className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-900" href={NPM} target="_blank" rel="noreferrer">
+            <Link className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-900" href="/docs">
               Setup guide and full details
-            </a>
+            </Link>
             <a className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-900 hover:decoration-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
               View the source
             </a>
@@ -303,6 +309,9 @@ export default function Home() {
             Edityy
           </span>
           <div className="flex items-center gap-5">
+            <Link className="hover:text-neutral-900" href="/docs">
+              Docs
+            </Link>
             <a className="hover:text-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
               GitHub
             </a>
