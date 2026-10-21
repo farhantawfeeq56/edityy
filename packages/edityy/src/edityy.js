@@ -272,6 +272,8 @@
     ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--ink);text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
     ".custom-option:hover,.custom-option[aria-pressed=true]{background:var(--ink-6)}",
     ".custom-option:active{transform:scale(.98)}",
+    // The trigger is a button like any other, so it presses like any other.
+    ".custom-select-trigger:active{transform:scale(.96)}",
     ".size-control .custom-select{width:26px;flex:none}",
     ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
     // Upward, like every other list in the dock: the size button sits 24px above
@@ -682,13 +684,15 @@
     // swaps it. A transition reads its duration in the state it is in, so the
     // way down is quick and the way back is the release — with no list of
     // durations to keep in step with the list of properties.
-    ".ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control{",
+    ".ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,",
+    ".custom-select-trigger,.custom-option{",
     "--press-dur:var(--settle);",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--press-dur) var(--arrive)}",
     ".ic:active,.opt:active,.cta:active:not(:disabled),.element-action:active,.variant:active,.icon-button:active,",
-    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{--press-dur:var(--press)}",
+    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active,",
+    ".custom-select-trigger:active,.custom-option:active{--press-dur:var(--press)}",
     // A control that only changes colour, and is never pressed.
-    ".custom-select-trigger,input[type=search],.element-comment-text,.variants-keep{",
+    "input[type=search],.element-comment-text,.variants-keep{",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     "</style>",
     '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
@@ -1197,6 +1201,13 @@
 
   /** Undo every property and the text of one element. */
   function revert(rec) {
+    // An element that was on its way out and is put back stops leaving: it
+    // must not fade away in the reader's hand.
+    if (rec.fade) {
+      rec.fade.cancel();
+      rec.fade = null;
+      rec.el.style.opacity = "";
+    }
     if (rec.location && rec.location.parent) {
       rec.location.parent.insertBefore(rec.el, rec.location.before && rec.location.before.parentElement === rec.location.parent ? rec.location.before : null);
     } else if (rec.removed && rec.removed.parent) {
@@ -1385,6 +1396,11 @@
   var commentFor = null;
   // The box element itself, so a re-place does not rebuild it and lose the words.
   var openComment = null;
+  // The buttons of the card, and the element they belong to. They are kept
+  // between redraws: a card that is rebuilt on every scroll throws the row the
+  // pointer is on away, and a card that rebuilds itself is a card that blinks.
+  var openActions = null;
+  var openActionsFor = null;
 
   /**
    * Is a dock control open over the dock?
@@ -1450,6 +1466,19 @@
       return;
     }
     openComment = null;
+    // The buttons belong to the element they were built for. A new element
+    // gets new buttons; the same element keeps the ones it has, so a scroll
+    // does not rebuild the card under the reader.
+    if (openActionsFor !== selected) {
+      openActions = menuActions();
+      openActionsFor = selected;
+    }
+    drawMenu(openActions);
+    placeElementMenu();
+  }
+
+  /** The five buttons of the element's card. */
+  function menuActions() {
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var edit = actionButton("Edit text", function () {
@@ -1474,8 +1503,7 @@
       syncElementMenu();
     }, svg(MENU_ICONS.variations)));
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
-    drawMenu(actions);
-    placeElementMenu();
+    return actions;
   }
 
   /**
@@ -1507,9 +1535,18 @@
   /** Bring the card back: a fade that was leaving is put away. */
   function showMenu() {
     if (menuLeaving) {
+      // The card is on its way out and is wanted back: it comes back from
+      // where it is, not from where it was.
+      animateFrom(
+        elementMenu,
+        [{ opacity: 1, transform: "none" }],
+        { duration: T.enter, easing: ARRIVE }
+      );
       menuLeaving.cancel();
       menuLeaving = null;
       elementMenu.style.pointerEvents = "";
+      elementMenu.hidden = false;
+      return;
     }
     elementMenu.hidden = false;
   }
@@ -1534,9 +1571,12 @@
    */
   function drawMenu(box) {
     var wasVisible = !elementMenu.hidden;
+    // The same card again is not a new card: a card that is put back where it
+    // was does not arrive again, or a scroll would set the card blinking.
+    var changed = elementMenu.firstChild !== box;
     while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
     elementMenu.appendChild(box);
-    if (wasVisible) {
+    if (wasVisible && changed) {
       animate(
         box,
         [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }],
@@ -1627,7 +1667,12 @@
       tally();
       return;
     }
-    animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, easing: LEAVE }).onfinish = function () {
+    // The fade is on the record, so an undo can stop it: an element that came
+    // back while it was fading would fade on without the reader's asking.
+    var fade = animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, easing: LEAVE });
+    rec.fade = fade;
+    fade.onfinish = function () {
+      rec.fade = null;
       // The element came back while it was fading: an undo put it back, and
       // it stays.
       if (changes.indexOf(rec) === -1) {
@@ -2071,7 +2116,6 @@ function faces() {
   var ARRIVE = token("--arrive", EASE.arrive);
   var LEAVE = token("--leave", EASE.leave);
   var STANDARD = token("--standard", EASE.standard);
-  var TRAVEL = token("--travel", EASE.travel);
   var T = {
     press: ms("--press", TIME.press),
     fade: ms("--fade", TIME.fade),
@@ -2176,16 +2220,35 @@ function faces() {
    * transform is what carries it back and then forward. It starts from the
    * transform the tip is showing now, rise and all, so a tip that is still
    * rising does not jump on its way across.
+   *
+   * The move back is written first, so it is a move in the page's own space
+   * and not one the tip's current scale would shrink.
    */
-  function travelFrom(fromX, x) {
-    var current = "";
+  function travelFrom(fromX, x, current) {
+    if (!current || current === "none") current = tip.style.transform || TIP_REST;
+    return "translateX(" + (fromX - x) + "px) " + current;
+  }
+
+  /**
+   * Where the tip is now: its opacity and its transform, as they are shown.
+   *
+   * Read before the running animation is stopped, because a stopped animation
+   * puts the tip back to where its own style says, and that is not where the
+   * reader is looking.
+   */
+  function tipNow() {
+    var view = null;
     try {
-      current = getComputedStyle(tip).getPropertyValue("transform");
+      view = getComputedStyle(tip);
     } catch {
-      current = "";
+      view = null;
     }
-    if (!current || current === "none") return "translate(-50%,-100%)";
-    return current + " translateX(" + (fromX - x) + "px)";
+    if (!view) return { opacity: 1, transform: "" };
+    var opacity = parseFloat(view.getPropertyValue("opacity"));
+    return {
+      opacity: isNaN(opacity) ? 1 : opacity,
+      transform: view.getPropertyValue("transform") || "",
+    };
   }
 
   /**
@@ -4158,12 +4221,37 @@ function decorations() {
   function showTip(button, now) {
     tipAt = button;
     if (button === tipBlocked) return;
+    // A control that already says what it is needs no tip: the words on the
+    // button are the tip, and a second one under the pointer is noise.
+    if (saysItself(button)) {
+      hideTip(true);
+      return;
+    }
     clearTimeout(tipClosing);
     clearTimeout(tipCooling);
     if (button === tipFor) return;
     clearTimeout(tipOpening);
     if (now === true || tipWarm) return drawTip(button);
     tipOpening = setTimeout(function () { drawTip(button); }, TIP_OPEN);
+  }
+
+  /**
+   * Does this control already say what it is?
+   *
+   * The words on a button are the tip: a Save button that says Save does not
+   * need one, and a field that holds a number says the number already. The
+   * labels the dock hides are not words the reader can see, so they do not
+   * count: `innerText` leaves out what is not shown.
+   */
+  function saysItself(node) {
+    if (!node) return false;
+    var words = node.innerText;
+    if (words === undefined || words === null) words = node.textContent || "";
+    if (String(words).trim()) return true;
+    // A field that holds a value says it too: the number in the box is the
+    // number a tip would say.
+    var field = node.querySelector && node.querySelector("input");
+    return !!(field && String(field.value || "").trim());
   }
 
   /** Draw the tooltip over a control, in the words of its own label. */
@@ -4181,6 +4269,10 @@ function decorations() {
     var warm = tipWarm;
     var from = tipX;
     var travel = from === null ? 0 : x > from ? 1 : x < from ? -1 : 0;
+    // Where the tip is now, before anything is stopped. The travel starts
+    // from here, so a tip that is still rising does not jump to full size the
+    // moment it starts to travel.
+    var now = tipNow();
     if (tipLeaving) {
       tipLeaving.cancel();
       tipLeaving = null;
@@ -4212,18 +4304,22 @@ function decorations() {
       // It travels from where it is, not from where it was: a tip that is
       // still rising when the pointer crosses the row must not jump to full
       // size the moment it starts to travel.
-      animate(
+      tipRun = animate(
         tip,
-        [{ transform: travelFrom(from, x) }, { transform: rest }],
+        [
+          { opacity: now.opacity, transform: travelFrom(from, x, now.transform) },
+          { opacity: 1, transform: rest },
+        ],
         { duration: T.rise, easing: ARRIVE }
       );
-      animate(label, slide, { duration: T.settle, easing: ARRIVE });
-    } else if (warm) {      // Closed a moment ago: no second rise, only a quick fade in place.
-      animateFrom(tip, [{ opacity: 1 }], { duration: T.fade, easing: STANDARD });
-      animate(label, slide, { duration: T.settle, easing: ARRIVE });
+      labelRun = animate(label, slide, { duration: T.settle, easing: ARRIVE });
+    } else if (warm) {
+      // Closed a moment ago: no second rise, only a quick fade in place.
+      tipRun = animateFrom(tip, [{ opacity: 1 }], { duration: T.fade, easing: STANDARD });
+      labelRun = animate(label, slide, { duration: T.settle, easing: ARRIVE });
     } else {
       // The first of the group rises out of the control, a little blurred.
-      animate(
+      tipRun = animate(
         tip,
         [
           { opacity: 0, transform: rest + " translateY(" + (above ? 7 : -7) + "px) scale(.9)", filter: "blur(4px)" },
@@ -4231,7 +4327,7 @@ function decorations() {
         ],
         { duration: T.rise, easing: ARRIVE }
       );
-      animate(label, [{ opacity: 0, transform: "translateY(9px)" }, { opacity: 1, transform: "none" }], { duration: T.enter, easing: ARRIVE });
+      labelRun = animate(label, [{ opacity: 0, transform: "translateY(9px)" }, { opacity: 1, transform: "none" }], { duration: T.enter, easing: ARRIVE });
     }
   }
 
@@ -4332,6 +4428,38 @@ function decorations() {
     delete row.dataset.glide;
   }
 
+  // The row's own slide, while it is moving to its new place.
+  var rowRun = null;
+
+  /**
+   * The row grew, and the dock is centred, so every control in it moved. The
+   * row slides to its new place instead of jumping: the move is a transform,
+   * not a change of width, so nothing in the row is measured again.
+   *
+   * `delta` is how far the row's left edge moved. The row starts where it was
+   * and travels to where it is now.
+   */
+  function slideRow(delta) {
+    if (!delta || !moves(row)) return;
+    if (rowRun) {
+      rowRun.cancel();
+      rowRun = null;
+    }
+    rowRun = animate(
+      row,
+      [{ transform: "translateX(" + delta + "px)" }, { transform: "translateX(0px)" }],
+      { duration: T.settle, easing: ARRIVE, fill: "forwards" }
+    );
+    if (!rowRun) return;
+    rowRun.onfinish = function () {
+      rowRun = null;
+      row.style.transform = "";
+      // The panel over the dock is placed against the control it belongs to,
+      // and the control has just moved: it is placed again.
+      if (openKey) placePop(openKey);
+    };
+  }
+
   // The row is rebuilt as the selection moves, so the hint is delegated: one
   // listener covers every control that will ever be in the row.
   row.addEventListener("pointerover", function (e) {
@@ -4426,12 +4554,18 @@ function decorations() {
         // comes back only for it.
         var rec = record(selected);
         rec.added = (rec.added || []).concat(key);
+        // The row is about to grow, and the dock is centred, so every control
+        // in it moves. Where the row was is remembered, so the row can slide
+        // to its new place instead of jumping.
+        var before = row.getBoundingClientRect().left;
         buildRow();
+        var after = row.getBoundingClientRect().left;
         // The control that was just picked arrives, so the row's edge is not
         // the only thing that moves.
         var control = icon(key);
         if (control) control.className = control.className + " arriving";
         toggle(key); // straight into the control that was just picked
+        slideRow(before - after);
       }
     );
   }
@@ -4513,9 +4647,19 @@ function decorations() {
   /** Bring the dock back: a fade that was leaving is put away. */
   function showDock() {
     if (dockLeaving) {
+      // The dock is on its way out and is wanted back: it comes back from
+      // where it is, not from where it was. A dock that snapped back to full
+      // would be a dock that was snatched away and put back in one frame.
+      animateFrom(
+        dock,
+        [{ opacity: 1, transform: "translateX(-50%)" }],
+        { duration: T.enter, easing: ARRIVE }
+      );
       dockLeaving.cancel();
       dockLeaving = null;
       dock.style.pointerEvents = "";
+      dock.hidden = false;
+      return;
     }
     dock.hidden = false;
   }
@@ -4893,6 +5037,10 @@ function decorations() {
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
   var variantProps = []; // the properties the last variation wrote
+  // The rows of the strip, and its Keep button. They are kept between picks,
+  // so a pick moves the tick instead of building the strip again.
+  var variantRows = [];
+  var variantKeep = null;
 
   /** A request id: random enough that two tabs never share one. */
   function newId() {
@@ -5021,9 +5169,24 @@ function decorations() {
     tally();
   }
 
-  /** The strip: one row per variation, with the key that picks it. */
+  /**
+   * The strip: one row per variation, with the key that picks it.
+   *
+   * The rows are built once, when the strip is drawn, and kept. A redraw on
+   * every pick would throw away the row the pointer is on and the words that
+   * are still fading in, and the answer to a pick is a tick that moves, not a
+   * strip that is built again.
+   */
   function paintVariants() {
-    while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
+    if (variantRows.length) {
+      // The rows are there: the tick moves and the Keep button says whether
+      // there is anything to keep.
+      variantRows.forEach(function (row, i) {
+        row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
+      });
+      if (variantKeep) variantKeep.disabled = variantAt < 0;
+      return;
+    }
     var head = document.createElement("div");
     head.className = "variants-head";
     var title = document.createElement("p");
@@ -5044,6 +5207,7 @@ function decorations() {
     keep.appendChild(say("Keep"));
     // Keep ends the strip, and it can only end it with something on the element.
     keep.disabled = variantAt < 0;
+    variantKeep = keep;
     head.appendChild(keep);
     variantsBox.appendChild(head);
     var list = document.createElement("div");
@@ -5061,6 +5225,7 @@ function decorations() {
       words.appendChild(text(variation.label));
       row.appendChild(words);
       list.appendChild(row);
+      variantRows.push(row);
     });
     variantsBox.appendChild(list);
   }
@@ -5083,6 +5248,8 @@ function decorations() {
     variantList = [];
     variantAt = -1;
     variantProps = [];
+    variantRows = [];
+    variantKeep = null;
     variationFor = null;
     // The strip leaves the way it came: a copy of it fades out where it
     // stood, and the strip itself is put away at once.

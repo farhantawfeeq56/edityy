@@ -294,6 +294,11 @@ uses it.
   not chasing it.
 - An animation that is interrupted continues from where the element is
   showing, not from where it was.
+- A control that already says what it is needs no tip. The words on the
+  button are the tip, and a second one under the pointer is noise.
+- A list that answers the pointer is not built again. The tick moves, the row
+  the pointer is on stays, and a card that rebuilds itself on every scroll
+  is a card that blinks.
 
 **Less motion means no motion.** Under `prefers-reduced-motion: reduce`
 every duration collapses, every animation runs once and stops, and every

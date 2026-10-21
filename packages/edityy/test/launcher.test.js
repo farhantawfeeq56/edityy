@@ -952,6 +952,35 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   assert.equal(tip.hidden, true, "and it goes when the pointer does");
 });
 
+test("a control that already says what it is needs no tooltip", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => selectText(app));
+  const row = app.root.nodes.row;
+  const tip = app.root.nodes.tip;
+  const spacing = row.children.find((b) => b.dataset.key === "spacing");
+  // A control that shows its own words: the number in the box is the number a
+  // tip would say.
+  spacing.textContent = "12";
+  for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(tip.hidden, true, "the words on the control are the tip");
+});
+
+test("the dot under the cursor is not a third of a second behind it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const css = app.root.innerHTML;
+  const rule = css.match(/#launch\{[^}]*\}/)[0];
+  // The scale is the shrink, and the scale is transitioned. The translate is
+  // the tracking, and the tracking is not: a dot that eases into place is a
+  // dot the cursor has left.
+  assert.match(rule, /transition:scale var\(--move\)/, "the shrink is transitioned");
+  assert.doesNotMatch(rule, /transition:[^;}]*translate/, "the tracking is not");
+  // The way home is the one move that travels.
+  assert.match(css, /#launch\[data-home\]\{[^}]*transition:translate/, "the dot travels home");
+});
+
 test("the element menu's actions draw the dock's tooltip, in their own words", async () => {
   const { run } = fakeDom();
   const app = run();
@@ -3022,7 +3051,8 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
-  // The strip is drawn again, so the row that is on is the one read back now.
+  // The rows are kept: the tick moves, and the strip is not built again.
+  assert.deepEqual([...strip.children[1].children], rows, "the same rows are on the strip");
   assert.equal(strip.children[1].children[0].getAttribute("aria-pressed"), "true");
   assert.equal(strip.children[1].children[1].getAttribute("aria-pressed"), "false");
   assert.equal(
