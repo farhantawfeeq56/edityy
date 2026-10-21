@@ -551,16 +551,16 @@ test("the orb itself becomes the pointer, shrinking into a point", () => {
   app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
   quiet(() => {
     app.click();
-    // One step in, still at the orb: scale only, no travel.
-    assert.match(app.launch().style.transform, /translate\(0px,0px\) scale\(0\.16\)$/, "the shrink starts where the orb is");
+    // One step in, still at the orb: the scale is the shrink, and the
+    // translate has not moved yet.
+    assert.equal(app.launch().style.scale, "0.16", "the shrink starts where the orb is");
+    assert.equal(app.launch().style.translate, "0px 0px", "and it has not travelled yet");
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
   // Then it tracks the pointer, translated from the orb's own centre.
-  assert.equal(
-    app.launch().style.transform,
-    "translate(-1140px,-658px) scale(0.16)",
-  );
+  assert.equal(app.launch().style.translate, "-1140px -658px", "the dot is where the pointer is, now");
+  assert.equal(app.launch().style.scale, "0.16");
   assert.equal(app.launch().style.pointerEvents, "none", "the dot is not a button any more");
   assert.equal(app.root.nodes.label.style.opacity, "0", "the word fades on the way down");
 });
@@ -576,7 +576,8 @@ test("the pointer travels home and grows back into the orb on exit", () => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
-  assert.equal(app.launch().style.transform, "translate(0px,0px) scale(1)");
+  assert.equal(app.launch().style.translate, "0px 0px", "the dot is home");
+  assert.equal(app.launch().style.scale, "1", "and it is the orb again");
   assert.equal(app.launch().style.pointerEvents, "", "the orb takes clicks again");
   assert.equal(app.root.nodes.label.style.opacity, "");
   assert.equal(app.countDoc("click"), 0, "the page is released");
@@ -596,7 +597,7 @@ test("many pointer moves in one frame find and measure once", () => {
     app.hover(heading);
     for (let x = 0; x < 5; x++) app.fire("mousemove", { clientX: x, clientY: 10 });
   });
-  assert.match(app.launch().style.transform, /translate\(4px,/, "the dot is where the pointer is, now");
+  assert.equal(app.launch().style.translate, "4px 10px", "the dot is where the pointer is, now");
   assert.equal(measured, 0, "nothing measured before the frame");
   assert.equal(frames.length, 1, "one frame asked for");
   quiet(() => frames.shift()());

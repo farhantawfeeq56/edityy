@@ -410,7 +410,7 @@
     // name does not stretch the list and a long one is not clipped.
     ".opt{display:block;width:max-content;max-width:100%;text-align:left;border:0;",
     "border-radius:8px;padding:7px 10px;",
-    "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer;",
+    "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer}",
     ".opt:hover{background:var(--ink-6)}",
     ".opt:active{transform:scale(.98)}",
     ".opt[aria-pressed=true]{background:var(--ink-12)}",
@@ -444,7 +444,7 @@
     // as wide as its digits and the room to type one more, so no field is wider
     // than what it holds.
     ".fld,.sides-pair>label,.value-field,.pop .weight-control{display:flex;align-items:center;gap:6px;height:30px;padding:0 6px;",
-    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text;",
+    "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text}",
     ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
     ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open)}",
     // A chip that is wider than the dock's 34px square cannot take the dock's .94
@@ -492,14 +492,16 @@
     "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
     "display:grid;place-items:center;font:600 14px/1.1 inherit;color:var(--paper);",
     "background:var(--ink);box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);",
-    // transform only: a scale from the centre and a translate to the pointer are
-    // the same property, so the shrink and the travel animate as one move. The
-    // default centre origin is what makes the dot land exactly under the pointer.
-    "transition:transform var(--move) var(--travel),background-color var(--slide) var(--standard)}",
-    // Once the dot has travelled out of the orb, the transform stops being
-    // transitioned: the dot belongs under the cursor, not a third of a second
-    // behind it.
-    "#launch[data-tracking]{transition:background-color var(--slide) var(--standard)}",
+    // Two properties, not one transform. The translate puts the dot under the
+    // cursor and is never transitioned, because a dot that eases into place is
+    // a dot a third of a second behind the pointer. The scale is the shrink
+    // into a point, and that is transitioned. The default centre origin is
+    // what makes the dot land exactly under the pointer.
+    "translate:0px 0px;scale:1;",
+    "transition:scale var(--move) var(--travel),background-color var(--slide) var(--standard)}",
+    // The way home: the dot travels back to the orb and grows into it, so the
+    // translate is transitioned for that one move and for no other.
+    "#launch[data-home]{transition:translate var(--move) var(--travel),scale var(--move) var(--travel),background-color var(--slide) var(--standard)}",
     "#launch:hover{background:var(--muted)}",
     "#launch:focus-visible{outline:2px solid var(--ink);outline-offset:3px}",
     // The word fades rather than scales: shrinking text is the one thing that
@@ -1232,55 +1234,16 @@
   /**
    * Put a frame on an element.
    *
-   * A frame that follows the pointer does not move within an element, so it is
-   * put there directly. Between elements it travels: a frame that teleports
-   * from one element to the next is the one piece of the chrome the eye cannot
-   * follow, and the pointer is the thing the eye is following.
+   * The frame is put where the element is, at once. It follows the pointer,
+   * and a frame that eases from one element to the next is a frame the
+   * pointer has already left.
    */
-  function place(frame, rect, el, travel) {
-    var next = {
-      left: rect.left - LINE / 2,
-      top: rect.top - LINE / 2,
-      width: rect.width + LINE,
-      height: rect.height + LINE
-    };
-    var was = frame._rect;
-    frame._rect = next;
+  function place(frame, rect, el) {
+    frame.style.left = rect.left - LINE / 2 + "px";
+    frame.style.top = rect.top - LINE / 2 + "px";
+    frame.style.width = rect.width + LINE + "px";
+    frame.style.height = rect.height + LINE + "px";
     frame.style.setProperty("--frame", frameInk(el));
-    if (!travel || !was || !moves(frame)) {
-      applyRect(frame, next);
-      return;
-    }
-    if (was.left === next.left && was.top === next.top && was.width === next.width && was.height === next.height) {
-      applyRect(frame, next);
-      return;
-    }
-    // The frame travels from where it is to where it is going. Its own style
-    // is left where it is until the travel is done, so a frame that is already
-    // travelling is read from where it is showing and not from where it was.
-    var run = animateFrom(
-      frame,
-      [{ left: next.left + "px", top: next.top + "px", width: next.width + "px", height: next.height + "px" }],
-      { duration: T.settle, easing: TRAVEL, fill: "forwards" }
-    );
-    if (!run) {
-      applyRect(frame, next);
-      return;
-    }
-    run.onfinish = function () {
-      // A later travel owns the frame now: leave its style alone.
-      if (frame._rect !== next) return;
-      applyRect(frame, next);
-      run.cancel();
-    };
-  }
-
-  /** Put a frame where it belongs. */
-  function applyRect(frame, rect) {
-    frame.style.left = rect.left + "px";
-    frame.style.top = rect.top + "px";
-    frame.style.width = rect.width + "px";
-    frame.style.height = rect.height + "px";
   }
 
   /**
@@ -4172,6 +4135,23 @@ function decorations() {
   var tipOpening = 0;
   var tipClosing = 0;
   var tipCooling = 0;
+  // The animations running on the tip and on its words, so a new one can stop
+  // the old one. Two animations on the same property are not one animation:
+  // the older one keeps its own effect until it ends.
+  var tipRun = null;
+  var labelRun = null;
+
+  /** Stop whatever the tip is doing now. */
+  function stopTipRun() {
+    if (tipRun) {
+      tipRun.cancel();
+      tipRun = null;
+    }
+    if (labelRun) {
+      labelRun.cancel();
+      labelRun = null;
+    }
+  }
   var tipLeaving = null;
 
   /** Ask for the tooltip over a control; `now` skips the wait, for the keyboard. */
@@ -4205,6 +4185,9 @@ function decorations() {
       tipLeaving.cancel();
       tipLeaving = null;
     }
+    // Whatever was still running on the tip is stopped: a rise that is still
+    // going would keep its blur and its size over the travel that replaces it.
+    stopTipRun();
     tipFor = button;
     tipWarm = true;
     tipX = x;
@@ -4268,6 +4251,7 @@ function decorations() {
       tipX = null;
       if (tipLeaving) tipLeaving.cancel();
       tipLeaving = null;
+      stopTipRun();
       tipFor = null;
       tip.hidden = true;
       return;
@@ -4288,6 +4272,9 @@ function decorations() {
       tip.hidden = true;
       return;
     }
+    // The tip leaves from wherever it is: a tip that is still rising when the
+    // pointer goes does not jump to full size on its way out.
+    stopTipRun();
     var rest = tip.dataset.side === "bottom" ? TIP_BELOW : TIP_REST;
     // The tip leaves from wherever it is: a tip that is still rising when the
     // pointer goes does not jump to full size on its way out.
@@ -5435,32 +5422,24 @@ function decorations() {
   }
 
   /**
-   * The orb and the pointer are one element with one transform.
+   * The orb and the pointer are one element with two properties.
    *
-   * `scale()` is the whole of the state: at 1 it is the orb in its corner, at
-   * POINT it is the dot under the pointer. CSS transitions between the two, so
-   * clicking the orb is what starts the shrink and the travel together.
+   * `translate` is the whole of the position: it puts the dot under the
+   * pointer, and it is never transitioned, so the dot is where the pointer is
+   * and not a moment behind it. `scale` is the shrink into a point, and that
+   * one is transitioned: clicking the orb is what starts it.
    */
   function moveTo(sx, sy) {
-    launch.style.transform =
-      "translate(" + (sx - anchorX) + "px," + (sy - anchorY) + "px) scale(" + (active ? POINT : 1) + ")";
+    launch.style.translate = (sx - anchorX) + "px " + (sy - anchorY) + "px";
+    launch.style.scale = active ? String(POINT) : "1";
   }
-
-  // Whether the first move out of the orb has been asked for. Armed by the
-  // pointer, and spent when the travel it started has finished.
-  var travelArmed = false;
-  launch.addEventListener("transitionend", function (e) {
-    if (!travelArmed || e.propertyName !== "transform") return;
-    // The travel is done: from here the dot is under the cursor, not chasing it.
-    launch.dataset.tracking = "on";
-  });
 
   function enter() {
     active = true;
     keep();
     anchor();
-    travelArmed = false;
-    delete launch.dataset.tracking;
+    // The way home is not on any more: the dot is going out, not back.
+    delete launch.dataset.home;
     // Scale from the orb before it travels, so the shrink reads as the beginning
     // of the morph rather than a jump.
     moveTo(anchorX, anchorY);
@@ -5484,10 +5463,9 @@ function decorations() {
 
   function exit() {
     active = false;
-    // The transform transitions again, so the dot travels home and grows back
-    // into the orb in one move.
-    travelArmed = false;
-    delete launch.dataset.tracking;
+    // The way home is on: the translate is transitioned for this one move, so
+    // the dot travels back to the orb and grows into it in one go.
+    launch.dataset.home = "on";
     // Travel home and grow back into the orb in one transition.
     moveTo(anchorX, anchorY);
     label.style.opacity = "";
@@ -5706,13 +5684,12 @@ function decorations() {
   }
 
   function onMove(e) {
-    // The orb follows the pointer with no lag. The transform is not transitioned
-    // while the mode is on, or the dot would ease a third of a second behind
-    // the cursor. The one move that does travel is the first: out of the orb,
-    // where the eye is looking.
-    travelArmed = true;
-    launch.style.transform =
-      "translate(" + (e.clientX - anchorX) + "px," + (e.clientY - anchorY) + "px) scale(" + POINT + ")";
+    // The dot follows the pointer with no lag: the translate is not
+    // transitioned, so the dot is under the cursor and not easing towards it.
+    // The point and insertion preview use the same pointer event, so neither
+    // trails behind the other.
+    launch.style.translate = (e.clientX - anchorX) + "px " + (e.clientY - anchorY) + "px";
+    launch.style.scale = String(POINT);
     var x = e.clientX;
     var y = e.clientY;
     pointerX = x;
@@ -5728,7 +5705,7 @@ function decorations() {
         hideHover();
         return;
       }
-      place(hoverBox, el.getBoundingClientRect(), el, true);
+      place(hoverBox, el.getBoundingClientRect(), el);
       hoverBox.hidden = false;
     });
   }
