@@ -30,7 +30,7 @@ const features = [
   {
     icon: "grid",
     title: "Arrange elements",
-    body: "Add, move and delete elements. Select the parent or the child. Shift-click siblings and press Shift+A for a column.",
+    body: "Add, move and delete elements. Shift-click siblings and press Shift+A for a column.",
   },
   {
     icon: "undo",

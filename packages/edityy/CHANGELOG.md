@@ -4,6 +4,62 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.5.0 — 2026-10-21
+
+### Added
+
+- One element can be varied. The element actions carry **Variations**: the box
+  asks how many variants to make, 2 to 10, and takes an optional comment. The
+  box then becomes a waiting card that says what to type in the agent, and the
+  agent answers with that many variations of plain CSS declarations. The agent
+  never sees the page code: it gets the element's tag, its selector and a few
+  computed values. (#199)
+- A strip at the bottom right shows the variations on the live element. Keys
+  `1` to `9` pick one and `0` picks the tenth, and the one that is kept is an
+  ordinary edit: **Save to project** and **Copy for an agent** carry it like
+  any other, and Escape or leaving the mode reverts it. (#199)
+- A variation can change a state, a pseudo-element or a breakpoint. A
+  declaration with `on` is a state or a pseudo-element of the element itself,
+  and a declaration with `when` is a media condition. The browser cannot show
+  either in an inline style, so Edityy writes them into a stylesheet of its own
+  for that element, and takes the sheet away with the edit. (#199)
+- The MCP server has two tools for this: `get_variation_request` returns what
+  the user asked for, and `place_variations` takes the answer. The request and
+  the answer live in `.edityy/variation-request.json` and
+  `.edityy/variation-response.json`. (#199)
+- A new endpoint, `POST`, `GET` and `DELETE /__edityy/variations`, and a
+  Next.js route file for it: `app/edityy/variations/route.ts`, with a rewrite
+  from `/__edityy/variations` onto it. (#199)
+
+### Changed
+
+- The text edit ends with a **Done** button in the element card. The card
+  holds that button alone, so a click in the words moves the caret and nothing
+  else. (#199)
+- The page asks for the answer for two minutes, and then says the agent did
+  not answer. A variation that is picked is an ordinary edit, so undo steps
+  over it. (#199)
+- The answer is read from the fifteen values the page actually reads, so the
+  request stays under about 800 characters. (#199)
+- The waiting card says to say what you want in the same message, and the agent
+  follows the user's own words as well as the comment. A request without a
+  comment asks for styles that differ from each other, not shades of one
+  style. (#199)
+- An answer for a request the user changed says what to answer: the new number
+  of variations and the new id. More variations than the user asked for are not
+  a refusal; the first ones are the ones the user sees. (#199)
+- The request the user takes back with the **X** stays in the file, marked as
+  taken back, so a withdrawal is not the same as a request that was never
+  made. (#199)
+- The strip names the element it varies, and **Keep** is grey until a
+  variation is on the element. The picked row wears the cobalt of an active
+  state, and the list scrolls when ten rows do not fit. (#199)
+
+### Removed
+
+- The **Parent** and **Child** buttons in the element actions. The arrows move
+  the selection to the parent, the first child and the siblings. (#199)
+
 ## 0.4.1 — 2026-10-20
 
 ### Added

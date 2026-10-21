@@ -88,8 +88,10 @@ serve it over HTTP — to keep it out of your client bundle — use the layout
 approach instead: put `<script src="/__edityy/edityy.js" defer />` in
 `app/layout.tsx` and serve that path with a route handler that returns
 `launcher` from `edityy/inject`. Next treats a folder that starts with `_` as
-private, so the route lives at `app/%5F%5Fedityy/edityy.js/route.ts`. Use this
-approach also on Next.js before 15.3, which has no `instrumentation-client` file.
+private and never routes it, so the route lives at
+`app/edityy/edityy.js/route.ts` and the app rewrites `/__edityy/edityy.js` onto
+it. Use this approach also on Next.js before 15.3, which has no
+`instrumentation-client` file.
 
 To save edits to the project from Next.js, add the route in
 [Save edits to the project](#save-edits-to-the-project).
@@ -133,14 +135,22 @@ subdomains, and `true` takes every host.
 Each change is checked before it is written, and the `markdown` field is made
 from the checked changes. The page cannot put its own text there.
 
-**Next.js** needs one route file. Next treats a folder that starts with `_` as
-private, so the folder name spells the underscores as `%5F`:
+**Next.js** needs one route file and one rewrite. Next treats a folder that
+starts with `_` as private and never routes it, so the route lives in a folder
+with an ordinary name and the app rewrites the path onto it:
 
 ```ts
-// app/%5F%5Fedityy/changes/route.ts
+// app/edityy/changes/route.ts
 import { changesRoute } from "edityy";
 
 export const POST = changesRoute();
+```
+
+```ts
+// next.config.ts
+async rewrites() {
+  return [{ source: "/__edityy/changes", destination: "/edityy/changes" }];
+}
 ```
 
 The route answers 404 unless `NODE_ENV` is `development`, so it writes nothing in
@@ -149,11 +159,17 @@ a production build.
 ## MCP
 
 `npx edityy mcp` is a stdio [MCP](https://modelcontextprotocol.io) server that
-hands the saved edits to a coding agent. It has two tools:
+hands the saved edits and the variation requests to a coding agent. It has four
+tools:
 
 - `get_visual_changes` returns the edits in `.edityy/changes.json`, as the same
   Markdown that "Copy for an agent" copies;
-- `clear_visual_changes` deletes them once they are in the code.
+- `clear_visual_changes` deletes them once they are in the code;
+- `get_variation_request` returns what the user asked for on one element: the
+  number of variations, their optional comment, the element tag, selector and
+  current values;
+- `place_variations` takes the answer: that many variations of plain CSS
+  declarations, for the user to try on the live element.
 
 Claude Code:
 
@@ -168,6 +184,87 @@ Cursor, or any client configured with JSON:
 ```
 
 It reads from the directory it is started in. Pass `--root <dir>` to read from another one.
+
+## Style variations
+
+Select one element and choose **Variations** in its actions. The box asks two
+things: how many variants to make, 2 to 10, and an optional comment, such as
+"thinner and darker". Press **Send to agent**.
+
+The box then becomes the waiting card: **Waiting for your agent**, the keyword
+`vartest` to type, a line that says to say what you want in the same message,
+the command that adds the server, and an **X** that puts the card away. In your
+agent, type `vartest`, and say what you want in the same message: the agent
+follows your own words as well as the comment. If the agent has no Edityy server
+yet, add one with `npx edityy mcp` and ask again.
+
+Your agent then has one job, in two tool calls:
+
+1. `get_variation_request` returns the number of variations, the comment, the
+   element's tag, its selector and a few current values — about 800 characters.
+   The agent never sees your code for this. Read it at the start of every
+   `vartest`: you may have asked again since the last one.
+2. `place_variations` takes the answer: that many variations, each a short
+   label and a list of declarations. Fewer than you asked for is refused, and
+   the message says so. More is not a refusal: the first ones are the ones you
+   see.
+
+```
+thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
+rose pill | scrollbar-color: #f43f5e #f4f4f5
+notched | on: ::-webkit-scrollbar-thumb, background: #f43f5e
+narrow | when: (max-width: 640px), padding: 8px
+```
+
+A strip at the bottom right then shows the variations. It names the element it
+varies, and **Keep** is grey until one of them is on the element. Keys `1` to
+`9` pick one and `0` picks the tenth, and **Keep** puts the strip away. What is
+left on the element is an ordinary edit: **Save to project** and
+`get_visual_changes` carry it like any other, and Escape or leaving the mode
+reverts it.
+
+### States, pseudo-elements and breakpoints
+
+A declaration that carries `on` is a state or a pseudo-element of the element
+itself: `:hover`, `:focus-visible`, `::before`, `::-webkit-scrollbar-thumb`.
+A declaration that carries `when` is a breakpoint, such as
+`(max-width: 640px)`. The browser cannot show either in the element's own
+inline style, so Edityy writes them into a small stylesheet it adds to the page
+for that element, and takes the sheet away when the edit is reverted or the
+mode ends.
+
+They travel with the edit: **Save to project** and the copied Markdown name the
+state or the breakpoint beside the property, and your agent writes the rule in
+your own stylesheet. A `::before` or `::after` needs a `content` value to show
+at all.
+
+The endpoint is `POST`, `GET` and `DELETE /__edityy/variations`. A request and
+its answer are written to `.edityy/variation-request.json` and
+`.edityy/variation-response.json`, which the MCP server reads. The page sends
+only plain values, and an answer is checked before the page shows it: a custom
+property, an at-rule in place of `when`, `!important` or `url()` is refused.
+
+The **X** in the waiting card takes the request back. The request stays in the
+file, marked as taken back, and the agent is told not to answer it, so a
+withdrawal is not the same as a request that was never made. A new request
+replaces it.
+
+**Next.js** needs one more route file and one more rewrite, next to the one for
+the edits:
+
+```ts
+// app/edityy/variations/route.ts
+import { variationsRoute } from "edityy";
+
+export const { GET, POST, DELETE } = variationsRoute();
+```
+
+```ts
+// next.config.ts
+async rewrites() {
+  return [{ source: "/__edityy/variations", destination: "/edityy/variations" }];
+}
+```
 
 ## What it does
 
@@ -191,7 +288,7 @@ The script is idempotent, so a page that renders the tag more than once still mo
 ### The editing mode
 
 - The button shrinks into the pointer. Hover outlines an element; a click selects it, and the page's own click handlers do not run. Shift-click adds or removes elements from the selection.
-- Selecting an element opens its actions in a card at the element — **Edit text**, **Move**, **Parent**, **Child**, **Comment** and **Delete** — and the style dock, fixed at the bottom centre. Text is not editable until you choose **Edit text**. Move previews a new position among its siblings. Comment opens a field for a note about the element; the note travels with the edits to the saved file and the agent's Markdown. Delete is temporary and undoable when you leave edit mode.
+- Selecting an element opens its actions in a card at the element — **Edit text**, **Move**, **Comment**, **Variations** and **Delete** — and the style dock, fixed at the bottom centre. Text is not editable until you choose **Edit text**. Move previews a new position among its siblings. Comment opens a field for a note about the element; the note travels with the edits to the saved file and the agent's Markdown. Delete is temporary and undoable when you leave edit mode.
 - The controls change the selection. Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour. A container or media element starts with padding and margin. The `+` adds shadow, fill, border, padding and margin to that one element.
 - A container's layout mode decides its controls. Flex shows direction, wrap, alignment and gap. Grid shows its columns and rows as `columns × rows` in the dock row, and a count of `auto` where the grid names no tracks of that axis; it shows no alignment control, because a grid places its own cells. Absolute shows its top, right, bottom and left offsets in the dock row, and no width or height.
 - A shadow follows what it is on: the words of a text element are shadowed with `text-shadow`, a box with `box-shadow`. The offsets and the blur are fields in the panel, two to a line, with the colour under them.
@@ -199,13 +296,14 @@ The script is idempotent, so a page that renders the tag more than once still mo
 - A row of a list shows its own words, so it carries no title: no browser tooltip repeats the row. The words are its accessible name.
 - Every colour is picked in the same picker — the text colour, a fill, a border and a shadow: a saturation and brightness field with a dot to drag, the hue slider with the browser's own colour picker beside it, and one line holding the hex code and the transparency as a percentage. The field also takes `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()`. A colour with any transparency is written as `rgba(r, g, b, a)`; a solid one stays `#rrggbb`. The dot and the slider are reachable by keyboard, and the dock's colour bar shows the colour the browser resolved, alpha included. The picker stands on HeroUI's white overlay where it is the whole control; inside the shadow's own panel it takes that panel's paper.
 - The dock stays in one place at the bottom centre. It does not follow the element, and an open control comes out over it. While a control or one of the lists inside a button is open, the element actions stand down; they come back when it closes.
-- Words are typed into where they stand (`contenteditable="plaintext-only"`). An element whose words are split by a child element — a paragraph around a link — is editable too: the words are changed in place, and the markup goes back as it was when you leave the mode. The caret starts at the end of the words, not where the click landed.
+- Words are typed into where they stand (`contenteditable="plaintext-only"`). An element whose words are split by a child element — a paragraph around a link — is editable too: the words are changed in place, and the markup goes back as it was when you leave the mode. The caret starts at the end of the words, not where the click landed. The card then holds **Done** alone: a click in the words moves the caret, and **Done** gives the words back.
 - The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over both. The button in the dock shows the family name in that family. Nothing loads with the page:
   - The first open of the control fetches the catalog of names (about 35 KB) from `api.fontsource.org`, once for each page visit.
   - The list draws 40 rows at most. One request to `fonts.googleapis.com` gets a sample of those rows' names, so each row shows in its own face.
   - A pick loads that whole family. The browser downloads only the weights and styles that the page uses.
   - No API key or configuration is necessary. If a request fails, the page's own fonts stay in the list.
 - The edits button lists every element that really changed. A line selects its element, the arrow reverts it, and two buttons hand the edits on: **Copy for an agent** (Markdown) and **Save to project** (`.edityy/changes.json`).
+- **Variations** in the element actions asks your coding agent for style variations of that one element. The box takes a number of variants, 2 to 10, and an optional comment, and tells you to type `vartest` in your agent. The strip at the bottom right shows the variations, keys `1` to `9` and `0` switch the element between them, and the one you keep is an ordinary edit. A variation can also change a state or a breakpoint. See [Style variations](#style-variations).
 - Keys: Shift+A wraps selected siblings in a column flex container. Escape closes the open control, then leaves the mode. ⌘Z / Ctrl+Z undoes and ⇧⌘Z / Ctrl+Y redoes. The arrows move the selection to the parent (↑), first child (↓) or siblings (← →); in editable words they need Alt. In the dock, ← → move along the icons. Shift+Arrow does not extend the selection.
 - Edits are kept in `sessionStorage` while the mode is on, so a reload or a hot update brings them back. Leaving the mode reverts all of them.
 
@@ -220,13 +318,14 @@ edityy({ tag, nonce, root, save, allowedHosts }) // returns a (req, res, next) m
 - `nonce` adds `nonce="…"` to the tag, for a page with a strict `script-src` CSP. Give a string, or a
   function `(req, res) => string` when your app makes a new nonce for each response.
 - `root` is where `.edityy/changes.json` is written. Defaults to `process.cwd()`.
-- `save: false` turns off the save endpoint.
+- `save: false` turns off the save endpoint and the variation endpoint.
 - `allowedHosts` names more hosts the save endpoint takes, besides `localhost` and IP addresses.
   A leading dot also takes the subdomains; `true` takes every host.
 
 Also exported: `ASSET_PATH`, `TAG`, `launcher` (the script source), `inject(body, tag?)`
 for injecting into an HTML string yourself, `changesRoute({ root, allowedHosts })` (the save
-endpoint as a fetch-style route handler), `writeChanges(payload, root?)`,
+endpoint as a fetch-style route handler), `variationsRoute({ root, allowedHosts })` (the
+variation endpoint as `GET`, `POST` and `DELETE` route handlers), `writeChanges(payload, root?)`,
 `CHANGES_PATH` and `CHANGES_FILE`, and `edityy/client` — the browser bootstrap that
 mounts the launcher, for frameworks that inject client modules.
 

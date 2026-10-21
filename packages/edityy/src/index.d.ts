@@ -10,7 +10,7 @@ export interface EdityyOptions {
   nonce?: string | ((req: IncomingMessage, res: ServerResponse) => string | null | undefined);
   /** Where `.edityy/changes.json` is written. Defaults to `process.cwd()`. */
   root?: string;
-  /** `false` turns off the save endpoint at {@link CHANGES_PATH}. */
+  /** `false` turns off the save endpoint at {@link CHANGES_PATH} and the variation endpoint. */
   save?: boolean;
   /**
    * More hosts the save endpoint takes, besides `localhost`, its subdomains and
@@ -80,11 +80,24 @@ export declare function writeChanges(payload: ChangesPayload, root?: string): Pr
 
 /**
  * The save endpoint as a fetch-style route handler, for Next.js:
- * `export const POST = changesRoute();` in `app/%5F%5Fedityy/changes/route.ts`.
- * It answers 404 unless `NODE_ENV` is `development`.
+ * `export const POST = changesRoute();` in `app/edityy/changes/route.ts`, with
+ * a rewrite from `/__edityy/changes` onto it. It answers 404 unless
+ * `NODE_ENV` is `development`.
  */
 export declare function changesRoute(
   options?: Pick<EdityyOptions, "root" | "allowedHosts">
 ): (request: Request) => Promise<Response>;
+
+/**
+ * The variation endpoint as fetch-style route handlers, for Next.js:
+ * `export const { GET, POST, DELETE } = variationsRoute();` in
+ * `app/edityy/variations/route.ts`, with a rewrite from `/__edityy/variations`
+ * onto it. It answers 404 unless `NODE_ENV` is `development`.
+ */
+export declare function variationsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
+  GET: (request: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+  DELETE: (request: Request) => Promise<Response>;
+};
 
 export default edityy;

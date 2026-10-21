@@ -41,6 +41,11 @@ edit is an inline style on the live page, so nothing is written to your code unt
 can copy the edits as a prompt for a coding agent, or save them to `.edityy/changes.json` for an agent to read over
 MCP (`npx edityy mcp`). Leaving the mode puts the page back exactly as it was.
 
+One element can also be varied: choose **Variations**, pick how many variants and add an optional comment, then type
+`vartest` in your agent and it answers with that many style variations, including hover states, pseudo-elements and
+breakpoints. Say what you want in the same message, and the agent follows it. Keys `1` to `9` and `0` switch the live
+element between them, and the one you keep is an ordinary edit.
+
 ## The idea
 
 You already have a website built in your codebase. Edityy works on top of the running application instead of asking you

@@ -3,6 +3,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
+import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
 
 /**
  * The launcher payload, read once at import.
@@ -79,6 +80,13 @@ export function edityy(options = {}) {
 
       if (pathname === CHANGES_PATH && options.save !== false) {
         saveFromNode(req, res, root, hosts).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
+        return;
+      }
+
+      if (pathname === VARIATIONS_PATH && options.save !== false) {
+        variationsFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -366,8 +374,17 @@ export async function writeChanges(payload, root = process.cwd()) {
 function allowed(method, type, origin, fetchSite, host, allowedHosts) {
   if (method !== "POST") throw new SaveError(405, "POST the edits as JSON.");
   if (!String(type ?? "").includes("application/json")) throw new SaveError(415, "Send the edits as application/json.");
-  if (!hostAllowed(host, allowedHosts)) throw new SaveError(403, "Only a local host can save edits. Add this one to allowedHosts.");
-  if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, "Only the page itself can save edits.");
+  sameSite(origin, fetchSite, host, allowedHosts, "save edits");
+}
+
+/**
+ * The page itself, on a host this dev server names. Both endpoints ask this:
+ * the request's own site, by `Sec-Fetch-Site` and `Origin`, and a host that is
+ * local, an address, or named by the app.
+ */
+function sameSite(origin, fetchSite, host, allowedHosts, what) {
+  if (!hostAllowed(host, allowedHosts)) throw new SaveError(403, `Only a local host can ${what}. Add this one to allowedHosts.`);
+  if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, `Only the page itself can ${what}.`);
   if (origin) {
     let from = null;
     try {
@@ -375,7 +392,7 @@ function allowed(method, type, origin, fetchSite, host, allowedHosts) {
     } catch {
       // An origin that is not a URL ("null", for one) is not this page.
     }
-    if (from !== host) throw new SaveError(403, "Only the page itself can save edits.");
+    if (from !== host) throw new SaveError(403, `Only the page itself can ${what}.`);
   }
 }
 
@@ -413,32 +430,72 @@ async function saveFromNode(req, res, root, allowedHosts) {
   try {
     const h = req.headers ?? {};
     allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host, allowedHosts);
-    const body = await readBody(req);
-    let payload;
-    try {
-      payload = JSON.parse(body);
-    } catch {
-      throw new SaveError(400, "The body is not JSON.");
-    }
-    answer(200, { ok: true, path: await writeChanges(payload, root) });
+    answer(200, { ok: true, path: await writeChanges(jsonBody(await readBody(req)), root) });
   } catch (error) {
     answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
   }
 }
 
+/** A variation request is a number and an optional comment: 16 KB is plenty. */
+const VARIATION_LIMIT = 16 * 1024;
+
 /**
- * A request body as a string, refused past SAVE_LIMIT.
+ * The variation endpoint on a Node dev server.
+ *
+ * POST writes what the page asked for, GET answers with the agent's variations
+ * once they are there (202 while they are not), and DELETE forgets the request.
+ */
+async function variationsFromNode(req, res, root, allowedHosts) {
+  const answer = (status, body) => {
+    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end?.(JSON.stringify(body));
+  };
+  try {
+    const h = req.headers ?? {};
+    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "request variations");
+    if (req.method === "POST") {
+      const request = await writeVariationRequest(jsonBody(await readBody(req, VARIATION_LIMIT)), root);
+      answer(200, { ok: true, requestId: request.id });
+      return;
+    }
+    if (req.method === "GET") {
+      const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? "";
+      const response = await readVariationResponse(id, root);
+      answer(200, response ? { ok: true, requestId: response.requestId, variations: response.variations } : { ok: true, pending: true });
+      return;
+    }
+    if (req.method === "DELETE") {
+      await clearVariations(root);
+      answer(200, { ok: true });
+      return;
+    }
+    throw new SaveError(405, "GET, POST or DELETE the variation request.");
+  } catch (error) {
+    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+  }
+}
+
+/** A body as JSON, or a 400 that says the body is not JSON. */
+function jsonBody(body) {
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new SaveError(400, "The body is not JSON.");
+  }
+}
+
+/** A request body as a string, refused past `limit`.
  *
  * Past the limit the rest of the body is drained, not the request destroyed:
  * destroying it closes the socket, and the 413 never reaches the page.
  */
-function readBody(req) {
+function readBody(req, limit = SAVE_LIMIT) {
   return new Promise((resolve, reject) => {
     const parts = [];
     let size = 0;
     const onData = (chunk) => {
       size += chunk.length;
-      if (size > SAVE_LIMIT) {
+      if (size > limit) {
         req.off?.("data", onData);
         req.resume?.();
         reject(new SaveError(413, "Too many edits to save at once."));
@@ -456,7 +513,7 @@ function readBody(req) {
  * The save endpoint as a fetch-style route handler, for frameworks whose pages
  * the middleware never sees — Next.js above all:
  *
- *   // app/%5F%5Fedityy/changes/route.ts  (Next serves %5F as "_")
+ *   // app/edityy/changes/route.ts  (the app rewrites /__edityy/changes onto it)
  *   import { changesRoute } from "edityy";
  *   export const POST = changesRoute();
  *
@@ -479,16 +536,61 @@ export function changesRoute(options = {}) {
       allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts);
       const body = await request.text();
       if (Buffer.byteLength(body) > SAVE_LIMIT) throw new SaveError(413, "Too many edits to save at once.");
-      let payload;
-      try {
-        payload = JSON.parse(body);
-      } catch {
-        throw new SaveError(400, "The body is not JSON.");
-      }
-      return json(200, { ok: true, path: await writeChanges(payload, root) });
+      return json(200, { ok: true, path: await writeChanges(jsonBody(body), root) });
     } catch (error) {
       return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
     }
+  };
+}
+
+/**
+ * The variation endpoint as fetch-style route handlers, for Next.js:
+ *
+ *   // app/edityy/variations/route.ts  (the app rewrites /__edityy/variations onto it)
+ *   import { variationsRoute } from "edityy";
+ *   export const { GET, POST, DELETE } = variationsRoute();
+ *
+ * Like changesRoute(), it answers 404 unless NODE_ENV is "development".
+ */
+export function variationsRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  const json = (status, body) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    });
+  const run = async (request, act) => {
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
+    try {
+      const h = request.headers;
+      const host = h.get("host") ?? new URL(request.url).host;
+      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "request variations");
+      return await act();
+    } catch (error) {
+      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+    }
+  };
+  return {
+    GET: (request) =>
+      run(request, async () => {
+        const id = new URL(request.url).searchParams.get("id") ?? "";
+        const response = await readVariationResponse(id, root);
+        return response
+          ? json(200, { ok: true, requestId: response.requestId, variations: response.variations })
+          : json(200, { ok: true, pending: true });
+      }),
+    POST: (request) =>
+      run(request, async () => {
+        const body = await request.text();
+        if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to request variations with.");
+        const written = await writeVariationRequest(jsonBody(body), root);
+        return json(200, { ok: true, requestId: written.id });
+      }),
+    DELETE: (request) =>
+      run(request, async () => {
+        await clearVariations(root);
+        return json(200, { ok: true });
+      }),
   };
 }
 

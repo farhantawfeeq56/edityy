@@ -1,11 +1,15 @@
 /*
- * A stdio MCP server that hands a coding agent the edits saved from the page.
+ * A stdio MCP server that hands a coding agent what the page asked for.
  *
  *   npx edityy mcp
  *
- * The page's "Save to project" writes `.edityy/changes.json` (index.js). This
- * serves that file to an agent through two tools: one reads the pending edits,
- * one clears them once they are in the code.
+ * The page writes two things: the edits saved with "Save to project"
+ * (`.edityy/changes.json`, from index.js), and a variation request — one
+ * element, a number of variations and an optional comment
+ * (`.edityy/variation-request.json`, from variations.js).
+ * This serves both to an agent through four tools: read the edits, clear them
+ * once they are in the code, read the variation request, and place the
+ * variations the agent answers with.
  *
  * MCP over stdio is newline-delimited JSON-RPC 2.0, and this server needs four
  * methods of it, so it is written out here rather than pulled in as an SDK: the
@@ -16,6 +20,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
+import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 /**
@@ -39,6 +44,69 @@ const TOOLS = [
     description:
       "Delete the saved visual edits once they have been applied to the source code, so they are not applied twice.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_variation_request",
+    description:
+      "The user typed vartest: read the style variations they asked for on one element of their running site. " +
+      "Read it at the start of every vartest: the user may have asked again since the last one, and an answer " +
+      "for an old request is refused. " +
+      "Returns the number of variations, their optional comment, the element's selector and tag, and its current values. " +
+      "Answer with that many variations of plain CSS declarations, then call place_variations.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "place_variations",
+    description:
+      "Place the style variations for a pending variation request, for the user to try on the live element. " +
+      "Place exactly the number get_variation_request returned; if you place more, the first ones are the ones the user sees. " +
+      "Use the requestId that get_variation_request returned, and read the request again if the user changed it. " +
+      "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
+      "pseudo-element and `when` for a media condition. No custom properties, at-rules in place " +
+      "of `when`, `!important` or url().",
+    inputSchema: {
+      type: "object",
+      properties: {
+        requestId: { type: "string", description: "The requestId that get_variation_request returned." },
+        variations: {
+          type: "array",
+          minItems: 2,
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "Two or three words the user will see." },
+              props: {
+                type: "array",
+                minItems: 1,
+                maxItems: 12,
+                items: {
+                  type: "object",
+                  properties: {
+                    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
+                    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+                    on: {
+                      type: "string",
+                      description: "Optional: a state or pseudo-element on the element, such as :hover, :focus-visible or ::before.",
+                    },
+                    when: {
+                      type: "string",
+                      description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint variation.",
+                    },
+                  },
+                  required: ["property", "value"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["label", "props"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["requestId", "variations"],
+      additionalProperties: false,
+    },
   },
 ];
 
@@ -98,6 +166,39 @@ export async function handle(message, root) {
         if (params?.name === "clear_visual_changes") {
           await rm(join(root, CHANGES_FILE), { force: true });
           return reply({ content: [{ type: "text", text: "Cleared the saved edits." }] });
+        }
+        if (params?.name === "get_variation_request") {
+          const request = await readVariationRequest(root);
+          if (!request) {
+            return reply({
+              content: [{ type: "text", text: "No pending variation request. In the browser, select an element, choose Variations, then Send to agent." }],
+            });
+          }
+          if (request.status === "cancelled") {
+            return reply({
+              content: [
+                {
+                  type: "text",
+                  text:
+                    `The user withdrew the last variation request (${request.count} variations of a ${request.element.tag}). ` +
+                    "Do not answer it. If they ask again, a new request will appear.",
+                },
+              ],
+            });
+          }
+          return reply({ content: [{ type: "text", text: requestText(request) }] });
+        }
+        if (params?.name === "place_variations") {
+          const placed = await placeVariations(params?.arguments, root);
+          const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
+          const sent = Array.isArray(params?.arguments?.variations) ? params.arguments.variations.length : 0;
+          const note =
+            sent > placed.variations.length
+              ? `\n\nThe user asked for ${placed.variations.length}, so the first ${placed.variations.length} of your ${sent} are used.`
+              : "";
+          return reply({
+            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one with keys 1 to ${placed.variations.length}:\n\n${labels}${note}` }],
+          });
         }
         return fail(-32602, `Unknown tool: ${params?.name}`);
       } catch (error) {

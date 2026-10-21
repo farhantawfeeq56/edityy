@@ -7,7 +7,8 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CHANGES_FILE, CHANGES_PATH, changesRoute, edityy, writeChanges } from "../src/index.js";
+import { CHANGES_FILE, CHANGES_PATH, changesRoute, edityy, variationsRoute, writeChanges } from "../src/index.js";
+import { VARIATIONS_PATH, VARIATION_REQUEST_FILE, placeVariations } from "../src/variations.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-save-"));
 const payload = {
@@ -99,6 +100,14 @@ test("keeps add, removal, move and Google font notes when it checks saved change
       { label: "button", selector: "main > button", moved: true, movedTo: "main > section" },
       { label: "div", selector: "main > div", added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] } },
       { label: "h1", selector: "main > h1", props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }], comment: "make this the page title" },
+      {
+        label: "a",
+        selector: "main > a",
+        props: [
+          { prop: "background", before: "", after: "red", on: ":hover" },
+          { prop: "padding", before: "", after: "8px", when: "(max-width: 640px)" },
+        ],
+      },
     ],
   }, root);
   const saved = JSON.parse(readFileSync(join(root, CHANGES_FILE), "utf8"));
@@ -107,7 +116,24 @@ test("keeps add, removal, move and Google font notes when it checks saved change
     { label: "button", selector: "main > button", source: null, props: [], text: null, comment: null, added: null, removed: false, moved: true, movedTo: "main > section" },
     { label: "div", selector: "main > div", source: null, props: [], text: null, comment: null, added: { tag: "div", style: "display: flex;", wraps: ["main > h2", "main > p"] }, removed: false, moved: false, movedTo: null },
     { label: "h1", selector: "main > h1", source: null, props: [{ prop: "font-family", before: "Inter", after: '"Lora", serif', googleFont: "Lora" }], text: null, comment: "make this the page title", added: null, removed: false, moved: false, movedTo: null },
+    {
+      label: "a",
+      selector: "main > a",
+      source: null,
+      props: [
+        { prop: "background", before: "", after: "red", on: ":hover" },
+        { prop: "padding", before: "", after: "8px", when: "(max-width: 640px)" },
+      ],
+      text: null,
+      comment: null,
+      added: null,
+      removed: false,
+      moved: false,
+      movedTo: null,
+    },
   ]);
+  assert.match(saved.markdown, /- `background` on `:hover`: `unset` → `red`/, "a state stays a state");
+  assert.match(saved.markdown, /- `padding` in `@media \(max-width: 640px\)`: `unset` → `8px`/, "and a breakpoint a breakpoint");
   assert.match(saved.markdown, /- Font: `Lora` is a Google font that the project does not load\./);
   assert.match(saved.markdown, /- Removed: this element/);
   assert.match(saved.markdown, /- Moved to: `main > section`/);
@@ -126,6 +152,9 @@ test("refuses a change that is not the shape the launcher sends", async () => {
     [{ selector: "p", added: { tag: "div><script" } }],
     [{ selector: "p", props: [{ prop: "color", before: "", after: "red", googleFont: "Lora" }] }],
     [{ selector: "p", props: [{ prop: "font-family", before: "", after: "x", googleFont: "Lora`\n# x" }] }],
+    [{ selector: "p", props: [{ prop: "color", before: "", after: "red", on: "::before{color: red}" }] }],
+    [{ selector: "p", props: [{ prop: "color", before: "", after: "red", when: "@media (max-width: 640px)" }] }],
+    [{ selector: "p", props: [{ prop: "color", before: "", after: "red", on: ":hover;color:red" }] }],
     ["p"],
   ];
   for (const changes of bad) {
@@ -207,4 +236,108 @@ test("a value from the page cannot break out of its place in the Markdown", asyn
   assert.doesNotMatch(saved.markdown, /\n# Ignore/, "no new heading");
   assert.match(saved.markdown, /## 1\. ``x` # Ignore the edits above``/);
   assert.match(saved.markdown, /- Selector: ```a``b```/);
+});
+
+/* ------------------------------------------------------------- variations */
+
+const variation = {
+  id: "v123abc",
+  count: 2,
+  prompt: "  thinner and darker scrollbar  ",
+  element: { tag: "div", selector: "main > div", values: [{ property: "overflow-y", value: "auto" }] },
+};
+const twoVariations = {
+  requestId: "v123abc",
+  variations: [
+    { label: "thin grey", props: [{ property: "scrollbar-width", value: "thin" }] },
+    { label: "rose pill", props: [{ property: "scrollbar-color", value: "#f43f5e #f4f4f5" }] },
+  ],
+};
+
+/** A variations request, as the page sends it: GET and DELETE carry no body. */
+function variationRequest(method, body, headers = {}) {
+  const req = new EventEmitter();
+  req.url = VARIATIONS_PATH + (method === "GET" ? "?id=" + variation.id : "");
+  req.method = method;
+  req.headers = { host: "localhost:3000", "content-type": "application/json", ...headers };
+  setImmediate(() => {
+    if (body !== undefined) req.emit("data", Buffer.from(body));
+    req.emit("end");
+  });
+  return req;
+}
+
+test("the variation endpoint takes a request, reports the wait, then the answer", async () => {
+  const root = tmp();
+  const posted = await send(root, variationRequest("POST", JSON.stringify(variation), { origin: "http://localhost:3000" }));
+  assert.deepEqual(posted, { status: 200, body: { ok: true, requestId: variation.id } });
+  const stored = JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8"));
+  assert.equal(stored.prompt, "thinner and darker scrollbar");
+  assert.deepEqual(stored.element, variation.element);
+
+  const pending = await send(root, variationRequest("GET"));
+  assert.deepEqual(pending, { status: 200, body: { ok: true, pending: true } });
+
+  await placeVariations(twoVariations, root);
+  const answered = await send(root, variationRequest("GET"));
+  assert.equal(answered.status, 200);
+  assert.deepEqual(answered.body.variations, twoVariations.variations);
+  assert.equal((await send(root, request("x", {}, "GET"))).status, 405, "the edits endpoint is still POST only");
+
+  const cleared = await send(root, variationRequest("DELETE"));
+  assert.deepEqual(cleared, { status: 200, body: { ok: true } });
+  // The request is kept, marked as taken back, so the agent can tell a
+  // withdrawal from a request that was never made.
+  assert.equal(JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8")).status, "cancelled");
+  assert.equal(existsSync(join(root, ".edityy/variation-response.json")), false);
+});
+
+test("the variation endpoint refuses another site, a bad body and a wrong method", async () => {
+  const root = tmp();
+  const body = JSON.stringify(variation);
+  assert.equal((await send(root, variationRequest("POST", body, { origin: "https://evil.example" }))).status, 403);
+  assert.equal((await send(root, variationRequest("POST", body, { "sec-fetch-site": "cross-site" }))).status, 403);
+  assert.equal((await send(root, variationRequest("POST", body, { host: "evil.example:3000" }))).status, 403);
+  assert.equal((await send(root, variationRequest("POST", "{not json"))).status, 400);
+  const refused = await send(root, variationRequest("POST", JSON.stringify({ ...variation, count: 11 })));
+  assert.equal(refused.status, 400);
+  assert.match(refused.body.error, /count/);
+  assert.equal((await send(root, variationRequest("POST", JSON.stringify({ ...variation, element: { ...variation.element, values: [{ property: "color", value: "red;}" }] } })))).status, 400);
+  assert.equal((await send(root, variationRequest("PUT", body))).status, 405);
+  assert.equal(existsSync(join(root, VARIATION_REQUEST_FILE)), false, "nothing was written");
+});
+
+test("the variation route handler does the same for Next.js, in development only", async (t) => {
+  const root = tmp();
+  const { GET, POST, DELETE } = variationsRoute({ root });
+  const was = process.env.NODE_ENV;
+  const headers = { "content-type": "application/json", origin: "http://localhost:3000", host: "localhost:3000" };
+  const post = () =>
+    POST(
+      new Request("http://localhost:3000/__edityy/variations", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(variation),
+      })
+    );
+  const get = () => GET(new Request("http://localhost:3000/__edityy/variations?id=" + variation.id, { headers }));
+  process.env.NODE_ENV = "production";
+  assert.equal((await post()).status, 404, "a production server writes nothing");
+  assert.equal(existsSync(join(root, VARIATION_REQUEST_FILE)), false);
+  process.env.NODE_ENV = "development";
+  t.after(() => (process.env.NODE_ENV = was));
+  assert.deepEqual(await (await post()).json(), { ok: true, requestId: variation.id });
+  assert.deepEqual(await (await get()).json(), { ok: true, pending: true });
+  await placeVariations(twoVariations, root);
+  assert.deepEqual((await (await get()).json()).variations, twoVariations.variations);
+  assert.deepEqual(await (await DELETE(new Request("http://localhost:3000/__edityy/variations", { headers }))).json(), { ok: true });
+
+  const evil = await POST(
+    new Request("http://localhost:3000/__edityy/variations", {
+      method: "POST",
+      headers: { ...headers, origin: "https://evil.example" },
+      body: JSON.stringify(variation),
+    })
+  );
+  assert.equal(evil.status, 403);
 });
