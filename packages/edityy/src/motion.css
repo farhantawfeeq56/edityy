@@ -1,0 +1,72 @@
+/*
+ * The motion tokens. One place, for the package and the site.
+ *
+ * The editor chrome runs inside a shadow root on somebody else's page, so it
+ * cannot read this file: it carries the same values as a fallback, and
+ * `test/motion.test.js` holds the two together. The site imports this file, so
+ * the site and the chrome run on the same timings.
+ *
+ * A page that sets these on :root overrides the chrome too, because the
+ * chrome reads them from the page and only falls back to its own copy.
+ *
+ * Two kinds of token:
+ *
+ *   --edityy-ease-*  a curve. Five of them, and each one has a job.
+ *   --edityy-*       a duration. Nine of them, and each one has a job.
+ *
+ * A duration is named for what it is for, not for how long it is. "fade" is
+ * 120ms because a fade that takes longer reads as a stall; it is not 120ms
+ * because 120ms is a round number.
+ */
+
+/* The curves. Arrive is a long ease-out, so the way in is felt. Leave is a
+   short ease-in, so the way out is not waited for. Standard is the even curve
+   for a value under the pointer. Travel is the orb's own curve, the one that
+   carries a shrink and a journey in a single move. Breathe is the only one
+   that never arrives: it is the loop that says "waiting". */
+:root {
+  --edityy-ease-arrive: cubic-bezier(0.23, 1, 0.32, 1);
+  --edityy-ease-leave: cubic-bezier(0.4, 0, 1, 1);
+  --edityy-ease-standard: cubic-bezier(0, 0, 0.2, 1);
+  --edityy-ease-travel: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --edityy-ease-breathe: ease-in-out;
+
+  /* The durations. Press goes down fast, because the hand is quick, and comes
+     back slow, because the release settles. Fade is a short disappearance.
+     Tint is a colour change. Slide is a value moving under the pointer.
+     Settle is a value coming to rest. Enter is a surface arriving. Rise is a
+     surface rising or a long journey across the dock. Move is the orb's own
+     journey. Pulse is the waiting loop. */
+  --edityy-press: 80ms;
+  --edityy-fade: 120ms;
+  --edityy-tint: 130ms;
+  --edityy-slide: 150ms;
+  --edityy-settle: 200ms;
+  --edityy-enter: 220ms;
+  --edityy-rise: 260ms;
+  --edityy-move: 300ms;
+  --edityy-pulse: 1400ms;
+}
+
+/*
+ * The reduced-motion policy, in one rule.
+ *
+ * Every duration collapses, every animation runs once and stops, every delay
+ * goes. A motion that the user has asked to be rid of is not made shorter:
+ * it is not made at all.
+ *
+ * The chrome carries the same rule inside its shadow root, where it can only
+ * reach the chrome's own elements. This one is the site's, and it reaches
+ * every element the site has.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

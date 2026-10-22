@@ -16,6 +16,11 @@ const declared = (file) => {
 
 test("every entry point has a types condition that exists", () => {
   for (const [entry, target] of Object.entries(pkg.exports)) {
+    // A stylesheet is not a module: it has no runtime export to type.
+    if (typeof target === "string") {
+      assert.ok(target.endsWith(".css"), `${entry} is a stylesheet`);
+      continue;
+    }
     assert.equal(typeof target, "object", `${entry} has conditions`);
     assert.ok(target.types, `${entry} has types`);
     assert.doesNotThrow(() => readFileSync(new URL("../" + target.types, import.meta.url)), `${entry}: ${target.types}`);

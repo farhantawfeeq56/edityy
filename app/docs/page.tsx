@@ -51,19 +51,19 @@ export default function DocsOverview() {
       <P>There are three ways to hand the edits over. Each one suits a different habit.</P>
       <UL>
         <LI>
-          <Link href="/docs/handoff#copy" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/handoff#copy" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             Copy for an agent
           </Link>{" "}
           copies the edits as Markdown. You paste them into your agent yourself.
         </LI>
         <LI>
-          <Link href="/docs/handoff#save" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/handoff#save" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             Save to project
           </Link>{" "}
           writes the edits to <Code>.edityy/changes.json</Code> in your project.
         </LI>
         <LI>
-          <Link href="/docs/mcp" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/mcp" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             MCP
           </Link>{" "}
           lets the agent read that same file, with no copy and no paste.
@@ -73,19 +73,19 @@ export default function DocsOverview() {
       <H2 id="next">Next</H2>
       <UL>
         <LI>
-          <Link href="/docs/install" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/install" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             Install
           </Link>{" "}
           puts the launcher on your site. One line of config.
         </LI>
         <LI>
-          <Link href="/docs/editing" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/editing" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             The editing mode
           </Link>{" "}
           explains the dock and the keyboard.
         </LI>
         <LI>
-          <Link href="/docs/api" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4">
+          <Link href="/docs/api" className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint">
             API
           </Link>{" "}
           lists the options, the exports and the events.

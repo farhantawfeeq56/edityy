@@ -551,16 +551,16 @@ test("the orb itself becomes the pointer, shrinking into a point", () => {
   app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
   quiet(() => {
     app.click();
-    // One step in, still at the orb: scale only, no travel.
-    assert.match(app.launch().style.transform, /translate\(0px,0px\) scale\(0\.16\)$/, "the shrink starts where the orb is");
+    // One step in, still at the orb: the scale is the shrink, and the
+    // translate has not moved yet.
+    assert.equal(app.launch().style.scale, "0.16", "the shrink starts where the orb is");
+    assert.equal(app.launch().style.translate, "0px 0px", "and it has not travelled yet");
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
   // Then it tracks the pointer, translated from the orb's own centre.
-  assert.equal(
-    app.launch().style.transform,
-    "translate(-1140px,-658px) scale(0.16)",
-  );
+  assert.equal(app.launch().style.translate, "-1140px -658px", "the dot is where the pointer is, now");
+  assert.equal(app.launch().style.scale, "0.16");
   assert.equal(app.launch().style.pointerEvents, "none", "the dot is not a button any more");
   assert.equal(app.root.nodes.label.style.opacity, "0", "the word fades on the way down");
 });
@@ -576,7 +576,8 @@ test("the pointer travels home and grows back into the orb on exit", () => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
-  assert.equal(app.launch().style.transform, "translate(0px,0px) scale(1)");
+  assert.equal(app.launch().style.translate, "0px 0px", "the dot is home");
+  assert.equal(app.launch().style.scale, "1", "and it is the orb again");
   assert.equal(app.launch().style.pointerEvents, "", "the orb takes clicks again");
   assert.equal(app.root.nodes.label.style.opacity, "");
   assert.equal(app.countDoc("click"), 0, "the page is released");
@@ -596,7 +597,7 @@ test("many pointer moves in one frame find and measure once", () => {
     app.hover(heading);
     for (let x = 0; x < 5; x++) app.fire("mousemove", { clientX: x, clientY: 10 });
   });
-  assert.match(app.launch().style.transform, /translate\(4px,/, "the dot is where the pointer is, now");
+  assert.equal(app.launch().style.translate, "4px 10px", "the dot is where the pointer is, now");
   assert.equal(measured, 0, "nothing measured before the frame");
   assert.equal(frames.length, 1, "one frame asked for");
   quiet(() => frames.shift()());
@@ -931,8 +932,8 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const app = run();
   const css = app.root.innerHTML;
   assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
-  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--fill-open\)\}/, "a selected control wears the open fill");
-  assert.match(css, /\.pop\{[^}]*background:var\(--fill-open\)/, "the secondary dock wears the same fill");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--ink-12\);color:var\(--ink\)\}/, "a selected control wears the open fill");
+  assert.match(css, /\.pop\{[^}]*background:var\(--paper\)/, "the secondary dock wears the paper surface");
   quiet(() => selectText(app));
   const row = app.root.nodes.row;
   const tip = app.root.nodes.tip;
@@ -949,6 +950,35 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   quiet(() => press(app, "spacing"));
   for (const fn of row.bubbles.pointerout.bubble) fn({ target: spacing, relatedTarget: null });
   assert.equal(tip.hidden, true, "and it goes when the pointer does");
+});
+
+test("a control that already says what it is needs no tooltip", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => selectText(app));
+  const row = app.root.nodes.row;
+  const tip = app.root.nodes.tip;
+  const spacing = row.children.find((b) => b.dataset.key === "spacing");
+  // A control that shows its own words: the number in the box is the number a
+  // tip would say.
+  spacing.textContent = "12";
+  for (const fn of row.bubbles.pointerover.bubble) fn({ target: spacing });
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(tip.hidden, true, "the words on the control are the tip");
+});
+
+test("the dot under the cursor is not a third of a second behind it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const css = app.root.innerHTML;
+  const rule = css.match(/#launch\{[^}]*\}/)[0];
+  // The scale is the shrink, and the scale is transitioned. The translate is
+  // the tracking, and the tracking is not: a dot that eases into place is a
+  // dot the cursor has left.
+  assert.match(rule, /transition:scale var\(--move\)/, "the shrink is transitioned");
+  assert.doesNotMatch(rule, /transition:[^;}]*translate/, "the tracking is not");
+  // The way home is the one move that travels.
+  assert.match(css, /#launch\[data-home\]\{[^}]*transition:translate/, "the dot travels home");
 });
 
 test("the element menu's actions draw the dock's tooltip, in their own words", async () => {
@@ -2836,11 +2866,17 @@ test("Escape on an open control puts focus back on its icon", () => {
   assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
 });
 
-test("reduced motion stops the dock and control animations", () => {
+test("reduced motion stops every animation and every transition", () => {
   const { run } = fakeDom();
   const app = run();
-  // The dock stays where it is, so only the popover animates.
-  assert.match(app.root.innerHTML, /prefers-reduced-motion:reduce\)\{[^}]*\}\.pop\{animation:none\}/);
+  // One rule, and it reaches everything the chrome has: every duration
+  // collapses, every animation runs once and stops, every delay goes. A list
+  // of selectors would have to be kept in step with the sheet by hand, and it
+  // would always be one rule behind.
+  assert.match(
+    app.root.innerHTML,
+    /@media \(prefers-reduced-motion:reduce\)\{\*,\*::before,\*::after\{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;transition-delay:0ms!important\}\}/,
+  );
 });
 
 test("Save to project posts the edits as JSON to the dev server", async () => {
@@ -3015,7 +3051,8 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
-  // The strip is drawn again, so the row that is on is the one read back now.
+  // The rows are kept: the tick moves, and the strip is not built again.
+  assert.deepEqual([...strip.children[1].children], rows, "the same rows are on the strip");
   assert.equal(strip.children[1].children[0].getAttribute("aria-pressed"), "true");
   assert.equal(strip.children[1].children[1].getAttribute("aria-pressed"), "false");
   assert.equal(

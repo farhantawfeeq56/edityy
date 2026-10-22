@@ -141,7 +141,7 @@ export default function Home() {
       <header className="sticky top-3 z-40 px-4 sm:top-5">
         <nav
           aria-label="Main"
-          className="mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 bg-white/80 py-2 pl-4 pr-2 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_8px_24px_-16px_rgba(22,35,58,0.25)] backdrop-blur-md"
+          className="site-header mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 bg-white/80 py-2 pl-4 pr-2 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_8px_24px_-16px_rgba(22,35,58,0.25)] backdrop-blur-md"
         >
           <Link href="/" className="flex items-center gap-2 text-[0.875rem] font-semibold tracking-[-0.02em]">
             <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
@@ -149,25 +149,25 @@ export default function Home() {
           </Link>
           <div className="ml-auto hidden items-center gap-1 sm:flex">
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="#how"
             >
               How it works
             </a>
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="#features"
             >
               Features
             </a>
             <Link
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="/docs"
             >
               Docs
             </Link>
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 transition-colors duration-150 hover:bg-blush hover:text-neutral-900"
+              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href={GITHUB}
               target="_blank"
               rel="noreferrer"
@@ -177,7 +177,7 @@ export default function Home() {
           </div>
           <a
             href="#install"
-            className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-[0.8125rem] font-medium text-white transition-colors duration-150 hover:bg-neutral-600 sm:ml-2"
+            className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-[0.8125rem] font-medium text-white tint hover:bg-neutral-600 sm:ml-2"
           >
             Install
           </a>
@@ -207,10 +207,10 @@ export default function Home() {
           </div>
 
           <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
-            <Link className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-900" href="/docs">
+            <Link className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint hover:decoration-neutral-900" href="/docs">
               Setup guide and full details
             </Link>
-            <a className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-900 hover:decoration-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
+            <a className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 tint hover:text-neutral-900 hover:decoration-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
               View the source
             </a>
           </p>
@@ -240,7 +240,7 @@ export default function Home() {
           <ul className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
               <li key={feature.title} className="group">
-                <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 transition-colors duration-150 group-hover:border-neutral-300 group-hover:bg-rose">
+                <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 tint lift group-hover:-translate-y-0.5 group-hover:border-neutral-300 group-hover:bg-rose">
                   <Icon name={feature.icon} />
                 </span>
                 <h3 className="mt-4 text-[0.9375rem] font-semibold tracking-[-0.02em]">{feature.title}</h3>
@@ -309,16 +309,16 @@ export default function Home() {
             Edityy
           </span>
           <div className="flex items-center gap-5">
-            <Link className="hover:text-neutral-900" href="/docs">
+            <Link className="tint hover:text-neutral-900" href="/docs">
               Docs
             </Link>
-            <a className="hover:text-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
+            <a className="tint hover:text-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
               GitHub
             </a>
-            <a className="hover:text-neutral-900" href={NPM} target="_blank" rel="noreferrer">
+            <a className="tint hover:text-neutral-900" href={NPM} target="_blank" rel="noreferrer">
               npm
             </a>
-            <a className="hover:text-neutral-900" href={`${GITHUB}/releases`} target="_blank" rel="noreferrer">
+            <a className="tint hover:text-neutral-900" href={`${GITHUB}/releases`} target="_blank" rel="noreferrer">
               Changelog
             </a>
             <span>MIT</span>

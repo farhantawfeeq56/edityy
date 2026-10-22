@@ -1,6 +1,6 @@
 {
   "name": "edityy",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "A visual editing layer for code-based websites. Drop the launcher into a dev server you already run.",
   "license": "MIT",
   "author": "Farhan Tawfeeq <webdesignbyft@gmail.com>",
@@ -42,7 +42,8 @@
     "./vite": {
       "types": "./src/vite.d.ts",
       "default": "./src/vite.js"
-    }
+    },
+    "./motion.css": "./src/motion.css"
   },
   "bin": {
     "edityy": "src/cli.js"
@@ -56,7 +57,8 @@
   },
   "sideEffects": [
     "./src/edityy.js",
-    "./src/client.js"
+    "./src/client.js",
+    "./src/motion.css"
   ],
   "publishConfig": {
     "access": "public"
