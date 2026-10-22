@@ -3012,6 +3012,41 @@ test("the dock is fixed at the bottom centre, and the menu sits at the element",
   assert.match(app.root.nodes.pop.style.left, /px$/,
     "the control places the panel from its own centre");});
 
+test("the element card stands clear of the dock and inside the viewport", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  const menu = app.root.nodes["element-menu"];
+  // The card is 270 by 92; the dock is a row at the bottom centre of the 1200
+  // by 800 viewport.
+  menu.offsetHeight = 92;
+  dock.getBoundingClientRect = () => ({ left: 400, top: 740, right: 800, bottom: 776, width: 400, height: 36 });
+  const at = (left, top, height = 40) => ({ left, top, right: left + 100, bottom: top + height, width: 100, height });
+  const p = selectText(app);
+  const place = (rect) => {
+    p.getBoundingClientRect = () => rect;
+    quiet(() => app.scroll());
+  };
+  // Room under the element, clear of the dock: the card keeps its place there.
+  place(at(500, 100));
+  assert.equal(menu.style.top, "148px");
+  // Under the element would come down onto the dock: the card goes above it.
+  place(at(500, 600));
+  assert.equal(menu.style.top, "500px", "above the element");
+  // Off to one side of the dock, the bottom of the viewport is the floor.
+  place(at(900, 600));
+  assert.equal(menu.style.top, "648px", "under the element, beside the dock");
+  // An element behind the dock: the card sits just above the dock.
+  place(at(500, 745, 20));
+  assert.equal(menu.style.top, "640px", "its bottom 8px over the dock");
+  // Near each edge the card stays 12px inside the viewport.
+  place(at(500, 0, 800));
+  assert.equal(menu.style.top, "12px", "12px down from the top edge");
+  place(at(1180, 900));
+  assert.equal(menu.style.left, "918px", "12px in from the right edge");
+  assert.equal(menu.style.top, "696px", "12px up from the bottom edge");
+});
+
 test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {
   const { run } = fakeDom();
   const app = run();

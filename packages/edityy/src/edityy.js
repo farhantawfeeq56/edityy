@@ -1597,10 +1597,18 @@
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
     var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var below = rect.bottom + height + 12 <= window.innerHeight;
+    // The card stands above the dock, never on it: it is drawn over the dock,
+    // so a card that came down onto the dock would take its clicks. Where the
+    // two do not share a column, the bottom of the viewport is the floor.
+    var floor = window.innerHeight - 12;
+    var dockBox = dock.hidden ? null : dock.getBoundingClientRect();
+    if (dockBox && dockBox.width && left < dockBox.right && left + width > dockBox.left) {
+      floor = Math.min(floor, dockBox.top - 8);
+    }
+    var below = rect.bottom + 8 + height <= floor;
     var top = below ? rect.bottom + 8 : rect.top - height - 8;
     elementMenu.style.left = left + "px";
-    elementMenu.style.top = Math.max(12, top) + "px";
+    elementMenu.style.top = Math.max(12, Math.min(top, floor - height)) + "px";
     // It comes out of the element: down from it when it is below, up from it
     // when it is above. Only when it appears; a refit on scroll just places it.
     if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
