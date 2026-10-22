@@ -4,6 +4,49 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.5.1 — 2026-10-22
+
+### Added
+
+- The package ships its motion tokens as a stylesheet: `edityy/motion.css` is
+  a new export. It holds the five curves and the nine durations that the
+  editor chrome uses, so a page that imports it runs on the same timings as
+  the chrome. (#206)
+
+### Changed
+
+- The dock wears the native look: the controls are 30px, the icons are 16px,
+  the groups are set by space and not by lines, and the surface is a hairline
+  with a soft shadow. The element card and the panel over the dock wear the
+  same size and the same surface. The controls, the actions and the shortcuts
+  do not change. (#205)
+- Surfaces leave as carefully as they arrive, and a panel whose content
+  changes under the reader's eyes crosses rather than cuts. (#206)
+- The pointer dot tracks the cursor with no lag. The dot's scale is animated
+  and its travel is not, so the dot is under the pointer and not chasing it.
+  (#206)
+- A tip that is interrupted travels from where it is showing, and the
+  animation it replaces stops. A control that already says what it is gets
+  no tip. (#206)
+- The row slides to its new place when a control is added, instead of
+  jumping. The card's buttons and the strip's rows are kept between redraws,
+  so a scroll does not blink the card. (#206)
+- A dock or a card that is sent away and wanted back comes back from where it
+  is. (#206)
+- An undo during a delete stops the delete: an element that was put back does
+  not fade away in the reader's hand. (#206)
+- Reduced motion is one rule in the chrome and in the stylesheet: every
+  duration collapses. (#206)
+
+### Fixed
+
+- Two rules of the sheet lost their closing brace, and the parser read every
+  rule after them as part of them. The frames, the launcher, the element
+  card, the tip and the buttons wore no style at all. A rule that is not
+  closed is now a test. (#206)
+- The element action's rule lost its closing brace with the dock's own look.
+  (#206)
+
 ## 0.5.0 — 2026-10-21
 
 ### Added
