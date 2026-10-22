@@ -203,20 +203,25 @@
     // The dock is one surface in one place: fixed at the bottom centre, whatever
     // the element and the page do. A column, because an open control comes out
     // over the icon row. Below the pointer's z-index so the dot is never hidden
-    // behind it.
+    // behind it. As wide as its row, up to the viewport less a 12px margin each
+    // side: left:50% alone would cap it at half the viewport.
     "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
-    "display:flex;flex-direction:column;align-items:center}",
+    "width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{position:relative;display:flex;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
+    // A row wider than the viewport wraps onto a second line, so every control
+    // stays on screen; it does not scroll, which would clip the lists that come
+    // up out of its controls.
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
     // is never one of row.children. It fades in where it first lands, and moves
-    // only once it is on show (data-glide=warm).
-    ".row:before{content:\"\";position:absolute;left:0;top:3px;height:30px;width:var(--glide-w,30px);border-radius:7px;",
-    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity var(--fade) var(--leave)}",
+    // only once it is on show (data-glide=warm). It goes down a line with the
+    // control when the row wraps.
+    ".row:before{content:\"\";position:absolute;left:0;top:0;height:30px;width:var(--glide-w,30px);border-radius:7px;",
+    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
     ".row>*{position:relative}",
@@ -393,7 +398,7 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
@@ -640,7 +645,8 @@
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--ink-12);color:var(--ink)}",
     // The row and the edits button, side by side under the open control.
-    ".bar{display:flex;align-items:center;gap:6px}",
+    ".bar{display:flex;align-items:center;gap:6px;max-width:100%}",
+    ".bar>.solo{flex:none}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -2480,6 +2486,9 @@ function faces() {
     var left = box.left - dockBox.left + box.width / 2 - width / 2;
     if (target === items[0]) left = 0;
     else if (target === items[items.length - 1]) left = Math.max(0, dockBox.width - width);
+    // On a narrow viewport the dock fills the width, and a panel set from its
+    // control could still run off an edge: it stays 12px inside the viewport.
+    left = Math.max(12 - dockBox.left, Math.min(left, window.innerWidth - 12 - width - dockBox.left));
     pop.style.left = left + "px";
     // The panel grows out of its control, wherever the panel itself lands.
     pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
@@ -4411,6 +4420,7 @@ function decorations() {
   /** Move the row's one hover fill under a control. */
   function glideTo(button) {
     row.style.setProperty("--glide-x", (button.offsetLeft || 0) + "px");
+    row.style.setProperty("--glide-y", (button.offsetTop || 3) + "px");
     row.style.setProperty("--glide-w", (button.offsetWidth || 34) + "px");
     if (row.dataset.glide !== undefined) return;
     // It fades in where it lands, and only travels from the next control on.

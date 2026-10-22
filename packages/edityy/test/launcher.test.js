@@ -1041,6 +1041,22 @@ test("the secondary dock centres on its control and corners at the row's ends", 
   quiet(() => press(app, "color"));
   quiet(() => press(app, "+"));
   assert.equal(pop.style.left, "200px", "the last control is the right corner");
+  // A narrow viewport: the dock is as wide as the viewport less 12px a side,
+  // and its row wraps rather than running off both edges.
+  const css = app.root.innerHTML;
+  assert.match(css, /#dock\{[^}]*width:max-content;max-width:calc\(100vw - 24px\)/);
+  assert.match(css, /\.row\{[^}]*flex-wrap:wrap;min-width:0/);
+  assert.match(css, /\.pop\{[^}]*max-inline-size:min\(420px,calc\(100vw - 24px\)\)/);
+  // The panel stays 12px inside the viewport, however near the edge its control is.
+  quiet(() => press(app, "+"));
+  app.win.innerWidth = 360;
+  dock.getBoundingClientRect = () => ({ left: 12, top: 700, width: 336, height: 80 });
+  row.children.forEach((b) => {
+    b.getBoundingClientRect = () => ({ left: 300, top: 700, width: 34, height: 34 });
+  });
+  pop.offsetWidth = 300;
+  quiet(() => press(app, "color"));
+  assert.equal(pop.style.left, "36px", "its right edge 12px in from the viewport's");
 });
 
 test("the dock opens on text and container, stays shut on media", () => {
