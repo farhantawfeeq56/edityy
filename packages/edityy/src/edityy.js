@@ -1355,6 +1355,7 @@
     // The element being moved is off the page until it is placed, so it has no
     // box to frame: measured, it is a dot in the top-left corner.
     var items = moving ? [] : selectedItems;
+    watchSelection(items);
     var count = items.length;
     var wasHidden = selBox.hidden;
     selBox.hidden = !count;
@@ -5626,6 +5627,9 @@ function decorations() {
     // element out from under them and they must go with it.
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", refit, true);
+    // load does not bubble, so it is caught on the way down: an image that
+    // loads above the selection pushes it down the page.
+    document.addEventListener("load", onLoad, true);
     syncDock();
   }
 
@@ -5644,6 +5648,7 @@ function decorations() {
     document.removeEventListener("input", onEdit, true);
     window.removeEventListener("scroll", onScroll, true);
     window.removeEventListener("resize", refit, true);
+    document.removeEventListener("load", onLoad, true);
     // Exiting always puts the page back exactly as it was.
     stopEditing();
     closeVariants();
@@ -5695,6 +5700,56 @@ function decorations() {
   function onScroll() {
     hideHover();
     inFrame("refit", refit);
+  }
+
+  function onLoad() {
+    if (selectedItems.length) inFrame("refit", refit);
+  }
+
+  /**
+   * Watch the selection for the page moving it on its own.
+   *
+   * A scroll, a resize and our own writes refit already. This is for the rest:
+   * the element wraps onto another line, or a section above it opens. The
+   * selected elements and every box around them are watched, because content
+   * that grows above an element grows the box that holds them both. A box is
+   * measured by the observer, not by us, and the frame is measured again only
+   * when one of those sizes really changed, once in the frame.
+   */
+  var watcher = typeof window.ResizeObserver === "function" ? new window.ResizeObserver(onResize) : null;
+  var watched = [];
+  var watchedSizes = [];
+
+  function watchSelection(items) {
+    if (!watcher) return;
+    if (items.length === watched.length && items.every(function (el, i) { return el === watched[i]; })) return;
+    // A new selection is a new set of boxes: the old ones are let go first.
+    watcher.disconnect();
+    watched = items.slice();
+    watchedSizes = [];
+    var boxes = [];
+    items.forEach(function (el) {
+      // Up to the first box already watched: the ones above it are watched too.
+      for (var node = el; node && boxes.indexOf(node) === -1; node = node.parentElement) {
+        boxes.push(node);
+        watcher.observe(node);
+      }
+    });
+  }
+
+  function onResize(entries) {
+    var changed = false;
+    entries.forEach(function (entry) {
+      var size = entry.contentRect.width + "x" + entry.contentRect.height;
+      var was = watchedSizes.filter(function (seen) { return seen.el === entry.target; })[0];
+      // The first report of a box is its size when it was watched, not a change.
+      if (!was) watchedSizes.push({ el: entry.target, size: size });
+      else if (was.size !== size) {
+        was.size = size;
+        changed = true;
+      }
+    });
+    if (changed) inFrame("refit", refit);
   }
 
   /**
