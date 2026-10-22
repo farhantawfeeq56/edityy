@@ -1939,6 +1939,62 @@ test("the selection frame follows the page when it scrolls", () => {
   assert.equal(app.root.nodes.sel.style.top, "-180.75px", "the frame moved with the page");
 });
 
+test("the selection frame follows the page when it moves the element on its own", () => {
+  const { run, win } = fakeDom();
+  const frames = [];
+  win.requestAnimationFrame = (fn) => frames.push(fn);
+  const observers = [];
+  win.ResizeObserver = class {
+    constructor(report) {
+      this.report = report;
+      this.targets = [];
+      observers.push(this);
+    }
+    observe(el) {
+      this.targets.push(el);
+    }
+    disconnect() {
+      this.targets = [];
+    }
+  };
+  const app = run();
+  const watcher = observers[0];
+  const section = app.el("section");
+  const p = app.el("p", { text: "hello" });
+  section.appendChild(p);
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  assert.deepEqual(watcher.targets, [p, section], "the element and every box around it");
+  const at = (top) => (p.getBoundingClientRect = () => ({ left: 10, top, right: 110, bottom: top + 40, width: 100, height: 40 }));
+  const report = (el, height) => watcher.report([{ target: el, contentRect: { width: 100, height } }]);
+  at(20);
+  // The first report of each box is its size when it was watched.
+  quiet(() => report(p, 40) || report(section, 300));
+  assert.equal(frames.length, 0, "nothing measured for a box that did not change");
+  // Content above loads: the box around the element grows, and the element moves down.
+  at(140);
+  quiet(() => report(section, 420) || report(section, 420));
+  assert.equal(frames.length, 1, "one frame asked for");
+  quiet(() => frames.shift()());
+  assert.equal(app.root.nodes.sel.style.top, "139.25px", "the frame moved with the element");
+  // An image that loads in a fixed box moves the element without a resize.
+  at(200);
+  quiet(() => app.fire("load"));
+  quiet(() => frames.shift()());
+  assert.equal(app.root.nodes.sel.style.top, "199.25px");
+  // A new selection lets go of the boxes of the old one.
+  const other = app.el("h2", { text: "other" });
+  quiet(() => app.hover(other) || app.clickPage());
+  assert.deepEqual(watcher.targets, [other]);
+  // Leaving lets go of every box.
+  quiet(() => app.fire("keydown", { key: "Escape" }) || app.fire("keydown", { key: "Escape" }));
+  assert.deepEqual(watcher.targets, []);
+  assert.equal(app.countDoc("load"), 0);
+});
+
 test("scrolling drops the hover frame, whose element has nothing to do with the pointer now", () => {
   const { run, text } = fakeDom();
   const app = run();
