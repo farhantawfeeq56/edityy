@@ -2456,6 +2456,13 @@ function faces() {
     if (key === "+") addOne();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
+    // The edits button is the dock's last stop, so its list goes after it in
+    // the tab order, and Tab from the button steps into it. A row control's
+    // panel stays in front of the row.
+    var bar = review.parentElement;
+    if (key === "changes") {
+      if (dock.children[dock.children.length - 1] !== pop) dock.appendChild(pop);
+    } else if (pop.nextSibling !== bar) dock.insertBefore(pop, bar);
     placePop(key);
     if (leaving) {
       // The old words go, the new ones arrive, and the two cross.
@@ -4047,6 +4054,10 @@ function decorations() {
 
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
+    // A rebuild under the keyboard puts focus back on the same control, or on
+    // the row's first when that control is gone, and not on the page.
+    var focused = within(row, root.activeElement) ? controlOf(root.activeElement) : null;
+    var focusKey = focused ? focused.dataset.key : null;
     while (row.firstChild) row.removeChild(row.firstChild);
     // The hover fill belongs to the row of the last element: a row that is
     // rebuilt has a different set of controls, and a fill that glided to a
@@ -4163,6 +4174,13 @@ function decorations() {
     // The drawn tooltip is the only hint: a native title would open beside it.
     for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
     rove(row.children[0]);
+    if (focusKey !== null) {
+      var back = slot(focusKey) || row.children[0];
+      if (back) {
+        rove(back);
+        if (back.focus) back.focus();
+      }
+    }
   }
 
   /**
@@ -4174,6 +4192,50 @@ function decorations() {
       row.children[i].setAttribute("tabindex", row.children[i] === target ? "0" : "-1");
     }
   }
+
+  /** The control in the row that has the tab stop. */
+  function rowStop() {
+    for (var i = 0; i < row.children.length; i++) {
+      if (row.children[i].getAttribute("tabindex") === "0") return row.children[i];
+    }
+    return null;
+  }
+
+  /** The first control a keyboard can reach inside `node`, in document order. */
+  function firstStop(node) {
+    for (var i = 0; i < (node.children || []).length; i++) {
+      var child = node.children[i];
+      if (child.hidden) continue;
+      var tabindex = child.getAttribute ? child.getAttribute("tabindex") : null;
+      var focusable = /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(child.tagName) || (tabindex !== null && tabindex !== undefined);
+      if (focusable && tabindex !== "-1" && !child.disabled) return child;
+      var inner = firstStop(child);
+      if (inner) return inner;
+    }
+    return null;
+  }
+
+  function within(parent, node) {
+    for (; node; node = node.parentElement) if (node === parent) return true;
+    return false;
+  }
+
+  // A row control's panel is drawn above the row, and it comes before the row
+  // in the tab order, so Tab from the control would skip it. Tab from the
+  // control steps into the open panel. Tab off the panel's end comes back to
+  // the control, and the Tab after that moves on, so focus is never held.
+  var backFromPanel = false;
+  row.addEventListener("focusin", function (e) {
+    backFromPanel = within(pop, e.relatedTarget);
+  });
+  dock.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab" || e.shiftKey || pop.hidden || !openKey || openKey === "changes" || backFromPanel) return;
+    if (e.target !== slot(openKey)) return;
+    var first = firstStop(pop);
+    if (!first || !first.focus) return;
+    if (e.preventDefault) e.preventDefault();
+    first.focus();
+  });
 
   row.addEventListener("keydown", function (e) {
     var keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
@@ -5993,6 +6055,19 @@ function decorations() {
       e.preventDefault();
       e.stopPropagation();
       autoLayout();
+      return;
+    }
+    // The dock is mounted after the page, so Tab from the page would go through
+    // every link first. With an element selected, Tab from the page goes to the
+    // dock. From there Tab and Shift+Tab go on as usual, so focus is not held.
+    if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selected && !editing &&
+        !dock.hidden && !row.hidden && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+      var stop = rowStop();
+      if (stop && stop.focus) {
+        e.preventDefault();
+        e.stopPropagation();
+        stop.focus();
+      }
       return;
     }
     if (e.key === "Escape") {

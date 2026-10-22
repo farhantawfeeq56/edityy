@@ -2938,6 +2938,56 @@ test("Escape on an open control puts focus back on its icon", () => {
   assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
 });
 
+test("Tab from the page reaches the dock, and Tab from an open control steps into its panel", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const row = app.root.nodes.row;
+  const pop = app.root.nodes.pop;
+  let focused = null;
+  row.children.forEach((b) => (b.focus = () => (focused = b)));
+  const tab = (extra = {}) => {
+    let prevented = false;
+    quiet(() => app.fire("keydown", { key: "Tab", preventDefault: () => (prevented = true), stopPropagation() {}, ...extra }));
+    return prevented;
+  };
+  // The dock is mounted after the page: Tab from the page goes to the dock,
+  // not through every link on the way.
+  assert.equal(tab(), true);
+  assert.equal(focused, row.children[0], "the row's tab stop");
+  // Inside the chrome, and backwards, Tab is the browser's: focus is not held.
+  focused = null;
+  assert.equal(tab({ composedPath: () => [row.children[0], app.host] }), false);
+  assert.equal(tab({ shiftKey: true }), false);
+  assert.equal(focused, null);
+  // Tab from an open control steps into its panel.
+  const icon = quiet(() => press(app, "spacing"));
+  const inPanel = [];
+  const mark = (n) => (n.children ?? []).forEach((c) => {
+    c.focus = () => (focused = c);
+    inPanel.push(c);
+    mark(c);
+  });
+  mark(pop);
+  const tabIn = () => {
+    for (const fn of app.root.nodes.dock.bubbles.keydown.bubble) fn({ key: "Tab", target: icon, preventDefault() {} });
+  };
+  tabIn();
+  assert.ok(inPanel.includes(focused), "focus is in the panel");
+  assert.match(focused.tagName, /^(BUTTON|INPUT|SELECT|TEXTAREA)$/);
+  // Tab off the panel's end comes back to the control; the next Tab moves on.
+  const fromPanel = focused;
+  focused = null;
+  quiet(() => row.bubbles.focusin.bubble.forEach((fn) => fn({ target: icon, relatedTarget: fromPanel })));
+  tabIn();
+  assert.equal(focused, null, "not back into the panel");
+  // A row rebuilt under the keyboard keeps focus on the same control.
+  app.root.activeElement = row.children[2];
+  const key = row.children[2].dataset.key;
+  selectText(app);
+  assert.equal(row.children.find((b) => b.getAttribute("tabindex") === "0").dataset.key, key);
+});
+
 test("reduced motion stops every animation and every transition", () => {
   const { run } = fakeDom();
   const app = run();
