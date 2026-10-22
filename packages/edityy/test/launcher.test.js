@@ -314,6 +314,8 @@ function fakeDom() {
     // would expose them. Empty by default: a test that cares sets its own.
     styleSheets: [],
     querySelectorAll: () => [],
+    // The node a selector finds, which the replaced-element case asks for.
+    querySelector: () => doc.found,
     fonts: [],
     elementFromPoint: () => hovered,
     addEventListener: (type, fn, capture) => bucket(doc, type, capture ? "capture" : "bubble").push(fn),
@@ -2534,6 +2536,50 @@ const key = (app, k, mods = {}) => {
   return prevented;
 };
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test("page fields keep keyboard shortcuts while Edityy is active", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const field = el("input");
+  const target = app.root.selection().el;
+  for (const [keyName, mods] of [["ArrowRight", {}], ["A", { shiftKey: true }], ["Escape", {}], ["z", { metaKey: true }]]) {
+    assert.equal(key(app, keyName, { ...mods, target: field }), false, keyName + " belongs to the page field");
+    assert.equal(app.root.selection().el, target, keyName + " must not change Edityy's selection");
+  }
+  assert.equal(p, target);
+});
+
+test("a replaced selected element clears its editor chrome on refit", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  assert.equal(app.root.nodes.sel.hidden, false);
+  assert.equal(app.root.nodes.dock.hidden, false);
+  p.isConnected = false;
+  app.scroll();
+  assert.equal(app.root.selection(), null);
+  assert.equal(app.root.nodes.sel.hidden, true);
+  assert.equal(app.root.nodes.row.hidden, true);
+  assert.equal(app.root.nodes["element-menu"].hidden, true);
+  assert.equal(app.root.nodes.hint.hidden, false);
+  assert.match(app.root.nodes.hint.textContent, /replaced/);
+});
+
+test("a re-rendered element is taken up again, so the dock keeps its row", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const again = el("p", { text: "hello" });
+  // The page's own selector finds the element that replaced the first one.
+  app.doc.found = again;
+  p.isConnected = false;
+  app.scroll();
+  assert.equal(app.root.selection().el, again);
+  assert.equal(app.root.nodes.row.hidden, false);
+  assert.equal(app.root.nodes.sel.hidden, false);
+  assert.equal(app.root.nodes.hint.hidden, true);
+});
 
 test("⌘Z undoes the last edit and ⇧⌘Z redoes it", async () => {
   const { run } = fakeDom();
