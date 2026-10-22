@@ -770,6 +770,9 @@
   // How long the hint stays up before it goes. A time, not a motion: it says
   // how long the reader has to read it, not how long anything takes to move.
   var HINT_HOLD = 1000;
+  // A status the reader did not ask for stays longer than the one that answers a
+  // gesture: it says what happened to their edit, not what a control does.
+  var REPLACED_HOLD = 2400;
   // The control that is open, "" for none.
   var openKey = "";
   // The panel's own fade, while it is on its way out.
@@ -5860,6 +5863,36 @@ function decorations() {
    * around words that are no longer there.
    */
   function refit() {
+    // A framework that re-renders replaces the node the selection stands on.
+    // The same element is taken up again by the selector that names it: a
+    // selection cleared here hides the dock's row, and a dock with no controls
+    // reads as a dock that does not work. Only an element really gone clears it.
+    if (selected && selected.isConnected === false) {
+      var again = null;
+      try {
+        again = document.querySelector ? document.querySelector(selectorFor(selected)) : null;
+      } catch {
+        again = null; // a selector the page no longer parses the same way
+      }
+      if (again && again.tagName === selected.tagName && again !== host && !(host.contains && host.contains(again))) {
+        // The record follows the element onto its new node. What the old node
+        // wore went with it, so the values shown now are the page's own.
+        for (var i = 0; i < changes.length; i++) {
+          if (changes[i].el === selected) changes[i].el = again;
+        }
+        select(again, { el: again, kind: kind(again) });
+      } else {
+        select(null);
+        hint.textContent = "Selected element was replaced";
+        hint.style.left = "50%";
+        hint.style.top = "16px";
+        hint.style.transform = "translateX(-50%)";
+        hint.hidden = false;
+        setTimeout(function () {
+          if (hint.textContent === "Selected element was replaced") hint.hidden = true;
+        }, REPLACED_HOLD);
+      }
+    }
     syncSelectionFrames();
     if (!elementMenu.hidden && !moving) syncElementMenu();
     // The hover frame was measured when the pointer last moved. Whatever made
@@ -6037,12 +6070,14 @@ function decorations() {
 
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
+    var field = e.target;
+    var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
+    if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
     // 1 to 9 pick a variation while the strip is up, and 0 picks the tenth,
     // which is what the strip says on each row. A digit in a field belongs to the
     // field.
     if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
-      var field = e.target;
-      var typing = editing || (field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.isContentEditable));
+      var typing = editing || pageField;
       var index = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!typing && index < variantList.length) {
         if (e.preventDefault) e.preventDefault();
