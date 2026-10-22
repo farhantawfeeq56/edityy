@@ -1041,6 +1041,22 @@ test("the secondary dock centres on its control and corners at the row's ends", 
   quiet(() => press(app, "color"));
   quiet(() => press(app, "+"));
   assert.equal(pop.style.left, "200px", "the last control is the right corner");
+  // A narrow viewport: the dock is as wide as the viewport less 12px a side,
+  // and its row wraps rather than running off both edges.
+  const css = app.root.innerHTML;
+  assert.match(css, /#dock\{[^}]*width:max-content;max-width:calc\(100vw - 24px\)/);
+  assert.match(css, /\.row\{[^}]*flex-wrap:wrap;min-width:0/);
+  assert.match(css, /\.pop\{[^}]*max-inline-size:min\(420px,calc\(100vw - 24px\)\)/);
+  // The panel stays 12px inside the viewport, however near the edge its control is.
+  quiet(() => press(app, "+"));
+  app.win.innerWidth = 360;
+  dock.getBoundingClientRect = () => ({ left: 12, top: 700, width: 336, height: 80 });
+  row.children.forEach((b) => {
+    b.getBoundingClientRect = () => ({ left: 300, top: 700, width: 34, height: 34 });
+  });
+  pop.offsetWidth = 300;
+  quiet(() => press(app, "color"));
+  assert.equal(pop.style.left, "36px", "its right edge 12px in from the viewport's");
 });
 
 test("the dock opens on text and container, stays shut on media", () => {
@@ -1937,6 +1953,62 @@ test("the selection frame follows the page when it scrolls", () => {
   p.getBoundingClientRect = () => ({ left: 10, top: -180, right: 110, bottom: -140, width: 100, height: 40 });
   quiet(() => app.scroll());
   assert.equal(app.root.nodes.sel.style.top, "-180.75px", "the frame moved with the page");
+});
+
+test("the selection frame follows the page when it moves the element on its own", () => {
+  const { run, win } = fakeDom();
+  const frames = [];
+  win.requestAnimationFrame = (fn) => frames.push(fn);
+  const observers = [];
+  win.ResizeObserver = class {
+    constructor(report) {
+      this.report = report;
+      this.targets = [];
+      observers.push(this);
+    }
+    observe(el) {
+      this.targets.push(el);
+    }
+    disconnect() {
+      this.targets = [];
+    }
+  };
+  const app = run();
+  const watcher = observers[0];
+  const section = app.el("section");
+  const p = app.el("p", { text: "hello" });
+  section.appendChild(p);
+  quiet(() => {
+    app.click();
+    app.hover(p);
+    app.clickPage();
+  });
+  assert.deepEqual(watcher.targets, [p, section], "the element and every box around it");
+  const at = (top) => (p.getBoundingClientRect = () => ({ left: 10, top, right: 110, bottom: top + 40, width: 100, height: 40 }));
+  const report = (el, height) => watcher.report([{ target: el, contentRect: { width: 100, height } }]);
+  at(20);
+  // The first report of each box is its size when it was watched.
+  quiet(() => report(p, 40) || report(section, 300));
+  assert.equal(frames.length, 0, "nothing measured for a box that did not change");
+  // Content above loads: the box around the element grows, and the element moves down.
+  at(140);
+  quiet(() => report(section, 420) || report(section, 420));
+  assert.equal(frames.length, 1, "one frame asked for");
+  quiet(() => frames.shift()());
+  assert.equal(app.root.nodes.sel.style.top, "139.25px", "the frame moved with the element");
+  // An image that loads in a fixed box moves the element without a resize.
+  at(200);
+  quiet(() => app.fire("load"));
+  quiet(() => frames.shift()());
+  assert.equal(app.root.nodes.sel.style.top, "199.25px");
+  // A new selection lets go of the boxes of the old one.
+  const other = app.el("h2", { text: "other" });
+  quiet(() => app.hover(other) || app.clickPage());
+  assert.deepEqual(watcher.targets, [other]);
+  // Leaving lets go of every box.
+  quiet(() => app.fire("keydown", { key: "Escape" }) || app.fire("keydown", { key: "Escape" }));
+  assert.deepEqual(watcher.targets, []);
+  assert.equal(app.countDoc("load"), 0);
 });
 
 test("scrolling drops the hover frame, whose element has nothing to do with the pointer now", () => {
@@ -2866,6 +2938,56 @@ test("Escape on an open control puts focus back on its icon", () => {
   assert.equal(icon.getAttribute("tabindex"), "0", "and it holds the tab stop");
 });
 
+test("Tab from the page reaches the dock, and Tab from an open control steps into its panel", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const row = app.root.nodes.row;
+  const pop = app.root.nodes.pop;
+  let focused = null;
+  row.children.forEach((b) => (b.focus = () => (focused = b)));
+  const tab = (extra = {}) => {
+    let prevented = false;
+    quiet(() => app.fire("keydown", { key: "Tab", preventDefault: () => (prevented = true), stopPropagation() {}, ...extra }));
+    return prevented;
+  };
+  // The dock is mounted after the page: Tab from the page goes to the dock,
+  // not through every link on the way.
+  assert.equal(tab(), true);
+  assert.equal(focused, row.children[0], "the row's tab stop");
+  // Inside the chrome, and backwards, Tab is the browser's: focus is not held.
+  focused = null;
+  assert.equal(tab({ composedPath: () => [row.children[0], app.host] }), false);
+  assert.equal(tab({ shiftKey: true }), false);
+  assert.equal(focused, null);
+  // Tab from an open control steps into its panel.
+  const icon = quiet(() => press(app, "spacing"));
+  const inPanel = [];
+  const mark = (n) => (n.children ?? []).forEach((c) => {
+    c.focus = () => (focused = c);
+    inPanel.push(c);
+    mark(c);
+  });
+  mark(pop);
+  const tabIn = () => {
+    for (const fn of app.root.nodes.dock.bubbles.keydown.bubble) fn({ key: "Tab", target: icon, preventDefault() {} });
+  };
+  tabIn();
+  assert.ok(inPanel.includes(focused), "focus is in the panel");
+  assert.match(focused.tagName, /^(BUTTON|INPUT|SELECT|TEXTAREA)$/);
+  // Tab off the panel's end comes back to the control; the next Tab moves on.
+  const fromPanel = focused;
+  focused = null;
+  quiet(() => row.bubbles.focusin.bubble.forEach((fn) => fn({ target: icon, relatedTarget: fromPanel })));
+  tabIn();
+  assert.equal(focused, null, "not back into the panel");
+  // A row rebuilt under the keyboard keeps focus on the same control.
+  app.root.activeElement = row.children[2];
+  const key = row.children[2].dataset.key;
+  selectText(app);
+  assert.equal(row.children.find((b) => b.getAttribute("tabindex") === "0").dataset.key, key);
+});
+
 test("reduced motion stops every animation and every transition", () => {
   const { run } = fakeDom();
   const app = run();
@@ -2955,6 +3077,41 @@ test("the dock is fixed at the bottom centre, and the menu sits at the element",
   assert.equal(dock.style.left, "", "the dock holds its one place");
   assert.match(app.root.nodes.pop.style.left, /px$/,
     "the control places the panel from its own centre");});
+
+test("the element card stands clear of the dock and inside the viewport", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  const menu = app.root.nodes["element-menu"];
+  // The card is 270 by 92; the dock is a row at the bottom centre of the 1200
+  // by 800 viewport.
+  menu.offsetHeight = 92;
+  dock.getBoundingClientRect = () => ({ left: 400, top: 740, right: 800, bottom: 776, width: 400, height: 36 });
+  const at = (left, top, height = 40) => ({ left, top, right: left + 100, bottom: top + height, width: 100, height });
+  const p = selectText(app);
+  const place = (rect) => {
+    p.getBoundingClientRect = () => rect;
+    quiet(() => app.scroll());
+  };
+  // Room under the element, clear of the dock: the card keeps its place there.
+  place(at(500, 100));
+  assert.equal(menu.style.top, "148px");
+  // Under the element would come down onto the dock: the card goes above it.
+  place(at(500, 600));
+  assert.equal(menu.style.top, "500px", "above the element");
+  // Off to one side of the dock, the bottom of the viewport is the floor.
+  place(at(900, 600));
+  assert.equal(menu.style.top, "648px", "under the element, beside the dock");
+  // An element behind the dock: the card sits just above the dock.
+  place(at(500, 745, 20));
+  assert.equal(menu.style.top, "640px", "its bottom 8px over the dock");
+  // Near each edge the card stays 12px inside the viewport.
+  place(at(500, 0, 800));
+  assert.equal(menu.style.top, "12px", "12px down from the top edge");
+  place(at(1180, 900));
+  assert.equal(menu.style.left, "918px", "12px in from the right edge");
+  assert.equal(menu.style.top, "696px", "12px up from the bottom edge");
+});
 
 test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {
   const { run } = fakeDom();

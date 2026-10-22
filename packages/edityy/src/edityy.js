@@ -203,20 +203,25 @@
     // The dock is one surface in one place: fixed at the bottom centre, whatever
     // the element and the page do. A column, because an open control comes out
     // over the icon row. Below the pointer's z-index so the dot is never hidden
-    // behind it.
+    // behind it. As wide as its row, up to the viewport less a 12px margin each
+    // side: left:50% alone would cap it at half the viewport.
     "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
-    "display:flex;flex-direction:column;align-items:center}",
+    "width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
-    ".row{position:relative;display:flex;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
+    // A row wider than the viewport wraps onto a second line, so every control
+    // stays on screen; it does not scroll, which would clip the lists that come
+    // up out of its controls.
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
     // is never one of row.children. It fades in where it first lands, and moves
-    // only once it is on show (data-glide=warm).
-    ".row:before{content:\"\";position:absolute;left:0;top:3px;height:30px;width:var(--glide-w,30px);border-radius:7px;",
-    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translateX(var(--glide-x,0px));transition:opacity var(--fade) var(--leave)}",
+    // only once it is on show (data-glide=warm). It goes down a line with the
+    // control when the row wraps.
+    ".row:before{content:\"\";position:absolute;left:0;top:0;height:30px;width:var(--glide-w,30px);border-radius:7px;",
+    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
     ".row>*{position:relative}",
@@ -393,7 +398,7 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:420px;padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
+    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
@@ -642,7 +647,8 @@
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--ink-12);color:var(--ink)}",
     // The row and the edits button, side by side under the open control.
-    ".bar{display:flex;align-items:center;gap:6px}",
+    ".bar{display:flex;align-items:center;gap:6px;max-width:100%}",
+    ".bar>.solo{flex:none}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -1355,6 +1361,7 @@
     // The element being moved is off the page until it is placed, so it has no
     // box to frame: measured, it is a dot in the top-left corner.
     var items = moving ? [] : selectedItems;
+    watchSelection(items);
     var count = items.length;
     var wasHidden = selBox.hidden;
     selBox.hidden = !count;
@@ -1596,10 +1603,18 @@
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
     var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    var below = rect.bottom + height + 12 <= window.innerHeight;
+    // The card stands above the dock, never on it: it is drawn over the dock,
+    // so a card that came down onto the dock would take its clicks. Where the
+    // two do not share a column, the bottom of the viewport is the floor.
+    var floor = window.innerHeight - 12;
+    var dockBox = dock.hidden ? null : dock.getBoundingClientRect();
+    if (dockBox && dockBox.width && left < dockBox.right && left + width > dockBox.left) {
+      floor = Math.min(floor, dockBox.top - 8);
+    }
+    var below = rect.bottom + 8 + height <= floor;
     var top = below ? rect.bottom + 8 : rect.top - height - 8;
     elementMenu.style.left = left + "px";
-    elementMenu.style.top = Math.max(12, top) + "px";
+    elementMenu.style.top = Math.max(12, Math.min(top, floor - height)) + "px";
     // It comes out of the element: down from it when it is below, up from it
     // when it is above. Only when it appears; a refit on scroll just places it.
     if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
@@ -2441,6 +2456,13 @@ function faces() {
     if (key === "+") addOne();
     else if (key === "changes") listChanges();
     else CONTROLS[key]();
+    // The edits button is the dock's last stop, so its list goes after it in
+    // the tab order, and Tab from the button steps into it. A row control's
+    // panel stays in front of the row.
+    var bar = review.parentElement;
+    if (key === "changes") {
+      if (dock.children[dock.children.length - 1] !== pop) dock.appendChild(pop);
+    } else if (pop.nextSibling !== bar) dock.insertBefore(pop, bar);
     placePop(key);
     if (leaving) {
       // The old words go, the new ones arrive, and the two cross.
@@ -2482,6 +2504,9 @@ function faces() {
     var left = box.left - dockBox.left + box.width / 2 - width / 2;
     if (target === items[0]) left = 0;
     else if (target === items[items.length - 1]) left = Math.max(0, dockBox.width - width);
+    // On a narrow viewport the dock fills the width, and a panel set from its
+    // control could still run off an edge: it stays 12px inside the viewport.
+    left = Math.max(12 - dockBox.left, Math.min(left, window.innerWidth - 12 - width - dockBox.left));
     pop.style.left = left + "px";
     // The panel grows out of its control, wherever the panel itself lands.
     pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
@@ -4029,6 +4054,10 @@ function decorations() {
 
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
+    // A rebuild under the keyboard puts focus back on the same control, or on
+    // the row's first when that control is gone, and not on the page.
+    var focused = within(row, root.activeElement) ? controlOf(root.activeElement) : null;
+    var focusKey = focused ? focused.dataset.key : null;
     while (row.firstChild) row.removeChild(row.firstChild);
     // The hover fill belongs to the row of the last element: a row that is
     // rebuilt has a different set of controls, and a fill that glided to a
@@ -4145,6 +4174,13 @@ function decorations() {
     // The drawn tooltip is the only hint: a native title would open beside it.
     for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
     rove(row.children[0]);
+    if (focusKey !== null) {
+      var back = slot(focusKey) || row.children[0];
+      if (back) {
+        rove(back);
+        if (back.focus) back.focus();
+      }
+    }
   }
 
   /**
@@ -4156,6 +4192,50 @@ function decorations() {
       row.children[i].setAttribute("tabindex", row.children[i] === target ? "0" : "-1");
     }
   }
+
+  /** The control in the row that has the tab stop. */
+  function rowStop() {
+    for (var i = 0; i < row.children.length; i++) {
+      if (row.children[i].getAttribute("tabindex") === "0") return row.children[i];
+    }
+    return null;
+  }
+
+  /** The first control a keyboard can reach inside `node`, in document order. */
+  function firstStop(node) {
+    for (var i = 0; i < (node.children || []).length; i++) {
+      var child = node.children[i];
+      if (child.hidden) continue;
+      var tabindex = child.getAttribute ? child.getAttribute("tabindex") : null;
+      var focusable = /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(child.tagName) || (tabindex !== null && tabindex !== undefined);
+      if (focusable && tabindex !== "-1" && !child.disabled) return child;
+      var inner = firstStop(child);
+      if (inner) return inner;
+    }
+    return null;
+  }
+
+  function within(parent, node) {
+    for (; node; node = node.parentElement) if (node === parent) return true;
+    return false;
+  }
+
+  // A row control's panel is drawn above the row, and it comes before the row
+  // in the tab order, so Tab from the control would skip it. Tab from the
+  // control steps into the open panel. Tab off the panel's end comes back to
+  // the control, and the Tab after that moves on, so focus is never held.
+  var backFromPanel = false;
+  row.addEventListener("focusin", function (e) {
+    backFromPanel = within(pop, e.relatedTarget);
+  });
+  dock.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab" || e.shiftKey || pop.hidden || !openKey || openKey === "changes" || backFromPanel) return;
+    if (e.target !== slot(openKey)) return;
+    var first = firstStop(pop);
+    if (!first || !first.focus) return;
+    if (e.preventDefault) e.preventDefault();
+    first.focus();
+  });
 
   row.addEventListener("keydown", function (e) {
     var keys = { ArrowRight: 1, ArrowLeft: -1, Home: "first", End: "last" };
@@ -4413,6 +4493,7 @@ function decorations() {
   /** Move the row's one hover fill under a control. */
   function glideTo(button) {
     row.style.setProperty("--glide-x", (button.offsetLeft || 0) + "px");
+    row.style.setProperty("--glide-y", (button.offsetTop || 3) + "px");
     row.style.setProperty("--glide-w", (button.offsetWidth || 34) + "px");
     if (row.dataset.glide !== undefined) return;
     // It fades in where it lands, and only travels from the next control on.
@@ -5626,6 +5707,9 @@ function decorations() {
     // element out from under them and they must go with it.
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", refit, true);
+    // load does not bubble, so it is caught on the way down: an image that
+    // loads above the selection pushes it down the page.
+    document.addEventListener("load", onLoad, true);
     syncDock();
   }
 
@@ -5644,6 +5728,7 @@ function decorations() {
     document.removeEventListener("input", onEdit, true);
     window.removeEventListener("scroll", onScroll, true);
     window.removeEventListener("resize", refit, true);
+    document.removeEventListener("load", onLoad, true);
     // Exiting always puts the page back exactly as it was.
     stopEditing();
     closeVariants();
@@ -5695,6 +5780,56 @@ function decorations() {
   function onScroll() {
     hideHover();
     inFrame("refit", refit);
+  }
+
+  function onLoad() {
+    if (selectedItems.length) inFrame("refit", refit);
+  }
+
+  /**
+   * Watch the selection for the page moving it on its own.
+   *
+   * A scroll, a resize and our own writes refit already. This is for the rest:
+   * the element wraps onto another line, or a section above it opens. The
+   * selected elements and every box around them are watched, because content
+   * that grows above an element grows the box that holds them both. A box is
+   * measured by the observer, not by us, and the frame is measured again only
+   * when one of those sizes really changed, once in the frame.
+   */
+  var watcher = typeof window.ResizeObserver === "function" ? new window.ResizeObserver(onResize) : null;
+  var watched = [];
+  var watchedSizes = [];
+
+  function watchSelection(items) {
+    if (!watcher) return;
+    if (items.length === watched.length && items.every(function (el, i) { return el === watched[i]; })) return;
+    // A new selection is a new set of boxes: the old ones are let go first.
+    watcher.disconnect();
+    watched = items.slice();
+    watchedSizes = [];
+    var boxes = [];
+    items.forEach(function (el) {
+      // Up to the first box already watched: the ones above it are watched too.
+      for (var node = el; node && boxes.indexOf(node) === -1; node = node.parentElement) {
+        boxes.push(node);
+        watcher.observe(node);
+      }
+    });
+  }
+
+  function onResize(entries) {
+    var changed = false;
+    entries.forEach(function (entry) {
+      var size = entry.contentRect.width + "x" + entry.contentRect.height;
+      var was = watchedSizes.filter(function (seen) { return seen.el === entry.target; })[0];
+      // The first report of a box is its size when it was watched, not a change.
+      if (!was) watchedSizes.push({ el: entry.target, size: size });
+      else if (was.size !== size) {
+        was.size = size;
+        changed = true;
+      }
+    });
+    if (changed) inFrame("refit", refit);
   }
 
   /**
@@ -5920,6 +6055,19 @@ function decorations() {
       e.preventDefault();
       e.stopPropagation();
       autoLayout();
+      return;
+    }
+    // The dock is mounted after the page, so Tab from the page would go through
+    // every link first. With an element selected, Tab from the page goes to the
+    // dock. From there Tab and Shift+Tab go on as usual, so focus is not held.
+    if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selected && !editing &&
+        !dock.hidden && !row.hidden && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+      var stop = rowStop();
+      if (stop && stop.focus) {
+        e.preventDefault();
+        e.stopPropagation();
+        stop.focus();
+      }
       return;
     }
     if (e.key === "Escape") {
