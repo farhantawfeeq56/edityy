@@ -3664,6 +3664,27 @@ function icons(items, current, onPick, cls) {
   }
 
   var CONTROLS = {
+    radius: function () {
+      number(0, 200, 1, parseFloat(get("border-radius")) || 0, function (v) {
+        set("border-radius", v + "px");
+      }, { glyph: "square", label: "Radius" });
+    },
+    fit: function () {
+      var values = ["cover", "contain", "fill", "none"];
+      options(values.map(function (value) { return { v: value, label: value.charAt(0).toUpperCase() + value.slice(1) }; }), get("object-fit") || "fill", function (value) {
+        set("object-fit", value);
+        var b = slot("fit");
+        if (b) b.setAttribute("aria-label", "Fit: " + value);
+        return value;
+      });
+    },
+    opacity: function () {
+      // The dock's one number field, as every other value in it: the percentage
+      // is the number, and the property is that number over a hundred.
+      number(0, 100, 1, Math.round((parseFloat(get("opacity")) || 1) * 100), function (v) {
+        set("opacity", v / 100);
+      }, { glyph: "droplet", label: "Opacity" });
+    },
     mode: function () {
       var at = MODES.indexOf(mode());
       setMode(MODES[(at + 1) % MODES.length]);
@@ -3781,6 +3802,18 @@ function icons(items, current, onPick, cls) {
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
     alignment: function () {
+      if (selectedKind === "media") {
+        var positions = [
+          { v: "left top", label: "Top left" }, { v: "center top", label: "Top centre" }, { v: "right top", label: "Top right" },
+          { v: "left center", label: "Middle left" }, { v: "center center", label: "Centre" }, { v: "right center", label: "Middle right" },
+          { v: "left bottom", label: "Bottom left" }, { v: "center bottom", label: "Bottom centre" }, { v: "right bottom", label: "Bottom right" },
+        ];
+        icons(positions, get("object-position") || "center center", function (value) {
+          set("object-position", value);
+          return value;
+        }, "grid3");
+        return;
+      }
       var direction = mode() === "stack"
         ? "column"
         : String(get("flex-direction") || "row").trim();
@@ -3929,6 +3962,12 @@ function decorations() {
   }
 
   var BASE_ICONS = ICONS.slice(); // the type controls, the ones always there on text
+  var IMAGE_ICONS = [
+    { key: "fit", label: "Fit", glyph: "maximize" },
+    { key: "radius", label: "Radius", glyph: "square" },
+    { key: "alignment", label: "Alignment", glyph: "grip" },
+    { key: "opacity", label: "Opacity", glyph: "droplet" },
+  ];
   // The container dock mirrors the requested table. Mode is always present;
   // every other button is rebuilt from the current mode.
   var BOX_ICONS = {
@@ -4068,7 +4107,7 @@ function decorations() {
     delete row.dataset.glide;
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
-    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
+    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : selectedKind === "media" ? IMAGE_ICONS : BASE_ICONS;
     if (selectedKind === "container") {
       var currentMode = mode();
       row.appendChild(button(
@@ -4148,6 +4187,10 @@ function decorations() {
     if (selectedKind === "container") {
       paintCycle(DIRECTIONS, "direction", "flex-direction");
       paintCycle(WRAPS, "wrap", "flex-wrap");
+    }
+    if (selectedKind === "media") {
+      var fitButton = slot("fit");
+      if (fitButton) fitButton.setAttribute("aria-label", "Fit: " + (get("object-fit") || "fill"));
     }
     if (selectedKind === "text") {
       updateFamilyLabel();
@@ -4662,7 +4705,7 @@ function decorations() {
     if (editing) return;
     var dockWasHidden = dock.hidden;
     var multi = selectedItems.length > 1;
-    var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
+    var on = (selectedKind === "text" || selectedKind === "container" || selectedKind === "media") && !!selected;
     // Whether the dock should be up. It is put away at the end, so a dock
     // that is leaving is not taken back and then put away again.
     var want = multi || (!on && !(active && !selected));

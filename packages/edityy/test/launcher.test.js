@@ -1061,7 +1061,7 @@ test("the secondary dock centres on its control and corners at the row's ends", 
   assert.equal(pop.style.left, "36px", "its right edge 12px in from the viewport's");
 });
 
-test("the dock opens on text and container, stays shut on media", () => {
+test("the dock opens on text and container", () => {
   const { run, el } = fakeDom();
   const app = run();
   quiet(() => {
@@ -1520,6 +1520,33 @@ test("media beats the words around it", () => {
     app.click();
     assert.equal(kindOf(app, img), "media");
   });
+});
+
+test("image selection shows and applies image dock controls", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  quiet(() => {
+    app.click();
+    app.hover(img);
+    app.clickPage();
+  });
+  assert.equal(app.root.nodes.dock.hidden, false);
+  assert.deepEqual(app.root.nodes.row.children.map((button) => button.dataset.key), ["fit", "radius", "alignment", "opacity", "+"]);
+  quiet(() => press(app, "fit"));
+  pickOption(pop(app), "Cover");
+  assert.equal(img.style.getPropertyValue("object-fit"), "cover");
+  quiet(() => press(app, "radius"));
+  typeInto(pop(app), "Radius", 18);
+  assert.equal(img.style.getPropertyValue("border-radius"), "18px");
+  quiet(() => press(app, "alignment"));
+  const centre = all(pop(app)).find((button) => button.dataset?.key === "center center");
+  assert.ok(centre);
+  for (const fn of centre.bubbles.click.bubble) fn({});
+  assert.equal(img.style.getPropertyValue("object-position"), "center center");
+  quiet(() => press(app, "opacity"));
+  typeInto(pop(app), "Opacity", 45);
+  assert.equal(img.style.getPropertyValue("opacity"), 0.45);
 });
 
 test("every structural tag is a container", () => {
