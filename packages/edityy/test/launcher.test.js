@@ -783,7 +783,7 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.match(app.root.innerHTML, /\.frame-marker\.corner\{width:7\.5px;height:7\.5px;border-radius:50%\}/, "corner discs five lines across");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\{width:4\.5px;height:min\(24px,40%\);border-radius:2\.25px\}/, "edge bars three lines thick, sixteen long, ends round");
   assert.match(app.root.innerHTML, /\.frame-marker\.edge\.horizontal\{width:min\(24px,40%\);height:4\.5px\}/, "the same bar on a top or bottom edge");
-  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,var\(--ink\)\);pointer-events:auto\}/, "the handles wear the same colour as the line");
+  assert.match(app.root.innerHTML, /\.frame-marker\{position:absolute;background:var\(--frame,var\(--ink\)\);pointer-events:none\}/, "the handles wear the same colour as the line, and let a click through to the page");
   assert.match(app.root.innerHTML, /\[data-edge=left\]\{left:-3px\}\[data-edge=right\]\{right:-3px\}/, "vertical handles center on the side stroke");
   assert.match(app.root.innerHTML, /\[data-edge=top\]\{top:-3px\}\[data-edge=bottom\]\{bottom:-3px\}/, "horizontal handles center on the top and bottom strokes");
   assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");

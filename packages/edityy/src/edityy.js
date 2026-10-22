@@ -520,8 +520,10 @@
     "border:1.5px solid var(--frame,var(--ink));border-radius:0;background:transparent}",
     // The handles are that line in multiples: a corner disc 5 lines across
     // (7.5px) and an edge bar 3 lines thick (4.5px) and at most 16 lines long
-    // (24px), with round ends because the radius is half the bar.
-    ".frame-marker{position:absolute;background:var(--frame,var(--ink));pointer-events:auto}",
+    // (24px), with round ends because the radius is half the bar. They are
+    // drawn, not held: a handle that took the pointer would keep a click that
+    // belongs to the page under it, since the chrome's own clicks are ignored.
+    ".frame-marker{position:absolute;background:var(--frame,var(--ink));pointer-events:none}",
     ".frame-marker.corner{width:7.5px;height:7.5px;border-radius:50%}",
     ".frame-marker.edge{width:4.5px;height:min(24px,40%);border-radius:2.25px}",
     ".frame-marker.edge.horizontal{width:min(24px,40%);height:4.5px}",
