@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { CopyButton } from "./copy";
 
 const INSTALL = "npm install -D edityy";
@@ -215,19 +214,6 @@ export default function Home() {
               View the source
             </a>
           </p>
-
-          <figure className="mx-auto mt-12 w-full max-w-[22rem] overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-sm">
-            <Image
-              src="/image-controls-sample.svg"
-              alt="Sample landscape image for testing the image controls"
-              width={720}
-              height={440}
-              className="h-52 w-full rounded-xl object-cover"
-            />
-            <figcaption className="px-2 py-2 text-left text-xs text-neutral-600">
-              Test image: select it in edit mode to try the image dock.
-            </figcaption>
-          </figure>
         </section>
 
         <section id="how" className="scroll-mt-28 pt-40">
