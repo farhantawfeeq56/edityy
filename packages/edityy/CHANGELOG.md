@@ -4,6 +4,13 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.5.2 — 2026-10-23
+
+### Changed
+
+- The dock bar unfolds from the Edits button when it opens, and the `+` control
+  is set apart by a hairline. (#230)
+
 ## 0.5.1 — 2026-10-22
 
 ### Added
