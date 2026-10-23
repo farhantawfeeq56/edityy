@@ -969,6 +969,26 @@ test("a control that already says what it is needs no tooltip", async () => {
   assert.equal(tip.hidden, true, "the words on the control are the tip");
 });
 
+test("a chip wears a mark, not words, so it keeps its tip", async () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  quiet(() => {
+    app.click();
+    app.hover(img);
+    app.clickPage();
+  });
+  const row = app.root.nodes.row;
+  const tip = app.root.nodes.tip;
+  // The W and the H of the two lengths, and the × between a grid's counts, are
+  // marks: they say which field this is, not what it is.
+  const width = row.children.find((b) => b.dataset.key === "width");
+  quiet(() => { for (const fn of row.bubbles.pointerover.bubble) fn({ target: width }); });
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(tip.hidden, false, "the empty length says its own name");
+  assert.equal(tip.textContent, "Width");
+});
+
 test("the dot under the cursor is not a third of a second behind it", () => {
   const { run } = fakeDom();
   const app = run();
@@ -1061,7 +1081,47 @@ test("the secondary dock centres on its control and corners at the row's ends", 
   assert.equal(pop.style.left, "36px", "its right edge 12px in from the viewport's");
 });
 
-test("the dock opens on text and container", () => {
+test("a dock that comes back takes clicks again", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  let exit;
+  dock.animate = () => (exit = { cancel() {} });
+  quiet(() => {
+    app.click();
+    app.hover(text("p", "body"));
+    app.clickPage();
+  });
+  assert.equal(dock.hidden, false);
+  // The mode ends: the dock leaves, and takes no clicks while it goes.
+  quiet(() => {
+    app.fire("keydown", { key: "Escape" });
+    app.fire("keydown", { key: "Escape" });
+  });
+  assert.equal(dock.style.pointerEvents, "none", "a dock on its way out is leaving");
+  exit.onfinish();
+  assert.equal(dock.hidden, true);
+  // Back for another element: the dock is the same node, so the clicks have to
+  // come back with it. Left as none, every press in the row lands on the page.
+  quiet(() => {
+    app.click();
+    app.hover(text("p", "second"));
+    app.clickPage();
+  });
+  assert.equal(dock.hidden, false);
+  assert.equal(dock.style.pointerEvents, "", "the row takes clicks again");
+});
+
+test("the + stands behind a hairline of its own", () => {  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  // The hairline is the button's own mark: a child of the row would be one more
+  // stop for the arrows to land on, and nothing to focus.
+  assert.match(app.root.innerHTML, /\.ic\.add:before\{content:""[^}]*width:1px/, "a hairline stands to the left of the +");
+  assert.equal(app.root.nodes.row.children.some((node) => !node.dataset.key), false, "the row is buttons only");
+});
+
+test("the dock opens on text, container and media", () => {
   const { run, el } = fakeDom();
   const app = run();
   quiet(() => {
@@ -1522,7 +1582,7 @@ test("media beats the words around it", () => {
   });
 });
 
-test("image selection shows and applies image dock controls", () => {
+test("image selection wears the image's own controls in the dock's row", () => {
   const { run, el } = fakeDom();
   const app = run();
   const img = el("img");
@@ -1532,21 +1592,73 @@ test("image selection shows and applies image dock controls", () => {
     app.clickPage();
   });
   assert.equal(app.root.nodes.dock.hidden, false);
-  assert.deepEqual(app.root.nodes.row.children.map((button) => button.dataset.key), ["fit", "radius", "alignment", "opacity", "+"]);
-  quiet(() => press(app, "fit"));
-  pickOption(pop(app), "Cover");
-  assert.equal(img.style.getPropertyValue("object-fit"), "cover");
+  const row = app.root.nodes.row;
+  assert.deepEqual(row.children.map((button) => button.dataset.key), ["width", "height", "radius", "+"]);
+  // The two lengths are fields in the row, so an exact size is typed into them.
+  quiet(() => typeInto(row, "Width in pixels", 240));
+  assert.equal(img.style.getPropertyValue("width"), "240px");
+  quiet(() => typeInto(row, "Height in pixels", 160));
+  assert.equal(img.style.getPropertyValue("height"), "160px");
+  // The list beside the field holds the one word a length can say: auto, which
+  // hands the image back to the size the page gives it.
+  const list = all(row.children[0]).find((node) => String(node.className) === "custom-select");
+  const trigger = all(list).find((node) => node.getAttribute?.("aria-label") === "Width options");
+  assert.deepEqual(
+    all(list).filter((node) => String(node.className) === "custom-option").map((node) => node.getAttribute("aria-label")),
+    ["Auto"],
+    "auto is the list's only word"
+  );
+  quiet(() => { for (const fn of trigger.bubbles.click.bubble) fn({}); });
+  const auto = all(list).find((node) => node.getAttribute?.("aria-label") === "Auto");
+  quiet(() => { for (const fn of auto.bubbles.click.bubble) fn({}); });
+  assert.equal(img.style.getPropertyValue("width"), "", "auto is the page's own width again");
+  // A press on the value — on the word auto too — lands in the field, with the
+  // figure picked, so the next keystroke is the number that replaces it.
+  const width = all(row.children[0]).find((node) => node.getAttribute?.("aria-label") === "Width in pixels");
+  let focused = 0;
+  width.focus = () => focused++;
+  quiet(() => { for (const fn of width.bubbles.click.bubble) fn({ preventDefault() {} }); });
+  assert.equal(focused, 1, "the caret is in the field");
   quiet(() => press(app, "radius"));
   typeInto(pop(app), "Radius", 18);
   assert.equal(img.style.getPropertyValue("border-radius"), "18px");
-  quiet(() => press(app, "alignment"));
-  const centre = all(pop(app)).find((button) => button.dataset?.key === "center center");
-  assert.ok(centre);
-  for (const fn of centre.bubbles.click.bubble) fn({});
-  assert.equal(img.style.getPropertyValue("object-position"), "center center");
-  quiet(() => press(app, "opacity"));
+  // Opacity is added with the `+`, in place of the fill an image has no use for.
+  quiet(() => press(app, "+"));
+  const choices = all(pop(app)).filter((node) => String(node.className) === "opt").map((node) => node.dataset.key);
+  assert.ok(choices.includes("opacity"), "opacity is one of the choices");
+  assert.ok(!choices.includes("fill"), "and the fill is not");
+  quiet(() => pickOption(pop(app), "Opacity"));
+  assert.ok(row.children.some((button) => button.dataset.key === "opacity"), "opacity joined the row");
+  // Picking it from the `+` opens its field, as a picked control does.
   typeInto(pop(app), "Opacity", 45);
   assert.equal(img.style.getPropertyValue("opacity"), 0.45);
+});
+
+test("a control wears a mark of its own: radius is not the border's, blur not opacity's", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const img = el("img");
+  const row = app.root.nodes.row;
+  const mark = (key) => (all(row).find((node) => node.dataset?.key === key)?.innerHTML ?? "").match(/<svg[\s\S]*<\/svg>/)?.[0];
+  quiet(() => {
+    app.click();
+    app.hover(img);
+    app.clickPage();
+    press(app, "+");
+    pickOption(pop(app), "Border");
+  });
+  // The border joins the row beside the radius: two squares there would read as
+  // two of the same control.
+  assert.ok(mark("border"), "the border joined the row");
+  assert.notEqual(mark("radius"), mark("border"), "the corner is drawn apart from the border");
+  quiet(() => {
+    press(app, "+");
+    pickOption(pop(app), "Shadow");
+  });
+  // The shadow's blur is a field in the open panel, and the drop on the row is
+  // opacity's: they are on screen at the same time.
+  const blur = all(pop(app)).find((node) => node.getAttribute?.("aria-label") === "Blur").parentElement;
+  assert.notEqual(blur.children[0].innerHTML, mark("opacity"), "the blur is drawn apart from the drop");
 });
 
 test("every structural tag is a container", () => {
@@ -1615,6 +1727,31 @@ test("deselecting reports no kind at all", () => {
     app.fire("keydown", { key: "Escape" });
   });
   assert.equal(app.root.selection(), null);
+});
+
+test("the element menu takes clicks again after its exit animation", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const menu = app.root.nodes["element-menu"];
+  let exit;
+  menu.animate = () => (exit = { cancel() {} });
+  const first = app.el("p", { text: "First" });
+  const second = app.el("p", { text: "Second" });
+  quiet(() => {
+    app.click();
+    app.hover(first);
+    app.clickPage();
+    app.hover(null);
+    app.clickPage();
+  });
+  assert.equal(menu.style.pointerEvents, "none", "the departing card ignores clicks");
+  exit.onfinish();
+  quiet(() => {
+    app.hover(second);
+    app.clickPage();
+  });
+  assert.equal(menu.hidden, false);
+  assert.equal(menu.style.pointerEvents, "", "the new card accepts clicks");
 });
 
 test("selecting text shows actions without editing until Edit text is chosen", () => {
@@ -2144,6 +2281,43 @@ test("a border colour comes with a width, or it is a colour nobody sees", () => 
   typeInto(pop(app), "Border width", 0);
   assert.equal(p.style.getPropertyValue("border-width"), "0px");
   assert.equal(p.style.getPropertyValue("border-style"), "", "and no style left behind");
+});
+
+test("a border sits inside the box, on its edge, or outside it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  quiet(() => {
+    press(app, "+");
+    pickOption(pop(app), "Border");
+  });
+  typeInto(pop(app), "Border width", 4);
+  assert.equal(p.style.getPropertyValue("border-width"), "4px", "inside is a border");
+  assert.equal(p.style.getPropertyValue("border-style"), "solid");
+  assert.equal(p.style.getPropertyValue("box-sizing"), "border-box", "an inside line takes its room from the box");
+
+  /** Open the position list and take one of its words. The panel is drawn again
+      when the line moves, so it is found again each time. */
+  const sit = (value) => {
+    const wrap = all(pop(app)).find((node) => String(node.className) === "custom-select");
+    const trigger = all(wrap).find((node) => String(node.className).startsWith("custom-select-trigger"));
+    for (const fn of trigger.bubbles.click.bubble) fn({});
+    const choice = all(wrap).find((node) => node.dataset?.key === value);
+    assert.ok(choice, `no \\"${value}\\" in the list`);
+    for (const fn of choice.bubbles.click.bubble) fn({});
+  };
+
+  quiet(() => sit("outside"));
+  assert.equal(p.style.getPropertyValue("border-width"), "", "outside is not the border any more");
+  assert.match(p.style.getPropertyValue("outline"), /^4px solid/, "the line is an outline, on the box edge");
+  assert.equal(p.style.getPropertyValue("outline-offset"), "", "nothing pulled in");
+
+  quiet(() => sit("center"));
+  assert.equal(p.style.getPropertyValue("outline-offset"), "-2px", "the middle straddles the edge");
+
+  quiet(() => sit("inside"));
+  assert.equal(p.style.getPropertyValue("border-width"), "4px", "and back to the border it was");
+  assert.equal(p.style.getPropertyValue("outline"), "", "with the outline gone");
 });
 
 test("a number turns under the wheel and under a sideways drag", () => {
