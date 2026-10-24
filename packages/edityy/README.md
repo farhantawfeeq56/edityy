@@ -7,6 +7,28 @@ A visual editing layer for code-based websites.
 ## Install
 
 ```bash
+npx edityy init
+```
+
+That one command writes the setup for the project it runs in. It reads the
+framework from `package.json` and installs the package when it is missing.
+
+- **Vite** — it adds the plugin to your Vite config.
+- **Next.js** — it writes `instrumentation-client.ts` and `proxy.ts`. Your
+  `next.config.ts` is not edited and no route folder is needed.
+- **Anything else** — it prints the middleware to add.
+
+It also writes the MCP server into the agent config it finds, and appends the
+rules an agent needs to answer `vartest` to `AGENTS.md`. A second run changes
+nothing. `npx edityy init --remove` takes all of it back out, and
+`npx edityy doctor` checks the setup again at any time, MCP server included.
+
+Then start your dev server and open the page. Restart your agent session, and
+approve the Edityy server when it asks.
+
+To set it up by hand instead, the sections below name every file.
+
+```bash
 npm install -D edityy
 ```
 
