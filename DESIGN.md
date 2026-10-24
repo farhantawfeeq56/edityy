@@ -285,6 +285,10 @@ uses it.
 - Things arrive on the arrive curve and leave on the leave curve. A panel
   that is dismissed leaves as carefully as it came, and a panel whose
   content changes under the reader's eyes crosses rather than cuts.
+- A row of controls that changes its set keeps the controls both sets have.
+  They travel to their new places, the rest cross over, and the row takes
+  its new width with them. The pointer's fill waits for the pointer to move,
+  because the control it was measured on is gone.
 - A press goes down fast and comes back slow, because the hand is quick and
   the release settles. Every control that answers the pointer presses the
   same way, and a control that only changes colour does not press at all.
