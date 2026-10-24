@@ -4779,6 +4779,9 @@ function decorations() {
     var box = document.createElement("div");
     box.className = "row still";
     box.setAttribute("aria-hidden", "true");
+    // Inert as well: one of its controls still holds the row's tab stop, and a
+    // Tab during the motion must not land on a control that is leaving.
+    box.inert = true;
     box.style.cssText =
       "position:fixed;pointer-events:none;left:" + before.left + "px;top:" + before.top +
       "px;width:" + before.width + "px;height:" + before.height + "px";
