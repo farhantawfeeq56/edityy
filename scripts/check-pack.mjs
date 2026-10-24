@@ -16,6 +16,7 @@ const want = [
   "src/edityy.js",
   "src/index.d.ts",
   "src/index.js",
+  "src/init.js",
   "src/mcp.js",
   "src/motion.css",
   "src/variations.js",
