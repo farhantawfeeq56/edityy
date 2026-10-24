@@ -248,7 +248,8 @@
     // A hairline stands between the controls and the `+`: the row's controls act
     // on the element, and the `+` adds to them. It is the button's own mark, so
     // the row keeps its children and the keyboard keeps its stops.
-    ".ic.add:before{content:\"\";position:absolute;left:-5px;top:50%;width:1px;height:18px;margin-top:-9px;background:var(--ink-10)}",
+    ".ic.add:before{content:\"\";position:absolute;left:-5px;top:50%;width:1px;height:18px;",
+    "transform:translateY(-50%);background:var(--ink-10);pointer-events:none}",
     ".ic.family-name{display:block;width:84px;max-width:84px;overflow:hidden;",
     "padding:0 6px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 13px/30px}",
     ".ic.group-start{margin-left:8px;position:relative}",
@@ -780,6 +781,8 @@
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
+  // The row and the edits button it sits beside: one surface on the page.
+  var barEl = $("bar");
   var pop = $("pop");
   var review = $("review");
   var tip = $("tip");
@@ -2547,6 +2550,31 @@ function faces() {
     pop.style.left = left + "px";
     // The panel grows out of its control, wherever the panel itself lands.
     pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
+  }
+
+  /**
+   * The bar is drawn out of its right edge: the row, or the edits button when
+   * there is nothing beside it yet.
+   *
+   * One motion for both, because it is one surface. It is never faded and never
+   * scaled out of nothing: the bar holds its place, its left edge travels, and
+   * the right edge it hangs from — the edits button — slides the half the bar
+   * grew by. So it is never in two places at once, and the toolbar reads as the
+   * edits bar extending rather than a second bar arriving.
+   */
+  function extendBar() {
+    // How much of the bar is drawn out: whatever stands left of its right edge.
+    // With no row that is the edits button itself, at the very start.
+    var grow = row.hidden ? barEl.offsetWidth : row.offsetWidth + 6;
+    if (!grow) return;
+    animate(
+      barEl,
+      [
+        { clipPath: "inset(0 0 0 " + grow + "px)", transform: "translateX(" + -grow / 2 + "px)" },
+        { clipPath: "inset(0 0 0 0px)", transform: "none" },
+      ],
+      { duration: T.rise, easing: ARRIVE }
+    );
   }
 
   /**
@@ -4852,6 +4880,7 @@ function decorations() {
     // Whether the dock should be up. It is put away at the end, so a dock
     // that is leaving is not taken back and then put away again.
     var want = multi || (!on && !(active && !selected));
+    var rowWasHidden = row.hidden;
     row.hidden = !on || multi;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this
@@ -4885,7 +4914,15 @@ function decorations() {
     }
     if (want) hideDock();
     else showDock();
-    if (dockWasHidden && !dock.hidden) rise(dock, "translateX(-50%)", 8, "50% 100%");
+    if (dockWasHidden && !dock.hidden) {
+      // The bar is what opens, so the bar is what moves: the dock does not grow
+      // around it, and no second animation runs inside it.
+      extendBar();
+    } else if (rowWasHidden && !row.hidden) {
+      // The dock stayed, and the row came back on its own: a shift-click that
+      // puts the selection back to one element.
+      extendBar();
+    }
   }
 
   /**

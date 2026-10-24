@@ -28,6 +28,9 @@ All notable changes to the `edityy` package. The format follows
   keeps its square and the opacity keeps its drop. (#223)
 - A chip in the row keeps its tip. The mark a chip wears, a letter or a `×`, is
   not a word, so the tip says the name of the field. (#223)
+- The dock bar unfolds from the Edits button when it opens: the bar holds its
+  place, its left edge travels, and the right edge it hangs from slides the
+  half the bar grew by. (#230)
 
 ### Fixed
 
