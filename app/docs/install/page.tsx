@@ -15,6 +15,15 @@ export default function DocsInstall() {
 
       <Pre file="terminal">{`npm install -D edityy`}</Pre>
 
+      <H2 id="one-command">One command</H2>
+      <Pre file="terminal">{`npx edityy init`}</Pre>
+      <P>It reads the framework from <Code>package.json</Code> and writes every file the project needs: the Vite
+        plugin, or the Next.js client file and <Code>proxy.ts</Code>. It also adds the MCP server to the agent config it
+        finds, and the rules an agent needs to answer <Code>vartest</Code> to <Code>AGENTS.md</Code>.</P>
+      <P>A second run changes nothing. <Code>npx edityy init --remove</Code> takes it back out, and{" "}
+        <Code>npx edityy doctor</Code> checks the setup again, MCP server included.</P>
+      <P>The sections below set the same thing up by hand.</P>
+
       <P>Add one line to your dev server. The middleware serves the launcher and injects the tag into the HTML that
         server returns.</P>
 
