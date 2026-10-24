@@ -55,11 +55,17 @@
     "arrow-right": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></svg>',
     "arrow-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg>',
     "baseline": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16" /> <path d="m6 16 6-12 6 12" /> <path d="M8 12h8" /></svg>',
+    // A soft edge: a solid figure with its own halo. Blur wears it, so the drop
+    // stays the mark of opacity alone.
+    "blur": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5" /> <circle cx="12" cy="12" r="8" opacity=".45" /></svg>',
     "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>',
-    // A drop: the softest edge there is, for the shadow's blur.
+    // A drop: how much of the element shows through, for opacity.
     "droplet": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg>',
     "bold": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" /></svg>',
     "columns-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M12 3v18" /></svg>',
+    // A corner with a round bend: what a radius does to a box, and a shape of its
+    // own, so the square stays the border's mark.
+    "corner-radius": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11a7 7 0 0 1 7-7h9" /></svg>',
     "ellipsis": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg>',
     "expand": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6" /> <path d="m15 9 6-6" /> <path d="M21 16v5h-5" /> <path d="M21 8V3h-5" /> <path d="M3 16v5h5" /> <path d="m3 21 6-6" /> <path d="M3 8V3h5" /> <path d="M9 9 3 3" /></svg>',
     "frame": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="6" y2="6" /> <line x1="22" x2="2" y1="18" y2="18" /> <line x1="6" x2="6" y1="2" y2="22" /> <line x1="18" x2="18" y1="2" y2="22" /></svg>',
@@ -239,6 +245,11 @@
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
     ".ic[aria-expanded=true]{background:var(--ink-12);color:var(--ink)}",
     ".ic.add{color:var(--muted)}",
+    // A hairline stands between the controls and the `+`: the row's controls act
+    // on the element, and the `+` adds to them. It is the button's own mark, so
+    // the row keeps its children and the keyboard keeps its stops.
+    ".ic.add:before{content:\"\";position:absolute;left:-5px;top:50%;width:1px;height:18px;",
+    "transform:translateY(-50%);background:var(--ink-10);pointer-events:none}",
     ".ic.family-name{display:block;width:84px;max-width:84px;overflow:hidden;",
     "padding:0 6px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 13px/30px}",
     ".ic.group-start{margin-left:8px;position:relative}",
@@ -255,6 +266,12 @@
     "font:500 13px/28px inherit;outline:none;text-align:center;font-variant-numeric:tabular-nums}",
     ".dock-count input::placeholder{color:var(--muted);opacity:1}",
     ".dock-count .times{color:var(--muted);font-family:inherit;font-size:12px;font-weight:500;line-height:1}",
+    // A chip whose value can also be a word wears the list beside the figure: a
+    // bare chevron in the chip, so the list is not a second box in the row.
+    ".dock-count .custom-select{width:20px;flex:none;min-width:0}",
+    ".dock-count .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px;color:var(--muted)}",
+    ".dock-count .custom-select-trigger:hover{color:var(--ink)}",
+    ".dock-count .custom-select-menu{left:auto;right:0;bottom:calc(100% + 6px);width:max-content;min-width:80px}",
     // The letter of an absolute side, so four numbers in a row still say which
     // side is which without a label over every one of them.
     ".dock-count .axis{margin-right:1px;color:var(--muted);font-family:inherit;font-size:9px;",
@@ -437,6 +454,9 @@
     // wide as its own digits, so the columns are as wide as the chips.
     ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px 2px;padding:2px 0}",
     ".pair{display:flex;flex-direction:column;gap:6px;padding:2px 0}",
+    // A value and the list that decides where it goes, on one line: the chip is as
+    // wide as its digits, and the list takes the room that is left.
+    ".field-line{display:flex;align-items:center;gap:6px;padding:2px 0}",
 
     ".field-label{white-space:nowrap}",
     // A glyph may stand where a word would: a shadow's blur and spread are
@@ -657,10 +677,12 @@
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     ".ic.solo[aria-expanded=true]{background:var(--fill-open)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
-    // because the browser own title is slow and cannot wear the ramp.
-    ".tip{position:fixed;z-index:6;pointer-events:none;padding:6px 8px;border-radius:8px;",
-    "background:var(--ink);color:var(--paper);font:500 12px/1.2 inherit;white-space:nowrap;",
-    "box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);transform-origin:50% 100%}",
+    // because the browser own title is slow and cannot wear the ramp. Its size is
+    // the dock's: a touch under the 13px the dock's own words are, in the 7px
+    // corner its buttons have, so it reads as part of the row and not a card.
+    ".tip{position:fixed;z-index:6;pointer-events:none;padding:4px 7px;border-radius:7px;",
+    "background:var(--ink);color:var(--paper);font:500 11px/1.2 inherit;white-space:nowrap;",
+    "box-shadow:0 1px 1px var(--ink-8),0 4px 10px var(--ink-12);transform-origin:50% 100%}",
     ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
@@ -759,6 +781,8 @@
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
+  // The row and the edits button it sits beside: one surface on the page.
+  var barEl = $("bar");
   var pop = $("pop");
   var review = $("review");
   var tip = $("tip");
@@ -1560,6 +1584,7 @@
       elementMenu.hidden = false;
       return;
     }
+    elementMenu.style.pointerEvents = "";
     elementMenu.hidden = false;
   }
 
@@ -2097,6 +2122,18 @@ function faces() {
     { key: "margin", label: "Margin", glyph: MARGIN_GLYPH },
   ];
 
+  // A media element's `+` offers opacity in place of the fill: an image has no
+  // background of its own worth painting, and how much of it shows through is
+  // the thing to add.
+  var MEDIA_ADD = ADD.map(function (item) {
+    return item.key === "fill" ? { key: "opacity", label: "Opacity", glyph: "droplet" } : item;
+  });
+
+  /** The controls an element of this kind can add with the `+`. */
+  function addable() {
+    return selectedKind === "media" ? MEDIA_ADD : ADD;
+  }
+
   /** A button in the dock, or an option inside one control. */
   function button(cls, html, label, onClick, key) {
     var b = document.createElement("button");
@@ -2513,6 +2550,31 @@ function faces() {
     pop.style.left = left + "px";
     // The panel grows out of its control, wherever the panel itself lands.
     pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
+  }
+
+  /**
+   * The bar is drawn out of its right edge: the row, or the edits button when
+   * there is nothing beside it yet.
+   *
+   * One motion for both, because it is one surface. It is never faded and never
+   * scaled out of nothing: the bar holds its place, its left edge travels, and
+   * the right edge it hangs from — the edits button — slides the half the bar
+   * grew by. So it is never in two places at once, and the toolbar reads as the
+   * edits bar extending rather than a second bar arriving.
+   */
+  function extendBar() {
+    // How much of the bar is drawn out: whatever stands left of its right edge.
+    // With no row that is the edits button itself, at the very start.
+    var grow = row.hidden ? barEl.offsetWidth : row.offsetWidth + 6;
+    if (!grow) return;
+    animate(
+      barEl,
+      [
+        { clipPath: "inset(0 0 0 " + grow + "px)", transform: "translateX(" + -grow / 2 + "px)" },
+        { clipPath: "inset(0 0 0 0px)", transform: "none" },
+      ],
+      { duration: T.rise, easing: ARRIVE }
+    );
   }
 
   /**
@@ -3663,7 +3725,69 @@ function icons(items, current, onPick, cls) {
     }, { glyph: "move-vertical", label: "Line spacing" });
   }
 
+  /**
+   * Where the border sits, read from the line it is drawn with: a border is drawn
+   * inside the box, an outline outside it, and an outline pulled in by half its
+   * width straddles the edge — the middle.
+   */
+  function borderEdge() {
+    if (!(num("outline-width", 0) > 0)) return "inside";
+    return (parseFloat(get("outline-offset")) || 0) < 0 ? "center" : "outside";
+  }
+
+  /** How wide the line is, wherever it sits. */
+  function borderWidth() {
+    // The computed width first, and the shorthand a value we wrote ourselves may
+    // be the only record of: outline-width says nothing until the browser has
+    // resolved the shorthand.
+    var outline = num("outline-width", 0) || parseFloat(get("outline")) || 0;
+    return Math.round(outline > 0 ? outline : num("border-width", 0));
+  }
+
+  /** The colour the line is drawn in, wherever it sits. */
+  function borderColour() {
+    return borderEdge() === "inside" ? get("border-color") : get("outline-color");
+  }
+
+  /**
+   * Draw the border where it was asked for: one line, one width, one colour.
+   *
+   * CSS draws a border inside the box and an outline outside it. So the middle is
+   * the outside line pulled in by half its own width, and the three are one line
+   * in three places rather than three different things to style.
+   */
+  function setBorder(edge, width, colour) {
+    var outside = edge !== "inside";
+    set("border-width", outside ? "" : width + "px");
+    set("border-style", outside || !width ? "" : "solid");
+    // A border takes its room from the box it sits in; an outline takes none, and
+    // an inside line that grows the element was never inside it.
+    set("box-sizing", !outside && width ? "border-box" : "");
+    set("outline", outside && width ? width + "px solid " + (colour || "currentColor") : "");
+    set("outline-offset", outside && width && edge === "center" ? -(width / 2) + "px" : "");
+    if (colour) set(outside ? "outline-color" : "border-color", colour);
+  }
+
+  /** The three places a border can sit, in the order of the list. */
+  var BORDER_EDGES = [
+    { value: "inside", label: "Inside" },
+    { value: "center", label: "Center" },
+    { value: "outside", label: "Outside" },
+  ];
+
   var CONTROLS = {
+    radius: function () {
+      number(0, 200, 1, Math.round(parseFloat(get("border-radius")) || 0), function (v) {
+        set("border-radius", v + "px");
+      }, { glyph: "corner-radius", label: "Radius" });
+    },
+    opacity: function () {
+      // The dock's one number field, as every other value in it: the percentage
+      // is the number, and the property is that number over a hundred.
+      number(0, 100, 1, Math.round((parseFloat(get("opacity")) || 1) * 100), function (v) {
+        set("opacity", v / 100);
+      }, { glyph: "droplet", label: "Opacity" });
+    },
     mode: function () {
       var at = MODES.indexOf(mode());
       setMode(MODES[(at + 1) % MODES.length]);
@@ -3729,16 +3853,29 @@ function icons(items, current, onPick, cls) {
       });
     },
     border: function () {
-      picker(get("border-color"), function (value) {
-        set("border-color", value);
+      var edge = borderEdge();
+      var width = borderWidth();
+      var colour = borderColour();
+      picker(colour, function (value) {
+        colour = value;
+        setBorder(edge, width, colour);
       });
       // A colour on a border that has no width is a colour nobody sees, so the
       // width is offered too. A hairline, in the ramp: thick enough to read,
-      // thin enough not to shout.
-      number(0, 120, 1, num("border-width", 0), function (v) {
-        set("border-width", v + "px");
-        set("border-style", v ? "solid" : "");
-      }, { glyph: "square", label: "Border width" });
+      // thin enough not to shout. Where the line sits is the second half of the
+      // same line: it decides which line the width is written to, so the panel is
+      // drawn again when it changes.
+      var row = document.createElement("div");
+      row.className = "field-line";
+      number(0, 120, 1, width, function (v) {
+        width = v;
+        setBorder(edge, width, colour);
+      }, { glyph: "square", label: "Border width" }, row);
+      row.appendChild(customSelect(BORDER_EDGES, edge, function (value) {
+        setBorder(value, width, colour);
+        show("border");
+      }, "Border position", false));
+      pop.appendChild(row);
     },
     shadow: function () {
       var text = selectedKind === "text";
@@ -3749,7 +3886,7 @@ function icons(items, current, onPick, cls) {
       var fields = [
         { i: 0, label: "X", min: -40, max: 40 },
         { i: 1, label: "Y", min: -40, max: 40 },
-        { i: 2, label: { glyph: "droplet", label: "Blur" }, min: 0, max: 80 },
+        { i: 2, label: { glyph: "blur", label: "Blur" }, min: 0, max: 80 },
       ];
       // A text shadow has no spread: the letters cast it, not the box.
       if (!text) fields.push({ i: 3, label: { glyph: "maximize", label: "Spread" }, min: -40, max: 40 });
@@ -3929,6 +4066,16 @@ function decorations() {
   }
 
   var BASE_ICONS = ICONS.slice(); // the type controls, the ones always there on text
+  /**
+   * A media element's dock is its own three controls, worn in the row: the two
+   * lengths, and the corner on them. Its opacity is added with the `+`, as a
+   * shadow or a border is.
+   */
+  var IMAGE_ICONS = [
+    { key: "width", label: "Width" },
+    { key: "height", label: "Height" },
+    { key: "radius", label: "Radius", glyph: "corner-radius" },
+  ];
   // The container dock mirrors the requested table. Mode is always present;
   // every other button is rebuilt from the current mode.
   var BOX_ICONS = {
@@ -4055,6 +4202,65 @@ function decorations() {
     });
   }
 
+  /**
+   * A number the row wears in a chip of its own, the way a grid wears its
+   * counts: a mark first, then the figure, and the chevron for the list of the
+   * words the value can also be. The figure is a field, so an exact number
+   * needs no list.
+   */
+  function dockNumber(spec) {
+    var mark = spec.mark ? '<span class="axis">' + spec.mark + "</span>" : "";
+    var field = button("ic dock-count", mark, spec.label, function () {}, spec.key);
+    var input = document.createElement("input");
+    input.type = "number";
+    input.min = spec.min;
+    input.max = spec.max;
+    input.step = 1;
+    input.value = spec.value === null ? "" : String(spec.value);
+    if (spec.auto) input.placeholder = "auto";
+    input.setAttribute("aria-label", spec.label + " in pixels");
+    // A press on the value — on the word auto too — lands in the field, ready to
+    // type over it. It is the field's own press: no pointer capture, so a press
+    // that leaves the dock cannot hold the pointer away from the page.
+    input.addEventListener("click", function (e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (input.focus) input.focus();
+    });
+    input.addEventListener("input", function () {
+      // A blank field is not a number. Where the length may be auto, it is auto.
+      if (input.value === "") {
+        if (spec.auto) spec.onInput(null);
+        return;
+      }
+      hold();
+      spec.onInput(Number(input.value));
+    });
+    input.addEventListener("change", release);
+    field.appendChild(input);
+    if (spec.auto) {
+      field.appendChild(customSelect([{ value: null, label: "Auto" }], null, function () {
+        input.value = "";
+        spec.onInput(null);
+      }, spec.label + " options", true));
+    }
+    return field;
+  }
+
+  /** The image's own length: the page's size, or a number of pixels. */
+  function imageLengthField(prop) {
+    var size = Math.round(parseFloat(get(prop)));
+    return dockNumber({
+      key: prop,
+      label: prop.charAt(0).toUpperCase() + prop.slice(1),
+      mark: prop === "width" ? "W" : "H",
+      min: 0,
+      max: 4000,
+      value: isNaN(size) ? null : size,
+      auto: true,
+      onInput: function (value) { set(prop, value === null ? "" : value + "px"); },
+    });
+  }
+
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
     // A rebuild under the keyboard puts focus back on the same control, or on
@@ -4068,7 +4274,7 @@ function decorations() {
     delete row.dataset.glide;
     // Text keeps its type controls. Containers get the mode cycle followed by
     // exactly the controls listed for that mode.
-    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : BASE_ICONS;
+    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : selectedKind === "media" ? IMAGE_ICONS : BASE_ICONS;
     if (selectedKind === "container") {
       var currentMode = mode();
       row.appendChild(button(
@@ -4087,6 +4293,10 @@ function decorations() {
       }
       if (!isText && definition.key === "bounds") {
         boundsFields().forEach(function (field) { row.appendChild(field); });
+        return;
+      }
+      if (selectedKind === "media" && (definition.key === "width" || definition.key === "height")) {
+        row.appendChild(imageLengthField(definition.key));
         return;
       }
       // The table holds a name per control, and svg() draws it. Two of them hold no
@@ -4167,7 +4377,7 @@ function decorations() {
     // does not clutter, and a control added to one element has no business
     // sitting on every other one.
     (selected ? addedTo(selected) : []).forEach(function (key) {
-      var item = ADD.filter(function (a) { return a.key === key; })[0];
+      var item = addable().filter(function (a) { return a.key === key; })[0];
       if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
     });
     addBtn = button("ic add group-start", svg("plus"), "Add a control", function () {
@@ -4330,6 +4540,10 @@ function decorations() {
    */
   function saysItself(node) {
     if (!node) return false;
+    // A chip wears a mark where its words would be — W, H, T, R, B, L, or the ×
+    // between two counts — and a mark says which field this is, not what it is.
+    // So a chip keeps its tip, whether the field is empty or holds a value.
+    if (String(node.className || "").split(" ").indexOf("dock-count") !== -1) return false;
     var words = node.innerText;
     if (words === undefined || words === null) words = node.textContent || "";
     if (String(words).trim()) return true;
@@ -4630,11 +4844,11 @@ function decorations() {
     // The list of what can be added, with the ones this element already has
     // gone: an icon that is there cannot be added twice.
     options(
-      ADD.filter(function (item) { return !icon(item.key); })
+      addable().filter(function (item) { return !icon(item.key); })
           .map(function (item) { return { v: item.key, label: item.label }; }),
       "",
       function (key) {
-        var item = ADD.filter(function (a) { return a.key === key; })[0];
+        var item = addable().filter(function (a) { return a.key === key; })[0];
         if (!item || !selected || icon(key)) return;
         // Recorded on the element, so this control belongs to this element and
         // comes back only for it.
@@ -4662,10 +4876,11 @@ function decorations() {
     if (editing) return;
     var dockWasHidden = dock.hidden;
     var multi = selectedItems.length > 1;
-    var on = (selectedKind === "text" || selectedKind === "container") && !!selected;
+    var on = (selectedKind === "text" || selectedKind === "container" || selectedKind === "media") && !!selected;
     // Whether the dock should be up. It is put away at the end, so a dock
     // that is leaving is not taken back and then put away again.
     var want = multi || (!on && !(active && !selected));
+    var rowWasHidden = row.hidden;
     row.hidden = !on || multi;
     // Rebuilt whenever the selection moves to a different element, because the
     // row belongs to the element: its base controls, the `+`, and only what this
@@ -4699,7 +4914,15 @@ function decorations() {
     }
     if (want) hideDock();
     else showDock();
-    if (dockWasHidden && !dock.hidden) rise(dock, "translateX(-50%)", 8, "50% 100%");
+    if (dockWasHidden && !dock.hidden) {
+      // The bar is what opens, so the bar is what moves: the dock does not grow
+      // around it, and no second animation runs inside it.
+      extendBar();
+    } else if (rowWasHidden && !row.hidden) {
+      // The dock stayed, and the row came back on its own: a shift-click that
+      // puts the selection back to one element.
+      extendBar();
+    }
   }
 
   /**
@@ -4732,6 +4955,11 @@ function decorations() {
 
   /** Bring the dock back: a fade that was leaving is put away. */
   function showDock() {
+    // The fade out that took the dock away left it with no clicks. A dock that
+    // comes back gives them back, whether that fade was interrupted or had
+    // already finished — otherwise the row is there and every click in it lands
+    // on the page behind.
+    dock.style.pointerEvents = "";
     if (dockLeaving) {
       // The dock is on its way out and is wanted back: it comes back from
       // where it is, not from where it was. A dock that snapped back to full
@@ -4743,7 +4971,6 @@ function decorations() {
       );
       dockLeaving.cancel();
       dockLeaving = null;
-      dock.style.pointerEvents = "";
       dock.hidden = false;
       return;
     }

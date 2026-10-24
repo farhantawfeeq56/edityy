@@ -4,6 +4,41 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.6.0 — 2026-10-23
+
+### Added
+
+- A media element has its own controls in the dock's row: **Width** and
+  **Height**, as fields in pixels, and **Radius**. The list beside each length
+  says **Auto**, which gives the image back to the size of the page, and a
+  press on the field puts the caret in it, so an exact size is typed as any
+  other number is. A media element's `+` offers **Opacity** in place of the
+  fill, and Radius opens a field of its own. (#223)
+- A border says where it sits: **Inside**, **Center** or **Outside**, on the
+  same line as its width. Inside is a border, which takes its room from the
+  box, Outside is an outline, and Center is that outline pulled in by half its
+  width. (#228)
+- A hairline stands between the controls and the `+`. (#223)
+
+### Changed
+
+- The tip is the size of the dock: 11px in the 7px corner its buttons have, so
+  it reads as part of the row and not as a card. (#223)
+- The corner radius and a shadow's blur wear a mark of their own, so the border
+  keeps its square and the opacity keeps its drop. (#223)
+- A chip in the row keeps its tip. The mark a chip wears, a letter or a `×`, is
+  not a word, so the tip says the name of the field. (#223)
+- The dock bar unfolds from the Edits button when it opens: the bar holds its
+  place, its left edge travels, and the right edge it hangs from slides the
+  half the bar grew by. (#230)
+
+### Fixed
+
+- A surface that is sent away and comes back takes clicks again. The fade out
+  left `pointer-events` at none, and only an interrupted fade cleared it, so
+  every press in a dock that had finished leaving landed on the page behind.
+  The card had the same fault. (#227)
+
 ## 0.5.1 — 2026-10-22
 
 ### Added
