@@ -11,7 +11,8 @@ npx edityy init
 ```
 
 That one command writes the setup for the project it runs in. It reads the
-framework from `package.json` and installs the package when it is missing.
+framework from `package.json` and installs the package when it is missing
+(`--no-install` skips the install).
 
 - **Vite** — it adds the plugin to your Vite config.
 - **Next.js** — it writes `instrumentation-client.ts` and `proxy.ts`. Your

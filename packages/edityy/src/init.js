@@ -240,16 +240,19 @@ async function dropVite(root, name) {
 
 /* --------------------------------------------------------------- the steps */
 
+/** A file body without the marker line, for showing a file the user must write. */
+function bodyWithoutMark(body) {
+  return body.startsWith(MARK) ? body.slice(MARK.length + 1) : body;
+}
+
 /**
- * What the project needs. `steps` is what the caller prints; `write` says
- * whether anything was changed.
+ * What the project needs. `steps` is what the caller prints.
  */
 export async function plan(root = process.cwd()) {
   const at = resolve(root);
   const pkg = await readManifest(at);
   const framework = frameworkOf(pkg);
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  const files = [];
   const steps = [];
   const add = (state, what, note) => steps.push({ state, what, note });
 
@@ -257,8 +260,10 @@ export async function plan(root = process.cwd()) {
 
   if (framework === "next") {
     const base = nextBase(at);
-    files.push({ file: join(base, "instrumentation-client.ts"), body: instrumentationClient(), what: "mount the launcher" });
-    files.push({ file: join(base, "proxy.ts"), body: proxy(), what: "answer the endpoints" });
+    const files = [
+      { file: join(base, "instrumentation-client.ts"), body: instrumentationClient(), what: "mount the launcher" },
+      { file: join(base, "proxy.ts"), body: proxy(), what: "answer the endpoints" },
+    ];
     for (const entry of files) steps.push({ state: "pending", what: entry.what, note: entry.file.slice(at.length + 1), entry });
     add("done", "next.config.ts", "no edit needed");
   } else if (framework === "vite") {
@@ -278,7 +283,7 @@ export async function plan(root = process.cwd()) {
   if (!claude && !cursor) add("manual", "add the MCP server", "no agent config found", JSON.stringify({ mcpServers: { edityy: mcpEntry() } }, null, 2));
   steps.push({ state: "pending", what: "teach the agent vartest", note: rulesFile(at).slice(at.length + 1), rules: true });
 
-  return { root: at, framework, steps, files, needsInstall: !deps.edityy };
+  return { root: at, framework, steps, needsInstall: !deps.edityy };
 }
 
 /** Write the setup, and answer what happened to each step. */
@@ -300,7 +305,9 @@ export async function init({ root = process.cwd(), install = true } = {}) {
     }
     if (step.entry) {
       const state = await put(step.entry.file, step.entry.body);
-      done.push({ ...step, state: state === "yours" ? "yours" : state === "already" ? "already" : "written" });
+      // A file the user wrote stays as it is, so the report shows what to add
+      // to it instead of claiming the step is done.
+      done.push({ ...step, state, snippet: state === "yours" ? bodyWithoutMark(step.entry.body) : undefined });
     }
     if (step.vite) {
       const { state, note, snippet } = await putVite(at, step.vite);
@@ -311,7 +318,15 @@ export async function init({ root = process.cwd(), install = true } = {}) {
   }
 
   // The files are useless without the package, so add it when it is missing.
-  if (install && needsInstall) installer = await run(["install", "-D", "edityy"], at);
+  // A finished install is not a step the user still has to do.
+  if (install && needsInstall) {
+    installer = await run("install -D edityy", at);
+    const step = done.find((entry) => entry.state === "todo");
+    if (step && installer.ok) {
+      step.state = "done";
+      step.note = "edityy installed";
+    }
+  }
 
   return { root: at, framework, steps: done, installer };
 }
@@ -420,9 +435,11 @@ export async function doctor({ root = process.cwd() } = {}) {
 /* ------------------------------------------------------------------- shell */
 
 /** Run a command in the project, and answer whether it worked. */
-function run(args, cwd) {
+function run(line, cwd) {
   return new Promise((resolveRun) => {
-    const child = spawn("npm", args, { cwd, stdio: "inherit", shell: process.platform === "win32" });
+    // One string with no argument list: shell quoting is the only way `npm`
+    // starts on Windows, and the command is a constant here.
+    const child = spawn(`npm ${line}`, { cwd, stdio: "inherit", shell: true });
     child.on("error", (error) => resolveRun({ ok: false, error: error.message }));
     child.on("exit", (code) => resolveRun({ ok: code === 0, code }));
   });

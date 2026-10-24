@@ -59,7 +59,9 @@ test("a file the user wrote is kept, not overwritten", async () => {
   const { steps } = await init({ root, install: false });
 
   assert.equal(read(root, "instrumentation-client.ts"), mine);
-  assert.equal(state(steps, "mount the launcher"), "yours");
+  const step = steps.find((entry) => entry.what === "mount the launcher");
+  assert.equal(step.state, "yours");
+  assert.match(step.snippet, /import\("edityy\/client"\)/, "the report says what to add to the file");
   rmSync(root, { recursive: true, force: true });
 });
 
