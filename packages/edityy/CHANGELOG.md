@@ -4,6 +4,23 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.7.0 — 2026-10-24
+
+### Added
+
+- `npx edityy init` writes the whole setup for the project it runs in: the Vite
+  plugin, or the Next.js client file and `proxy.ts`; the MCP server in the agent
+  config it finds; and the `vartest` rules in `AGENTS.md`. It installs the
+  package when it is missing, changes nothing on a second run, and never edits
+  `next.config.ts`. `--remove` takes it back out.
+- `npx edityy doctor` checks the setup again, and asks the MCP server for its
+  tools over stdio. A written config file is not proof that the server answers.
+
+### Changed
+
+- Under Next.js, both endpoints answer from `proxy.ts`, so the app needs no
+  rewrite and no route folder for them. `next.config.ts` keeps no Edityy lines.
+
 ## 0.6.0 — 2026-10-23
 
 ### Added
