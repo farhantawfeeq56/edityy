@@ -1237,6 +1237,88 @@ test("the dock opens on text, container and media", () => {
   assert.match(app.root.innerHTML, /\.element-menu\{position:fixed/);
 });
 
+test("a layout mode change glides the row instead of cutting", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("div"));
+    app.clickPage();
+  });
+  const row = app.root.nodes.row;
+  // The dock is centred, so a narrower row also moves right: the box starts
+  // where the row was and ends where the row is now.
+  const places = [
+    { left: 100, top: 700, width: 200, height: 36 },
+    { left: 140, top: 700, width: 120, height: 36 },
+  ];
+  let at = 0;
+  row.getBoundingClientRect = () => places[Math.min(at++, 1)];
+  const runs = [];
+  const record = function (frames, options) {
+    runs.push({ node: this, frames, options });
+    return runs[runs.length - 1];
+  };
+  const made = app.doc.createElement;
+  app.doc.createElement = (tag) => {
+    const node = made(tag);
+    node.animate = record;
+    return node;
+  };
+  row.animate = record;
+  quiet(() => press(app, "mode"));
+
+  const box = runs.find((r) => r.node === row && r.frames[0].width);
+  assert.ok(box, "the box takes its new width");
+  assert.equal(box.frames[0].width, "200px", "it starts where the row was");
+  assert.equal(box.frames[1].width, "120px", "and ends where the row is now");
+  assert.equal(row.style.flexWrap, "nowrap", "the row is a window on its controls while it moves");
+  // The controls of the mode that is left are still on screen while they go, so
+  // the change is a change of content and not a replacement of the toolbar.
+  const still = runs.find((r) => String(r.node.className).includes("still"));
+  assert.ok(still, "the old controls cross over");
+  assert.equal(still.node.attributes["aria-hidden"], "true", "and out of the reader's way");
+  assert.deepEqual(
+    still.node.children.map((b) => b.dataset.key),
+    ["mode", "direction", "gap", "alignment", "+"]
+  );
+  still.onfinish();
+  assert.equal(still.node.parentElement, null, "they leave when the motion is done");
+  box.onfinish();
+  assert.equal(row.style.flexWrap, "", "the row takes its wrapping back");
+  assert.equal(row.style.overflow, "");
+  // The mode control is in both rows, so it is the same control: it travels.
+  const travel = runs.find((r) => r.node.dataset?.key === "mode" && r.frames[0].transform);
+  assert.ok(travel, "a control both modes have travels to its new place");
+  const added = runs.find((r) => r.node.dataset?.key === "wrap" && r.frames[0].opacity === 0);
+  assert.ok(added, "a control the mode adds arrives");
+});
+
+test("the pointer's fill waits for the row the mode change left", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  quiet(() => {
+    app.click();
+    app.hover(el("div"));
+    app.clickPage();
+  });
+  const row = app.root.nodes.row;
+  row.getBoundingClientRect = () => ({ left: 100, top: 700, width: 200, height: 36 });
+  row.animate = () => null;
+  quiet(() => press(app, "mode"));
+  // The pointer is still over the row, on a control that was built a moment ago
+  // and is not the one the fill was measured on.
+  const over = (target) => {
+    for (const fn of row.bubbles.pointerover.bubble) fn({ target, relatedTarget: null });
+  };
+  over(row.children[1]);
+  assert.equal(row.dataset.glide, undefined, "the fill stays down while the pointer is parked");
+  assert.equal(row.style.getPropertyValue("--glide-x"), "", "and it is not measured on the old row");
+  // It comes back when the pointer moves, on the control it is on now.
+  for (const fn of row.bubbles.pointermove.bubble) fn({ target: row.children[1] });
+  assert.notEqual(row.dataset.glide, undefined, "a pointer that moves fills the control under it");
+});
+
 test("wrap and direction are cycle buttons, and establish flex first", () => {
   const { run, el } = fakeDom();
   const app = run();
