@@ -4,6 +4,22 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.8.0 — 2026-10-24
+
+### Added
+
+- The dock's row glides when the layout mode changes. The controls both modes
+  have are the same control, and they travel to the places the new row gives
+  them. What the mode adds or removes crosses over, and the row takes its new
+  width under them. (#236)
+
+### Fixed
+
+- The pointer's fill stays where it was measured when the layout mode changes.
+  It sat between two controls that the change had removed, and it pointed at
+  them. It now goes down with them, and comes back with the first move of the
+  pointer. (#236)
+
 ## 0.7.0 — 2026-10-24
 
 ### Added

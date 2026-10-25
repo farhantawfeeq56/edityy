@@ -232,6 +232,10 @@
     ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
     ".row>*{position:relative}",
     ".row .ic:hover{background:transparent}",
+    // The row of the mode that is left, kept in place while the new one takes
+    // over. It is the controls that cross over, so its box is not drawn: two
+    // edges and two shadows moving at once would read as two toolbars.
+    ".row.still{box-shadow:none;border-color:transparent;background:transparent}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
     ".ic{width:30px;height:30px;display:grid;place-items:center;border:0;padding:0;",
@@ -3789,10 +3793,7 @@ function icons(items, current, onPick, cls) {
       }, { glyph: "droplet", label: "Opacity" });
     },
     mode: function () {
-      var at = MODES.indexOf(mode());
-      setMode(MODES[(at + 1) % MODES.length]);
-      buildRow();
-      show("");
+      remode();
     },
     family: function () {
       familyControl();
@@ -4760,9 +4761,141 @@ function decorations() {
     };
   }
 
+  // The row the mode change left, kept in place while the new row takes over.
+  // The pointer's fill and the tip belong to the row's last layout, so they stay
+  // down until the pointer comes back to it, or they would point at nothing.
+  var hoverParked = false;
+  // The run that owns the row's own styles. A change that interrupts one takes
+  // them over, so the run it interrupted cannot give them back mid-flight.
+  var rowBox = null;
+
+  /**
+   * The row as it was, as a still picture: the same controls in a box of the
+   * same size, in the same place, out of the tab order and out of the reach of
+   * the pointer. The mode change rebuilds the row, and this is what the eye is
+   * still on while the new row takes over.
+   */
+  function stillRow(before) {
+    var box = document.createElement("div");
+    box.className = "row still";
+    box.setAttribute("aria-hidden", "true");
+    // Inert as well: one of its controls still holds the row's tab stop, and a
+    // Tab during the motion must not land on a control that is leaving.
+    box.inert = true;
+    box.style.cssText =
+      "position:fixed;pointer-events:none;left:" + before.left + "px;top:" + before.top +
+      "px;width:" + before.width + "px;height:" + before.height + "px";
+    while (row.firstChild) box.appendChild(row.firstChild);
+    host.appendChild(box);
+    return box;
+  }
+
+  /** Cycle the layout mode, and let the row turn over instead of cutting. */
+  function remode() {
+    var at = MODES.indexOf(mode());
+    // The mode control is about to be replaced, and it may be where the keyboard
+    // is: the new one takes the stop back.
+    var held = within(row, root.activeElement);
+    var before = row.getBoundingClientRect();
+    var still = moves(row) ? stillRow(before) : null;
+    setMode(MODES[(at + 1) % MODES.length]);
+    buildRow();
+    show("");
+    // The fill under the pointer was measured on the pair of controls it sat
+    // between, and that pair is gone: it goes down with them.
+    tipAt = null;
+    hideTip(true);
+    glideOff();
+    hoverParked = true;
+    if (held) {
+      var back = slot("mode");
+      if (back) {
+        rove(back);
+        if (back.focus) back.focus();
+      }
+    }
+    if (still) glideRow(still, before);
+  }
+
+  /**
+   * A layout mode change, as a motion. The row is a different set of controls in
+   * each mode and the dock is centred, so the change moves the row's left edge
+   * and changes its width in one frame.
+   *
+   * A control both modes have is the same control, and it travels to where the
+   * new row puts it. What the mode changes cross over, and the box takes its new
+   * width under them.
+   */
+  function glideRow(still, before) {
+    var after = row.getBoundingClientRect();
+    var controls = Array.prototype.slice.call(row.children);
+    // The box changes width under its own controls, so it is a window on them
+    // while it does: nothing wraps onto a second line, and nothing spills out.
+    row.style.flexWrap = "nowrap";
+    row.style.overflow = "hidden";
+    // Started before the controls are measured: the box is already at the width
+    // it starts from, so a control that travels starts where it is drawn.
+    var run = animate(
+      row,
+      [{ width: before.width + "px" }, { width: after.width + "px" }],
+      { duration: T.settle, easing: ARRIVE }
+    );
+    rowBox = run;
+    var olds = Array.prototype.slice.call(still.children);
+    controls.forEach(function (item) {
+      var twin = null;
+      for (var i = 0; i < olds.length && !twin; i++) {
+        if (olds[i].dataset.key === item.dataset.key) twin = olds[i];
+      }
+      var to = item.getBoundingClientRect();
+      var from = twin ? twin.getBoundingClientRect() : null;
+      // Two controls are one control only if they are the same box: a chip that
+      // became a count is a different control in the same place.
+      if (from && Math.abs(from.width - to.width) < 2) {
+        twin.style.visibility = "hidden";
+        animate(
+          item,
+          [
+            { transform: "translate(" + (from.left - to.left) + "px," + (from.top - to.top) + "px)" },
+            { transform: "none" },
+          ],
+          { duration: T.settle, easing: ARRIVE }
+        );
+        return;
+      }
+      // A control the mode adds arrives where it belongs, once the ones that
+      // travel are on their way.
+      animate(
+        item,
+        [{ opacity: 0, transform: "scale(.9)" }, { opacity: 1, transform: "none" }],
+        { duration: T.enter, easing: ARRIVE, delay: T.fade }
+      );
+    });
+    var gone = animate(still, [{ opacity: 1 }, { opacity: 0 }], {
+      duration: T.fade,
+      easing: LEAVE,
+      delay: T.fade,
+      fill: "forwards",
+    });
+    if (gone) gone.onfinish = function () { still.remove(); };
+    else still.remove();
+    var takeBack = function () {
+      if (rowBox !== run) return;
+      rowBox = null;
+      row.style.flexWrap = "";
+      row.style.overflow = "";
+    };
+    if (run) run.onfinish = takeBack;
+    else takeBack();
+  }
+
   // The row is rebuilt as the selection moves, so the hint is delegated: one
   // listener covers every control that will ever be in the row.
   row.addEventListener("pointerover", function (e) {
+    // The row the pointer is over was replaced under it by a mode change, and
+    // the control it is on now is not the one it was measured on. The fill and
+    // the tip wait for the pointer to move.
+    if (hoverParked) return;
     var button = controlOf(e.target);
     if (!button) return;
     // The list that comes out of a chip belongs to that chip: an option is not a
@@ -4782,7 +4915,22 @@ function decorations() {
       tipAt = null;
       hideTip();
     }
-    if (!inRow(e.relatedTarget)) glideOff();
+    if (!inRow(e.relatedTarget)) {
+      // The pointer has left the row it was parked on, so the next one it comes
+      // to is a control it saw arrive.
+      hoverParked = false;
+      glideOff();
+    }
+  });
+  // The park ends with a move of the pointer: a row that changed under a still
+  // pointer has no control where the pointer is until the pointer says so.
+  row.addEventListener("pointermove", function (e) {
+    if (!hoverParked) return;
+    var button = controlOf(e.target);
+    if (!button || inList(e.target)) return;
+    hoverParked = false;
+    glideTo(button);
+    showTip(button);
   });
   row.addEventListener("focusin", function (e) {
     var button = controlOf(e.target);
