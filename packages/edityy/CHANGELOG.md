@@ -12,6 +12,25 @@ All notable changes to the `edityy` package. The format follows
   have are the same control, and they travel to the places the new row gives
   them. What the mode adds or removes crosses over, and the row takes its new
   width under them. (#236)
+- The children of a container glide to their new places when the layout mode,
+  the direction, the wrap or the alignment changes. The browser cannot animate
+  those properties, so the children are measured before and after the change and
+  moved over the difference. A text element's words move with them, one box to a
+  word, so an alignment change is a move and not a jump. (#236, #242)
+- The selection frame moves with the box it draws. (#236)
+- Undo steps back through a move, a delete and the words typed into an element,
+  in the same stack as a style change. ⌘Z and ⇧⌘Z work after the edit ends, as
+  they do during it. (#239)
+- The editor's own scroll areas wear one thin scrollbar in the ramp, in the
+  standard and in the WebKit spelling, so a list never shows the scrollbar of
+  the host page. (#239)
+
+### Changed
+
+- The last button in the row draws three dots and is named **More controls**. It
+  opens the list it opened before: the controls this one element can take. (#241)
+- Two things in a panel stand a gap apart. The room comes from the panel's stack,
+  so two chips never read as one box. (#241)
 
 ### Fixed
 
@@ -19,6 +38,12 @@ All notable changes to the `edityy` package. The format follows
   It sat between two controls that the change had removed, and it pointed at
   them. It now goes down with them, and comes back with the first move of the
   pointer. (#236)
+- The text alignment control cycles from the value the text has. An element with
+  no alignment computes to `start`, and `text-align: end` computes to `end`:
+  neither was in the list, so the first press wrote the alignment the text
+  already had. (#242)
+- A shadow's four fields keep a gap between the columns, not only between the
+  rows. (#241)
 
 ## 0.7.0 — 2026-10-24
 
