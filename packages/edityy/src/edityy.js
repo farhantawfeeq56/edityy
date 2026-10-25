@@ -177,6 +177,11 @@
     // The motion, in one rule, so no animation in the chrome can invent a
     // duration or a curve of its own.
     hostTokens,
+    "*{scrollbar-width:thin;scrollbar-color:var(--ink-25) transparent}",
+    "*::-webkit-scrollbar{width:6px;height:6px}",
+    "*::-webkit-scrollbar-track{background:transparent}",
+    "*::-webkit-scrollbar-thumb{background:var(--ink-25);border-radius:6px}",
+    "*::-webkit-scrollbar-thumb:hover{background:var(--ink-40)}",
     // The five values, and the steps drawn from them. The numbers on an ink or
     // a rose step are its alpha percentage: colour-mix against transparent
     // keeps the alpha and the colour, so a step holds whatever the ink is.
@@ -424,6 +429,10 @@
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
+    // Two things in one panel stand a gap apart. A chip draws its own hairline,
+    // so chips that touch read as one badly drawn box; the room between them is
+    // the panel's, and it comes from the stack rather than from every control.
+    ".pop>*+*{margin-top:8px}",
     ".list{display:flex;flex-direction:column;gap:1px;max-height:216px;overflow-y:auto;",
     // The host page scrollbar is the page scrollbar: without this the list shows
     // whatever the site styles its scrollbars with, or a chunky default. A hairline
@@ -456,7 +465,7 @@
     // Two fields to a line, so a shadow is read as a pair of pairs rather than
     // four rows: the offsets, then the two lengths of the edge. Each chip is as
     // wide as its own digits, so the columns are as wide as the chips.
-    ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px 2px;padding:2px 0}",
+    ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px;padding:2px 0}",
     ".pair{display:flex;flex-direction:column;gap:6px;padding:2px 0}",
     // A value and the list that decides where it goes, on one line: the chip is as
     // wide as its digits, and the list takes the room that is left.
@@ -1063,6 +1072,7 @@
   // When the words were last typed into: the browser owns the text's own undo,
   // so ⌘Z after typing is the browser's and ⌘Z after a drag is ours.
   var typedAt = 0;
+  var editingTextBefore = "";
   // A drag fires an input per pixel, and typing "40" fires two. A slider, a
   // number or a colour holds its step open from the first input to the
   // `change` the browser fires when the drag lets go, so the whole gesture is
@@ -1100,11 +1110,29 @@
     future = [];
   }
 
-  /** Write a step's values back without recording anything. */
-  function replay(target, values) {
-    Object.keys(values).forEach(function (prop) {
-      writeProp(target.rec, prop, values[prop]);
-    });
+  /** Record one non-style action in the same undo stack as property edits. */
+  function action(rec, kind, before, after) {
+    history.push({ rec: rec, kind: kind, before: before, after: after, at: Date.now() });
+    future = [];
+  }
+
+  /** Write a step back without recording anything. */
+  function replay(target, value) {
+    if (target.kind === "text") {
+      target.rec.el.textContent = value;
+    } else if (target.kind === "move" || target.kind === "delete") {
+      if (target.rec.fade) {
+        target.rec.fade.cancel();
+        target.rec.fade = null;
+      }
+      if (value) value.parent.insertBefore(target.rec.el, value.before && value.before.parentElement === value.parent ? value.before : null);
+      else if (target.rec.el.parentElement) target.rec.el.parentElement.removeChild(target.rec.el);
+      if (target.kind === "delete") target.rec.removed = value ? null : target.before;
+    } else {
+      Object.keys(value).forEach(function (prop) {
+        writeProp(target.rec, prop, value[prop]);
+      });
+    }
     refit();
     tally();
     // The row wears the element's own values — a grid's counts, an absolute
@@ -1164,6 +1192,7 @@
     // node itself once it is editable. The record is told the before value so
     // revert() can put it back, but the text is only READ.
     var rec = record(el);
+    editingTextBefore = el.textContent;
     if (rec.text === null) rec.text = el.textContent;
     // The markup as well as the words, because the browser can take a child
     // element out while the caret is in the words. This is what exit puts back.
@@ -1204,6 +1233,11 @@
     // The outline goes with it: back to exactly what the record says was there,
     // so an element that had an outline of its own gets it back.
     restore(record(editing), "outline");
+    var top = history[history.length - 1];
+    if (top && top.kind === "text" && top.rec === record(editing)) {
+      top.open = false;
+      if (top.before === top.after) history.pop();
+    }
     if (editing.blur) editing.blur();
     editing = null;
     openDone = false; // the menu goes back to the actions it offers
@@ -1289,10 +1323,17 @@
    * pointer has already left.
    */
   function place(frame, rect, el) {
-    frame.style.left = rect.left - LINE / 2 + "px";
-    frame.style.top = rect.top - LINE / 2 + "px";
-    frame.style.width = rect.width + LINE + "px";
-    frame.style.height = rect.height + LINE + "px";
+    var box = {
+      left: rect.left - LINE / 2 + "px",
+      top: rect.top - LINE / 2 + "px",
+      width: rect.width + LINE + "px",
+      height: rect.height + LINE + "px",
+    };
+    if (frame === selBox) dropFrame(box);
+    frame.style.left = box.left;
+    frame.style.top = box.top;
+    frame.style.width = box.width;
+    frame.style.height = box.height;
     frame.style.setProperty("--frame", frameInk(el));
   }
 
@@ -1707,6 +1748,7 @@
       rec.source = sourceOf(el);
     }
     rec.removed = { parent: el.parentElement, before: el.nextSibling };
+    action(rec, "delete", rec.removed, null);
     // The element leaves the way it came. Only its opacity is touched, and the
     // value it had is put back, so an undo brings the element back as it was.
     var was = el.style.opacity;
@@ -2401,7 +2443,8 @@ function faces() {
     if (!selected || !selected.parentElement) return;
     moving = selected;
     var rec = record(moving);
-    if (!rec.location) rec.location = { parent: moving.parentElement, before: moving.nextSibling };
+    rec.moveFrom = { parent: moving.parentElement, before: moving.nextSibling };
+    if (!rec.location) rec.location = rec.moveFrom;
     if (!rec.selector) {
       rec.selector = selectorFor(moving);
       rec.source = sourceOf(moving);
@@ -2858,10 +2901,16 @@ function faces() {
   /** Cycle the text alignment directly from the primary dock. */
   function cycleAlignment() {
     if (!pop.hidden) show("");
-    var current = get("text-align") || "left";
+    // An alignment nobody set computes to `start`, and `str.end` to `end`: the
+    // browser names the sides of the writing mode, where this list names left and
+    // right. Read as they are, neither is in the list, and the first click wrote
+    // the alignment the element already had.
+    var current = String(get("text-align") || "").trim() || "left";
+    if (current === "start") current = "left";
+    if (current === "end") current = "right";
     var at = ALIGNS.map(function (item) { return item.v; }).indexOf(current);
     var next = ALIGNS[(at + 1) % ALIGNS.length];
-    set("text-align", next.v);
+    reflow(selected, function () { set("text-align", next.v); });
     var b = slot("align");
     if (!b) return;
     b.innerHTML = svg(next.icon);
@@ -3621,6 +3670,197 @@ function icons(items, current, onPick, cls) {
     }
   }
 
+  /* -------------------------------------------------------------- reflow */
+
+  /** Every child of `el` that has a box, with the box it has now. */
+  function boxes(el) {
+    var out = [];
+    var kids = (el && el.children) || [];
+    for (var i = 0; i < kids.length; i++) {
+      var box = kids[i].getBoundingClientRect();
+      // A child with no box — display:none, or a comment-like wrapper — has no
+      // place to move from and no place to move to.
+      if (!box || (!box.width && !box.height)) continue;
+      out.push({ kid: kids[i], box: box });
+    }
+    return out;
+  }
+
+  /**
+   * Run a change that moves the children of a container, and play the move.
+   *
+   * flex-direction, flex-wrap, alignment and display are not animatable, so the
+   * browser teleports the children to their new places. This measures where they
+   * were, makes the change, measures again, and animates the difference: the
+   * children glide from the old place to the new one instead of jumping. The
+   * selection frame is part of what the user watches change, so it moves too.
+   *
+   * The move rides the individual `translate` property, so a child that already
+   * wears a transform keeps it.
+   *
+   * shortcut: a child that sets `translate` itself loses it for the length of the
+   * move; upgrade by folding the computed value into the first keyframe.
+   */
+  function reflow(el, change) {
+    if (!el || !moves(el)) return change();
+    // A second click interrupts the first move. The runs are dropped first, so
+    // the boxes measured below are the layout's own and not a half-played move.
+    slideRuns.forEach(function (run) { run.cancel(); });
+    slideRuns = [];
+    unwrapWords();
+    // The caret owns the words it is in: they are boxed only when nobody is
+    // typing in them, and then only the frame moves.
+    if (el !== editing) wrapWords(el);
+    var was = boxes(el);
+    var frame = frameNow();
+    var out = change();
+    moveFrame(frame);
+    var runs = slide(was, boxes(el));
+    if (wordBoxes.length) {
+      if (!runs.length) unwrapWords();
+      // Only the move's own end puts the words back. A cancel is not hooked up:
+      // a cancelled run delivers its cancel after the NEXT move has boxed its
+      // own words, and would take those out of the page instead of its own —
+      // every move after the first played on nodes that were no longer in it.
+      // The boxes of a move that was cut short are taken out at the top of
+      // reflow, which is where the cut happens.
+      else runs[runs.length - 1].onfinish = unwrapWords;
+    }
+    return out;
+  }
+
+  // The children moves that are still playing.
+  var slideRuns = [];
+
+  // The words that are in a box for the length of a move.
+  var wordBoxes = [];
+  // Past this many words, a paragraph is left to the layout: four hundred boxes
+  // to watch is not a move worth making. The frame still changes with it.
+  var WORD_LIMIT = 400;
+
+  function wordCount(el) {
+    var total = 0;
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var node = el.childNodes[i];
+      if (node.nodeType !== 3) continue;
+      String(node.nodeValue || "")
+        .split(/\s+/)
+        .forEach(function (word) { if (word) total++; });
+    }
+    return total;
+  }
+
+  /**
+   * Put the element's own words in boxes, so each one can be moved on its own.
+   *
+   * A line box is not an element: it can be neither measured as one nor animated
+   * as one. A word can, and every word on a line moves by that line's own amount,
+   * so a word that glides takes its line with it. The spaces stay outside the
+   * boxes, so a line breaks and a text justifies where it did.
+   */
+  function wrapWords(el) {
+    var count = wordCount(el);
+    if (!count || count > WORD_LIMIT) return;
+    var nodes = [];
+    for (var i = 0; i < el.childNodes.length; i++) {
+      if (el.childNodes[i].nodeType === 3) nodes.push(el.childNodes[i]);
+    }
+    nodes.forEach(function (node) {
+      var parent = node.parentElement;
+      if (!parent) return;
+      String(node.nodeValue || "").split(/(\s+)/).forEach(function (part) {
+        if (!part) return;
+        if (!/\S/.test(part)) {
+          parent.insertBefore(document.createTextNode(part), node);
+          return;
+        }
+        // Only an inline-block can carry a transform; a word is one word wide, so
+        // it is the smallest box that moves with the line it is on.
+        var box = document.createElement("span");
+        box.style.display = "inline-block";
+        box.setAttribute("data-edityy-word", "");
+        box.appendChild(document.createTextNode(part));
+        parent.insertBefore(box, node);
+        wordBoxes.push(box);
+      });
+      parent.removeChild(node);
+    });
+  }
+
+  /** Take the words back out of their boxes, exactly as they were. */
+  function unwrapWords() {
+    wordBoxes.forEach(function (box) {
+      var parent = box.parentElement;
+      if (!parent) return;
+      if (box.firstChild) parent.insertBefore(box.firstChild, box);
+      parent.removeChild(box);
+    });
+    wordBoxes = [];
+  }
+
+  function slide(was, now) {
+    var runs = [];
+    now.forEach(function (item) {
+      var before = was.filter(function (old) { return old.kid === item.kid; })[0];
+      if (!before) return;
+      var dx = before.box.left - item.box.left;
+      var dy = before.box.top - item.box.top;
+      if (!dx && !dy) return; // it did not move
+      var run = item.kid.animate([{ translate: dx + "px " + dy + "px" }, { translate: "0px 0px" }], {
+        duration: T.rise,
+        easing: ARRIVE,
+      });
+      slideRuns.push(run);
+      runs.push(run);
+    });
+    return runs;
+  }
+
+  /* The selection frame's box, as the inline values place() writes it with. */
+  var FRAME_BOX = ["left", "top", "width", "height"];
+  // The eased move of the selection frame, and the box it is heading for.
+  var frameRun = null;
+  var frameTo = null;
+
+  function frameNow() {
+    if (!selBox || selBox.hidden || !selBox.style.left) return null;
+    var out = {};
+    FRAME_BOX.forEach(function (prop) { out[prop] = selBox.style[prop]; });
+    return out;
+  }
+
+  /**
+   * Play the selection frame from the box it wore to the box it wears now.
+   *
+   * place() writes the box straight onto the frame, because the frame follows the
+   * pointer and an eased frame is a frame the pointer has already left. A frame
+   * that is already drawn and only changes size is not following anything: the
+   * box shrinking or growing is part of the change the user made, so it moves.
+   */
+  function moveFrame(was) {
+    var now = frameNow();
+    if (!was || !now || !moves(selBox)) return;
+    if (FRAME_BOX.every(function (prop) { return was[prop] === now[prop]; })) return;
+    if (frameRun) frameRun.cancel();
+    frameTo = now;
+    frameRun = selBox.animate([was, now], { duration: T.rise, easing: ARRIVE });
+  }
+
+  /**
+   * A frame put where a pointer is going, not a box the user is watching.
+   *
+   * The box the frame has just been put in is compared with the box the eased
+   * move is heading for: the same box is that move drawing itself, and it plays
+   * on. A box from somewhere else is the pointer's, and the move is dropped.
+   */
+  function dropFrame(box) {
+    if (!frameRun) return;
+    if (FRAME_BOX.every(function (prop) { return frameTo[prop] === box[prop]; })) return;
+    frameRun.cancel();
+    frameRun = null;
+    frameTo = null;
+  }
+
   function alignValue(value, fallback) {
     var v = String(value || "").trim();
     if (v === "start") v = "flex-start";
@@ -3793,7 +4033,9 @@ function icons(items, current, onPick, cls) {
       }, { glyph: "droplet", label: "Opacity" });
     },
     mode: function () {
-      remode();
+      // The row turns over into the new mode's own controls, and the children of
+      // the box take their own new places under it.
+      reflow(selected, remode);
     },
     family: function () {
       familyControl();
@@ -3911,10 +4153,12 @@ function icons(items, current, onPick, cls) {
     direction: function () {
       // Establish the flex box first so the user's row or column choice sticks.
       if (!pop.hidden) show("");
-      ensureBox();
       var current = String(get("flex-direction") || "row").trim();
       var at = DIRECTIONS.map(function (item) { return item.v; }).indexOf(current);
-      set("flex-direction", DIRECTIONS[(at + 1) % DIRECTIONS.length].v);
+      reflow(selected, function () {
+        ensureBox();
+        set("flex-direction", DIRECTIONS[(at + 1) % DIRECTIONS.length].v);
+      });
       paintCycle(DIRECTIONS, "direction", "flex-direction");
     },
     // The same 3x3 interaction maps to the right CSS axes for each layout.
@@ -3927,14 +4171,16 @@ function icons(items, current, onPick, cls) {
       var current = direction === "column" ? cross + ":" + main : main + ":" + cross;
       icons(ALIGN_CELLS, current, function (v) {
         var parts = v.split(":");
-        if (direction === "column") {
-          set("align-items", parts[0]);
-          set("justify-content", parts[1]);
-        } else {
-          set("justify-content", parts[0]);
-          set("align-items", parts[1]);
-        }
-        ensureBox();
+        reflow(selected, function () {
+          if (direction === "column") {
+            set("align-items", parts[0]);
+            set("justify-content", parts[1]);
+          } else {
+            set("justify-content", parts[0]);
+            set("align-items", parts[1]);
+          }
+          ensureBox();
+        });
         return [v];
       }, "grid3");
     },
@@ -3944,11 +4190,12 @@ function icons(items, current, onPick, cls) {
     // opposite order can be lost on mode change.
     wrap: function () {
       if (!pop.hidden) show("");
-      if (mode() !== "flex") setMode("flex");
       var current = String(get("flex-wrap") || "nowrap").trim();
       var at = WRAPS.map(function (item) { return item.v; }).indexOf(current);
-      setMode("flex");
-      set("flex-wrap", WRAPS[(at + 1) % WRAPS.length].v);
+      reflow(selected, function () {
+        setMode("flex");
+        set("flex-wrap", WRAPS[(at + 1) % WRAPS.length].v);
+      });
       paintCycle(WRAPS, "wrap", "flex-wrap");
     },
     gap: function () {
@@ -4381,7 +4628,7 @@ function decorations() {
       var item = addable().filter(function (a) { return a.key === key; })[0];
       if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
     });
-    addBtn = button("ic add group-start", svg("plus"), "Add a control", function () {
+    addBtn = button("ic add group-start", svg("ellipsis"), "More controls", function () {
       toggle("+");
     }, "+");
     row.appendChild(addBtn);
@@ -6151,7 +6398,21 @@ function decorations() {
     // count as an edit or redraw the list under the caret.
     if (e && e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     typedAt = Date.now();
-    if (editing) setTimeout(refit, 0);
+    if (editing) {
+      var rec = record(editing);
+      var after = editing.textContent;
+      if (after !== editingTextBefore) {
+        var top = history[history.length - 1];
+        if (top && top.open && top.kind === "text" && top.rec === rec) {
+          top.after = after;
+          top.at = typedAt;
+        } else {
+          action(rec, "text", editingTextBefore, after);
+          history[history.length - 1].open = true;
+        }
+      }
+      setTimeout(refit, 0);
+    }
     tally();
   }
 
@@ -6384,7 +6645,11 @@ function decorations() {
   function insertElement(x, y) {
     showMoveInsertion(x, y);
     if (!insertion || !insertion.parent.insertBefore) return;
+    var rec = record(moving);
+    var before = rec.moveFrom;
     insertion.parent.insertBefore(moving, insertion.before || null);
+    action(rec, "move", before, { parent: moving.parentElement, before: moving.nextSibling });
+    delete rec.moveFrom;
     moving = null;
     insertion = null;
     delete insertLine.dataset.on;
@@ -6490,8 +6755,10 @@ function decorations() {
         commentFor = null;
         syncElementMenu();
       } else if (moving) {
-        var location = record(moving).location;
+        var rec = record(moving);
+        var location = rec.moveFrom;
         location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
+        delete rec.moveFrom;
         moving = null;
         insertion = null;
         pointerX = null;
@@ -6527,7 +6794,7 @@ function decorations() {
     // history, which a style undo knows nothing about. So while the caret is in
     // words typed into since the last drag, the key goes to the browser.
     var top = isUndo ? history[history.length - 1] : future[future.length - 1];
-    if (editing && (!top || typedAt > top.at)) return;
+    if (editing && (top && top.kind === "text" || !top || typedAt > top.at)) return;
     if (isUndo ? undo() : redo()) {
       e.preventDefault();
       e.stopPropagation();

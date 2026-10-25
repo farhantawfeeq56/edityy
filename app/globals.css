@@ -107,6 +107,29 @@ body {
   color: var(--color-neutral-900);
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-400) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--color-neutral-400);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-500);
+}
+
 /* The header over the page. It is more solid once the page has moved, so the
    words over it stay readable. The change is driven by the scroll, so it needs
    no script and no scroll listener. */

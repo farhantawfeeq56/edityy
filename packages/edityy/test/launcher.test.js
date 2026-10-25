@@ -39,6 +39,14 @@ function fakeDom() {
   const bucket = (node, type, phase) => ((node.bubbles ??= {})[type] ??= {})[phase] ??= [];
   const bubble = (node, type) => bucket(node, type, "bubble");
 
+  /** Both lists a browser keeps, kept in step: this stub has no element-only ones. */
+  const drop = (parent, child) => {
+    for (const list of [parent.children ?? [], parent.childNodes ?? []]) {
+      const at = list.indexOf(child);
+      if (at !== -1) list.splice(at, 1);
+    }
+  };
+
   const el = (tag, attrs = {}, style = {}) => {
     const node = {
     tagName: tag.toUpperCase(),
@@ -121,15 +129,15 @@ function fakeDom() {
     appendChild: (child) => {
       // A child has one parent. Without this the popover keeps every control ever
       // built, because the payload clears it with innerHTML and then appends.
-      const before = child.parentElement;
-      if (before) before.children.splice(before.children.indexOf(child), 1);
+      if (child.parentElement) drop(child.parentElement, child);
       child.parentElement = node;
       created.push(child);
       node.children.push(child);
+      node.childNodes.push(child);
       return child;
     },
     removeChild: (child) => {
-      node.children.splice(node.children.indexOf(child), 1);
+      drop(node, child);
       child.parentElement = null;
       return child;
     },
@@ -137,9 +145,11 @@ function fakeDom() {
       const at = node.children.indexOf(before);
       const was = child.parentElement;
       const old = was ? was.children.indexOf(child) : -1;
-      if (was) was.children.splice(old, 1);
+      if (was) drop(was, child);
       child.parentElement = node;
-      node.children.splice(at === -1 ? node.children.length : at > old && was === node ? at - 1 : at, 0, child);
+      const where = at === -1 ? node.children.length : at > old && was === node ? at - 1 : at;
+      node.children.splice(where, 0, child);
+      node.childNodes.splice(where, 0, child);
       created.push(child);
       return child;
     },
@@ -927,6 +937,8 @@ test("the scrolling list brings its own scrollbar", () => {
   assert.match(css, /\.list\{[^}]*scrollbar-width:thin/, "a hairline, not the UA default");
   assert.match(css, /\.list\{[^}]*scrollbar-color:var\(--ink-25\) transparent/, "on the ramp");
   assert.match(css, /\.list::-webkit-scrollbar-thumb\{/, "and for the engines that need it");
+  assert.match(css, /\*\{scrollbar-width:thin;scrollbar-color:var\(--ink-25\) transparent\}/, "all editor scroll areas use the chrome scrollbar");
+  assert.match(css, /\*::-webkit-scrollbar-thumb\{background:var\(--ink-25\);border-radius:6px\}/, "the scrollbar thumb is styled across engines");
 });
 
 test("the primary dock fills on hover and on select, and draws its own tooltip", async () => {
@@ -1475,6 +1487,76 @@ test("picking an option keeps the control open, and moves the tick", () => {
   assert.equal(pop.hidden, true, "size stays inline");
 });
 
+test("a typography alignment change slides the words like any other move", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  p.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 20, width: 200, height: 20 });
+  // The words of the element, as the browser hands them over: one text node.
+  const words = {
+    nodeType: 3,
+    nodeValue: "hello there",
+    parentElement: p,
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 }),
+  };
+  p.childNodes = [words];
+  p.children.push(words);
+  const runs = [];
+  const animate = (node) => (keyframes) => {
+    const run = { node, keyframes, cancel() {} };
+    runs.push(run);
+    return run;
+  };
+  p.animate = animate(p);
+  // Every word box the payload builds is measured where its own line has it, and
+  // each alignment of the cycle puts the line somewhere else.
+  const AT = { "": 0, left: 0, center: 40, right: 80, justify: -20 };
+  const create = app.doc.createElement;
+  app.doc.createElement = (tag) => {
+    const node = create(tag);
+    node.animate = animate(node);
+    node.getBoundingClientRect = () => {
+      const word = node.firstChild?.nodeValue ?? "";
+      const left = AT[p.style.getPropertyValue("text-align")] + (word === "hello" ? 0 : 60);
+      return { left, top: 0, right: left + 60, bottom: 20, width: 60, height: 20 };
+    };
+    return node;
+  };
+  // The stub files every child in `children`, which a browser only does for
+  // elements: the space between two words is measured as nothing, not as a box.
+  const textNode = app.doc.createTextNode;
+  app.doc.createTextNode = (value) => ({
+    ...textNode(value),
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+  });
+  const frame = app.root.nodes.sel;
+  frame.animate = animate(frame);
+  const boxes = () => p.children.filter((node) => node.tagName === "SPAN");
+  // Every alignment the cycle has, in its own order. A click that moves the words
+  // plays a move, whichever of the four it goes to.
+  let earlier = [];
+  for (const expected of ["center", "right", "justify", "left"]) {
+    runs.length = 0;
+    quiet(() => press(app, "align"));
+    // A move that was cut short by this one delivers its cancel after it, as a
+    // browser does: it owns the boxes of its own words and no others.
+    earlier.forEach((run) => run.oncancel?.());
+    earlier = runs.slice();
+    assert.equal(p.style.getPropertyValue("text-align"), expected, "the click cycles to " + expected);
+    assert.deepEqual(
+      boxes().map((node) => node.firstChild.nodeValue),
+      ["hello", "there"],
+      "the words are still boxed for the move to " + expected,
+    );
+    const moved = runs.filter((run) => run.keyframes[0].translate);
+    assert.equal(moved.length, 2, "each word plays a move to " + expected);
+    assert.notEqual(moved[0].keyframes[0].translate, "0px 0px", "from where the line was, to " + expected);
+    assert.deepEqual(moved[0].keyframes[1], { translate: "0px 0px" }, "and it lands on its own place");
+    moved[moved.length - 1].onfinish();
+    assert.equal(boxes().length, 0, "and the words are out of their boxes after " + expected);
+  }
+});
+
 test("picking a face writes the whole stack to the element", () => {
   const { run } = fakeDom();
   const app = run();
@@ -1960,6 +2042,63 @@ test("element actions delete reversibly, and disable unavailable targets", () =>
   assert.deepEqual(parent.children, [selected, sibling], "exit restores the deleted element before its sibling");
 });
 
+test("delete can be undone and redone with the keyboard", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main");
+  const selected = el("section");
+  const sibling = el("aside");
+  parent.appendChild(selected);
+  parent.appendChild(sibling);
+  quiet(() => { app.click(); app.hover(selected); app.clickPage(); });
+  app.action("Delete");
+  assert.deepEqual(parent.children, [sibling]);
+  assert.equal(key(app, "z", { ctrlKey: true }), true);
+  assert.deepEqual(parent.children, [selected, sibling]);
+  assert.equal(app.win.__edityy_changes(), "", "undo clears the deleted change");
+  assert.equal(key(app, "z", { ctrlKey: true, shiftKey: true }), true);
+  assert.deepEqual(parent.children, [sibling]);
+  assert.match(app.win.__edityy_changes(), /- Removed: section/);
+});
+
+test("a move can be undone and redone with the keyboard", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const parent = el("main", { rect: { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 } });
+  const first = el("div", { rect: { left: 0, top: 0, right: 100, bottom: 30, width: 100, height: 30 } });
+  const second = el("p", { text: "Second", rect: { left: 0, top: 40, right: 100, bottom: 70, width: 100, height: 30 } });
+  const outer = el("section", { rect: { left: 220, top: 0, right: 420, bottom: 200, width: 200, height: 200 } });
+  const other = el("div", { rect: { left: 220, top: 0, right: 420, bottom: 200, width: 200, height: 200 } });
+  parent.appendChild(first);
+  parent.appendChild(second);
+  parent.appendChild(outer);
+  outer.appendChild(other);
+  quiet(() => { app.click(); app.hover(first); app.clickPage(); });
+  app.action("Move");
+  app.hover(other);
+  app.move(300, 100);
+  app.clickPage(300, 100);
+  assert.equal(first.parentElement, other);
+  assert.equal(key(app, "z", { ctrlKey: true }), true);
+  assert.deepEqual(parent.children, [first, second, outer]);
+  assert.equal(key(app, "z", { ctrlKey: true, shiftKey: true }), true);
+  assert.equal(first.parentElement, other);
+});
+
+test("a text edit can be undone after editing ends", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app, false);
+  app.action("Edit text");
+  p.textContent = "goodbye";
+  app.fire("input", {});
+  app.action("Done editing the text");
+  assert.equal(key(app, "z", { ctrlKey: true }), true);
+  assert.equal(p.textContent, "hello");
+  assert.equal(key(app, "z", { ctrlKey: true, shiftKey: true }), true);
+  assert.equal(p.textContent, "goodbye");
+});
+
 test("an element whose words are split by a child element is editable, and exit puts the child back", () => {
   const { run, el } = fakeDom();
   const app = run();
@@ -2187,6 +2326,59 @@ test("the selection frame follows the element as it grows and shrinks", () => {
       done();
     }, 5),
   );
+});
+
+test("a cyclic layout control moves the children and the frame instead of teleporting them", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const runs = [];
+  // The stub has no animations, so every element that can move says so here.
+  const animate = (node) => (keyframes, options) => {
+    const run = { node, keyframes, options, cancel() {} };
+    runs.push(run);
+    return run;
+  };
+  const box = el("div", {}, { display: "flex", "flex-direction": "row" });
+  box.animate = animate(box);
+  const first = el("p");
+  const second = el("p");
+  box.appendChild(first);
+  box.appendChild(second);
+  const column = () => box.style.getPropertyValue("flex-direction") === "column";
+  // Two children side by side in a row, stacked in a column.
+  const rectOf = (at) => () => {
+    const left = column() ? 0 : at * 100;
+    const top = column() ? at * 40 : 0;
+    return { left, top, right: left + 100, bottom: top + 40, width: 100, height: 40 };
+  };
+  first.getBoundingClientRect = rectOf(0);
+  second.getBoundingClientRect = rectOf(1);
+  first.animate = animate(first);
+  second.animate = animate(second);
+  box.getBoundingClientRect = () =>
+    column()
+      ? { left: 0, top: 0, right: 100, bottom: 80, width: 100, height: 80 }
+      : { left: 0, top: 0, right: 200, bottom: 40, width: 200, height: 40 };
+  const frame = app.root.nodes.sel;
+  frame.animate = animate(frame);
+  quiet(() => {
+    app.click();
+    app.hover(box);
+    app.clickPage();
+  });
+  runs.length = 0;
+  quiet(() => press(app, "direction"));
+  assert.equal(box.style.getPropertyValue("flex-direction"), "column");
+  const moved = runs.filter((run) => run.node === second)[0];
+  assert.ok(moved, "the child that changed place is played from where it was");
+  assert.equal(moved.keyframes[0].translate, "100px -40px", "the row's second item glides to its place in the column");
+  assert.equal(moved.keyframes[1].translate, "0px 0px", "and lands on its own layout");
+  assert.equal(runs.filter((run) => run.node === first).length, 0, "the child that stayed is left alone");
+  const resized = runs.filter((run) => run.node === frame)[0];
+  assert.ok(resized, "the frame the box is drawn with moves too");
+  assert.equal(resized.keyframes[0].width, "201.5px");
+  assert.equal(resized.keyframes[1].width, "101.5px", "the frame shrinks with the box");
+  assert.equal(resized.keyframes[1].height, "81.5px", "and grows as the box grows");
 });
 
 test("the selection frame follows the page when it scrolls", () => {
@@ -2579,14 +2771,15 @@ test("the dock opens with nothing selected, and offers no Add choice", () => {
   assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
 
-test("the dock ends in a + that adds a control to the row", () => {
+test("the dock ends in a more controls button that adds a control to the row", () => {
   const { run } = fakeDom();
   const app = run();
   selectText(app);
   const row = app.root.nodes.row;
   const plus = row.children[row.children.length - 1];
-  assert.equal(plus.dataset.key, "+", "the + is the last thing in the row");
-  assert.match(plus.innerHTML, /<path d="M5 12h14"/, "a plus, drawn");
+  assert.equal(plus.dataset.key, "+", "the more button is the last thing in the row");
+  assert.match(plus.innerHTML, /<circle cx="12" cy="12" r="1"/, "three dots, drawn");
+  assert.equal(plus.getAttribute("aria-label"), "More controls", "named for what it opens");
   const before = row.children.length;
   quiet(() => press(app, "+"));
   // What it offers is the additions, as a list under the dock.
