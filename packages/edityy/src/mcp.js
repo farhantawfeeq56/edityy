@@ -7,9 +7,10 @@
  * (`.edityy/changes.json`, from index.js), and a variation request — one
  * element, a number of variations and an optional comment
  * (`.edityy/variation-request.json`, from variations.js).
- * This serves both to an agent through four tools: read the edits, clear them
- * once they are in the code, read the variation request, and place the
- * variations the agent answers with.
+ * This serves both to an agent through seven tools: read the edits, clear them
+ * once they are in the code, read the variation request, place the
+ * variations the agent answers with, place a chat-initiated canvas preview,
+ * read a preview to apply it, and decide a preview once it is handled.
  *
  * MCP over stdio is newline-delimited JSON-RPC 2.0, and this server needs four
  * methods of it, so it is written out here rather than pulled in as an SDK: the
@@ -20,6 +21,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
+import { decidePreview, placePreview, previewText, readActivePreview, readPreview, readPreviews } from "./previews.js";
 import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -56,14 +58,112 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
+    name: "place_preview",
+    description:
+      "The user typed edityy:: followed by an instruction in their agent chat: paint that change on the live Edityy canvas only, not in the code. " +
+      "Place one preview with an action and its payload. " +
+      "styles restyles one element and takes a selector plus 1 to 10 labeled variations of plain CSS declarations, each with an optional text. " +
+      "insert adds one allowlisted element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
+      "update changes one element named by a selector, with styles, text or markup. " +
+      "remove takes away one element named by a selector. " +
+      "No custom properties, at-rules in place of when, !important, url(), script tags, event attributes or iframes. " +
+      "The preview shows on the page with Keep and Discard; keeping it makes it a normal Edityy edit. " +
+      "If the place is unclear and the user named none, ask first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instruction: { type: "string", description: "The change the user asked for, quoted." },
+        action: { type: "string", description: "One of styles, insert, update or remove." },
+        selector: { type: "string", description: "The element to change, for styles, update and remove." },
+        variations: {
+          type: "array",
+          minItems: 1,
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "Two or three words the user will see." },
+              props: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
+                    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+                    on: { type: "string", description: "Optional: a state or pseudo-element on the element, such as :hover or ::before." },
+                    when: { type: "string", description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint." },
+                  },
+                  required: ["property", "value"],
+                  additionalProperties: false,
+                },
+              },
+              text: { type: "string", description: "Optional: plain words that replace the element's own words." },
+            },
+            required: ["label", "props"],
+            additionalProperties: false,
+          },
+        },
+        anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
+        position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
+        html: { type: "string", description: "For insert and update: the markup. Structure, headings, words and pictures only; no forms, scripts or event attributes." },
+        props: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              property: { type: "string", description: "A standard CSS property name." },
+              value: { type: "string", description: "The value." },
+              on: { type: "string", description: "Optional: a state or pseudo-element, such as :hover." },
+              when: { type: "string", description: "Optional: a media condition, such as (max-width: 640px)." },
+            },
+            required: ["property", "value"],
+            additionalProperties: false,
+          },
+        },
+        text: { type: "string", description: "Optional: plain words for update." },
+      },
+      required: ["instruction", "action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_preview",
+    description:
+      "Read one placed Edityy canvas preview, with its instruction, action and payload. " +
+      "Apply kept previews to the source code: the page saved them with Save to project, so read them with get_visual_changes. " +
+      "Each preview has an id such as e-123: the user types implement <id> to apply it or discard <id> to drop it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The preview id, such as e-123. Without one, the active preview is read." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "decide_preview",
+    description:
+      "Mark one Edityy canvas preview kept or discarded, once the user said implement or discard with its id. " +
+      "Kept previews are already Edityy edits on the page: read them with get_visual_changes and apply them to the code.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The preview id, such as e-123." },
+        decision: { type: "string", description: "keep or discard." },
+      },
+      required: ["id", "decision"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "place_variations",
     description:
       "Place the style variations for a pending variation request, for the user to try on the live element. " +
       "Place exactly the number get_variation_request returned; if you place more, the first ones are the ones the user sees. " +
       "Use the requestId that get_variation_request returned, and read the request again if the user changed it. " +
       "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
-      "pseudo-element and `when` for a media condition. No custom properties, at-rules in place " +
-      "of `when`, `!important` or url().",
+      "pseudo-element and `when` for a media condition, and it may also set the element's words with `text`. " +
+      "No custom properties, at-rules in place of `when`, `!important` or url().",
     inputSchema: {
       type: "object",
       properties: {
@@ -78,8 +178,6 @@ const TOOLS = [
               label: { type: "string", description: "Two or three words the user will see." },
               props: {
                 type: "array",
-                minItems: 1,
-                maxItems: 12,
                 items: {
                   type: "object",
                   properties: {
@@ -98,6 +196,7 @@ const TOOLS = [
                   additionalProperties: false,
                 },
               },
+              text: { type: "string", description: "Optional: plain words that replace the element's own words." },
             },
             required: ["label", "props"],
             additionalProperties: false,
@@ -187,6 +286,38 @@ export async function handle(message, root) {
             });
           }
           return reply({ content: [{ type: "text", text: requestText(request) }] });
+        }
+        if (params?.name === "place_preview") {
+          const preview = await placePreview(params?.arguments, root);
+          return reply({
+            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the canvas with Keep and Discard. Keep makes it a normal Edityy edit. The user decides with implement ${preview.id} or discard ${preview.id}.` }],
+          });
+        }
+        if (params?.name === "get_preview") {
+          const id = params?.arguments?.id;
+          const shown = typeof id === "string" && id ? await readPreview(id, root) : await readActivePreview(root);
+          if (!shown) {
+            if (typeof id === "string" && id) return reply({ content: [{ type: "text", text: `No preview ${id}.` }] });
+            const list = await readPreviews(root);
+            if (!list.history.length) {
+              return reply({ content: [{ type: "text", text: "No preview. The user types edityy:: followed by an instruction, and you place it with place_preview." }] });
+            }
+            const rows = list.history.map((item) => `- ${item.id} (${item.status}): ${item.instruction}`).join("\n");
+            return reply({ content: [{ type: "text", text: `Previews, newest first:\n\n${rows}` }] });
+          }
+          return reply({ content: [{ type: "text", text: previewText(shown) }] });
+        }
+        if (params?.name === "decide_preview") {
+          const decided = await decidePreview(params?.arguments?.id, params?.arguments?.decision, root);
+          return reply({
+            content: [{
+              type: "text",
+              text:
+                decided.status === "kept"
+                  ? `Preview ${decided.id} is kept. Read it with get_visual_changes and apply it to the code.`
+                  : `Preview ${decided.id} is discarded. The page drops it.`
+            }],
+          });
         }
         if (params?.name === "place_variations") {
           const placed = await placeVariations(params?.arguments, root);

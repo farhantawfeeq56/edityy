@@ -29,17 +29,29 @@ const END = "<!-- END edityy -->";
 
 const CHANGES = "/__edityy/changes";
 const VARIATIONS = "/__edityy/variations";
+const PREVIEWS = "/__edityy/previews";
 
 const RULES = `${BEGIN}
 ## Edityy
 
-The user edits the running site with Edityy, not the code. Two tools come from
+The user edits the running site with Edityy, not the code. These tools come from
 the Edityy MCP server.
 
 - **vartest.** When the user types \`vartest\`, call \`get_variation_request\`.
   Read it every time: an answer for an older request is refused. Then answer
-  with the number of variations it asks for, and call \`place_variations\`. Use
-  plain CSS declarations only, and do not edit files for this.
+  with the number of variations it asks for, and call \`place_variations\`.
+  Each variation is plain CSS declarations and may also set the element's words
+  with \`text\`. Do not edit files for this.
+- **edityy::** When the user types \`edityy::\` followed by an instruction, paint
+  that change on the live canvas only. Do not edit files. Call
+  \`place_preview\` with the instruction, an action and its payload:
+  \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
+  element, and \`remove\` takes one away.
+  If the user names no place and the place is unclear, ask them first.
+  The page shows the preview with Keep and Discard, and the user decides by
+  typing \`implement <id>\` or \`discard <id>\`. When they type
+  \`implement <id>\`, call \`get_visual_changes\` and apply the kept edit to the
+  source code, then call \`clear_visual_changes\`.
 - **Visual edits.** When the user asks for the edits they saved from the site,
   call \`get_visual_changes\`, apply them to the source code, then call
   \`clear_visual_changes\`.
@@ -99,12 +111,13 @@ if (process.env.NODE_ENV === "development") import("edityy/client");
 `;
 
 const proxy = () => `${MARK}
-import { changesRoute, variationsRoute } from "edityy";
+import { changesRoute, previewsRoute, variationsRoute } from "edityy";
 
 type Handler = (request: Request) => Response | Promise<Response>;
 
 const changes = changesRoute();
 const variations = variationsRoute() as unknown as Record<string, Handler | undefined>;
+const previews = previewsRoute() as unknown as Record<string, Handler | undefined>;
 
 /**
  * The Edityy endpoints answer here, so next.config.ts needs no rewrite. Other
@@ -113,7 +126,7 @@ const variations = variationsRoute() as unknown as Record<string, Handler | unde
 export function proxy(request: Request) {
   const path = new URL(request.url).pathname;
   if (path === "${CHANGES}") return request.method === "POST" ? changes(request) : undefined;
-  const handler = path === "${VARIATIONS}" ? variations[request.method] : null;
+  const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : null;
   return handler ? handler(request) : undefined;
 }
 
