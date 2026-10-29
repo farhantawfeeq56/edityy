@@ -1574,7 +1574,10 @@ test("Google Fonts load only when asked for, and each request is made once", asy
   const dom = fakeDom();
   const requests = [];
   let answer = () => Promise.reject(new Error("offline"));
-  dom.win.fetch = (url) => (requests.push(url), answer());
+  dom.win.fetch = (url) => {
+    if (url === "/__edityy/previews") return Promise.resolve({ status: 200, json: async () => ({ ok: true, pending: true }) });
+    return (requests.push(url), answer());
+  };
   const app = dom.run();
   const links = () => dom.doc.documentElement.children.filter((n) => n.tagName === "LINK");
   const tick = () => new Promise((r) => setImmediate(r));
@@ -3528,6 +3531,7 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   const app = run();
   const sent = [];
   app.win.fetch = async (url, init) => {
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
     sent.push({ url, init });
     return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
   };
@@ -3652,6 +3656,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
     },
   ];
   app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
     sent.push({ url, init });
     if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "v1" }) };
     if (init.method === "DELETE") return { status: 200, json: async () => ({ ok: true }) };
@@ -3770,4 +3775,68 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
   assert.equal(sheets().length, 0, "a reverted element leaves no sheet behind");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "", "and no inline style");
+});
+
+test("a chat-placed preview paints, keeps as an edit, and discards cleanly", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const posts = [];
+  let preview = null;
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews" && (!init.method || init.method === "GET")) {
+      return { status: 200, json: async () => (preview ? { ok: true, preview } : { ok: true, pending: true }) };
+    }
+    if (url === "/__edityy/previews" && init.method === "POST") posts.push(JSON.parse(init.body));
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => app.click());
+  await tick();
+  assert.equal(app.root.nodes.preview.hidden, true, "no preview until the agent places one");
+  const el = selectText(app);
+  const box = app.root.nodes.preview;
+  preview = { id: "e-abc123", instruction: "make it thin", action: "styles", selector: "p", variations: [{ label: "thin", props: [{ property: "color", value: "red" }] }] };
+  app.doc.querySelector = () => el;
+  await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(box.hidden, false, "the preview box shows");
+  assert.equal(box.children[1].children[0].nodeValue, "make it thin");
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(el.style.getPropertyValue("color"), "red");
+  const keep = box.children[box.children.length - 1].children[0];
+  assert.equal(keep.disabled, false);
+  for (const fn of keep.bubbles.click.bubble) fn({});
+  assert.equal(box.hidden, true, "keep puts the box away");
+  assert.equal(posts.length, 1);
+  assert.deepEqual(posts[0], { id: "e-abc123", keep: true });
+  assert.equal(el.style.getPropertyValue("color"), "red", "kept paint stays: it is an ordinary edit");
+  assert.match(app.win.__edityy_changes(), /color.*red/);
+});
+
+test("a variant that sets words paints them like a preview", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  app.win.fetch = async (url) => {
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => app.click());
+  await tick();
+  const el = selectText(app);
+  const box = app.root.nodes.preview;
+  app.doc.querySelector = () => el;
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews") {
+      if (!init.method || init.method === "GET") {
+        return { status: 200, json: async () => ({ ok: true, preview: { id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] } }) };
+      }
+      return { status: 200, json: async () => ({ ok: true }) };
+    }
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(box.hidden, false, "the preview box shows");
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(el.textContent, "Start free", "variant text paints on the leaf element");
+  assert.match(app.win.__edityy_changes(), /Start free/);
 });

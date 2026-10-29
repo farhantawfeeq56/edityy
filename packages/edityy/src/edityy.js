@@ -654,6 +654,12 @@
     // The one on the element wears the cobalt of an active state, on paper text.
     ".variant[aria-pressed=true] .key{background:var(--accent);color:var(--paper)}",
     ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // The agent-placed preview: the same card as the variant strip, with the
+    // instruction on top and Keep and Discard at its foot.
+    ".preview-id{margin:0;font:400 11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}",
+    ".preview-say{margin:8px 14px 0;font:400 12px/1.4 inherit;color:var(--ink)}",
+    ".preview-foot{display:flex;gap:6px;padding:10px 10px 10px 14px;border-top:1px solid var(--ink-10)}",
+    ".preview-foot .variants-keep{margin-left:0}",
     // The placement cursor. It fades in where it stands rather than appearing,
     // because it is a target the pointer is about to aim at.
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none;opacity:0;",
@@ -755,6 +761,9 @@
     // The variations of one element, at the bottom right, and the keys that
     // switch between them.
     '<div class="variants" id="variants" hidden role="group" aria-label="Style variations"></div>',
+    // The chat-initiated preview: one box per agent answer, with Keep and
+    // Discard, and the same keys the variant strip answers to.
+    '<div class="variants" id="preview" hidden role="group" aria-label="Canvas preview"></div>',
     '<div class="insert" id="insert" aria-hidden="true">',
     svg("plus"),
     "</div>",
@@ -791,6 +800,7 @@
   var selBox = $("sel");
   var elementMenu = $("element-menu");
   var variantsBox = $("variants");
+  var previewBox = $("preview");
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
@@ -5872,6 +5882,9 @@ function decorations() {
     Object.keys(next).forEach(function (prop) { applyTo(variationFor, prop, next[prop]); });
     variantProps = Object.keys(next);
     variantAt = index;
+    // A variation may also set the element's words: leaf text only, so markup is
+    // never flattened by a textContent write.
+    if (variation.text !== undefined && !variationFor.children.length) previewText(variationFor, variation.text);
     paintVariants();
     refit();
     tally();
@@ -5936,6 +5949,348 @@ function decorations() {
       variantRows.push(row);
     });
     variantsBox.appendChild(list);
+  }
+
+  /* ------------------------------------------------------------ previews */
+
+  // The agent-placed preview (previews.js). The agent answers `edityy::` in
+  // the chat with place_preview, the page polls and paints it here, and Keep
+  // makes it an ordinary Edityy edit. Discard puts the page back.
+  var PREVIEWS_URL = "/__edityy/previews";
+  var previewTimer = 0;
+  var previewPolls = 0;
+  var previewSeen = ""; // the active id the page already painted, so a poll paints once
+  var previewCurrent = null; // the preview on the canvas now
+  var previewRecords = []; // the change records the paint wrote
+  var previewRows = []; // the style rows, kept so a pick moves the tick
+  var previewKeep = null;
+  var previewVariantAt = -1;
+  var previewVariantProps = [];
+  var previewTarget = null; // the styled element, for a styles preview
+  var previewFresh = []; // the inserted elements, for an insert preview
+
+  /** Ask once for the agent's preview, and again in a moment while there is none. */
+  function pollPreviews() {
+    if (!active || typeof window.fetch !== "function") return;
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = 0;
+    previewPolls += 1;
+    if (previewPolls > MAX_POLLS) return; // the canvas waits quietly: a preview is a gift, not a request
+    window.fetch(PREVIEWS_URL, { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error((j && j.error) || "The preview could not be read");
+        if (j.pending || !j.preview) {
+          previewTimer = setTimeout(pollPreviews, POLL_DELAY);
+          return;
+        }
+        if (!j.preview || j.preview.id === previewSeen) {
+          previewTimer = setTimeout(pollPreviews, POLL_DELAY);
+          return;
+        }
+        previewSeen = j.preview.id;
+        showPreview(j.preview);
+        previewTimer = setTimeout(pollPreviews, POLL_DELAY);
+      })
+      .catch(function () {
+        previewTimer = setTimeout(pollPreviews, POLL_DELAY);
+      });
+  }
+
+  function previewQuery(selector) {
+    if (!selector) return null;
+    try {
+      return document.querySelector(selector);
+    } catch {
+      return null; // a selector the page cannot read names nothing on it
+    }
+  }
+
+  /**
+   * Inserted markup, parsed by the page and not by string: only allowlisted
+   * tags with allowlisted attributes reach the canvas. A file the agent wrote
+   * by hand is checked again here, because the agent is not trusted.
+   */
+  function previewNodes(html) {
+    var box = document.createElement("div");
+    box.innerHTML = html;
+    var tags = /^[a-z][a-z0-9-]*$/;
+    var allowTags = { div: 1, section: 1, article: 1, header: 1, footer: 1, main: 1, nav: 1, aside: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1, p: 1, span: 1, a: 1, button: 1, ul: 1, ol: 1, li: 1, img: 1, figure: 1, figcaption: 1, blockquote: 1, pre: 1, code: 1, strong: 1, em: 1, small: 1, hr: 1, br: 1 };
+    var allowAttrs = { class: 1, id: 1, href: 1, src: 1, alt: 1, title: 1 };
+    var bad = /^(javascript|data|vbscript)\s*:/i;
+    var walk = function (node) {
+      var kids = node.childNodes ? Array.prototype.slice.call(node.childNodes) : [];
+      kids.forEach(function (kid) {
+        if (kid.nodeType === 8) return node.removeChild(kid); // no comments ride along
+        if (kid.nodeType !== 1) return;
+        var tag = String(kid.tagName || "").toLowerCase();
+        if (!tags.test(tag) || !allowTags[tag]) return node.removeChild(kid);
+        var attrs = kid.attributes ? Array.prototype.slice.call(kid.attributes) : [];
+        attrs.forEach(function (attr) {
+          var key = String(attr.name || "").toLowerCase();
+          if (!allowAttrs[key]) return kid.removeAttribute(attr.name);
+          if (bad.test(String(attr.value || ""))) return kid.removeAttribute(attr.name);
+        });
+        walk(kid);
+      });
+    };
+    walk(box);
+    return Array.prototype.slice.call(box.childNodes);
+  }
+
+  /** Put one declaration set on an element, through the same records as a pick. */
+  function previewApply(el, props) {
+    var rec = record(el);
+    var next = {};
+    props.forEach(function (p) { next[propKey(p)] = p.value; });
+    previewVariantProps.forEach(function (prop) {
+      if (prop in next) return;
+      applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
+    });
+    Object.keys(next).forEach(function (prop) { applyTo(el, prop, next[prop]); });
+    previewVariantProps = Object.keys(next);
+    return rec;
+  }
+
+  /** Set plain words on a leaf element: no markup is ever written as words. */
+  function previewText(el, words) {
+    if (!el || typeof words !== "string") return;
+    if (el.children && el.children.length) return; // a container keeps its markup
+    var rec = record(el);
+    if (rec.text === null) rec.text = el.textContent;
+    if (rec.html === undefined) rec.html = el.innerHTML;
+    var before = el.textContent;
+    el.textContent = words;
+    if (before !== words) action(rec, "text", before, words);
+  }
+
+  /** Paint one agent preview on the canvas. Inserts and updates are new records; they stay ordinary edits. */
+  function paintPreview(preview) {
+    previewRecords = [];
+    previewVariantProps = [];
+    previewVariantAt = -1;
+    previewTarget = null;
+    previewFresh = [];
+    if (!preview || typeof preview !== "object") return false;
+    if (preview.action === "styles") {
+      var el = previewQuery(preview.selector);
+      if (!el) return false;
+      previewTarget = el;
+      return true; // the rows paint it: nothing lands until a pick does
+    }
+    if (preview.action === "insert") {
+      var anchor = preview.anchor ? previewQuery(preview.anchor) : null;
+      var parent = anchor ? anchor.parentElement : (document.querySelector("main") || document.body);
+      if (!parent) return false;
+      var nodes = previewNodes(preview.html);
+      if (!nodes.length) return false;
+      var position = preview.position || "inside-end";
+      var before = null;
+      if (anchor && position === "after") before = anchor.nextSibling;
+      if (anchor && position === "before") before = anchor;
+      nodes.forEach(function (node) {
+        if (node.nodeType !== 1) return;
+        if (position === "inside-start") parent.insertBefore(node, parent.firstChild);
+        else if (before) parent.insertBefore(node, before);
+        else parent.appendChild(node);
+        var rec = record(node);
+        rec.created = true;
+        rec.createdStyle = node.style ? node.style.cssText : "";
+        if (!rec.selector) rec.selector = selectorFor(node);
+        previewRecords.push(rec);
+        previewFresh.push(node);
+      });
+      select(previewFresh[0] || null, previewFresh[0] ? { el: previewFresh[0], kind: "container" } : null);
+      return !!previewFresh.length;
+    }
+    if (preview.action === "update") {
+      var target = previewQuery(preview.selector);
+      if (!target) return false;
+      previewTarget = target;
+      (preview.props || []).forEach(function (p) { applyTo(target, propKey(p), p.value); });
+      if (preview.text !== undefined) previewText(target, preview.text);
+      if (preview.html !== undefined && !(target.children && target.children.length)) {
+        var rec = record(target);
+        if (rec.text === null) rec.text = target.textContent;
+        if (rec.html === undefined) rec.html = target.innerHTML;
+        var was = target.innerHTML;
+        target.innerHTML = "";
+        previewNodes(preview.html).forEach(function (node) { target.appendChild(node.cloneNode(true)); });
+        action(rec, "text", was, target.innerHTML);
+      }
+      previewRecords.push(record(target));
+      select(target, { el: target, kind: "container" });
+      return true;
+    }
+    if (preview.action === "remove") {
+      var gone = previewQuery(preview.selector);
+      if (!gone || !gone.parentElement) return false;
+      var grec = record(gone);
+      if (!grec.selector) grec.selector = selectorFor(gone);
+      grec.removed = { parent: gone.parentElement, before: gone.nextSibling };
+      action(grec, "delete", grec.removed, null);
+      gone.parentElement.removeChild(gone);
+      previewRecords.push(grec);
+      select(null);
+      return true;
+    }
+    return false;
+  }
+
+  /** Drop the painted preview: inserted nodes leave, the rest reverts. */
+  function unpaintPreview() {
+    previewFresh.forEach(function (node) {
+      for (var i = previewRecords.length - 1; i >= 0; i--) {
+        if (previewRecords[i].el === node) {
+          previewRecords.splice(i, 1);
+          changes = changes.filter(function (other) { return other !== previewRecords[i]; });
+        }
+      }
+      if (node.parentElement) node.parentElement.removeChild(node);
+    });
+    previewFresh = [];
+    previewRecords.slice().forEach(revert);
+    previewRecords = [];
+    previewVariantProps = [];
+    previewVariantAt = -1;
+    previewRows = [];
+    previewKeep = null;
+    previewTarget = null;
+    previewCurrent = null;
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = true;
+  }
+
+  /** The preview box: the instruction, the rows or the note, and Keep and Discard. */
+  function drawPreview(preview) {
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = false;
+    var head = document.createElement("div");
+    head.className = "variants-head";
+    var title = document.createElement("p");
+    title.className = "variants-title";
+    title.appendChild(text("Preview"));
+    head.appendChild(title);
+    var id = document.createElement("span");
+    id.className = "variants-of";
+    id.appendChild(text(preview.id));
+    head.appendChild(id);
+    previewBox.appendChild(head);
+    var line = document.createElement("p");
+    line.className = "preview-say";
+    line.appendChild(text(preview.instruction));
+    previewBox.appendChild(line);
+    if (preview.action === "styles" && previewTarget) {
+      var list = document.createElement("div");
+      list.className = "variants-list";
+      preview.variations.forEach(function (variation, i) {
+        var row = button("variant", "", "Use " + variation.label, function () { pickPreviewVariant(i); }, "preview-" + (i + 1));
+        row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
+        var key = document.createElement("span");
+        key.className = "key";
+        key.appendChild(text(i === 9 ? "0" : String(i + 1)));
+        row.appendChild(key);
+        var words = document.createElement("span");
+        words.className = "words";
+        words.appendChild(text(variation.label));
+        row.appendChild(words);
+        list.appendChild(row);
+        previewRows.push(row);
+      });
+      previewBox.appendChild(list);
+    }
+    var foot = document.createElement("div");
+    foot.className = "preview-foot";
+    var keep = button("variants-keep", "", "Keep the preview as an edit", function () { keepPreview(); }, "preview-keep");
+    keep.appendChild(say("Keep"));
+    keep.disabled = preview.action === "styles" && previewVariantAt < 0;
+    previewKeep = keep;
+    foot.appendChild(keep);
+    var discard = button("variants-keep", "", "Discard the preview", function () { discardPreview(); }, "preview-discard");
+    discard.appendChild(say("Discard"));
+    foot.appendChild(discard);
+    previewBox.appendChild(foot);
+    refit();
+  }
+
+  /** The answer arrived: paint it, then show the box with Keep and Discard. */
+  function showPreview(preview) {
+    if (previewBox && !previewBox.hidden) unpaintPreview();
+    if (variantRows.length) closeVariants();
+    previewRows = [];
+    previewCurrent = preview;
+    if (!paintPreview(preview)) {
+      previewCurrent = null;
+      previewSeen = "";
+      if (typeof window.fetch === "function") {
+        window.fetch(PREVIEWS_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+      }
+      return;
+    }
+    drawPreview(preview);
+    tally();
+  }
+
+  /** One styled look on the element, through the same records as a variant. */
+  function pickPreviewVariant(index) {
+    var preview = previewCurrent;
+    if (!preview || preview.action !== "styles" || !previewTarget) return;
+    var variation = preview.variations[index];
+    if (!variation) return;
+    previewApply(previewTarget, variation.props || []);
+    if (variation.text !== undefined) previewText(previewTarget, variation.text);
+    if (previewRecords.indexOf(record(previewTarget)) === -1) previewRecords.push(record(previewTarget));
+    select(previewTarget, { el: previewTarget, kind: "container" });
+    previewVariantAt = index;
+    previewRows.forEach(function (row, i) {
+      row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
+    });
+    if (previewKeep) previewKeep.disabled = false;
+    refit();
+    tally();
+  }
+
+  /** Tell the server the user kept it. It stays: it is an ordinary edit now. */
+  function keepPreview() {
+    var preview = previewCurrent;
+    var id = preview && preview.id;
+    previewCurrent = null;
+    previewRows = [];
+    previewKeep = null;
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = true;
+    if (id && typeof window.fetch === "function") {
+      window.fetch(PREVIEWS_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ id: id, keep: true }),
+      }).catch(function () {});
+    }
+    previewRecords = [];
+    previewVariantProps = [];
+    previewVariantAt = -1;
+    previewTarget = null;
+    previewFresh = [];
+    refit();
+    tally();
+  }
+
+  /** Tell the server the user dropped it, and put the page back. */
+  function discardPreview() {
+    var id = previewCurrent && previewCurrent.id;
+    unpaintPreview();
+    previewSeen = "";
+    if (id && typeof window.fetch === "function") {
+      window.fetch(PREVIEWS_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ id: id, keep: false }),
+      }).catch(function () {});
+    }
+    refit();
+    tally();
   }
 
   /** Put the strip away. A pending request is dropped, so no agent answers it late. */
@@ -6335,6 +6690,9 @@ function decorations() {
     // load does not bubble, so it is caught on the way down: an image that
     // loads above the selection pushes it down the page.
     document.addEventListener("load", onLoad, true);
+    previewPolls = 0;
+    previewSeen = "";
+    pollPreviews(); // an agent may have placed a preview while the page was idle
     syncDock();
   }
 
@@ -6357,6 +6715,11 @@ function decorations() {
     // Exiting always puts the page back exactly as it was.
     stopEditing();
     closeVariants();
+    if (previewCurrent) discardPreview();
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = 0;
+    previewPolls = 0;
+    previewSeen = "";
     if (moving) {
       var location = record(moving).location;
       location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
@@ -6726,6 +7089,16 @@ function decorations() {
       }
       return;
     }
+    if (previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+      var previewTyping = editing || pageField;
+      var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
+      if (!previewTyping && previewCurrent && previewCurrent.action === "styles" && previewIndex < (previewCurrent.variations || []).length) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        pickPreviewVariant(previewIndex);
+      }
+      return;
+    }
     if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       e.preventDefault();
       e.stopPropagation();
@@ -6746,7 +7119,9 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      if (variationBoxFor || !variantsBox.hidden) {
+      if (previewCurrent) {
+        discardPreview(); // a preview goes back to the page it replaced
+      } else if (variationBoxFor || !variantsBox.hidden) {
         // The variations go, the edits they made stay: they are undoable edits.
         closeVariants();
         syncElementMenu();
