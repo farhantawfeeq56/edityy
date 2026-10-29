@@ -19,6 +19,7 @@ const want = [
   "src/init.js",
   "src/mcp.js",
   "src/motion.css",
+  "src/previews.js",
   "src/variations.js",
   "src/vite.d.ts",
   "src/vite.js",
