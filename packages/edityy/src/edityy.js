@@ -673,6 +673,15 @@
     ".preview-row input:checked+.mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
     ".preview-row .mark>svg{width:10px;height:10px}",
     ".preview-row .words{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // The chevron folds the row's place down into a line, so the reader knows
+    // where the change lands before deciding on it.
+    ".preview-row .more{display:grid;place-items:center;width:24px;height:24px;flex:none;margin-right:-4px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}",
+    ".preview-row .more:hover{background:var(--ink-6);color:var(--ink)}",
+    ".preview-row .more:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".preview-row .more>svg{width:12px;height:12px;transform:rotate(90deg);transition:transform var(--tint) var(--standard)}",
+    ".preview-row[data-open] .more>svg{transform:rotate(180deg)}",
+    ".preview-item{display:flex;flex-direction:column}",
+    ".preview-detail{margin:0;padding:2px 34px 6px 30px;font:400 11px/1.5 inherit;color:var(--muted)}",
     // The placement cursor. It fades in where it stands rather than appearing,
     // because it is a target the pointer is about to aim at.
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none;opacity:0;",
@@ -6314,6 +6323,17 @@ function decorations() {
     tally();
   }
 
+  /** Where one preview aims, in words a reader can follow on the page. */
+  function previewWhere(preview) {
+    if (preview.action === "insert") {
+      if (!preview.anchor) return "End of main";
+      var place = { after: "After /", before: "Before /", "inside-start": "First inside /" }[preview.position] || "End of /";
+      return place + preview.anchor;
+    }
+    if (preview.action === "remove") return "Takes away /" + preview.selector;
+    return "/" + preview.selector;
+  }
+
   /** The checkbox list: one row per instruction, and one batch button under it. */
   function drawPreviewList() {
     while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
@@ -6333,6 +6353,8 @@ function decorations() {
     list.className = "variants-list";
     previewBoxRows = [];
     previewList.forEach(function (one, i) {
+      var item = document.createElement("div");
+      item.className = "preview-item";
       var row = document.createElement("label");
       row.className = "preview-row";
       var tick = document.createElement("input");
@@ -6355,7 +6377,20 @@ function decorations() {
       words.className = "words";
       words.appendChild(text(one.instruction));
       row.appendChild(words);
-      list.appendChild(row);
+      // The chevron opens the row's place: where on the page this one lands.
+      var detail = document.createElement("p");
+      detail.className = "preview-detail";
+      detail.hidden = true;
+      detail.appendChild(text(previewWhere(one)));
+      var more = button("more", svg("chevron-up"), "Show where this change lands", function () {
+        var open = row.getAttribute("data-open") === "true";
+        row.setAttribute("data-open", open ? "false" : "true");
+        detail.hidden = open;
+      }, "preview-where-" + (i + 1));
+      row.appendChild(more);
+      item.appendChild(row);
+      item.appendChild(detail);
+      list.appendChild(item);
       previewBoxRows.push(tick);
     });
     previewBox.appendChild(list);

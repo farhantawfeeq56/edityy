@@ -68,6 +68,10 @@ edityy:: remove the grey banner above the footer`}</Pre>
           Nothing ticked, it reads <strong>Discard all changes</strong>: the whole list goes back.
         </LI>
         <LI>
+          The <Code>&gt;</Code> on a row opens where that change lands: the element it names, or the place an insert
+          takes.
+        </LI>
+        <LI>
           <Code>Escape</Code>, or leaving edit mode, takes back everything still waiting.
         </LI>
       </UL>

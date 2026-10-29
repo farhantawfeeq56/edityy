@@ -3849,9 +3849,9 @@ test("several previews at once get a checkbox list and one batch button", async 
     if (url === "/__edityy/previews") {
       if (!init.method || init.method === "GET") {
         return { status: 200, json: async () => ({ ok: true, previews: [
-          { id: "e-two1", instruction: "say it short", action: "update", selector: "p", text: "Start free", props: [] },
+          { id: "e-two1", instruction: "say it short", action: "insert", position: "inside-end", html: '<div class="edityy-note"><p>Start free</p></div>' },
           { id: "e-two2", instruction: "add a shadow", action: "update", selector: "p", props: [{ property: "box-shadow", value: "0 2px 4px black" }] },
-          { id: "e-two3", instruction: "thicken the words", action: "update", selector: "p", props: [{ property: "font-weight", value: "700" }] },
+          { id: "e-two3", instruction: "thicken the words", action: "insert", anchor: "main h2", position: "after", html: '<p class="edityy-note">Heavier</p>' },
         ] }) };
       }
       if (init.method === "POST") posts.push(JSON.parse(init.body));
@@ -3867,13 +3867,27 @@ test("several previews at once get a checkbox list and one batch button", async 
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   assert.equal(box.hidden, false, "the list shows instead of a painted preview");
   assert.match(shown(box), /Previews/);
-  const rows = box.children[1].children;
-  assert.equal(rows.length, 3, "a row per instruction");
-  assert.match(shown(rows[0]), /say it short/);
+  const items = box.children[1].children;
+  assert.equal(items.length, 3, "a row per instruction");
+  assert.match(shown(items[0]), /say it short/);
+  const rows = items.map((item) => item.children[0]);
   const batchBtn = box.children[2].children[0];
   assert.equal(batchBtn.dataset.key, "preview-batch");
   assert.equal(box.hidden, false, "nothing painted on the canvas while several wait");
   assert.equal(el.style.getPropertyValue("font-weight"), "", "the list paints nothing until a keep decides");
+  // A chevron on a row opens the place it lands, so the reader knows where.
+  assert.match(shown(items[0]), /say it short/, "the fold leaves the words in place");
+  const moreOne = rows[0].children[3];
+  assert.equal(moreOne.dataset.key, "preview-where-1", "a chevron per row");
+  const foldOne = items[0].children[1];
+  assert.equal(foldOne.hidden, true, "the place starts folded");
+  for (const fn of moreOne.bubbles.click.bubble) fn({});
+  assert.equal(foldOne.hidden, false, "the chevron unfolds the place");
+  assert.match(shown(foldOne), /End of main/, "the insert without an anchor names the end of main");
+  const moreThree = rows[2].children[3];
+  const foldThree = items[2].children[1];
+  for (const fn of moreThree.bubbles.click.bubble) fn({});
+  assert.match(shown(foldThree), /After \/main h2/, "the insert with an anchor names its place");
   // All ticked to start: the button says keep. Untick one, and it still keeps
   // the ticked ones and takes the unticked one back in the same round.
   const tickOne = rows[1].children[0];
@@ -3881,7 +3895,8 @@ test("several previews at once get a checkbox list and one batch button", async 
   tickOne.checked = false;
   for (const fn of tickOne.bubbles.change.bubble) fn({});
   assert.equal(batchBtn.textContent, "Keep all", "something is still ticked, so the button keeps");
-  for (const fn of batchBtn.bubbles.click.bubble) fn({});
+  for (const fn of moreOne.bubbles.click.bubble) fn({});
+  assert.equal(foldOne.hidden, true, "and folds again");  for (const fn of batchBtn.bubbles.click.bubble) fn({});
   assert.equal(box.hidden, true, "the batch button puts the list away");
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { decisions: [
@@ -3914,7 +3929,7 @@ test("the batch button flips to discard-all when no row is ticked", async () => 
   const box = app.root.nodes.preview;
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  const rows = box.children[1].children;
+  const rows = box.children[1].children.map((item) => item.children[0]);
   rows[0].children[0].checked = false;
   for (const fn of rows[0].children[0].bubbles.change.bubble) fn({});
   rows[1].children[0].checked = false;

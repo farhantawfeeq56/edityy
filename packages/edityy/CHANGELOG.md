@@ -17,7 +17,8 @@ All notable changes to the `edityy` package. The format follows
 - Several previews waiting at once show a checkbox list instead of one card.
   Keys `1`–`9` and `0` flip the tick on a row, and one batch button keeps every
   ticked one and takes the others back. With nothing ticked the button reads
-  "Discard all changes" and takes the whole list back. `Escape` and leaving edit
+  "Discard all changes" and takes the whole list back. A chevron on each row
+  opens where that change lands. `Escape` and leaving edit
   mode take back everything still waiting. (#246)
 
 ## 0.8.0 — 2026-10-24
