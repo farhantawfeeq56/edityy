@@ -46,6 +46,12 @@ One element can also be varied: choose **Variations**, pick how many variants an
 breakpoints. Say what you want in the same message, and the agent follows it. Keys `1` to `9` and `0` switch the live
 element between them, and the one you keep is an ordinary edit.
 
+A change can also start in the agent chat instead. Type `edityy::` followed by an instruction — `edityy:: add a
+pricing section with three cards` — and the agent paints it on the canvas only, without touching your code. The page
+shows the answer with **Keep** and **Discard**. Keep makes it an ordinary Edityy edit, and you can then type
+`implement <id>` to have the agent write it into the source. Markup in a preview is allowlisted twice, on the server
+and again in the page, so no script, event attribute or iframe can reach the canvas.
+
 ## The idea
 
 You already have a website built in your codebase. Edityy works on top of the running application instead of asking you
