@@ -36,6 +36,45 @@ function invalid(message) {
   throw new SaveError(400, `Invalid variation data: ${message}.`);
 }
 
+/** Plain words for an element, or nothing when the answer leaves the text alone. */
+const MAX_TEXT = 2000;
+export function checkPreviewText(text) {
+  if (typeof text !== "string" || !text.trim() || text.length > MAX_TEXT) invalid("text must be 1 to 2000 characters");
+  return text;
+}
+
+/** Plain CSS declarations, with no rule, no selector and no script in them. */
+export function checkDeclarations(declarations) {
+  if (declarations === undefined) return [];
+  if (!Array.isArray(declarations) || declarations.length > MAX_PROPERTIES) invalid(`props must contain at most ${MAX_PROPERTIES} entries`);
+  const seen = new Set();
+  return declarations.map((declaration) => {
+    if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) invalid("each declaration must be an object");
+    const property = declaration.property;
+    const value = declaration.value;
+    if (typeof property !== "string" || !PROPERTY.test(property) || property.startsWith("--")) invalid("property must be a standard CSS property name");
+    // A state, a pseudo-element or a breakpoint lives in a rule of its own, so
+    // each one is checked here before the page draws it.
+    const on = declaration.on;
+    if (on !== undefined && (typeof on !== "string" || !STATE.test(on))) {
+      invalid("on must be a state or pseudo-element, such as :hover or ::before");
+    }
+    const when = declaration.when;
+    if (when !== undefined && (typeof when !== "string" || !MEDIA.test(when))) {
+      invalid("when must be a media condition, such as (max-width: 640px)");
+    }
+    // The same property can appear twice: on the element, and on its hover.
+    const key = `${on || ""}|${when || ""}|${property}`;
+    if (seen.has(key)) invalid("a declaration cannot repeat a property");
+    seen.add(key);
+    if (typeof value !== "string" || !value.trim() || value.length > 160 || VALUE.test(value)) invalid("property value is invalid");
+    const out = { property, value: value.trim() };
+    if (on) out.on = on;
+    if (when) out.when = when;
+    return out;
+  });
+}
+
 export function checkVariationRequest(request) {
   if (!request || typeof request !== "object" || Array.isArray(request)) invalid("expected an object");
   if (typeof request.id !== "string" || !ID.test(request.id)) invalid("id is invalid");
@@ -88,34 +127,12 @@ export function checkVariations(response, expectedId, count) {
   const variations = (count ? response.variations.slice(0, most) : response.variations).map((variation) => {
     if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
     if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each label must be 1 to 50 characters");
-    if (!Array.isArray(variation.props) || variation.props.length < 1 || variation.props.length > MAX_PROPERTIES) invalid(`each variation must have 1 to ${MAX_PROPERTIES} properties`);
-    const seen = new Set();
-    const props = variation.props.map((declaration) => {
-      if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) invalid("each declaration must be an object");
-      const property = declaration.property;
-      const value = declaration.value;
-      if (typeof property !== "string" || !PROPERTY.test(property) || property.startsWith("--")) invalid("property must be a standard CSS property name");
-      // A state, a pseudo-element or a breakpoint lives in a rule of its own, so
-      // each one is checked here before the page draws it.
-      const on = declaration.on;
-      if (on !== undefined && (typeof on !== "string" || !STATE.test(on))) {
-        invalid("on must be a state or pseudo-element, such as :hover or ::before");
-      }
-      const when = declaration.when;
-      if (when !== undefined && (typeof when !== "string" || !MEDIA.test(when))) {
-        invalid("when must be a media condition, such as (max-width: 640px)");
-      }
-      // The same property can appear twice: on the element, and on its hover.
-      const key = `${on || ""}|${when || ""}|${property}`;
-      if (seen.has(key)) invalid("a variation cannot repeat a property");
-      seen.add(key);
-      if (typeof value !== "string" || !value.trim() || value.length > 160 || VALUE.test(value)) invalid("property value is invalid");
-      const out = { property, value: value.trim() };
-      if (on) out.on = on;
-      if (when) out.when = when;
-      return out;
-    });
-    return { label: variation.label.trim(), props };
+    const props = checkDeclarations(variation.props);
+    const text = variation.text === undefined ? undefined : checkPreviewText(variation.text);
+    if (!props.length && text === undefined) invalid("each variation must set a style or the text");
+    const out = { label: variation.label.trim(), props };
+    if (text !== undefined) out.text = text;
+    return out;
   });
   return { requestId: expectedId, variations };
 }
@@ -187,6 +204,8 @@ export async function clearVariations(root = process.cwd()) {
   await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
 }
 
+
+
 /** The pending request as text for the agent: about 800 characters. */
 export function requestText(request) {
   const values = request.element.values.map((v) => `${v.property}: ${v.value}`).join("; ");
@@ -207,13 +226,13 @@ export function requestText(request) {
     `1. Make exactly ${request.count} variations, each with a short label of two or three words. If you send more, the first ones are the ones the user sees.`,
     "2. The user may have told you in their own message what they want. Follow",
     "   that when they did: the comment above is only part of what they asked for.",
-    "3. In each variation, use plain standard CSS properties and plain values.",
+    "3. Use plain standard CSS properties and plain values, or set the words with `text`.",
     "4. A state, a pseudo-element or a breakpoint is a rule: set `on` to `:hover` or",
     "   `::before`, or set `when` to a media condition such as `(max-width: 640px)`.",
     "   Leave both out for the element's own style.",
     "5. `::before` and `::after` need a `content` value to show at all.",
-    "6. Do not use custom properties, at-rules other than a media condition in",
-    "   `when`, `!important`, or `url()`.",
+    "6. No custom properties, at-rules other than a media condition in `when`,",
+    "   `!important`, or `url()`.",
     "7. Call place_variations with the requestId below and the variations.",
     "",
     `requestId: \`${request.id}\``,

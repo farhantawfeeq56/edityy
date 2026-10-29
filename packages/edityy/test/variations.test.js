@@ -176,6 +176,24 @@ test("an answer that would need a stylesheet is refused", () => {
   for (const value of bad) assert.throws(() => checkVariations(value, "v123abc"), { status: 400 }, JSON.stringify(value)?.slice(0, 80));
 });
 
+test("a variation may set the words of the element", () => {
+  const checked = checkVariations(
+    answer([
+      { label: "short", props: [], text: "Start free" },
+      { label: "styled", props: [{ property: "color", value: "red" }] },
+    ]),
+    "v123abc"
+  );
+  assert.equal(checked.variations[0].text, "Start free");
+  assert.deepEqual(checked.variations[0].props, []);
+  assert.equal(checked.variations[1].text, undefined);
+  // A variation that sets neither a style nor the words is refused.
+  assert.throws(() => checkVariations(answer([{ label: "empty", props: [] }, { label: "two", props: [{ property: "color", value: "red" }] }]), "v123abc"), { status: 400 });
+  // Words that are empty or too long are refused.
+  assert.throws(() => checkVariations(answer([{ label: "blank", props: [], text: "   " }, { label: "two", props: [{ property: "color", value: "red" }] }]), "v123abc"), { status: 400 });
+  assert.throws(() => checkVariations(answer([{ label: "long", props: [], text: "x".repeat(2001) }, { label: "two", props: [{ property: "color", value: "red" }] }]), "v123abc"), { status: 400 });
+});
+
 test("a placed answer is read back only by the request that asked for it", async () => {
   const root = tmp();
   assert.equal(await readVariationRequest(root), null);
