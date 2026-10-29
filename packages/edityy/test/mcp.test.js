@@ -24,7 +24,7 @@ test("initializes as a tools server and lists its tools", async () => {
   assert.deepEqual(init.result.capabilities, { tools: {} });
   assert.equal(init.result.serverInfo.name, "edityy");
   const list = await call(tmp(), "tools/list");
-  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_visual_changes", "clear_visual_changes", "get_variation_request", "place_variations"]);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_visual_changes", "clear_visual_changes", "get_variation_request", "place_preview", "get_preview", "decide_preview", "place_variations"]);
   for (const tool of list.result.tools) assert.equal(tool.inputSchema.type, "object");
 });
 

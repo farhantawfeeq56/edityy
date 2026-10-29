@@ -29,7 +29,7 @@ export default function DocsMcp() {
       </P>
 
       <H2 id="tools">The tools</H2>
-      <P>There are four.</P>
+      <P>There are seven.</P>
 
       <H3 id="get-visual-changes">get_visual_changes</H3>
       <P>
@@ -96,12 +96,67 @@ export default function DocsMcp() {
         Fewer variations than the request is refused. More is not a refusal, but the first ones are the ones you see.
       </Note>
 
+      <H3 id="place-preview">place_preview</H3>
+      <P>
+        The user typed <Code>edityy::</Code> in the agent chat. Place that change on the live canvas only. Do not edit
+        files for it.
+      </P>
+      <P>
+        Each preview is an instruction, an action, and the payload that action needs:
+      </P>
+      <UL>
+        <LI>
+          <Code>styles</Code> restyles one element: a selector and 1 to 10 labeled variations.
+        </LI>
+        <LI>
+          <Code>insert</Code> adds allowlisted markup near an anchor, or at the end of <Code>main</Code>.
+        </LI>
+        <LI>
+          <Code>update</Code> changes one element: its styles, its words or its markup.
+        </LI>
+        <LI>
+          <Code>remove</Code> takes one element away.
+        </LI>
+      </UL>
+      <Pre>{`{
+  "instruction": "add a pricing section",
+  "action": "insert",
+  "position": "inside-end",
+  "html": "<section class=\"pricing\"><h2>Plans</h2></section>"
+}`}</Pre>
+      <P>
+        The page shows the preview with <strong>Keep</strong> and <strong>Discard</strong>. Keys <Code>1</Code> to{" "}
+        <Code>0</Code> try each look of a styles preview, and <Code>Escape</Code> discards.
+      </P>
+      <Note title="Ask before you guess">
+        If the user names no place and the place is unclear, ask them first. A preview that lands somewhere they did not
+        mean is worse than a question.
+      </Note>
+      <Note title="Safety">
+        Markup is allowlisted twice: once on the server, and again in the page before it paints. A script tag, an event
+        attribute, an iframe, a form or a <Code>javascript:</Code> link is refused. So is a <Code>style</Code>{" "}
+        attribute.
+      </Note>
+
+      <H3 id="get-preview">get_preview</H3>
+      <P>
+        Returns one preview by its id, or the active one, with its instruction, action and payload. Apply a kept preview
+        by reading its saved edit with <Code>get_visual_changes</Code>.
+      </P>
+
+      <H3 id="decide-preview">decide_preview</H3>
+      <P>
+        Marks one preview <Code>keep</Code> or <Code>discard</Code>, once the user says <Code>implement &lt;id&gt;</Code>{" "}
+        or <Code>discard &lt;id&gt;</Code>.
+      </P>
+
       <H2 id="the-files">The files</H2>
-      <P>The server and the page share three files in your project.</P>
+      <P>The server and the page share four files in your project.</P>
       <Pre>{`.edityy/
   changes.json             the saved edits
   variation-request.json   what you asked for
-  variation-response.json  what the agent answered`}</Pre>
+  variation-response.json  what the agent answered
+  previews.json            the canvas previews and their history`}</Pre>
       <P>
         The folder gets its own <Code>.gitignore</Code>, so pending edits never end up in a commit. Your agent reads
         the same files the page writes.

@@ -13,6 +13,7 @@ export const nav: { title: string; pages: { href: string; title: string }[] }[] 
     pages: [
       { href: "/docs/editing", title: "The editing mode" },
       { href: "/docs/variations", title: "Style variations" },
+      { href: "/docs/previews", title: "Chat previews" },
       { href: "/docs/handoff", title: "Hand-off" },
     ],
   },

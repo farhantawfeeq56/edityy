@@ -52,6 +52,12 @@ rose pill | scrollbar-color: #f43f5e #f4f4f5
 notched | on: ::-webkit-scrollbar-thumb, background: #f43f5e
 narrow | when: (max-width: 640px), padding: 8px`}</Pre>
 
+      <P>
+        A variation may also change the element’s words. Add <Code>text</Code> beside the declarations, and the words
+        are set with it.
+      </P>
+      <Pre>{`{ "label": "shorter", "props": [], "text": "Start free" }`}</Pre>
+
       <H2 id="picking">Picking one</H2>
       <P>
         A strip at the bottom right shows the variations. It names the element it varies, and <strong>Keep</strong> is
