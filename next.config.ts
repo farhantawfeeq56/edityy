@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
   // lives in a folder with an ordinary name and this rewrite maps the
   // reserved path onto it.
   async rewrites() {
-    return [{ source: "/__edityy/variations", destination: "/edityy/variations" }];
+    return [
+      { source: "/__edityy/variations", destination: "/edityy/variations" },
+      { source: "/__edityy/previews", destination: "/edityy/previews" },
+    ];
   },
 };
 

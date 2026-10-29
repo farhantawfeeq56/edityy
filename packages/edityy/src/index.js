@@ -3,7 +3,11 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
+import { PREVIEWS_PATH, clearPreviews, decidePreview, readActivePreview } from "./previews.js";
 import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
+
+/** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
+export { PREVIEWS_PATH };
 
 /**
  * The launcher payload, read once at import.
@@ -87,6 +91,13 @@ export function edityy(options = {}) {
 
       if (pathname === VARIATIONS_PATH && options.save !== false) {
         variationsFromNode(req, res, root, hosts).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
+        return;
+      }
+
+      if (pathname === PREVIEWS_PATH && options.save !== false) {
+        previewsFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -475,6 +486,42 @@ async function variationsFromNode(req, res, root, allowedHosts) {
   }
 }
 
+/**
+ * The previews endpoint on a Node dev server.
+ *
+ * GET answers with the agent-placed preview once it is there (pending while it
+ * is not), DELETE drops it, and POST with `{ id, keep }` records the user's
+ * decision from the page.
+ */
+async function previewsFromNode(req, res, root, allowedHosts) {
+  const answer = (status, body) => {
+    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end?.(JSON.stringify(body));
+  };
+  try {
+    const h = req.headers ?? {};
+    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "show previews");
+    if (req.method === "GET") {
+      const preview = await readActivePreview(root);
+      answer(200, preview ? { ok: true, preview } : { ok: true, pending: true });
+      return;
+    }
+    if (req.method === "POST") {
+      const decided = jsonBody(await readBody(req, VARIATION_LIMIT));
+      answer(200, { ok: true, id: (await decidePreview(decided.id, decided.keep ? "keep" : "discard", root)).id });
+      return;
+    }
+    if (req.method === "DELETE") {
+      await clearPreviews(root);
+      answer(200, { ok: true });
+      return;
+    }
+    throw new SaveError(405, "GET, POST or DELETE the preview.");
+  } catch (error) {
+    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+  }
+}
+
 /** A body as JSON, or a 400 that says the body is not JSON. */
 function jsonBody(body) {
   try {
@@ -589,6 +636,55 @@ export function variationsRoute(options = {}) {
     DELETE: (request) =>
       run(request, async () => {
         await clearVariations(root);
+        return json(200, { ok: true });
+      }),
+  };
+}
+
+/**
+ * The previews endpoint as fetch-style route handlers, for Next.js:
+ *
+ *   // app/edityy/previews/route.ts  (the app rewrites /__edityy/previews onto it)
+ *   import { previewsRoute } from "edityy";
+ *   export const { GET, POST, DELETE } = previewsRoute();
+ *
+ * Like changesRoute(), it answers 404 unless NODE_ENV is "development".
+ */
+export function previewsRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  const json = (status, body) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    });
+  const run = async (request, act) => {
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
+    try {
+      const h = request.headers;
+      const host = h.get("host") ?? new URL(request.url).host;
+      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "show previews");
+      return await act();
+    } catch (error) {
+      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+    }
+  };
+  return {
+    GET: (request) =>
+      run(request, async () => {
+        const preview = await readActivePreview(root);
+        return preview ? json(200, { ok: true, preview }) : json(200, { ok: true, pending: true });
+      }),
+    POST: (request) =>
+      run(request, async () => {
+        const body = await request.text();
+        if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to decide a preview with.");
+        const decided = jsonBody(body);
+        const done = await decidePreview(decided.id, decided.keep ? "keep" : "discard", root);
+        return json(200, { ok: true, id: done.id });
+      }),
+    DELETE: (request) =>
+      run(request, async () => {
+        await clearPreviews(root);
         return json(200, { ok: true });
       }),
   };

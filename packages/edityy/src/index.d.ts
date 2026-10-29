@@ -94,7 +94,21 @@ export declare function changesRoute(
  * `app/edityy/variations/route.ts`, with a rewrite from `/__edityy/variations`
  * onto it. It answers 404 unless `NODE_ENV` is `development`.
  */
+export declare const PREVIEWS_PATH: "/__edityy/previews";
+
 export declare function variationsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
+  GET: (request: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+  DELETE: (request: Request) => Promise<Response>;
+};
+
+/**
+ * The previews endpoint as fetch-style route handlers, for Next.js:
+ * `export const { GET, POST, DELETE } = previewsRoute();` in
+ * `app/edityy/previews/route.ts`, with a rewrite from `/__edityy/previews`
+ * onto it. It answers 404 unless `NODE_ENV` is `development`.
+ */
+export declare function previewsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
   POST: (request: Request) => Promise<Response>;
   DELETE: (request: Request) => Promise<Response>;
