@@ -3784,7 +3784,7 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   let preview = null;
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews" && (!init.method || init.method === "GET")) {
-      return { status: 200, json: async () => (preview ? { ok: true, preview } : { ok: true, pending: true }) };
+      return { status: 200, json: async () => ({ ok: true, previews: preview ? [preview] : [] }) };
     }
     if (url === "/__edityy/previews" && init.method === "POST") posts.push(JSON.parse(init.body));
     return { status: 200, json: async () => ({ ok: true }) };
@@ -3828,7 +3828,7 @@ test("a variant that sets words paints them like a preview", async () => {
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") {
       if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, preview: { id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] } }) };
+        return { status: 200, json: async () => ({ ok: true, previews: [{ id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] }] }) };
       }
       return { status: 200, json: async () => ({ ok: true }) };
     }
@@ -3839,4 +3839,97 @@ test("a variant that sets words paints them like a preview", async () => {
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.textContent, "Start free", "variant text paints on the leaf element");
   assert.match(app.win.__edityy_changes(), /Start free/);
+});
+
+test("several previews at once get a checkbox list and one batch button", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const posts = [];
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews") {
+      if (!init.method || init.method === "GET") {
+        return { status: 200, json: async () => ({ ok: true, previews: [
+          { id: "e-two1", instruction: "say it short", action: "update", selector: "p", text: "Start free", props: [] },
+          { id: "e-two2", instruction: "add a shadow", action: "update", selector: "p", props: [{ property: "box-shadow", value: "0 2px 4px black" }] },
+          { id: "e-two3", instruction: "thicken the words", action: "update", selector: "p", props: [{ property: "font-weight", value: "700" }] },
+        ] }) };
+      }
+      if (init.method === "POST") posts.push(JSON.parse(init.body));
+      return { status: 200, json: async () => ({ ok: true }) };
+    }
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => app.click());
+  const el = selectText(app);
+  const box = app.root.nodes.preview;
+  app.doc.querySelector = () => el;
+  await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(box.hidden, false, "the list shows instead of a painted preview");
+  assert.match(shown(box), /Previews/);
+  const rows = box.children[1].children;
+  assert.equal(rows.length, 3, "a row per instruction");
+  assert.match(shown(rows[0]), /say it short/);
+  const batchBtn = box.children[2].children[0];
+  assert.equal(batchBtn.dataset.key, "preview-batch");
+  assert.equal(box.hidden, false, "nothing painted on the canvas while several wait");
+  assert.equal(el.style.getPropertyValue("font-weight"), "", "the list paints nothing until a keep decides");
+  // All ticked to start: the button says keep. Untick one, and it still keeps
+  // the ticked ones and takes the unticked one back in the same round.
+  const tickOne = rows[1].children[0];
+  assert.equal(tickOne.checked, true, "every row reads ticked to start");
+  tickOne.checked = false;
+  for (const fn of tickOne.bubbles.change.bubble) fn({});
+  assert.equal(batchBtn.textContent, "Keep all", "something is still ticked, so the button keeps");
+  for (const fn of batchBtn.bubbles.click.bubble) fn({});
+  assert.equal(box.hidden, true, "the batch button puts the list away");
+  assert.equal(posts.length, 1);
+  assert.deepEqual(posts[0], { decisions: [
+    { id: "e-two1", keep: true },
+    { id: "e-two2", keep: false },
+    { id: "e-two3", keep: true },
+  ] });
+});
+
+test("the batch button flips to discard-all when no row is ticked", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const posts = [];
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews") {
+      if (!init.method || init.method === "GET") {
+        return { status: 200, json: async () => ({ ok: true, previews: [
+          { id: "e-drop1", instruction: "make it thin", action: "update", selector: "p", props: [{ property: "letter-spacing", value: "2px" }] },
+          { id: "e-drop2", instruction: "darker again", action: "update", selector: "p", props: [] },
+        ] }) };
+      }
+      if (init.method === "POST") posts.push(JSON.parse(init.body));
+      return { status: 200, json: async () => ({ ok: true }) };
+    }
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => app.click());
+  const el = selectText(app);
+  const box = app.root.nodes.preview;
+  app.doc.querySelector = () => el;
+  await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
+  const rows = box.children[1].children;
+  rows[0].children[0].checked = false;
+  for (const fn of rows[0].children[0].bubbles.change.bubble) fn({});
+  rows[1].children[0].checked = false;
+  for (const fn of rows[1].children[0].bubbles.change.bubble) fn({});
+  const batchBtn = box.children[2].children[0];
+  assert.equal(batchBtn.textContent, "Discard all changes", "nothing ticked: the button takes the lot back");
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(rows[0].children[0].checked, true, "key 1 flips the tick on the first row");
+  assert.equal(batchBtn.textContent, "Keep all", "and the button flips back with it");
+  quiet(() => app.fire("keydown", { key: "1" }));
+  assert.equal(batchBtn.textContent, "Discard all changes", "and flips again");
+  for (const fn of batchBtn.bubbles.click.bubble) fn({});
+  assert.equal(box.hidden, true);
+  assert.deepEqual(posts[0], { decisions: [
+    { id: "e-drop1", keep: false },
+    { id: "e-drop2", keep: false },
+  ] });
 });

@@ -53,16 +53,35 @@ edityy:: remove the grey banner above the footer`}</Pre>
       <P>
         <strong>Discard</strong>, or <Code>Escape</Code>, puts the page back the way it was.
       </P>
+      <H3>Several at once</H3>
+      <P>
+        When more than one preview is waiting, they show as a checkbox list instead of one card, and the canvas stays
+        untouched until you decide. Every row reads ticked to start, keys <Code>1</Code> to <Code>9</Code> and{" "}
+        <Code>0</Code> flip the tick on a row, and the one button under the list answers what the ticks say:
+      </P>
+      <UL>
+        <LI>
+          Anything ticked, it reads <strong>Keep all</strong>: every ticked preview is kept, and the rest are taken
+          back.
+        </LI>
+        <LI>
+          Nothing ticked, it reads <strong>Discard all changes</strong>: the whole list goes back.
+        </LI>
+        <LI>
+          <Code>Escape</Code>, or leaving edit mode, takes back everything still waiting.
+        </LI>
+      </UL>
       <P>Each preview has an id, such as e-abc123. In the chat you can say what to do with it:</P>
       <Pre>{`implement e-abc123
 discard e-abc123`}</Pre>
       <P>
-        <Code>implement</Code> tells the agent to read the kept edit with <Code>get_visual_changes</Code> and write it
-        into your source. <Code>discard</Code> calls <Code>decide_preview</Code> to mark it dropped.
+        <Code>implement</Code> tells the agent to read the kept preview with <Code>get_preview</Code> and write it
+        into your source; one kept from the canvas is also in the saved edits for <Code>get_visual_changes</Code>.{" "}
+        <Code>discard</Code> calls <Code>decide_preview</Code> to mark it dropped.
       </P>
-      <Note title="One preview at a time, with history">
-        A new preview takes the place of the one on screen. The older ones stay in{" "}
-        <Code>.edityy/previews.json</Code>, and <Code>get_preview</Code> lists them.
+      <Note title="History after the list">
+        A decided preview leaves the screen, but it stays in <Code>.edityy/previews.json</Code>, kept or discarded,
+        and <Code>get_preview</Code> lists the past ones and returns one by id.
       </Note>
 
       <H2 id="asking-first">When the place is unclear</H2>
@@ -98,7 +117,8 @@ discard e-abc123`}</Pre>
         preview is written to <Code>.edityy/previews.json</Code>, which the MCP server and the page both read.
       </P>
       <P>
-        The page asks the endpoint for the active preview while the editing mode is on. A preview that names an
+        The page asks the endpoint for every preview still up for a decision while the editing mode is on. One waiting
+        preview paints; several wait as the list. A preview that names an
         element the page does not have is dropped, so nothing paints in the wrong place.
       </P>
 

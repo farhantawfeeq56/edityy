@@ -48,10 +48,13 @@ the Edityy MCP server.
   \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
   element, and \`remove\` takes one away.
   If the user names no place and the place is unclear, ask them first.
-  The page shows the preview with Keep and Discard, and the user decides by
-  typing \`implement <id>\` or \`discard <id>\`. When they type
-  \`implement <id>\`, call \`get_visual_changes\` and apply the kept edit to the
-  source code, then call \`clear_visual_changes\`.
+  One preview shows with Keep and Discard. Several waiting at once show a
+  checkbox list, and the user keeps the ticked ones with "Keep all" or takes
+  back the rest with "Discard all changes".
+  The user decides by typing \`implement <id>\` or \`discard <id>\`. When they
+  type \`implement <id>\`, call \`get_preview\` with the id, and apply what it
+  says to the source code. A preview that was painted on the canvas is also in
+  the saved edits, so \`get_visual_changes\` reads it after Save to project.
 - **Visual edits.** When the user asks for the edits they saved from the site,
   call \`get_visual_changes\`, apply them to the source code, then call
   \`clear_visual_changes\`.

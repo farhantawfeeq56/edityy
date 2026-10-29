@@ -290,7 +290,7 @@ export async function handle(message, root) {
         if (params?.name === "place_preview") {
           const preview = await placePreview(params?.arguments, root);
           return reply({
-            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the canvas with Keep and Discard. Keep makes it a normal Edityy edit. The user decides with implement ${preview.id} or discard ${preview.id}.` }],
+            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_preview). The user decides with implement ${preview.id} or discard ${preview.id}.` }],
           });
         }
         if (params?.name === "get_preview") {

@@ -9,9 +9,11 @@ import {
   checkPreviewHtml,
   clearPreviews,
   decidePreview,
+  decidePreviews,
   placePreview,
   previewText,
   readActivePreview,
+  readPendingPreviews,
   readPreview,
   readPreviews,
 } from "../src/previews.js";
@@ -56,6 +58,33 @@ test("a new preview replaces the active one and history stays capped", async () 
   const history = (await readPreviews(root)).history;
   assert.equal(history[0].id, second.id, "newest first");
   assert.ok(history.some((item) => item.id === first.id), "the old one stays in history");
+});
+
+test("several previews wait at once, and a batch decides them together", async () => {
+  const root = tmp();
+  const first = await placePreview(insert, root);
+  const second = await placePreview({ ...insert, instruction: "make it darker" }, root);
+  // Both wait: the page's checkbox list reads every one still up for a decision.
+  const pending = await readPendingPreviews(root);
+  assert.deepEqual(pending.map((one) => one.id), [second.id, first.id], "newest first");
+  assert.equal(pending.length, 2);
+
+  // Keep the newer, take the older back, in one round like the page's button does.
+  const decided = await decidePreviews(
+    [
+      { id: first.id, keep: false },
+      { id: second.id, keep: true },
+    ],
+    root
+  );
+  assert.deepEqual(decided, [
+    { id: first.id, status: "discarded" },
+    { id: second.id, status: "kept" },
+  ]);
+  assert.equal((await readPendingPreviews(root)).length, 0, "nothing is left for the page to list");
+  assert.equal((await readPreviews(root)).history[0].id, second.id);
+  assert.equal((await readPreviews(root)).history[0].status, "kept");
+  assert.equal((await readActivePreview(root)).id, second.id, "a kept preview stays readable for get_preview");
 });
 
 test("each action checks what it needs, and nothing else passes", () => {

@@ -4,6 +4,22 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- The user types `edityy::` followed by an instruction in the agent chat, and the
+  agent paints that change on the live canvas only. `place_preview` over MCP
+  sends it, the page shows it with Keep and Discard or with keys `1`–`0`, and a
+  kept preview becomes a normal edit for Save to project and agent reading. Each
+  preview has an id such as `e-123`, so the user can say `implement <id>` or
+  `discard <id>`. (#246)
+- Several previews waiting at once show a checkbox list instead of one card.
+  Keys `1`–`9` and `0` flip the tick on a row, and one batch button keeps every
+  ticked one and takes the others back. With nothing ticked the button reads
+  "Discard all changes" and takes the whole list back. `Escape` and leaving edit
+  mode take back everything still waiting. (#246)
+
 ## 0.8.0 — 2026-10-24
 
 ### Added

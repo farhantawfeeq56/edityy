@@ -3,7 +3,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
-import { PREVIEWS_PATH, clearPreviews, decidePreview, readActivePreview } from "./previews.js";
+import { PREVIEWS_PATH, clearPreviews, decidePreview, decidePreviews, readPendingPreviews } from "./previews.js";
 import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
@@ -502,13 +502,17 @@ async function previewsFromNode(req, res, root, allowedHosts) {
     const h = req.headers ?? {};
     sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "show previews");
     if (req.method === "GET") {
-      const preview = await readActivePreview(root);
-      answer(200, preview ? { ok: true, preview } : { ok: true, pending: true });
+      answer(200, { ok: true, previews: await readPendingPreviews(root) });
       return;
     }
     if (req.method === "POST") {
-      const decided = jsonBody(await readBody(req, VARIATION_LIMIT));
-      answer(200, { ok: true, id: (await decidePreview(decided.id, decided.keep ? "keep" : "discard", root)).id });
+      const body = jsonBody(await readBody(req, VARIATION_LIMIT));
+      if (Array.isArray(body?.decisions)) {
+        answer(200, { ok: true, decisions: await decidePreviews(body.decisions, root) });
+      } else {
+        const decided = await decidePreview(body.id, body.keep ? "keep" : "discard", root);
+        answer(200, { ok: true, id: decided.id });
+      }
       return;
     }
     if (req.method === "DELETE") {
@@ -670,15 +674,15 @@ export function previewsRoute(options = {}) {
   };
   return {
     GET: (request) =>
-      run(request, async () => {
-        const preview = await readActivePreview(root);
-        return preview ? json(200, { ok: true, preview }) : json(200, { ok: true, pending: true });
-      }),
+      run(request, async () => json(200, { ok: true, previews: await readPendingPreviews(root) })),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
         if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to decide a preview with.");
         const decided = jsonBody(body);
+        if (Array.isArray(decided?.decisions)) {
+          return json(200, { ok: true, decisions: await decidePreviews(decided.decisions, root) });
+        }
         const done = await decidePreview(decided.id, decided.keep ? "keep" : "discard", root);
         return json(200, { ok: true, id: done.id });
       }),

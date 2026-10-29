@@ -131,6 +131,12 @@ export function checkPreview(placed) {
   return out;
 }
 
+/** The newest preview the page or the agent still reads: not discarded yet. */
+function latestNonDiscarded(items) {
+  for (const item of items) if (item && item.status !== "discarded") return item.id;
+  return null;
+}
+
 async function readJson(path, missing) {
   try {
     return JSON.parse(await readFile(path, "utf8"));
@@ -177,6 +183,12 @@ export async function readActivePreview(root = process.cwd()) {
   return item;
 }
 
+/** Every preview still up for a decision, newest first, in full. */
+export async function readPendingPreviews(root = process.cwd()) {
+  const saved = await readJson(join(root, PREVIEWS_FILE), null);
+  return (Array.isArray(saved?.items) ? saved.items : []).filter((item) => item?.status === "active");
+}
+
 /** One preview in full by its id, or null when there is none. */
 export async function readPreview(id, root = process.cwd()) {
   if (typeof id !== "string" || !ID.test(id)) return null;
@@ -192,8 +204,9 @@ export async function placePreview(placed, root = process.cwd()) {
   const preview = { ...checked, id, status: "active", createdAt: new Date().toISOString() };
   const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };
   const items = [preview, ...(Array.isArray(saved.items) ? saved.items : []).filter((entry) => entry?.id !== id)];
-  // Past previews stay listed, newest first, within the cap.
-  await store(root, PREVIEWS_FILE, { version: 1, active: id, items: items.slice(0, MAX_HISTORY + 1) });
+  // Past previews stay listed, newest first, within the cap. An older one waits
+  // with its own status, so more than one can be up for a decision at once.
+  await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items: items.slice(0, MAX_HISTORY + 1) });
   return preview;
 }
 
@@ -206,8 +219,30 @@ export async function decidePreview(id, decision, root = process.cwd()) {
   const item = items.find((entry) => entry?.id === id);
   if (!item) throw new Error("Unknown preview id.");
   item.status = decision === "keep" ? "kept" : "discarded";
-  await store(root, PREVIEWS_FILE, { version: 1, active: saved.active === id && decision === "discard" ? null : saved.active, items });
+  await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items });
   return item;
+}
+
+/**
+ * A batch of decisions at once, from the page's checkbox list: each kept one
+ * stays readable for the agent, each other one leaves. Decided previews are
+ * left as they are, so a race between two rounds is harmless.
+ */
+export async function decidePreviews(decisions, root = process.cwd()) {
+  if (!Array.isArray(decisions)) throw new Error("Expected a list of decisions.");
+  const saved = await readJson(join(root, PREVIEWS_FILE), null);
+  const items = Array.isArray(saved?.items) ? saved.items : [];
+  const decided = [];
+  for (const one of decisions) {
+    const id = one?.id;
+    if (typeof id !== "string" || !ID.test(id) || (one.keep !== true && one.keep !== false)) continue;
+    const item = items.find((entry) => entry?.id === id);
+    if (!item || item.status !== "active") continue;
+    item.status = one.keep ? "kept" : "discarded";
+    decided.push({ id: item.id, status: item.status });
+  }
+  await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items });
+  return decided;
 }
 
 /** Forget every preview. The page drops what it was showing. */

@@ -59,6 +59,7 @@
     // stays the mark of opacity alone.
     "blur": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5" /> <circle cx="12" cy="12" r="8" opacity=".45" /></svg>',
     "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>',
+    "check": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>',
     // A drop: how much of the element shows through, for opacity.
     "droplet": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg>',
     "bold": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" /></svg>',
@@ -660,6 +661,18 @@
     ".preview-say{margin:8px 14px 0;font:400 12px/1.4 inherit;color:var(--ink)}",
     ".preview-foot{display:flex;gap:6px;padding:10px 10px 10px 14px;border-top:1px solid var(--ink-10)}",
     ".preview-foot .variants-keep{margin-left:0}",
+    // More than one preview at once: a row per instruction, a tick each, and one
+    // batch button that keeps the ticked ones or, with none ticked, takes back
+    // the whole lot. The tick is drawn in a span, not on the input itself, because
+    // a replaced element wears no pseudo-element.
+    ".preview-row{position:relative;display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border-radius:8px;font:500 13px/1 inherit;color:var(--ink);text-align:left;cursor:pointer}",
+    ".preview-row:hover{background:var(--ink-4)}",
+    ".preview-row:focus-within{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".preview-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
+    ".preview-row .mark{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    ".preview-row input:checked+.mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
+    ".preview-row .mark>svg{width:10px;height:10px}",
+    ".preview-row .words{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     // The placement cursor. It fades in where it stands rather than appearing,
     // because it is a target the pointer is about to aim at.
     ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none;opacity:0;",
@@ -5959,7 +5972,7 @@ function decorations() {
   var PREVIEWS_URL = "/__edityy/previews";
   var previewTimer = 0;
   var previewPolls = 0;
-  var previewSeen = ""; // the active id the page already painted, so a poll paints once
+  var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
   var previewCurrent = null; // the preview on the canvas now
   var previewRecords = []; // the change records the paint wrote
   var previewRows = []; // the style rows, kept so a pick moves the tick
@@ -5968,8 +5981,18 @@ function decorations() {
   var previewVariantProps = [];
   var previewTarget = null; // the styled element, for a styles preview
   var previewFresh = []; // the inserted elements, for an insert preview
+  // More than one up at once: a list with a tick each, no paint on the canvas
+  // (several paints could fight over one element), and one batch button.
+  var previewList = []; // the previews the checkbox list shows
+  var previewChecked = Object.create(null); // id -> ticked
+  var previewBoxRows = []; // the tick rows, kept so a toggle does not rebuild
+  var previewBatch = null; // the batch button, kept so the words change in place
+  var previewVariantAt = -1;
+  var previewVariantProps = [];
+  var previewTarget = null; // the styled element, for a styles preview
+  var previewFresh = []; // the inserted elements, for an insert preview
 
-  /** Ask once for the agent's preview, and again in a moment while there is none. */
+  /** Ask once for the agent's previews, and again in a moment while there are none. */
   function pollPreviews() {
     if (!active || typeof window.fetch !== "function") return;
     if (previewTimer) clearTimeout(previewTimer);
@@ -5980,16 +6003,17 @@ function decorations() {
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) throw new Error((j && j.error) || "The preview could not be read");
-        if (j.pending || !j.preview) {
+        var pending = Array.isArray(j.previews) ? j.previews : [];
+        // Only a change in what is up repaints: a poll that reads the same list
+        // again would throw away a tick the user just made and the words still
+        // fading in.
+        var now = pending.map(function (one) { return one.id; }).sort().join(",") + "|" + pending.length;
+        if (now === previewSeen) {
           previewTimer = setTimeout(pollPreviews, POLL_DELAY);
           return;
         }
-        if (!j.preview || j.preview.id === previewSeen) {
-          previewTimer = setTimeout(pollPreviews, POLL_DELAY);
-          return;
-        }
-        previewSeen = j.preview.id;
-        showPreview(j.preview);
+        previewSeen = now;
+        showPreviews(pending);
         previewTimer = setTimeout(pollPreviews, POLL_DELAY);
       })
       .catch(function () {
@@ -6161,6 +6185,22 @@ function decorations() {
     previewBox.hidden = true;
   }
 
+  /** Put the checkbox list away, with its ticks and its batch button. */
+  function clearPreviewList() {
+    previewList = [];
+    previewChecked = Object.create(null);
+    previewBoxRows = [];
+    previewBatch = null;
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = true;
+  }
+
+  /** Take whatever the box was showing away: a painted one reverts, a list just leaves. */
+  function resetPreviewBox() {
+    if (previewCurrent) unpaintPreview();
+    else clearPreviewList();
+  }
+
   /** The preview box: the instruction, the rows or the note, and Keep and Discard. */
   function drawPreview(preview) {
     while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
@@ -6215,8 +6255,7 @@ function decorations() {
 
   /** The answer arrived: paint it, then show the box with Keep and Discard. */
   function showPreview(preview) {
-    if (previewBox && !previewBox.hidden) unpaintPreview();
-    if (variantRows.length) closeVariants();
+    resetPreviewBox();
     previewRows = [];
     previewCurrent = preview;
     if (!paintPreview(preview)) {
@@ -6228,6 +6267,31 @@ function decorations() {
       return;
     }
     drawPreview(preview);
+    tally();
+  }
+
+  /** The pending previews arrived: one paints as before; several get the checkbox list. */
+  function showPreviews(pending) {
+    if (variantRows.length) closeVariants();
+    if (!pending.length) {
+      resetPreviewBox();
+      return;
+    }
+    if (pending.length === 1) {
+      showPreview(pending[0]);
+      return;
+    }
+    // Several at once: nothing paints, so several writes can never fight over
+    // one element. The user ticks what to keep and presses the batch button.
+    resetPreviewBox();
+    previewList = pending;
+    var live = Object.create(null);
+    pending.forEach(function (one) {
+      live[one.id] = one.id in previewChecked ? previewChecked[one.id] : true;
+    });
+    previewChecked = live;
+    drawPreviewList();
+    refit();
     tally();
   }
 
@@ -6246,6 +6310,117 @@ function decorations() {
       row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
     });
     if (previewKeep) previewKeep.disabled = false;
+    refit();
+    tally();
+  }
+
+  /** The checkbox list: one row per instruction, and one batch button under it. */
+  function drawPreviewList() {
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = false;
+    var head = document.createElement("div");
+    head.className = "variants-head";
+    var title = document.createElement("p");
+    title.className = "variants-title";
+    title.appendChild(text("Previews"));
+    head.appendChild(title);
+    var of = document.createElement("span");
+    of.className = "variants-of";
+    of.appendChild(text(String(previewList.length)));
+    head.appendChild(of);
+    previewBox.appendChild(head);
+    var list = document.createElement("div");
+    list.className = "variants-list";
+    previewBoxRows = [];
+    previewList.forEach(function (one, i) {
+      var row = document.createElement("label");
+      row.className = "preview-row";
+      var tick = document.createElement("input");
+      tick.type = "checkbox";
+      tick.className = "tick";
+      tick.checked = !!previewChecked[one.id];
+      tick.setAttribute("aria-label", "Keep this preview");
+      tick.dataset.key = "preview-row-" + (i + 1);
+      tick.addEventListener("change", function () {
+        previewChecked[one.id] = tick.checked;
+        syncBatch();
+      });
+      row.appendChild(tick);
+      var mark = document.createElement("span");
+      mark.className = "mark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.innerHTML = svg("check");
+      row.appendChild(mark);
+      var words = document.createElement("span");
+      words.className = "words";
+      words.appendChild(text(one.instruction));
+      row.appendChild(words);
+      list.appendChild(row);
+      previewBoxRows.push(tick);
+    });
+    previewBox.appendChild(list);
+    var foot = document.createElement("div");
+    foot.className = "preview-foot";
+    previewBatch = button("variants-keep", "", "Keep the ticked previews as edits", function () { decideList(); }, "preview-batch");
+    previewBatch.appendChild(say("Keep all"));
+    foot.appendChild(previewBatch);
+    previewBox.appendChild(foot);
+    syncBatch();
+  }
+
+  /** The batch button in step with the ticks: keep them, or take the lot back. */
+  function syncBatch() {
+    if (!previewBatch) return;
+    var ticked = 0;
+    Object.keys(previewChecked).forEach(function (id) {
+      if (previewChecked[id]) ticked += 1;
+    });
+    var keep = ticked > 0;
+    previewBatch.disabled = !previewList.length;
+    relabel(previewBatch, keep ? "Keep all" : "Discard all changes");
+    previewBatch.title = keep ? "Keep the ticked previews, and take the rest back" : "Discard every preview still waiting";
+    previewBatch.setAttribute("aria-label", previewBatch.title);
+  }
+
+  /** Key 1 to 0 flips the tick on a row of the list, like a variant key does. */
+  function toggleRow(index) {
+    var tick = previewBoxRows[index];
+    if (!tick) return;
+    tick.checked = !tick.checked;
+    previewChecked[previewList[index].id] = tick.checked;
+    syncBatch();
+  }
+
+  /** The batch button: keep every ticked one, take the unticked ones back. */
+  function decideList() {
+    if (!previewList.length) return;
+    var decided = previewList.map(function (one) { return { id: one.id, keep: !!previewChecked[one.id] }; });
+    // Nothing painted on the canvas, so nothing to put back: the page only
+    // hears the decision. The kept ones the agent reads with get_preview.
+    decideOnServer(decided);
+  }
+
+  /** Escape or leaving the mode: every preview up for a decision goes back. */
+  function discardList() {
+    if (!previewList.length) {
+      resetPreviewBox();
+      return;
+    }
+    decideOnServer(previewList.map(function (one) { return { id: one.id, keep: false }; }));
+  }
+
+  /** Post one round of decisions, then put the box away and let a poll catch up. */
+  function decideOnServer(decided) {
+    if (typeof window.fetch === "function") {
+      window.fetch(PREVIEWS_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ decisions: decided }),
+      }).catch(function () {});
+    }
+    resetPreviewBox();
+    previewSeen = "";
     refit();
     tally();
   }
@@ -6716,6 +6891,7 @@ function decorations() {
     stopEditing();
     closeVariants();
     if (previewCurrent) discardPreview();
+    else if (previewList.length) discardList();
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = 0;
     previewPolls = 0;
@@ -7092,7 +7268,14 @@ function decorations() {
     if (previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
-      if (!previewTyping && previewCurrent && previewCurrent.action === "styles" && previewIndex < (previewCurrent.variations || []).length) {
+      if (!previewTyping && previewList.length) {
+        // The checkbox list: a digit flips the tick on that row.
+        if (previewIndex < previewBoxRows.length) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          toggleRow(previewIndex);
+        }
+      } else if (!previewTyping && previewCurrent && previewCurrent.action === "styles" && previewIndex < (previewCurrent.variations || []).length) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
         pickPreviewVariant(previewIndex);
@@ -7121,6 +7304,8 @@ function decorations() {
     if (e.key === "Escape") {
       if (previewCurrent) {
         discardPreview(); // a preview goes back to the page it replaced
+      } else if (previewList.length) {
+        discardList(); // the whole list goes back, none of it kept
       } else if (variationBoxFor || !variantsBox.hidden) {
         // The variations go, the edits they made stay: they are undoable edits.
         closeVariants();
