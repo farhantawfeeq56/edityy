@@ -821,7 +821,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(bare);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#25241f");
   // A light background keeps the line in ink rather than inventing a hue.
   const paper = text("div", "hi", { "background-color": "rgb(249, 242, 238)" },
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
@@ -829,7 +829,7 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.hover(paper);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#16233a", "ink on paper");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#25241f", "ink on paper");
   // A transparent element takes the colour of the nearest ancestor that paints
   // one, because that is the colour the box actually lies on.
   const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
@@ -910,7 +910,7 @@ const fields = (el) =>
 test("the open icon stays visible on its own dark background", () => {
   const { run } = fakeDom();
   const css = run().root.innerHTML;
-  // `*{color:#16233a}` matches the glyph itself, so an active button's paper
+  // `*{color:#25241f}` matches the glyph itself, so an active button's paper
   // colour never reaches it: without an explicit inherit the glyph is ink on
   // ink and disappears. The drawn one takes the colour down from the box the
   // icon is drawn in.
@@ -946,7 +946,7 @@ test("the primary dock fills on hover and on select, and draws its own tooltip",
   const app = run();
   const css = app.root.innerHTML;
   assert.match(css, /\.row\[data-glide\]:before\{opacity:1/, "one hover fill travels along the row");
-  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--ink-12\);color:var\(--ink\)\}/, "a selected control wears the open fill");
+  assert.match(css, /\.ic\[aria-expanded=true\]\{background:var\(--accent-soft\);border-color:var\(--rose\);color:var\(--ink\)\}/, "a selected control wears the open fill");
   assert.match(css, /\.pop\{[^}]*background:var\(--paper\)/, "the secondary dock wears the paper surface");
   quiet(() => selectText(app));
   const row = app.root.nodes.row;
@@ -2664,7 +2664,7 @@ test("the text-colour glyph wears the element own colour, not one of ours", () =
   const icon = app.root.nodes.row.children.find((b) => b.dataset.key === "color");
   // The bar under the A is a readout of this site. Painting it ink on every
   // site claims the site is that colour.
-  assert.doesNotMatch(icon.innerHTML, /background:#16233a/, "no colour baked into the glyph");
+  assert.doesNotMatch(icon.innerHTML, /background:#25241f/, "no colour baked into the glyph");
   // There is nowhere left to read a hex: style.color and getComputedStyle both
   // answer rgb(), so the only route back to a hex is converting what the page
   // wrote — which is arithmetic, not invention.
@@ -2713,7 +2713,7 @@ test("an icon's fill follows the button, so an open control's icon stays visible
   // with currentColor resolves against its OWN colour — so a universal colour
   // painted every icon the same ink, and an open control is that ink: an icon
   // the exact colour of its own background. The colour goes on :host instead.
-  assert.doesNotMatch(css, /\*\{[^}]*color:#16233a/, "no universal colour to leak onto the paths");
+  assert.doesNotMatch(css, /\*\{[^}]*color:#25241f/, "no universal colour to leak onto the paths");
   assert.match(css, /:host\{all:initial;color:var\(--ink\)\}/, "the colour is on the host rule, in the same declaration as all:initial — which resets colour itself");
   assert.match(css, /\.ic>svg\{[^}]*color:inherit/, "and the icons take that colour from the button");
   // Scoped to the icon the control holds: a Lucide glyph is its own svg inside that

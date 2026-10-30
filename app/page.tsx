@@ -110,11 +110,11 @@ function Icon({ name, className = "size-4" }: { name: string; className?: string
 function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted?: boolean }) {
   return (
     <p
-      className={`flex items-center gap-2 text-[0.6875rem] font-medium uppercase tracking-[0.16em] ${
-        inverted ? "text-white/60" : "text-neutral-600"
+      className={`flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] ${
+        inverted ? "text-white/60" : "text-neutral-500"
       }`}
     >
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />
       {children}
     </p>
   );
@@ -123,7 +123,7 @@ function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted
 function Install({ note }: { note?: string }) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white py-1 pl-4 pr-1 shadow-[0_1px_1px_rgba(22,35,58,0.05)]">
+      <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white py-1 pl-4 pr-1 shadow-layer">
         <span aria-hidden="true" className="font-mono text-[0.8125rem] text-neutral-600">
           $
         </span>
@@ -141,7 +141,7 @@ export default function Home() {
       <header className="sticky top-3 z-40 px-4 sm:top-5">
         <nav
           aria-label="Main"
-          className="site-header mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 bg-white/80 py-2 pl-4 pr-2 shadow-[0_1px_1px_rgba(22,35,58,0.05),0_8px_24px_-16px_rgba(22,35,58,0.25)] backdrop-blur-md"
+          className="site-header mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 py-2 pl-4 pr-2 shadow-layer backdrop-blur-md"
         >
           <Link href="/" className="flex items-center gap-2 text-[0.875rem] font-semibold tracking-[-0.02em]">
             <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
@@ -149,25 +149,25 @@ export default function Home() {
           </Link>
           <div className="ml-auto hidden items-center gap-1 sm:flex">
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
+              className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="#how"
             >
               How it works
             </a>
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
+              className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="#features"
             >
               Features
             </a>
             <Link
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
+              className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href="/docs"
             >
               Docs
             </Link>
             <a
-              className="rounded-full px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
+              className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
               href={GITHUB}
               target="_blank"
               rel="noreferrer"
@@ -177,7 +177,7 @@ export default function Home() {
           </div>
           <a
             href="#install"
-            className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-[0.8125rem] font-medium text-white tint hover:bg-neutral-600 sm:ml-2"
+            className="ml-auto rounded-lg bg-neutral-900 px-3.5 py-1.5 text-[0.8125rem] font-medium text-neutral-50 tint hover:bg-neutral-700 sm:ml-2"
           >
             Install
           </a>
@@ -191,10 +191,10 @@ export default function Home() {
             Open source, MIT licensed
           </span>
 
-          <h1 className="mx-auto mt-6 max-w-[42rem] text-balance text-[2.25rem] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-[2.75rem]">
+          <h1 className="mx-auto mt-7 max-w-[44rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[4.25rem]">
             Shape the page.
             <br />
-            <span className="text-neutral-600">Keep the code.</span>
+            <span className="text-brand-ink">Keep the code.</span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-[34rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
@@ -218,13 +218,13 @@ export default function Home() {
 
         <section id="how" className="scroll-mt-28 pt-40">
           <Eyebrow>How it works</Eyebrow>
-          <h2 className="mt-4 max-w-[30rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+          <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
             One install, then the page answers to you.
           </h2>
           <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
             {steps.map((step, i) => (
               <li key={step.title} className="border-t border-neutral-200 pt-5">
-                <span className="font-mono text-[0.75rem] text-rose-500">{`0${i + 1}`}</span>
+                <span className="font-mono text-[0.75rem] text-brand-ink">{`0${i + 1}`}</span>
                 <h3 className="mt-3 text-[1rem] font-semibold tracking-[-0.02em]">{step.title}</h3>
                 <p className="mt-2 max-w-[22rem] text-[0.875rem] leading-relaxed text-neutral-600">{step.body}</p>
               </li>
@@ -234,13 +234,13 @@ export default function Home() {
 
         <section id="features" className="mt-20 scroll-mt-28 border-t border-neutral-200 pt-16 sm:mt-24 sm:pt-20">
           <Eyebrow>What you can change</Eyebrow>
-          <h2 className="mt-4 max-w-[30rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+          <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
             The whole page, in the browser you already have open.
           </h2>
           <ul className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
               <li key={feature.title} className="group">
-                <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 tint lift group-hover:-translate-y-0.5 group-hover:border-neutral-300 group-hover:bg-rose">
+                <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 lift group-hover:-translate-y-0.5 group-hover:border-neutral-300 group-hover:bg-rose">
                   <Icon name={feature.icon} />
                 </span>
                 <h3 className="mt-4 text-[0.9375rem] font-semibold tracking-[-0.02em]">{feature.title}</h3>
@@ -255,7 +255,7 @@ export default function Home() {
             <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
               <div>
                 <Eyebrow inverted>Hand-off</Eyebrow>
-                <h2 className="mt-4 text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+                <h2 className="mt-4 text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
                   Your code stays the source of truth.
                 </h2>
                 <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-white/70">
@@ -290,7 +290,7 @@ export default function Home() {
         </section>
 
         <section id="install" className="mt-20 scroll-mt-28 border-t border-neutral-200 pt-16 text-center sm:mt-24 sm:pt-20">
-          <h2 className="mx-auto max-w-[26rem] text-balance text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.03em] sm:text-[2rem]">
+          <h2 className="mx-auto max-w-[30rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
             Ready when your dev server is.
           </h2>
           <p className="mx-auto mt-4 max-w-[30rem] text-[0.9375rem] leading-relaxed text-neutral-600">
