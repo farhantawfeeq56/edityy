@@ -27,14 +27,14 @@
     "vinext": "^1.0.1"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.65.0",
+    "@cloudflare/vite-plugin": "^1.66.0",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-rsc": "^0.5.36",
-    "cf": "^1.0.0-beta.18",
+    "cf": "^1.0.0-beta.26",
     "edityy": "^0.8.0",
     "esbuild": "^0.28.2",
     "eslint": "^9",
@@ -42,7 +42,7 @@
     "tailwindcss": "^4",
     "typescript": "^6",
     "vite": "^8.3.5",
-    "wrangler": "^4.147.0"
+    "wrangler": "^4.154.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
