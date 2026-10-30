@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
+import logo from "./logo.png";
 
 const INSTALL = "npm install -D edityy";
 const NPM = "https://www.npmjs.com/package/edityy";
@@ -141,10 +143,10 @@ export default function Home() {
       <header className="sticky top-3 z-40 px-4 sm:top-5">
         <nav
           aria-label="Main"
-          className="site-header mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-full border border-neutral-200 py-2 pl-4 pr-2 shadow-layer backdrop-blur-md"
+          className="site-header mx-auto flex w-full max-w-[68rem] items-center gap-2 rounded-[17px] border border-neutral-200 py-2 pl-4 pr-2 shadow-layer backdrop-blur-md"
         >
           <Link href="/" className="flex items-center gap-2 text-[0.875rem] font-semibold tracking-[-0.02em]">
-            <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
+            <Image src={logo} alt="" aria-hidden="true" className="size-5" />
             Edityy
           </Link>
           <div className="ml-auto hidden items-center gap-1 sm:flex">
@@ -305,7 +307,7 @@ export default function Home() {
       <footer className="mx-auto w-full max-w-[68rem] px-5 pb-10 sm:px-8">
         <div className="flex flex-col items-center gap-4 border-t border-neutral-200 pt-6 text-[0.8125rem] text-neutral-600 sm:flex-row sm:justify-between">
           <span className="flex items-center gap-2 font-medium text-neutral-900">
-            <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
+            <Image src={logo} alt="" aria-hidden="true" className="size-5" />
             Edityy
           </span>
           <div className="flex items-center gap-5">

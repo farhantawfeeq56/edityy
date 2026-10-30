@@ -246,8 +246,9 @@ status badges and signal dots fully pill (28px), editor cards 12–16px.
 Divider ticks 2px. The orb is fully round. Never square buttons, never
 over-round cards into bubbles.
 
-The one pill that is not a badge is the site's nav bar: the *bar* is round and
-every control inside it is 8px. A button is never a pill.
+The site's nav bar is a surface, not a control: its radius is the inner button's
+8px plus its own 8px padding and 1px border, so the two curves sit concentric.
+A button is never a pill.
 
 ## Components
 

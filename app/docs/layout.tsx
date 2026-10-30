@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { DocsNav } from "./nav-links";
 import { nav } from "./nav";
+import logo from "../logo.png";
 
 export const metadata: Metadata = {
   title: "Docs — Edityy",
@@ -14,7 +16,7 @@ export default function DocsLayout({ children }: LayoutProps<"/docs">) {
       <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-[84rem] items-center gap-3 px-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2 text-[0.875rem] font-semibold tracking-[-0.02em] text-neutral-900">
-            <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" />
+            <Image src={logo} alt="" aria-hidden="true" className="size-5" />
             Edityy
           </Link>
           <span aria-hidden="true" className="text-neutral-300">
