@@ -159,12 +159,15 @@
   // The tokens, for a page that wants to read them.
   window.__edityyMotion = { ease: EASE, time: TIME };
 
-  // DESIGN.md is the source of truth for the five values below: Primary
-  // #16233a, On-primary #ffffff, Secondary #465a78, Muted #465a78, hairline
-  // #16233a1a, Accent-rose #b6cbe8 for state, Tertiary #2f5fa8 for focus. The
-  // ramp is closed — five values, nothing pure black or pure white. The ramp
-  // has no second neutral, so a control that needs a fill on paper wears ink
-  // alpha (the ink 6% below), never a grey.
+  // DESIGN.md is the source of truth for the values below: Ink #25241f,
+  // Paper #ffffff, Muted #5d5a50, hairline #25241f1a, Brand gold #d4a72c for
+  // a fill, Brand ink #8a6a10 for a ring or a word, and Brand soft #fbf3d9 for
+  // the control the user has open. The ramp is closed. The ramp has no second
+  // neutral, so a control that needs a fill on paper wears ink alpha (the ink
+  // 6% below), never a grey.
+  //
+  // Gold is never a thin line on paper: #d4a72c is 2.1:1 there. It is a fill
+  // with ink on it, and --accent carries the darker bronze that reads as a ring.
   //
   // The sheet paints itself from the variables on the first :host rule, so a
   // page that sets --edityy-ink and its neighbours repaints the whole chrome.
@@ -186,8 +189,11 @@
     // The five values, and the steps drawn from them. The numbers on an ink or
     // a rose step are its alpha percentage: colour-mix against transparent
     // keeps the alpha and the colour, so a step holds whatever the ink is.
-    ":host{--ink:var(--edityy-ink,#16233a);--paper:var(--edityy-paper,#ffffff);--muted:var(--edityy-muted,#465a78);",
-    "--accent:var(--edityy-accent,#2f5fa8);--rose:var(--edityy-rose,#b6cbe8);",
+    ":host{--ink:var(--edityy-ink,#25241f);--paper:var(--edityy-paper,#ffffff);--muted:var(--edityy-muted,#5d5a50);",
+    "--accent:var(--edityy-accent,#8a6a10);--rose:var(--edityy-rose,#e9d28b);",
+    // The fill of the control the user has open, and of the row that is chosen:
+    // warm, because the open control is the one thing on the bar that is not paper.
+    "--accent-soft:var(--edityy-accent-soft,#fbf3d9);--brand:var(--edityy-brand,#d4a72c);",
     "--ink-4:color-mix(in srgb,var(--ink) 4%,transparent);--ink-6:color-mix(in srgb,var(--ink) 6%,transparent);",
     "--ink-8:color-mix(in srgb,var(--ink) 8%,transparent);--ink-10:color-mix(in srgb,var(--ink) 10%,transparent);",
     "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
@@ -244,16 +250,16 @@
     ".row.still{box-shadow:none;border-color:transparent;background:transparent}",
     // Icons: Lucide, in the ramp, on a light fill when their control is open, so
     // what is open is obvious without a label.
-    ".ic{width:30px;height:30px;display:grid;place-items:center;border:0;padding:0;",
+    // A 1px transparent border, so a control can take a border colour when it is
+    // open without moving its icons a pixel.
+    ".ic{width:30px;height:30px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
     "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}",
     ".ic:hover{background:var(--ink-6);color:var(--ink)}",
-    ".ic:active{transform:scale(.94)}",
     // A control that joins the row arrives, so the row's edge is not the only
     // thing that moves.
     ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
     "@keyframes rowIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic[aria-expanded=true]{background:var(--ink-12);color:var(--ink)}",
     ".ic.add{color:var(--muted)}",
     // A hairline stands between the controls and the `+`: the row's controls act
     // on the element, and the `+` adds to them. It is the button's own mark, so
@@ -292,8 +298,7 @@
     ".custom-select-trigger{width:100%;border:1px solid var(--ink-10);border-radius:8px;padding:6px 8px;",
     "background:var(--paper);color:var(--ink);font:500 13px/1 inherit;text-align:left;cursor:pointer}",
     ".custom-select-trigger:hover{background:var(--fill-hover)}",
-    ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted);",
-    "outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".custom-select-trigger:focus-visible{background:var(--fill-open);border-color:var(--muted)}",
     // A list that comes out of its control is a surface, and a surface
     // arrives. The same entrance the panel over the dock has, so the two
     // dropdowns in the chrome feel like one thing.
@@ -302,10 +307,10 @@
     "box-shadow:0 8px 18px var(--ink-12);transform-origin:50% 100%;animation:menuIn var(--enter) var(--arrive)}",
     "@keyframes menuIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}",
     ".custom-option{border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--ink);text-align:left;font:500 14px/1.2 inherit;cursor:pointer}",
-    ".custom-option:hover,.custom-option[aria-pressed=true]{background:var(--ink-6)}",
-    ".custom-option:active{transform:scale(.98)}",
-    // The trigger is a button like any other, so it presses like any other.
-    ".custom-select-trigger:active{transform:scale(.96)}",
+    ".custom-option:hover{background:var(--ink-6)}",
+    // A row that is already chosen says so with the same mark the open control
+    // wears, so hover and chosen are never one colour.
+    ".custom-option[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
     ".size-control .custom-select{width:26px;flex:none}",
     ".size-control .custom-select-trigger{border:0;padding:0;background:transparent;display:grid;place-items:center;width:100%;height:26px}",
     // Upward, like every other list in the dock: the size button sits 24px above
@@ -325,7 +330,6 @@
     // A list off a bare arrow is as wide as its own words, and grows towards
     // the middle of the panel rather than past its edge.
     ".pop .weight-control .custom-select-menu{left:auto;right:0;bottom:calc(100% + 6px);width:max-content;min-width:140px}",
-    ".color-button[aria-expanded=true]{background:var(--fill-open)}",
     // The picker is HeroUI's in build and behaviour — the field with the dot,
     // the hue rail, the value field — and every control on it is still drawn
     // rather than borrowed from the browser, because a native range cannot
@@ -344,12 +348,11 @@
     // The keyboard ring: 2px of paper, then the cobalt that carries every
     // interaction highlight in the ramp. Drawn on the control the pointer uses,
     // never on the hidden input.
-    ".icon-button:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // The field: saturation across, brightness up, the hue underneath both. Its
     // layers are set from the colour on show; the dot wears the colour itself.
     ".field{position:relative;width:100%;aspect-ratio:1/1;border-radius:16px;cursor:crosshair;touch-action:none;",
     "box-shadow:inset 0 0 0 1px var(--ink-10)}",
-    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px var(--ink-10),0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".field[data-focus-visible=true]{box-shadow:inset 0 0 0 1px var(--ink-10);outline:2px solid var(--accent);outline-offset:2px}",
     ".field-thumb{position:absolute;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
     "box-shadow:0 0 0 1px var(--ink-10),inset 0 0 0 1px var(--ink-10);pointer-events:none;will-change:width,height;",
     "transition:width var(--slide) var(--standard),height var(--slide) var(--standard)}",
@@ -376,7 +379,7 @@
     "background-color:var(--track-end,#f00)}",
     ".track-thumb{position:absolute;top:50%;z-index:1;width:16px;height:16px;border:3px solid var(--paper);border-radius:16px;transform:translate(-50%,-50%);",
     "pointer-events:none;box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12)}",
-    ".slider[data-focus-visible=true] .track-thumb{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".slider[data-focus-visible=true] .track-thumb{outline:2px solid var(--accent);outline-offset:2px}",
     // The real input behind each drawn control: out of sight, out of the
     // pointer's way, and still the thing Tab lands on.
     "input.knob[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;opacity:.0001;pointer-events:none}",
@@ -386,7 +389,6 @@
     ".icon-button{display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border:0;",
     "border-radius:50%;padding:0;background:var(--ink-6);color:var(--ink);cursor:pointer}",
     ".icon-button:hover{background:var(--ink-10)}",
-    ".icon-button:active{transform:scale(.97)}",
     ".icon-button>svg{width:16px;height:16px;display:block}",
     // The button's own input, held off-screen: the UA rule for a colour input
     // is a 44px well, and this one is never meant to be seen at all.
@@ -450,8 +452,7 @@
     "border-radius:8px;padding:7px 10px;",
     "background:transparent;color:var(--ink);font:500 14px/1.2 inherit;cursor:pointer}",
     ".opt:hover{background:var(--ink-6)}",
-    ".opt:active{transform:scale(.98)}",
-    ".opt[aria-pressed=true]{background:var(--ink-12)}",
+    ".opt[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
     ".opts{display:flex;gap:2px;padding:2px}",
     // The alignment control lays its row out as a real 3x3 grid instead. A cell
     // is the control: empty until it is picked, and filled once it is, so the
@@ -488,10 +489,6 @@
     "border:1px solid var(--ink-15);border-radius:8px;background:var(--paper);color:var(--muted);cursor:text}",
     ".fld:hover,.sides-pair>label:hover,.value-field:hover,.pop .weight-control:hover{background:var(--fill-hover)}",
     ".fld:focus-within,.sides-pair>label:focus-within,.value-field:focus-within,.pop .weight-control:focus-within{background:var(--fill-open)}",
-    // A chip that is wider than the dock's 34px square cannot take the dock's .94
-    // without moving many times as far, so it takes the scale that moves the same
-    // few pixels: down on the press, back on the release.
-    ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active{transform:scale(.96)}",
     // A number is a value to turn, not only to type, so the pointer says so: the
     // two arrows over the digits, and the sideways arrows once a drag starts. A
     // focused field takes the text caret back, because typing is the way in.
@@ -519,10 +516,9 @@
     "background:var(--paper);font-variant-numeric:normal}",
     "input[type=search]:hover{background:var(--fill-hover)}",
     "input[type=search]:focus{background:var(--fill-open)}",
-    // The cobalt ring is the keyboard's, on the buttons and the lists that take the
-    // keyboard. A field does not wear it: a text field answers :focus-visible to a
-    // pointer too, so a click would draw a ring that says nothing happened.
-    ".ic:focus-visible{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    // A text field does not wear the ring: it answers :focus-visible to a pointer
+    // too, so a click would draw a ring that says nothing happened. The fields
+    // that hold a value put the ring on the chip around them instead.
     "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
@@ -544,7 +540,6 @@
     // translate is transitioned for that one move and for no other.
     "#launch[data-home]{transition:translate var(--move) var(--travel),scale var(--move) var(--travel),background-color var(--slide) var(--standard)}",
     "#launch:hover{background:var(--muted)}",
-    "#launch:focus-visible{outline:2px solid var(--ink);outline-offset:3px}",
     // The word fades rather than scales: shrinking text is the one thing that
     // reads as a label getting tiny instead of an orb becoming a point.
     "#label{transition:opacity var(--fade) var(--standard)}",
@@ -587,9 +582,7 @@
     ".element-action{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;padding:0;",
     "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer}",
     ".element-action:hover{background:var(--ink-6);color:var(--ink)}",
-    ".element-action:active{transform:scale(.94)}",
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
-    ".element-action:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-action.delete{color:var(--muted)}",
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
@@ -640,20 +633,18 @@
     "color:var(--ink);font:500 13px/1 inherit;cursor:pointer}",
     ".variants-keep:hover:not(:disabled){background:var(--ink-6)}",
     ".variants-keep:disabled{opacity:.4;cursor:default}",
-    ".variants-keep:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     // Ten rows are more than a short window holds, so the list scrolls and the
     // head stays put. A hairline under the head sets the list apart.
     ".variants-list{display:flex;flex-direction:column;gap:2px;max-height:min(46vh,376px);overflow-y:auto;overscroll-behavior:contain;padding:8px 6px;border-top:1px solid var(--ink-10)}",
     ".variant{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border:0;border-radius:8px;background:transparent;",
     "color:var(--ink);font:500 14px/1 inherit;text-align:left;cursor:pointer}",
     ".variant:hover{background:var(--ink-4)}",
-    ".variant:active{transform:scale(.98)}",
-    ".variant[aria-pressed=true]{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink-15)}",
-    ".variant:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
+    ".variant[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
     ".variant .key{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:6px;background:var(--ink-6);",
     "color:var(--muted);font:500 12px/1 inherit;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
-    // The one on the element wears the cobalt of an active state, on paper text.
-    ".variant[aria-pressed=true] .key{background:var(--accent);color:var(--paper)}",
+    // The one on the element wears gold, the way the open control in the dock
+    // does, and keeps ink on it: gold under paper words is 2.1:1.
+    ".variant[aria-pressed=true] .key{background:var(--brand);color:var(--ink)}",
     ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     // The agent-placed preview: the same card as the variant strip, with the
     // instruction on top and Keep and Discard at its foot.
@@ -706,7 +697,7 @@
     ".sides [hidden]{display:none}",
     ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
     ".sides .side-link:hover{background:var(--ink-6)}",
-    ".sides .side-link[aria-pressed=true]{background:var(--ink-12);color:var(--ink)}",
+    ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The row and the edits button, side by side under the open control.
     ".bar{display:flex;align-items:center;gap:6px;max-width:100%}",
     ".bar>.solo{flex:none}",
@@ -716,7 +707,11 @@
     ".ic.solo{position:relative;width:36px;height:36px;background:var(--paper);border:1px solid var(--ink-10);",
     "border-radius:10px;",
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
-    ".ic.solo[aria-expanded=true]{background:var(--fill-open)}",
+    // The one mark of a control that is open, declared after every control it can
+    // land on: the warm fill, a hairline in the ramp and the ink. A control that
+    // opens says so the same way, whether it is the row's, the Edits button or
+    // the colour button.
+    ".ic[aria-expanded=true]{background:var(--accent-soft);border-color:var(--rose);color:var(--ink)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp. Its size is
     // the dock's: a touch under the 13px the dock's own words are, in the 7px
@@ -737,7 +732,6 @@
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;min-width:11rem;text-align:center}",
     ".cta:hover{background:var(--muted)}",
-    ".cta:active:not(:disabled){transform:translateY(1px)}",
     // The words of a button that answers (Copied, Saved) change in place: the
     // old words leave, the new ones rise in, and the button does not move.
     // The button is as wide as its longest wording, so the words change inside
@@ -759,9 +753,15 @@
     ".custom-select-trigger,.custom-option{",
     "--press-dur:var(--settle);",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--press-dur) var(--arrive)}",
+    // One press, for every control that answers the pointer: one amount and one
+    // pair of times. A local :active is how the amounts drifted apart.
     ".ic:active,.opt:active,.cta:active:not(:disabled),.element-action:active,.variant:active,.icon-button:active,",
     ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active,",
-    ".custom-select-trigger:active,.custom-option:active{--press-dur:var(--press)}",
+    ".custom-select-trigger:active,.custom-option:active{--press-dur:var(--press);transform:scale(.96)}",
+    // The keyboard ring, in one place too: a 2px line in the accent that reads on
+    // paper. Every button in the chrome wears it, so nothing falls back to the
+    // browser's own ring inside the shadow root.
+    "button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     // A control that only changes colour, and is never pressed.
     "input[type=search],.element-comment-text,.variants-keep{",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
@@ -1390,10 +1390,10 @@
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
       var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? chromeColour("--ink", "#16233a") : chromeColour("--paper", "#ffffff");
+      return luminance > 0.55 ? chromeColour("--ink", "#25241f") : chromeColour("--paper", "#ffffff");
     }
     // Nothing is painted behind it: the canvas is paper, so the line is ink.
-    return chromeColour("--ink", "#16233a");
+    return chromeColour("--ink", "#25241f");
   }
 
   /**
@@ -3412,7 +3412,7 @@ function icons(items, current, onPick, cls) {
         one rather than as a pale solid. Paper and ink alpha, like the track's. */
     function overCheckers(value) {
       return "linear-gradient(" + value + ", " + value + ")," +
-        " repeating-conic-gradient(#ffffff 0% 25%, #3a283c14 0% 50%) 50% / 16px 16px";
+        " repeating-conic-gradient(#ffffff 0% 25%, #25241f14 0% 50%) 50% / 16px 16px";
     }
 
     /** Draw the picker from the colour it holds, and write that colour out. */

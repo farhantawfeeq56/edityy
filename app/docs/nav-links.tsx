@@ -25,7 +25,7 @@ export function DocsNav({
                 <Link
                   href={page.href}
                   aria-current={active ? "page" : undefined}
-                  className={`block rounded-full border px-3 py-1.5 text-[0.8125rem] tint ${
+                  className={`block rounded-lg border px-3 py-1.5 text-[0.8125rem] tint ${
                     active
                       ? "border-neutral-200 bg-blush font-medium text-neutral-900"
                       : "border-neutral-200 text-neutral-600 hover:bg-blush/60 hover:text-neutral-900"
@@ -45,7 +45,7 @@ export function DocsNav({
     <nav aria-label="Docs" className="pb-10">
       {nav.map((group) => (
         <div key={group.title} className="mb-7">
-          <p className="px-2 text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-neutral-500">
+          <p className="overline px-2">
             {group.title}
           </p>
           <ul className="mt-2.5 space-y-0.5">
