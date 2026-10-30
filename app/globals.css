@@ -14,11 +14,16 @@
   transition-timing-function: var(--edityy-ease-standard);
 }
 
-/* A card that lifts: it rises a little and settles back down. */
+/* A card that lifts: it rises a little and settles back down, and its colour
+   follows in the tint's own time. One owner for every property it moves,
+   because two utilities that both set `transition-property` leave only the
+   later one running — the lift then snaps while the colour eases. */
 @utility lift {
-  transition-property: transform, box-shadow;
-  transition-duration: var(--edityy-settle);
-  transition-timing-function: var(--edityy-ease-arrive);
+  transition-property: transform, box-shadow, background-color, border-color, color;
+  transition-duration: var(--edityy-settle), var(--edityy-settle), var(--edityy-tint), var(--edityy-tint),
+    var(--edityy-tint);
+  transition-timing-function: var(--edityy-ease-arrive), var(--edityy-ease-arrive), var(--edityy-ease-standard),
+    var(--edityy-ease-standard), var(--edityy-ease-standard);
 }
 
 /* A surface that arrives. */
@@ -53,38 +58,49 @@
   animation: edityy-rise var(--edityy-enter) var(--edityy-ease-arrive);
 }
 
-/* Cobalt on white paper, graded like the reference frame: washed
-   highlights, faded shadows, nothing pure black. The neutral
-   ramp IS the design: every neutral-* class in the app resolves to one of
-   these, so the tokens are the whole change.
+/* The theme. Paper is warm, ink is a soft graphite, and one gold does the
+   signalling. The utility names stay as they are, so the ramp is the whole
+   change.
 
-   The theme is NOT inline on purpose: utilities emit var(--color-*), and the
-   --edityy-* hooks below hand the same tokens to the injected editor chrome. */
+   Gold is a FILL, never small text: #D4A72C on paper is 2.1:1. Words that must
+   read in gold use --color-brand-ink (#8A6A10), which passes on paper. */
 @theme {
-  --color-neutral-50: #ffffff;
-  --color-neutral-100: #ffffff;
-  --color-neutral-200: #16233a1a;
-  --color-neutral-300: #16233a26;
-  --color-neutral-400: #16233a59;
-  --color-neutral-500: #465a78;
-  --color-neutral-600: #465a78;
-  --color-neutral-700: #465a78;
-  --color-neutral-800: #465a78;
-  --color-neutral-900: #16233a;
+  --color-neutral-50: #faf9f6; /* paper */
+  --color-neutral-100: #ffffff; /* surface */
+  --color-neutral-200: #e5e2da; /* hairline */
+  --color-neutral-300: #d8d3c7; /* edge under the pointer */
+  --color-neutral-400: #a8a294; /* disabled mark */
+  --color-neutral-500: #777469; /* faint words */
+  --color-neutral-600: #5d5a50; /* muted copy */
+  --color-neutral-700: #3a3830; /* ink under the pointer */
+  --color-neutral-800: #2e2c25;
+  --color-neutral-900: #25241f; /* ink */
 
-  /* cobalt drives action and the "running" signal, always with ink text */
-  --color-rose-500: #2f5fa8;
-  --color-rose-900: #16233a;
+  --color-brand: #d4a72c;
+  --color-brand-ink: #8a6a10;
+  --color-brand-soft: #fbf3d9;
+  --color-brand-line: #e9d28b;
 
-  /* the three tile pastels, cycled across the space deck */
-  --color-blush: #d8e3f4;
-  --color-rose: #b6cbe8;
-  --color-plum: #16233a;
+  /* The old ramp names, kept so no class has to be renamed. */
+  --color-rose-500: #d4a72c;
+  --color-rose-600: #8a6a10;
+  --color-rose-900: #25241f;
+  --color-blush: #fbf3d9;
+  --color-rose: #e9d28b;
+  --color-plum: #25241f;
 
   /* --font-jakarta is set by next/font/local on <html>; the rest is the
-     pre-swap fallback so the first paint never reflows into a different face. */
+     pre-swap fallback so the first paint never reflows into a different face.
+     One face for now: display, label and code all resolve to Jakarta. A second
+     face is a later decision, not a token waiting to be pointed somewhere. */
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* The one shadow of a floating surface. `layer` draws it, and an element that
+   already carries its own fill asks for it by name rather than writing the
+   colour out again. */
+  --shadow-layer: 0 1px 2px rgb(37 36 31 / 0.05), 0 8px 24px -14px rgb(37 36 31 / 0.22);
 }
 
 /* The Edityy editor chrome is a shadow root and names the Edityy face itself.
@@ -93,12 +109,37 @@
    the chrome reads its five colours from the same tokens, so the dock, the
    menus and the hover box wear this palette and not their own. */
 :root {
+  /* Conditions. Each one is a fill with ink on it, or a word that passes on
+     paper; none of them is a thin line of saturated colour. */
+  --color-brand-hover: #bd9220;
+  --color-brand-pressed: #a67e17;
+  --color-brand-subtle: var(--color-brand-soft);
+  --color-brand-border: var(--color-brand-line);
+  --color-brand-foreground: #25241f;
+  --color-success: #217346;
+  --color-success-subtle: #e9f5ec;
+  --color-warning: #8a5a00;
+  --color-warning-subtle: #fff3d6;
+  --color-error: #c9362b;
+  --color-error-subtle: #fcebe9;
+
   --edityy-font: var(--font-jakarta);
   --edityy-ink: var(--color-neutral-900);
-  --edityy-paper: var(--color-neutral-50);
+  /* The chrome floats on paper white over the warm page, as the study does. */
+  --edityy-paper: var(--color-neutral-100);
   --edityy-muted: var(--color-neutral-600);
-  --edityy-accent: var(--color-rose-500);
-  --edityy-rose: var(--color-rose);
+  /* The chrome's --accent: the keyboard ring and an active state. A gold ring
+     on paper is under 3:1, so the chrome gets the bronze and keeps the gold for
+     fills it draws itself. */
+  --edityy-accent: var(--color-brand-ink);
+  --edityy-accent-soft: var(--color-brand-soft);
+  --edityy-rose: var(--color-brand-line);
+
+  /* The header's paper, at rest and once the page has moved. The element and the
+   scroll animation read the same two values, so a reader who asked for less
+   motion sees the colour the animation starts from and not a third one. */
+  --site-header-paper: rgb(250 249 246 / 0.78);
+  --site-header-solid: rgb(250 249 246 / 0.94);
 }
 
 body {
@@ -133,6 +174,10 @@ body {
 /* The header over the page. It is more solid once the page has moved, so the
    words over it stay readable. The change is driven by the scroll, so it needs
    no script and no scroll listener. */
+.site-header {
+  background-color: var(--site-header-paper);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: scroll()) {
     .site-header {
@@ -145,28 +190,31 @@ body {
 
 @keyframes edityy-header {
   from {
-    background-color: rgb(255 255 255 / 0.8);
+    background-color: var(--site-header-paper);
   }
   to {
-    background-color: rgb(255 255 255 / 0.95);
+    background-color: var(--site-header-solid);
   }
 }
 
 ::selection {
-  background: var(--color-rose);
+  background: var(--color-brand-subtle);
   color: var(--color-plum);
 }
 
-/* Analog grain. The one thing that makes the ramp read as graded rather than
-   picked: a fixed noise veil over the whole canvas, above the surfaces and
-   below the text. Under the launcher's z-index, so the injected editor is
-   never tinted. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+/* A paper surface over the work: the study's floating layer. One hairline, one
+   diffuse shadow, no gradient. */
+@utility layer {
+  background-color: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: var(--shadow-layer);
+}
+
+/* The small mono line the study puts over a section: a label, not a title. */
+@utility overline {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
 }

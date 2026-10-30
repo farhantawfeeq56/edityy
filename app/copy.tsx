@@ -35,7 +35,7 @@ export function CopyButton({
     <button
       type="button"
       onClick={copy}
-      className={`rounded-full px-3 py-1.5 text-[0.75rem] font-medium tint ${className}`}
+      className={`rounded-lg px-3 py-1.5 text-[0.75rem] font-medium tint ${className}`}
     >
       {/* The words change in place. The live region is the outer span, so it
           is the same region before and after: a reader hears the change, and
