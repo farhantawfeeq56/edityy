@@ -101,7 +101,7 @@ test("a variation request goes to the agent, and its answer goes back to the pag
     root
   );
   const got = await call(root, "tools/call", { name: "get_variation_request", arguments: {} });
-  assert.match(got.result.content[0].text, /vartest/);
+  assert.match(got.result.content[0].text, /chose Vartest in the Edityy toolbar/);
   assert.match(got.result.content[0].text, /thinner and darker scrollbar/);
   assert.match(got.result.content[0].text, /Make exactly 2 variations/);
   assert.match(got.result.content[0].text, /main > div/);

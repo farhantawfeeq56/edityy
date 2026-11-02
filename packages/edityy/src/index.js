@@ -4,10 +4,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 import { PREVIEWS_PATH, clearPreviews, decidePreview, decidePreviews, readPendingPreviews } from "./previews.js";
+import { SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
 import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
 export { PREVIEWS_PATH };
+/** The session endpoint path, answered by sessionFromNode and sessionRoute. */
+export { SESSION_PATH };
+/** The file the canvas session is kept in, beside the saved edit list. */
+export { SESSION_FILE } from "./session.js";
 
 /**
  * The launcher payload, read once at import.
@@ -98,6 +103,13 @@ export function edityy(options = {}) {
 
       if (pathname === PREVIEWS_PATH && options.save !== false) {
         previewsFromNode(req, res, root, hosts).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
+        return;
+      }
+
+      if (pathname === SESSION_PATH && options.save !== false) {
+        sessionFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -449,6 +461,8 @@ async function saveFromNode(req, res, root, allowedHosts) {
 
 /** A variation request is a number and an optional comment: 16 KB is plenty. */
 const VARIATION_LIMIT = 16 * 1024;
+/** The canvas session: every edit, comment and region on one page. */
+const SESSION_LIMIT = 512 * 1024;
 
 /**
  * The variation endpoint on a Node dev server.
@@ -521,6 +535,41 @@ async function previewsFromNode(req, res, root, allowedHosts) {
       return;
     }
     throw new SaveError(405, "GET, POST or DELETE the preview.");
+  } catch (error) {
+    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+  }
+}
+
+/**
+ * The canvas session on a Node dev server.
+ *
+ * GET answers with the canvas kept for one page path, POST keeps the canvas the
+ * page sends, and DELETE forgets it once the edits are in the code.
+ */
+async function sessionFromNode(req, res, root, allowedHosts) {
+  const answer = (status, body) => {
+    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end?.(JSON.stringify(body));
+  };
+  try {
+    const h = req.headers ?? {};
+    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "keep the canvas session");
+    if (req.method === "GET") {
+      const path = new URL(req.url ?? "/", "http://localhost").searchParams.get("path") ?? "/";
+      answer(200, { ok: true, session: await readSession(path, root) });
+      return;
+    }
+    if (req.method === "POST") {
+      const written = await writeSession(jsonBody(await readBody(req, SESSION_LIMIT)), root);
+      answer(200, { ok: true, path: written });
+      return;
+    }
+    if (req.method === "DELETE") {
+      await clearSession(root);
+      answer(200, { ok: true });
+      return;
+    }
+    throw new SaveError(405, "GET, POST or DELETE the canvas session.");
   } catch (error) {
     answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
   }
@@ -689,6 +738,53 @@ export function previewsRoute(options = {}) {
     DELETE: (request) =>
       run(request, async () => {
         await clearPreviews(root);
+        return json(200, { ok: true });
+      }),
+  };
+}
+
+/**
+ * The canvas session as fetch-style route handlers, for Next.js:
+ *
+ *   // app/edityy/session/route.ts  (the app rewrites /__edityy/session onto it)
+ *   import { sessionRoute } from "edityy";
+ *   export const { GET, POST, DELETE } = sessionRoute();
+ *
+ * Like changesRoute(), it answers 404 unless NODE_ENV is "development".
+ */
+export function sessionRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  const json = (status, body) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    });
+  const run = async (request, act) => {
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
+    try {
+      const h = request.headers;
+      const host = h.get("host") ?? new URL(request.url).host;
+      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "keep the canvas session");
+      return await act();
+    } catch (error) {
+      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+    }
+  };
+  return {
+    GET: (request) =>
+      run(request, async () => {
+        const path = new URL(request.url).searchParams.get("path") ?? "/";
+        return json(200, { ok: true, session: await readSession(path, root) });
+      }),
+    POST: (request) =>
+      run(request, async () => {
+        const body = await request.text();
+        if (Buffer.byteLength(body) > SESSION_LIMIT) throw new SaveError(413, "Too much to keep the canvas with.");
+        return json(200, { ok: true, path: await writeSession(jsonBody(body), root) });
+      }),
+    DELETE: (request) =>
+      run(request, async () => {
+        await clearSession(root);
         return json(200, { ok: true });
       }),
   };

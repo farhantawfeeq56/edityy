@@ -30,6 +30,7 @@ const END = "<!-- END edityy -->";
 const CHANGES = "/__edityy/changes";
 const VARIATIONS = "/__edityy/variations";
 const PREVIEWS = "/__edityy/previews";
+const SESSION = "/__edityy/session";
 
 const RULES = `${BEGIN}
 ## Edityy
@@ -37,7 +38,8 @@ const RULES = `${BEGIN}
 The user edits the running site with Edityy, not the code. These tools come from
 the Edityy MCP server.
 
-- **vartest.** When the user types \`vartest\`, call \`get_variation_request\`.
+- **vartest.** When the user chooses Vartest in the Edityy toolbar and presses
+  an element, call \`get_variation_request\`.
   Read it every time: an answer for an older request is refused. Then answer
   with the number of variations it asks for, and call \`place_variations\`.
   Each variation is plain CSS declarations and may also set the element's words
@@ -57,7 +59,10 @@ the Edityy MCP server.
   the saved edits, so \`get_visual_changes\` reads it after Save to project.
 - **Visual edits.** When the user asks for the edits they saved from the site,
   call \`get_visual_changes\`, apply them to the source code, then call
-  \`clear_visual_changes\`.
+  \`clear_visual_changes\`. That also clears the canvas session.
+- **The canvas.** The page keeps its temporary edits, comments and regions in
+  \`.edityy/session.json\`, across a reload and a dev-server restart. When a change
+  is in the code, call \`clear_visual_changes\` so the page stops showing it.
 - **The server.** If these tools are missing, the Edityy MCP server is not
   connected. Tell the user to run \`npx edityy mcp\`.
 ${END}
@@ -114,13 +119,14 @@ if (process.env.NODE_ENV === "development") import("edityy/client");
 `;
 
 const proxy = () => `${MARK}
-import { changesRoute, previewsRoute, variationsRoute } from "edityy";
+import { changesRoute, previewsRoute, sessionRoute, variationsRoute } from "edityy";
 
 type Handler = (request: Request) => Response | Promise<Response>;
 
 const changes = changesRoute();
 const variations = variationsRoute() as unknown as Record<string, Handler | undefined>;
 const previews = previewsRoute() as unknown as Record<string, Handler | undefined>;
+const session = sessionRoute() as unknown as Record<string, Handler | undefined>;
 
 /**
  * The Edityy endpoints answer here, so next.config.ts needs no rewrite. Other
@@ -129,7 +135,7 @@ const previews = previewsRoute() as unknown as Record<string, Handler | undefine
 export function proxy(request: Request) {
   const path = new URL(request.url).pathname;
   if (path === "${CHANGES}") return request.method === "POST" ? changes(request) : undefined;
-  const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : null;
+  const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : path === "${SESSION}" ? session[request.method] : null;
   return handler ? handler(request) : undefined;
 }
 

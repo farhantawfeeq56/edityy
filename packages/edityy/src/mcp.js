@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
+import { SESSION_FILE } from "./session.js";
 import { decidePreview, placePreview, previewText, readActivePreview, readPreview, readPreviews } from "./previews.js";
 import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
@@ -50,8 +51,8 @@ const TOOLS = [
   {
     name: "get_variation_request",
     description:
-      "The user typed vartest: read the style variations they asked for on one element of their running site. " +
-      "Read it at the start of every vartest: the user may have asked again since the last one, and an answer " +
+      "The user chose Vartest in the Edityy toolbar and pressed one element of their running site: read the style variations they asked for. " +
+      "Read it at the start of every Vartest: the user may have asked again since the last one, and an answer " +
       "for an old request is refused. " +
       "Returns the number of variations, their optional comment, the element's selector and tag, and its current values. " +
       "Answer with that many variations of plain CSS declarations, then call place_variations.",
@@ -264,13 +265,14 @@ export async function handle(message, root) {
         }
         if (params?.name === "clear_visual_changes") {
           await rm(join(root, CHANGES_FILE), { force: true });
-          return reply({ content: [{ type: "text", text: "Cleared the saved edits." }] });
+          await rm(join(root, SESSION_FILE), { force: true });
+          return reply({ content: [{ type: "text", text: "Cleared the saved edits and the canvas session." }] });
         }
         if (params?.name === "get_variation_request") {
           const request = await readVariationRequest(root);
           if (!request) {
             return reply({
-              content: [{ type: "text", text: "No pending variation request. In the browser, select an element, choose Variations, then Send to agent." }],
+              content: [{ type: "text", text: "No pending variation request. In the browser, choose Vartest in the toolbar, then press one element." }],
             });
           }
           if (request.status === "cancelled") {

@@ -36,6 +36,8 @@ export interface ElementChange {
   text: { before: string; after: string } | null;
   /** Words the user wrote about this element, or null. */
   comment: string | null;
+  /** A box the user drew on the page for something to be added inside, or null. */
+  region?: { left: number; top: number; width: number; height: number } | null;
 }
 
 /** What the page sends to the save endpoint. */
@@ -65,6 +67,10 @@ export declare const TAG: string;
 export declare const CHANGES_PATH: "/__edityy/changes";
 /** Where the edits are written, relative to the root: `.edityy/changes.json`. */
 export declare const CHANGES_FILE: ".edityy/changes.json";
+/** The path the page keeps its canvas session on: `/__edityy/session`. */
+export declare const SESSION_PATH: "/__edityy/session";
+/** Where the canvas session is written, relative to the root: `.edityy/session.json`. */
+export declare const SESSION_FILE: ".edityy/session.json";
 
 /**
  * Put the launcher tag before `</head>`. Returns the body itself, unchanged,
@@ -97,6 +103,18 @@ export declare function changesRoute(
 export declare const PREVIEWS_PATH: "/__edityy/previews";
 
 export declare function variationsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
+  GET: (request: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+  DELETE: (request: Request) => Promise<Response>;
+};
+
+/**
+ * The canvas session endpoint as fetch-style route handlers, for Next.js:
+ * `export const { GET, POST, DELETE } = sessionRoute();` in
+ * `app/edityy/session/route.ts`, with a rewrite from `/__edityy/session` onto
+ * it. It answers 404 unless `NODE_ENV` is `development`.
+ */
+export declare function sessionRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
   POST: (request: Request) => Promise<Response>;
   DELETE: (request: Request) => Promise<Response>;

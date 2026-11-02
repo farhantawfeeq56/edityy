@@ -4,6 +4,15 @@ All notable changes to the `edityy` package. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 1.0.0 — In progress
+
+### Focus
+
+- Version 1.0.0 will focus on the temporary Edityy canvas and making changes
+  directly on it. The release will reduce the interface to the features that
+  earn their place through real use, with careful attention to the details of
+  the canvas experience.
+
 ## Unreleased
 
 ### Added

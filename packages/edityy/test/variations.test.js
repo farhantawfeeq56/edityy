@@ -282,7 +282,7 @@ test("an answer for a request that changed says what to answer instead", () => {
 test("the agent reads a short request, not the page", () => {
   const text = requestText(checkVariationRequest(request));
   assert.match(text, /thinner and darker/);
-  assert.match(text, /vartest/, "the word the user typed in their agent");
+  assert.match(text, /chose Vartest in the Edityy toolbar/, "the tool the user pressed");
   assert.match(text, /`main > div\.scroll` \(a `div`\)/);
   assert.match(text, /overflow-y: auto/);
   assert.match(text, /Make exactly 2 variations/);

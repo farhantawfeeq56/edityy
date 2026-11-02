@@ -68,7 +68,7 @@ export function checkChanges(changes) {
       if (typeof change.text !== "object") throw invalid("text must be an object");
       text = { before: str(change.text.before, "text.before", MAX_TEXT), after: str(change.text.after, "text.after", MAX_TEXT) };
     }
-    return {
+    const checked = {
       label: str(change.label, "label", MAX_SHORT),
       selector: str(change.selector, "selector", MAX_SHORT),
       source: str(change.source, "source", MAX_SHORT, null),
@@ -103,7 +103,28 @@ export function checkChanges(changes) {
       moved: change.moved === true,
       movedTo: str(change.movedTo, "movedTo", MAX_SHORT, null),
     };
+    // Only a change that drew a box carries one: the saved file keeps the shape
+    // it had for every other edit.
+    const region = checkRegion(change.region);
+    if (region) checked.region = region;
+    return checked;
   });
+}
+
+/** A box the user drew on the page for something to be added inside. */
+function checkRegion(region) {
+  if (region === undefined || region === null) return null;
+  if (typeof region !== "object" || Array.isArray(region)) throw invalid("region must be an object");
+  const side = (value, name) => {
+    if (!Number.isFinite(value) || value < 0 || value > 1000000) throw invalid(`region.${name} must be a page distance`);
+    return Math.round(value);
+  };
+  return {
+    left: side(region.left, "left"),
+    top: side(region.top, "top"),
+    width: side(region.width, "width"),
+    height: side(region.height, "height"),
+  };
 }
 
 /** An added element, or null when the change did not add one. */
@@ -174,6 +195,10 @@ export function markdownFor(changes, page) {
     if (change.added) {
       out.push(`- Added: a new ${code(change.added.tag)}` + (change.added.style ? ` with ${code(change.added.style)}` : ""));
       if (change.added.wraps.length) out.push(`- Wraps: ${change.added.wraps.map(code).join(", ")}`);
+    }
+    if (change.region) {
+      const r = change.region;
+      out.push(`- Region: a ${code(r.width + " × " + r.height)} pixel box at ${code(r.left + "px from the left, " + r.top + "px from the top")} of the page. Put the new element inside it.`);
     }
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
     if (change.comment) out.push(`- Comment: ${line(JSON.stringify(change.comment))}`);

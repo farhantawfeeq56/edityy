@@ -14,8 +14,10 @@ const nextConfig: NextConfig = {
   // reserved path onto it.
   async rewrites() {
     return [
+      { source: "/__edityy/changes", destination: "/edityy/changes" },
       { source: "/__edityy/variations", destination: "/edityy/variations" },
       { source: "/__edityy/previews", destination: "/edityy/previews" },
+      { source: "/__edityy/session", destination: "/edityy/session" },
     ];
   },
 };

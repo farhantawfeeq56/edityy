@@ -210,12 +210,12 @@ export async function clearVariations(root = process.cwd()) {
 export function requestText(request) {
   const values = request.element.values.map((v) => `${v.property}: ${v.value}`).join("; ");
   const asked = request.prompt
-    ? `The user selected one element and wrote: ${JSON.stringify(request.prompt)}`
-    : "The user selected one element and wrote no comment: they gave no direction, so cover styles that differ from each other.";
+    ? `The user chose Vartest in the Edityy toolbar and wrote: ${JSON.stringify(request.prompt)}`
+    : "The user chose Vartest in the Edityy toolbar and wrote no comment: they gave no direction, so cover styles that differ from each other.";
   return [
     "# Variation request from Edityy",
     "",
-    `The user typed \`vartest\` in their agent. ${asked}`,
+    `${asked}`,
     "",
     `- Element: \`${request.element.selector}\` (a \`${request.element.tag}\`)`,
     `- Current values: ${values ? "`" + values + "`" : "none read"}`,
