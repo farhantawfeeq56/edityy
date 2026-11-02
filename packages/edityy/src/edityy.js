@@ -243,11 +243,11 @@
     // only once it is on show (data-glide=warm). It goes down a line with the
     // control when the row wraps.
     ".row:before{content:\"\";position:absolute;left:0;top:0;height:var(--glide-h,32px);width:var(--glide-w,32px);border-radius:7px;",
-    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--leave)}",
+    "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--arrive)}",
     ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
-    ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive),height var(--rise) var(--arrive)}",
+    ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--slide) var(--arrive)}",
     ".row>*{position:relative}",
-    ".row .ic:hover{background:transparent}",
+    "@media (hover:hover){.row .ic:hover{background:transparent}}",
     // The row of the mode that is left, kept in place while the new one takes
     // over. It is the controls that cross over, so its box is not drawn: two
     // edges and two shadows moving at once would read as two toolbars.
@@ -258,7 +258,7 @@
     // open without moving its icons a pixel.
     ".ic{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
     "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:.8}",
-    ".ic:hover{background:var(--ink-6);color:var(--ink);opacity:1}",
+    "@media (hover:hover){.ic:hover{background:var(--ink-6);color:var(--ink);opacity:1}}",
     ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
     ".ic[aria-pressed=true]:before{content:\"\";position:absolute;inset:8px;background:#F2F2F2;border-radius:4px;pointer-events:none}",
     ".ic[aria-pressed=true]>svg{position:relative;color:var(--ink)}",
@@ -5238,6 +5238,9 @@ function decorations() {
     // the control it is on now is not the one it was measured on. The fill and
     // the tip wait for the pointer to move.
     if (hoverParked) return;
+    // A tap is a press, not a hover: a touch fill would stick where the tap
+    // landed, and the press scale already answers it.
+    if (e.pointerType === "touch") return;
     var button = controlOf(e.target);
     if (!button) return;
     // The list that comes out of a chip belongs to that chip: an option is not a
@@ -5268,6 +5271,7 @@ function decorations() {
   // pointer has no control where the pointer is until the pointer says so.
   row.addEventListener("pointermove", function (e) {
     if (!hoverParked) return;
+    if (e.pointerType === "touch") return;
     var button = controlOf(e.target);
     if (!button || inList(e.target)) return;
     hoverParked = false;
