@@ -285,12 +285,6 @@
     ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
     "@keyframes rowIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}",
     ".ic:disabled,.ic[aria-disabled=true]{opacity:.42;cursor:default;pointer-events:none}",
-    ".ic.add{color:var(--muted)}",
-    // A hairline stands between the controls and the `+`: the row's controls act
-    // on the element, and the `+` adds to them. It is the button's own mark, so
-    // the row keeps its children and the keyboard keeps its stops.
-    ".ic.add:before{content:\"\";position:absolute;left:-5px;top:50%;width:1px;height:18px;",
-    "transform:translateY(-50%);background:var(--ink-10);pointer-events:none}",
     ".ic.family-name{display:block;width:84px;max-width:84px;overflow:hidden;",
     "padding:0 6px;text-align:left;text-overflow:ellipsis;white-space:nowrap;font:500 13px/30px}",
     ".ic.group-start{margin-left:8px;position:relative}",
