@@ -257,7 +257,7 @@
     // A 1px transparent border, so a control can take a border colour when it is
     // open without moving its icons a pixel.
     ".ic{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
-    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:.6}",
+    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:.8}",
     ".ic:hover{background:var(--ink-6);color:var(--ink);opacity:1}",
     ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
     ".ic[aria-pressed=true]:before{content:\"\";position:absolute;inset:8px;background:#F2F2F2;border-radius:4px;pointer-events:none}",
