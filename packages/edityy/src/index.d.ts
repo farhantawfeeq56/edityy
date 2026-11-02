@@ -63,6 +63,10 @@ export declare const launcher: string;
 export declare const ASSET_PATH: "/__edityy/edityy.js";
 /** The tag the middleware injects. */
 export declare const TAG: string;
+/** The brand mark, as PNG bytes. */
+export declare const logo: Buffer;
+/** The path the middleware serves the brand mark on: `/__edityy/logo.png`. */
+export declare const LOGO_PATH: "/__edityy/logo.png";
 /** The path the page posts its edits to: `/__edityy/changes`. */
 export declare const CHANGES_PATH: "/__edityy/changes";
 /** Where the edits are written, relative to the root: `.edityy/changes.json`. */
@@ -93,6 +97,13 @@ export declare function writeChanges(payload: ChangesPayload, root?: string): Pr
 export declare function changesRoute(
   options?: Pick<EdityyOptions, "root" | "allowedHosts">
 ): (request: Request) => Promise<Response>;
+
+/**
+ * The brand mark as a fetch-style route handler, for Next.js:
+ * `export const GET = logoRoute();` in `app/edityy/logo/route.ts`, with
+ * a rewrite from `/__edityy/logo.png` onto it.
+ */
+export declare function logoRoute(): (request: Request) => Promise<Response>;
 
 /**
  * The variation endpoint as fetch-style route handlers, for Next.js:

@@ -3,12 +3,13 @@
  *
  * Runs inside the page it is injected into. Two layers:
  *
- * 1. A launcher button, fixed bottom-right in an open shadow root, so the host
- *    page's CSS cannot reach it and it cannot leak styles back out. Clicking it
- *    dispatches `edityy:launcher-click` on window — the seam a host app can
- *    listen to — and toggles the editing mode below.
+ * 1. A brand pill, fixed bottom-right in an open shadow root, so the host
+ *    page's CSS cannot reach it and it cannot leak styles back out. It shows
+ *    only the mark when the mode is off; clicking it dispatches
+ *    `edityy:launcher-click` on window — the seam a host app can listen to —
+ *    and opens the editing mode below.
  *
- * 2. A temporary editing mode. The orb shrinks into the pointer. Hovering
+ * 2. A temporary editing mode. The pointer stays the pointer. Hovering
  *    outlines an element; clicking selects it and opens its actions.
  *
  * Selecting an element opens its actions in a card at the element — Edit text,
@@ -32,6 +33,10 @@
 
   if (window.__edityy) return; // a shared layout can render the tag more than once
   window.__edityy = true;
+
+  // The brand mark, served beside the payload. A URL, not a blob,
+  // so the payload stays small and the file keeps one format.
+  var LOGO = "/__edityy/logo.png";
 
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
@@ -543,27 +548,18 @@
     "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
-    // One element, both states. Anchored bottom-right while the mode is off, moved
-    // to the pointer and scaled down once it is on — so the orb shrinks into the
-    // point rather than one control swapping in for another.
-    "#launch{position:fixed;right:24px;bottom:24px;width:56px;height:56px;",
-    "border-radius:50%;border:0;margin:0;padding:0;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:grid;place-items:center;font:600 14px/1.1 inherit;color:var(--paper);",
-    "background:var(--ink);box-shadow:0 1px 1px var(--ink-8),0 6px 12px var(--ink-12);",
-    // Two properties, not one transform. The translate puts the dot under the
-    // cursor and is never transitioned, because a dot that eases into place is
-    // a dot a third of a second behind the pointer. The scale is the shrink
-    // into a point, and that is transitioned. The default centre origin is
-    // what makes the dot land exactly under the pointer.
-    "translate:0px 0px;scale:1;",
-    "transition:scale var(--move) var(--travel),background-color var(--slide) var(--standard)}",
-    // The way home: the dot travels back to the orb and grows into it, so the
-    // translate is transitioned for that one move and for no other.
-    "#launch[data-home]{transition:translate var(--move) var(--travel),scale var(--move) var(--travel),background-color var(--slide) var(--standard)}",
-    "#launch:hover{background:var(--muted)}",
-    // The word fades rather than scales: shrinking text is the one thing that
-    // reads as a label getting tiny instead of an orb becoming a point.
-    "#label{transition:opacity var(--fade) var(--standard)}",
+    // One pill, both states: on its own while the mode is off, and the second
+    // toolbar while the dock is up.
+    // The brand pill: the second toolbar. Bottom-right on its own when the
+    // mode is off, and still bottom-right when the dock is up, so it reads as
+    // the toolbar's other half. Same paper and radius as a row.
+    "#launch{position:fixed;right:24px;bottom:24px;height:40px;min-width:40px;",
+    "border-radius:10px;border:1px solid transparent;margin:0;padding:0 9px;cursor:pointer;pointer-events:auto;z-index:4;",
+    "display:flex;align-items:center;justify-content:center;background:var(--paper);",
+    "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
+    "#launch:hover{background:var(--fill-hover)}",
+    "#launch img{width:22px;height:22px;display:block;border-radius:6px}",
+
     // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
     // it off the content, as an outside stroke does), with no radius. The frame
     // is the positioning parent for the handles, and one colour dresses the
@@ -787,7 +783,7 @@
     "input[type=search],.element-comment-text,.variants-keep{",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     "</style>",
-    '<button type="button" id="launch" title="Edityy launcher" aria-label="Open Edityy"><span id="label">Edityy</span></button>',
+    '<button type="button" id="launch" title="Edityy" aria-label="Open Edityy"><img id="label" alt="Edityy logo" src="' + LOGO + '">' ,
     '<div class="frame" id="hover" hidden></div>',
     // The selection frame carries the four corner markers, so their
     // positions follow the frame wherever the element moves.
@@ -833,14 +829,6 @@
     return root.getElementById(id);
   };
   var launch = $("launch");
-  var label = $("label");
-  // The orb's centre, measured once as the mode opens. Every transform after
-  // that translates from this point, so tracking the pointer never has to know
-  // where the orb was and the first move animates out of the orb, not into air.
-  var anchorX = 0;
-  var anchorY = 0;
-  // 56px orb → 9px: a point, not a smaller circle.
-  var POINT = 0.16;
   var hoverBox = $("hover");
   var selBox = $("sel");
   var elementMenu = $("element-menu");
@@ -1008,7 +996,7 @@
 
   /**
    * A short, human way to name an element: "h1 “Edityy”". What the edits list
-   * shows. Not called `label`: that name is the orb's own text, further up.
+   * shows. Not called `label`: that id is the brand mark, further up.
    */
   function nameOf(el) {
     var snippet = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28);
@@ -6923,41 +6911,11 @@ function decorations() {
 
   /* ----------------------------------------------------------------- mode */
 
-  /** Park the orb's centre, the single origin every pointer transform is from. */
-  function anchor() {
-    var box = launch.getBoundingClientRect();
-    anchorX = box.left + box.width / 2;
-    anchorY = box.top + box.height / 2;
-  }
-
-  /**
-   * The orb and the pointer are one element with two properties.
-   *
-   * `translate` is the whole of the position: it puts the dot under the
-   * pointer, and it is never transitioned, so the dot is where the pointer is
-   * and not a moment behind it. `scale` is the shrink into a point, and that
-   * one is transitioned: clicking the orb is what starts it.
-   */
-  function moveTo(sx, sy) {
-    launch.style.translate = (sx - anchorX) + "px " + (sy - anchorY) + "px";
-    launch.style.scale = active ? String(POINT) : "1";
-  }
-
   function enter() {
     active = true;
     activeTool = "comment";
     buildRow();
     keep();
-    anchor();
-    // The way home is not on any more: the dot is going out, not back.
-    delete launch.dataset.home;
-    // Scale from the orb before it travels, so the shrink reads as the beginning
-    // of the morph rather than a jump.
-    moveTo(anchorX, anchorY);
-    label.style.opacity = "0";
-    // The button is no longer a button: the pointer takes over, and a click that
-    // lands on the dot must reach the page below it.
-    launch.style.pointerEvents = "none";
     document.addEventListener("mousemove", onMove, true);
     document.addEventListener("mousedown", onDown, true);
     document.addEventListener("mouseup", onUp, true);
@@ -6982,13 +6940,6 @@ function decorations() {
 
   function exit() {
     active = false;
-    // The way home is on: the translate is transitioned for this one move, so
-    // the dot travels back to the orb and grows into it in one go.
-    launch.dataset.home = "on";
-    // Travel home and grow back into the orb in one transition.
-    moveTo(anchorX, anchorY);
-    label.style.opacity = "";
-    launch.style.pointerEvents = "";
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("mousedown", onDown, true);
     document.removeEventListener("mouseup", onUp, true);
@@ -7382,12 +7333,6 @@ function decorations() {
   }
 
   function onMove(e) {
-    // The dot follows the pointer with no lag: the translate is not
-    // transitioned, so the dot is under the cursor and not easing towards it.
-    // The point and insertion preview use the same pointer event, so neither
-    // trails behind the other.
-    launch.style.translate = (e.clientX - anchorX) + "px " + (e.clientY - anchorY) + "px";
-    launch.style.scale = String(POINT);
     var x = e.clientX;
     var y = e.clientY;
     pointerX = x;
@@ -7579,8 +7524,7 @@ function decorations() {
   launch.addEventListener("click", function (e) {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
-    if (active) exit();
-    else enter();
+    if (!active) enter();
   });
 
   (document.body || document.documentElement).appendChild(host);

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import { test } from "node:test";
-import { ASSET_PATH, TAG, edityy, inject, launcher } from "../src/index.js";
+import { ASSET_PATH, LOGO_PATH, TAG, edityy, inject, launcher, logo } from "../src/index.js";
 
 /** A node response with just the bits the middleware touches. */
 function fakeRes({ headers = {} } = {}) {
@@ -38,6 +38,14 @@ test("serves the launcher on the asset path", () => {
   assert.equal(res.body, launcher);
   assert.match(String(res.getHeader("content-type")), /javascript/);
   assert.equal(res.getHeader("cache-control"), "no-store");
+});
+
+test("serves the brand mark on the logo path", () => {
+  const { res } = handle(LOGO_PATH, fakeRes());
+  assert.equal(res.status, 200);
+  assert.equal(res.body, logo);
+  assert.match(String(res.getHeader("content-type")), /png/);
+  assert.ok(res.body.length > 1000, "the real file, not an empty answer");
 });
 
 test("reads the launcher by path, not in the form a bundler takes as an asset", () => {

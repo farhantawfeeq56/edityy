@@ -530,7 +530,7 @@ test("mounts a launcher that ignores pointer events outside the button", () => {
   assert.match(host.style.cssText, /z-index:2147483647/);
   assert.match(host.style.cssText, /pointer-events:none/);
   assert.match(root.innerHTML, /right:24px;bottom:24px/);
-  assert.match(root.innerHTML, /border-radius:50%/);
+  assert.match(root.innerHTML, /#launch\{[^}]*border-radius:10px/);
   assert.match(root.innerHTML, /pointer-events:auto/); // only the button takes clicks
 });
 
@@ -539,7 +539,7 @@ test("the button is a real button with an accessible name", () => {
   const { root } = run();
   assert.match(root.innerHTML, /<button type="button" id="launch"/);
   assert.match(root.innerHTML, /aria-label="Open Edityy"/);
-  assert.match(root.innerHTML, /<span id="label">Edityy<\/span><\/button>/);
+  assert.match(root.innerHTML, /<img id="label" alt="Edityy logo"/);
 });
 
 test("the chrome wears its own face, not the host page's", () => {
@@ -552,7 +552,7 @@ test("the chrome wears its own face, not the host page's", () => {
     "Jakarta through the chrome's hook, with the machine's UI face as the floor");
   assert.doesNotMatch(css, /fonts\.googleapis\.com|@font-face/, "and no font is fetched");
   assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
-  assert.match(css, /font:600 14px\/1\.1 inherit/, "the orb's own weight and size");
+  assert.match(css, /#launch img\{width:22px/, "the mark's own size");
 });
 
 test("loading twice mounts only one launcher", () => {
@@ -568,34 +568,30 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   quiet(() => app.click());
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
+  quiet(() => app.click());
+  assert.equal(app.countDoc("click"), 1, "a second click while open leaves the mode on");
 });
 
-test("the orb itself becomes the pointer, shrinking into a point", () => {
+test("the brand pill stays put and stays a button in edit mode", () => {
   const { run, text } = fakeDom();
   const app = run();
-  // A 56px orb centred at (1180, 748): right 24 from a 1200 wide viewport, and
-  // 24 up from the bottom of 800.
-  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
   quiet(() => {
     app.click();
-    // One step in, still at the orb: the scale is the shrink, and the
-    // translate has not moved yet.
-    assert.equal(app.launch().style.scale, "0.16", "the shrink starts where the orb is");
-    assert.equal(app.launch().style.translate, "0px 0px", "and it has not travelled yet");
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
-  // Then it tracks the pointer, translated from the orb's own centre.
-  assert.equal(app.launch().style.translate, "-1140px -658px", "the dot is where the pointer is, now");
-  assert.equal(app.launch().style.scale, "0.16");
-  assert.equal(app.launch().style.pointerEvents, "none", "the dot is not a button any more");
-  assert.equal(app.root.nodes.label.style.opacity, "0", "the word fades on the way down");
+  // No dot follows the pointer: the pill never moves and never hands its
+  // clicks to the page.
+  assert.equal(app.launch().style.translate, undefined);
+  assert.equal(app.launch().style.scale, undefined);
+  assert.equal(app.launch().style.pointerEvents || "", "");
+  assert.match(app.root.innerHTML, /src="\/__edityy\/logo\.png"/, "the pill shows the brand mark");
+  assert.equal(app.countDoc("click"), 1, "the page is still captured in edit mode");
 });
 
-test("the pointer travels home and grows back into the orb on exit", () => {
+test("leaving edit mode keeps the brand pill as the way back in", () => {
   const { run, text } = fakeDom();
   const app = run();
-  app.launch().getBoundingClientRect = () => ({ left: 1152, top: 720, right: 1208, bottom: 776, width: 56, height: 56 });
   quiet(() => {
     app.click();
     app.hover(text("p", "body"));
@@ -603,11 +599,13 @@ test("the pointer travels home and grows back into the orb on exit", () => {
     app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
-  assert.equal(app.launch().style.translate, "0px 0px", "the dot is home");
-  assert.equal(app.launch().style.scale, "1", "and it is the orb again");
-  assert.equal(app.launch().style.pointerEvents, "", "the orb takes clicks again");
-  assert.equal(app.root.nodes.label.style.opacity, "");
+  // Escape leaves the mode: the dock hides and the pill stays a button.
+  assert.equal(app.root.nodes.dock.hidden, true);
+  assert.equal(app.launch().style.pointerEvents || "", "");
   assert.equal(app.countDoc("click"), 0, "the page is released");
+  // And the pill opens the mode again.
+  quiet(() => app.click());
+  assert.equal(app.countDoc("click"), 1, "the brand opens the toolbar again");
 });
 
 test("many pointer moves in one frame find and measure once", () => {
@@ -624,7 +622,6 @@ test("many pointer moves in one frame find and measure once", () => {
     app.hover(heading);
     for (let x = 0; x < 5; x++) app.fire("mousemove", { clientX: x, clientY: 10 });
   });
-  assert.equal(app.launch().style.translate, "4px 10px", "the dot is where the pointer is, now");
   assert.equal(measured, 0, "nothing measured before the frame");
   assert.equal(frames.length, 1, "one frame asked for");
   quiet(() => frames.shift()());
@@ -871,18 +868,14 @@ test("the open icon stays visible on its own dark background", () => {
 
 
 
-test("the dot under the cursor is not a third of a second behind it", () => {
+test("the brand pill carries no motion of its own", () => {
   const { run } = fakeDom();
   const app = run();
   const css = app.root.innerHTML;
   const rule = css.match(/#launch\{[^}]*\}/)[0];
-  // The scale is the shrink, and the scale is transitioned. The translate is
-  // the tracking, and the tracking is not: a dot that eases into place is a
-  // dot the cursor has left.
-  assert.match(rule, /transition:scale var\(--move\)/, "the shrink is transitioned");
-  assert.doesNotMatch(rule, /transition:[^;}]*translate/, "the tracking is not");
-  // The way home is the one move that travels.
-  assert.match(css, /#launch\[data-home\]\{[^}]*transition:translate/, "the dot travels home");
+  // Nothing follows the pointer any more: no translate, no scale, no trip home.
+  assert.doesNotMatch(rule, /translate|scale/, "the pill never moves");
+  assert.doesNotMatch(css, /#launch\[data-home\]/, "nothing travels home");
 });
 
 
@@ -1676,7 +1669,8 @@ test("leaving the mode forgets the canvas on the server", async () => {
   quiet(() => app.click());
   await tick();
   assert.notEqual(server.session, null, "kept while the mode is");
-  quiet(() => app.click());
+  // The brand never closes the mode: Escape leaves it.
+  quiet(() => app.fire("keydown", { key: "Escape" }));
   await tick();
   assert.equal(server.session, null);
 });

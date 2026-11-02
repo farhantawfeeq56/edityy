@@ -24,8 +24,17 @@ export { SESSION_FILE } from "./session.js";
  */
 export const launcher = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "edityy.js"), "utf8");
 
+/**
+ * The brand mark, read once at import. It rides beside the launcher, so the
+ * payload shows it from a URL and keeps one format instead of a blob.
+ */
+export const logo = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "logo.png"));
+
 /** Where the middleware serves the launcher, and what it injects. */
 export const ASSET_PATH = "/__edityy/edityy.js";
+
+/** Where the middleware serves the brand mark, and what the payload shows. */
+export const LOGO_PATH = "/__edityy/logo.png";
 export const TAG = `<script src="${ASSET_PATH}" defer></script>`;
 
 /** Where the page sends its edits, and the file they are written to. */
@@ -36,6 +45,9 @@ const SAVE_LIMIT = 1024 * 1024;
 
 /** Headers this middleware sets. */
 const JS = { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" };
+
+/** Headers the middleware sets on the brand mark: it never changes. */
+const PNG = { "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" };
 
 // Two regexes, not a real HTML parser. They miss `src` in an HTML
 // comment and in quoted attribute values; re-parse with a DOM when that matters.
@@ -84,6 +96,12 @@ export function edityy(options = {}) {
       if (pathname === ASSET_PATH) {
         res.writeHead?.(200, JS);
         res.end?.(launcher);
+        return;
+      }
+
+      if (pathname === LOGO_PATH) {
+        res.writeHead?.(200, PNG);
+        res.end?.(logo);
         return;
       }
 
@@ -640,6 +658,21 @@ export function changesRoute(options = {}) {
     } catch (error) {
       return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
     }
+  };
+}
+
+/**
+ * The brand mark as a fetch-style route handler, for Next.js:
+ *
+ *   // app/edityy/logo/route.ts  (the app rewrites /__edityy/logo.png onto it)
+ *   import { logoRoute } from "edityy";
+ *   export const GET = logoRoute();
+ *
+ * A picture, not a write: it answers on every host, in any environment.
+ */
+export function logoRoute() {
+  return function GET() {
+    return new Response(logo, { status: 200, headers: PNG });
   };
 }
 
