@@ -203,6 +203,7 @@
     "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
     "--ink-20:color-mix(in srgb,var(--ink) 20%,transparent);--ink-25:color-mix(in srgb,var(--ink) 25%,transparent);",
     "--ink-35:color-mix(in srgb,var(--ink) 35%,transparent);--ink-40:color-mix(in srgb,var(--ink) 40%,transparent);",
+    "--ink-60:color-mix(in srgb,var(--ink) 60%,transparent);", // the selection line: ink, softened off pure black
     "--rose-30:color-mix(in srgb,var(--rose) 30%,transparent);--rose-40:color-mix(in srgb,var(--rose) 40%,transparent);",
     "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
     // A control that is open, and one under the pointer: paper stepped once
@@ -1411,7 +1412,7 @@
    * no pixel, so an element painted that way falls through to the page's own
    * paper, which is light.
    *
-   * Paper on ink, ink on paper: two of the five palette values, chosen by the
+   * Paper on ink, softened ink on paper: the palette values, chosen by the
    * luminance of that background. The photographic negative this used to write
    * answered with a hue from outside the palette — olive over a pale rose page —
    * and a pure black when nothing at all was painted behind the element.
@@ -1422,10 +1423,10 @@
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
       if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
       var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? chromeColour("--ink", "#25241f") : chromeColour("--paper", "#ffffff");
+      return luminance > 0.55 ? chromeColour("--ink-60", "rgba(37,36,31,0.6)") : chromeColour("--paper", "#ffffff");
     }
-    // Nothing is painted behind it: the canvas is paper, so the line is ink.
-    return chromeColour("--ink", "#25241f");
+    // Nothing is painted behind it: the canvas is paper, so the line is softened ink.
+    return chromeColour("--ink-60", "rgba(37,36,31,0.6)");
   }
 
   /**
