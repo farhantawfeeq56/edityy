@@ -234,7 +234,7 @@
     // A row wider than the viewport wraps onto a second line, so every control
     // stays on screen; it does not scroll, which would clip the lists that come
     // up out of its controls.
-    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:4px;min-height:46px;align-items:center;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
@@ -242,7 +242,7 @@
     // is never one of row.children. It fades in where it first lands, and moves
     // only once it is on show (data-glide=warm). It goes down a line with the
     // control when the row wraps.
-    ".row:before{content:\"\";position:absolute;left:0;top:0;height:30px;width:var(--glide-w,30px);border-radius:7px;",
+    ".row:before{content:\"\";position:absolute;left:0;top:0;height:var(--glide-h,32px);width:var(--glide-w,32px);border-radius:7px;",
     "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
     ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
@@ -256,7 +256,7 @@
     // what is open is obvious without a label.
     // A 1px transparent border, so a control can take a border colour when it is
     // open without moving its icons a pixel.
-    ".ic{width:36px;height:36px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
+    ".ic{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
     "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:.6}",
     ".ic:hover{background:var(--ink-6);color:var(--ink);opacity:1}",
     ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
@@ -5047,8 +5047,9 @@ function decorations() {
   /** Move the row's one hover fill under a control. */
   function glideTo(button) {
     row.style.setProperty("--glide-x", (button.offsetLeft || 0) + "px");
-    row.style.setProperty("--glide-y", (button.offsetTop || 3) + "px");
-    row.style.setProperty("--glide-w", (button.offsetWidth || 34) + "px");
+    row.style.setProperty("--glide-y", (button.offsetTop || 0) + "px");
+    row.style.setProperty("--glide-w", (button.offsetWidth || 32) + "px");
+    row.style.setProperty("--glide-h", (button.offsetHeight || 32) + "px");
     if (row.dataset.glide !== undefined) return;
     // It fades in where it lands, and only travels from the next control on.
     row.dataset.glide = "";
