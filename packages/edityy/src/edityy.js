@@ -96,6 +96,9 @@
     "undo-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>',
     "unlink": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /> <path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /> <line x1="8" x2="8" y1="2" y2="5" /> <line x1="2" x2="5" y1="8" y2="8" /> <line x1="16" x2="16" y1="19" y2="22" /> <line x1="19" x2="22" y1="16" y2="16" /></svg>',
     "unfold-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12h6" /> <path d="M8 12H2" /> <path d="M12 2v2" /> <path d="M12 8v2" /> <path d="M12 14v2" /> <path d="M12 20v2" /> <path d="m19 15 3-3-3-3" /> <path d="m5 9-3 3 3 3" /></svg>',
+    "message-circle": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>',
+    "circle-plus": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path d="M12 8v8" /></svg>',
+    "scroll-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></svg>',
     "x": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
@@ -230,7 +233,7 @@
     // A row wider than the viewport wraps onto a second line, so every control
     // stays on screen; it does not scroll, which would clip the lists that come
     // up out of its controls.
-    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:1px;padding:3px;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:4px;min-height:46px;align-items:center;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
     "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
@@ -252,9 +255,12 @@
     // what is open is obvious without a label.
     // A 1px transparent border, so a control can take a border colour when it is
     // open without moving its icons a pixel.
-    ".ic{width:30px;height:30px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
-    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}",
-    ".ic:hover{background:var(--ink-6);color:var(--ink)}",
+    ".ic{width:36px;height:36px;display:grid;place-items:center;border:1px solid transparent;padding:0;",
+    "border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:.6}",
+    ".ic:hover{background:var(--ink-6);color:var(--ink);opacity:1}",
+    ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
+    ".ic[aria-pressed=true]:before{content:\"\";position:absolute;inset:8px;background:#F2F2F2;border-radius:4px;pointer-events:none}",
+    ".ic[aria-pressed=true]>svg{position:relative;color:var(--ink)}",
     // A control that joins the row arrives, so the row's edge is not the only
     // thing that moves.
     ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
@@ -779,6 +785,8 @@
     '<i class="frame-marker edge" data-edge="right"></i>',
     '<i class="frame-marker edge horizontal" data-edge="top"></i>',
     '<i class="frame-marker edge horizontal" data-edge="bottom"></i></div>',
+    '<div class="marks" id="marks" hidden></div>',
+    '<div class="region" id="region" hidden></div>',
     '<div class="element-menu" id="element-menu" hidden role="toolbar" aria-label="Element actions"></div>',
     // The variations of one element, at the bottom right, and the keys that
     // switch between them.
@@ -792,7 +800,7 @@
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar" id="bar">',
-    '<div class="row" id="row" role="toolbar" aria-label="Edit controls" aria-orientation="horizontal"></div>',
+    '<div class="row" id="row" role="toolbar" aria-label="Edityy toolbar"></div>',
     // The edits so far, apart from the row: the row is this element's controls,
     // and the list is every element's changes.
     '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
@@ -830,6 +838,8 @@
   var barEl = $("bar");
   var pop = $("pop");
   var review = $("review");
+  var marksBox = $("marks");
+  var regionBox = $("region");
   var tip = $("tip");
   var hint = $("hint");
   // The hint is a once-in-a-page offer: after it, the pointer says the same
@@ -873,6 +883,8 @@
   //     was: {prop: computed value before}, text: words before | null,
   //     html: markup before | undefined, added: [keys] }
   var changes = [];
+  // The next number a changed element takes. One per element, never reused.
+  var markTop = 1;
   var insertion = null;
   var pointerX = null;
   var pointerY = null;
@@ -1448,7 +1460,8 @@
 
   /** Draw the selection frame and reveal whatever the new selection can edit. */
   function select(el, hit) {
-    stopEditing(); // the caret belongs to the old selection, never to both
+    stopEditing();
+    if (el) cardDoneFor = null;
     if (el !== selected) release();
     selected = el;
     selectedItems = el ? [el] : [];
@@ -1459,6 +1472,7 @@
     syncDock();
     syncElementMenu();
     paintSwatch();
+    paintMarks();
   }
 
   function syncSelectionFrames() {
@@ -1507,8 +1521,9 @@
   // The element whose comment box is open, or null while the menu shows its
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
-  // The box element itself, so a re-place does not rebuild it and lose the words.
   var openComment = null;
+  // The element whose card was closed on purpose. It stays shut until the next click.
+  var cardDoneFor = null;
   // The buttons of the card, and the element they belong to. They are kept
   // between redraws: a card that is rebuilt on every scroll throws the row the
   // pointer is on away, and a card that rebuilds itself is a card that blinks.
@@ -1532,15 +1547,20 @@
   }
 
   function syncElementMenu() {
-    // An open dock control takes the screen from the menu, and a caret in the
-    // words leaves it nothing to offer: both close it until they are done.
-    if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen()) {
+    if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen() || !activeTool) {
       commentFor = null;
       openComment = null;
       hideMenu();
+      paintMarks();
       return;
     }
-    // The selection moved on: the box belonged to the element before.
+    if (cardDoneFor === selected) {
+      commentFor = null;
+      openComment = null;
+      hideMenu();
+      paintMarks();
+      return;
+    }
     if (commentFor && commentFor !== selected) {
       commentFor = null;
       openComment = null;
@@ -1550,7 +1570,6 @@
       openVariationBox = null;
     }
     if (editing) {
-      // The words are being typed: the menu offers the one thing left to do.
       if (!openDone) {
         drawMenu(doneBox());
         openDone = true;
@@ -1558,9 +1577,16 @@
       placeElementMenu();
       return;
     }
+    // One tool at a time. The click that selected the element opens its box.
+    // While the strip shows the answer, the prompt stays put away.
+    if (activeTool === "vartest" && !variationBoxFor && variantsBox.hidden) {
+      variationBoxFor = selected;
+      variationPrompt = "";
+      variationWords = "";
+      openVariationBox = null;
+    }
+    if (activeTool === "comment" && !variationBoxFor && !commentFor) commentFor = selected;
     if (variationBoxFor) {
-      // Rebuilt only when the words change — the prompt, then the waiting — so a
-      // refit mid-sentence leaves the caret and the words alone.
       var state = variationWaiting ? "waiting" : "prompt";
       if (!openVariationBox || openVariationBoxState !== state) {
         drawMenu(variationBox(variationBoxFor));
@@ -1569,28 +1595,15 @@
       placeElementMenu();
       return;
     }
-    if (commentFor) {
-      // A refit (a scroll, a resize) must not throw the words away mid-sentence,
-      // so an open box is only placed again, and never built again.
-      if (!openComment) {
-        drawMenu(commentBox(commentFor));
-      }
+    if (activeTool === "comment" && commentFor) {
+      if (!openComment) drawMenu(commentBox(commentFor));
       placeElementMenu();
       return;
     }
     openComment = null;
-    // The buttons belong to the element they were built for. A new element
-    // gets new buttons; the same element keeps the ones it has, so a scroll
-    // does not rebuild the card under the reader.
-    if (openActionsFor !== selected) {
-      openActions = menuActions();
-      openActionsFor = selected;
-    }
-    drawMenu(openActions);
-    placeElementMenu();
+    hideMenu();
+    paintMarks();
   }
-
-  /** The five buttons of the element's card. */
   function menuActions() {
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -1751,6 +1764,8 @@
       if (words) rec.comment = words;
       else delete rec.comment;
       commentFor = null;
+      openComment = null;
+      cardDoneFor = el;
       syncElementMenu();
       tally();
     }, "comment-save");
@@ -1759,6 +1774,7 @@
     var cancel = button("element-action element-comment-action", "", "Cancel the comment", function () {
       commentFor = null;
       openComment = null;
+      cardDoneFor = el;
       syncElementMenu();
     }, "comment-cancel");
     cancel.appendChild(text("Cancel"));
@@ -2531,6 +2547,7 @@ function faces() {
     var wasOpen = dockOpen();
     if (key !== openKey) release();
     openKey = key;
+    if (typeof syncRow === "function") syncRow();
     // Dressed by data-key, not by position: the row is rebuilt per selection and
     // the added controls sit in front of the seven, so index i is not icon i.
     for (var i = 0; i < row.children.length; i++) {
@@ -4331,8 +4348,10 @@ function decorations() {
 
   /** The dock's button for a key: icons in the row, plus the `+` at the end. */
   function slot(key) {
+    if (key === "changes") return review;
     for (var i = 0; i < row.children.length; i++) {
       if (row.children[i].dataset.key === key) return row.children[i];
+      if (key === "edits" && row.children[i] === review) return row.children[i];
     }
     return null;
   }
@@ -4383,6 +4402,37 @@ function decorations() {
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
+  // The toolbar has four parts: Vartest, Comment, Add, Edits. Comment is on entry.
+  // One tool at a time. A second click on the active tool drops to browse.
+  var activeTool = "comment";
+
+  /** Press a tool in the row. A second press drops to browse. */
+  function pressTool(key) {
+    if (activeTool === key) {
+      activeTool = "";
+      show("");
+      select(null);
+      syncRow();
+      syncElementMenu();
+      return;
+    }
+    activeTool = key;
+    show("");
+    syncRow();
+    syncElementMenu();
+  }
+
+  /** Paint which tool is on. Browse presses none. */
+  function syncRow() {
+    for (var i = 0; i < row.children.length; i++) {
+      var b = row.children[i];
+      if (b === review) {
+        b.setAttribute("aria-pressed", openKey === "changes" ? "true" : "false");
+        continue;
+      }
+      b.setAttribute("aria-pressed", b.dataset.key === activeTool && activeTool ? "true" : "false");
+    }
+  }
 
   /**
    * How many tracks a grid-template value names. A computed value has already
@@ -4543,132 +4593,33 @@ function decorations() {
 
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
-    // A rebuild under the keyboard puts focus back on the same control, or on
-    // the row's first when that control is gone, and not on the page.
     var focused = within(row, root.activeElement) ? controlOf(root.activeElement) : null;
     var focusKey = focused ? focused.dataset.key : null;
     while (row.firstChild) row.removeChild(row.firstChild);
-    // The hover fill belongs to the row of the last element: a row that is
-    // rebuilt has a different set of controls, and a fill that glided to a
-    // control that is no longer there would glide across empty paper.
     delete row.dataset.glide;
-    // Text keeps its type controls. Containers get the mode cycle followed by
-    // exactly the controls listed for that mode.
-    var definitions = selectedKind === "container" ? BOX_ICONS[mode()].slice() : selectedKind === "media" ? IMAGE_ICONS : BASE_ICONS;
-    if (selectedKind === "container") {
-      var currentMode = mode();
-      row.appendChild(button(
-        "ic",
-        svg(MODE_GLYPHS[currentMode] || MODE_GLYPHS.flex),
-        "Layout mode: " + (MODE_LABELS[currentMode] || "Default"),
-        function () { toggle("mode"); },
-        "mode"
-      ));
-    }
-    definitions.forEach(function (definition) {
-      var isText = selectedKind === "text";
-      if (!isText && definition.key === "grid") {
-        row.appendChild(gridCountField());
-        return;
-      }
-      if (!isText && definition.key === "bounds") {
-        boundsFields().forEach(function (field) { row.appendChild(field); });
-        return;
-      }
-      if (selectedKind === "media" && (definition.key === "width" || definition.key === "height")) {
-        row.appendChild(imageLengthField(definition.key));
-        return;
-      }
-      // The table holds a name per control, and svg() draws it. Two of them hold no
-      // icon at all — the family is text and the size is a field — and the colour
-      // control is its chip alone, with no glyph over it.
-      var glyph = definition.glyph ? svg(definition.glyph) : "";
-      var html = definition.key === "color"
-        ? '<i class="sw" id="swatch-color"></i>'
-        : glyph;
-      var className = "ic";
-      var onClick = function () { toggle(definition.key); };
-      if (isText && definition.key === "family") className += " family-name";
-      if (isText && definition.key === "size") {
-        var sizeButton = document.createElement("button");
-        sizeButton.type = "button";
-        sizeButton.className = "ic size-control";
-        sizeButton.setAttribute("aria-label", definition.label);
-        sizeButton.dataset.key = "size";
-        var sizeInput = document.createElement("input");
-        sizeInput.type = "number";
-        sizeInput.min = 8;
-        sizeInput.max = 200;
-        sizeInput.step = 1;
-        sizeInput.value = num("font-size", 16);
-        sizeInput.setAttribute("aria-label", "Font size in pixels");
-        sizeInput.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
-        sizeInput.addEventListener("input", function () {
-          if (sizeInput.value === "") return;
-          hold();
-          set("font-size", Number(sizeInput.value) + "px");
-        });
-        sizeInput.addEventListener("change", release);
-        sizeButton.appendChild(sizeInput);
-        sizeButton.appendChild(customSelect([12, 14, 16, 18, 20, 24, 30, 36, 48, 60, 72, 96].map(function (value) {
-          return { value: value, label: value + "px" };
-        }), num("font-size", 16), function (value) {
-          sizeInput.value = value;
-          set("font-size", value + "px");
-          updateSizeLabel();
-        }, "Common font sizes", true));
-        sizeButton.addEventListener("click", function () {});
-        row.appendChild(sizeButton);
-        return;
-      }
-      if (isText && definition.key === "align") className += " group-start";
-      if (isText && definition.key === "decorate") className += " group-start";
-      if (isText && definition.key === "color") {
-        className += " color-button";
-        onClick = function () { toggle("color"); };
-      }
-      // Every button carries its label as text as well as a title. On a grid the
-      // row is wider than the glyphs, and a row of unlabelled marks is a guessing
-      // game; the glyph is the first thing in the button and the label follows it.
-      var item = button(className, html + '<span class="lbl">' + definition.label + "</span>", definition.label, onClick, definition.key);
-      row.appendChild(item);
+    var tools = [
+      { key: "vartest", label: "Vartest", glyph: "sparkles" },
+      { key: "comment", label: "Comment", glyph: "message-circle" },
+      { key: "add", label: "Add", glyph: "circle-plus" }
+    ];
+    tools.forEach(function (tool) {
+      row.appendChild(button("ic", svg(tool.glyph), tool.label, function () { pressTool(tool.key); }, tool.key));
     });
-    // Direction and wrap are cycles, so their buttons show the element's own
-    // value instead of a plain glyph.
-    if (selectedKind === "container") {
-      paintCycle(DIRECTIONS, "direction", "flex-direction");
-      paintCycle(WRAPS, "wrap", "flex-wrap");
-    }
-    if (selectedKind === "text") {
-      updateFamilyLabel();
-      updateSizeLabel();
-      updateWeightButton();
-      var align = ALIGNS.filter(function (item) { return item.v === (get("text-align") || "left"); })[0] || ALIGNS[0];
-      var alignButton = slot("align");
-      if (alignButton) {
-        alignButton.innerHTML = svg(align.icon);
-        alignButton.setAttribute("aria-label", align.label);
-      }
-    }
-    // The element's own additions, in the order they were added to it, and after
-    // the controls every element has: a control that arrives from the `+` lands
-    // at the end of the row, beside the `+` it came from. Read off the change
-    // record rather than a global: the whole point of the `+` is that the dock
-    // does not clutter, and a control added to one element has no business
-    // sitting on every other one.
-    (selected ? addedTo(selected) : []).forEach(function (key) {
-      var item = addable().filter(function (a) { return a.key === key; })[0];
-      if (item) row.appendChild(button("ic", svg(item.glyph), item.label, function () { toggle(key); }, key));
-    });
-    addBtn = button("ic add group-start", svg("ellipsis"), "More controls", function () {
-      toggle("+");
-    }, "+");
-    row.appendChild(addBtn);
-    // The drawn tooltip is the only hint: a native title would open beside it.
+    // The edits list is the fourth part of the same row. It wears words, not a
+    // glyph, so the three tools are the three drawn icons the row holds.
+    review.innerHTML = "";
+    var words = document.createElement("span");
+    words.appendChild(text("Edits"));
+    review.appendChild(words);
+    review.appendChild(countBadge);
+    review.dataset.key = "edits";
+    row.appendChild(review);
     for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
-    rove(row.children[0]);
+    syncRow();
+    var first = row.children[0];
+    rove(first);
     if (focusKey !== null) {
-      var back = slot(focusKey) || row.children[0];
+      var back = slot(focusKey) || first;
       if (back) {
         rove(back);
         if (back.focus) back.focus();
@@ -5302,54 +5253,18 @@ function decorations() {
   function syncDock() {
     if (editing) return;
     var dockWasHidden = dock.hidden;
-    var multi = selectedItems.length > 1;
-    var on = (selectedKind === "text" || selectedKind === "container" || selectedKind === "media") && !!selected;
-    // Whether the dock should be up. It is put away at the end, so a dock
-    // that is leaving is not taken back and then put away again.
-    var want = multi || (!on && !(active && !selected));
-    var rowWasHidden = row.hidden;
-    row.hidden = !on || multi;
-    // Rebuilt whenever the selection moves to a different element, because the
-    // row belongs to the element: its base controls, the `+`, and only what this
-    // element has been given. Tracked by which element the row was built for,
-    // so a re-click on the same element keeps the control that is open.
-    if (on && rowFor !== selected) {
-      // A control left open belongs to the element it was opened for, so it goes
-      // with the row: its values read the new element, and its list would show
-      // the old one's. Closing it also hands the screen back to the menu.
-      show("");
-      buildRow();
-      rowFor = selected;
-    }
+    // The toolbar is one surface. It is up whenever the mode is on, with or
+    // without a selection, and with one element or several.
     if (!active) {
-      want = true;
       show("");
-    } else if (multi) {
-      want = true;
-      show("");
-    } else if (moving) {
-      want = true;
-      show("");
-    } else if (!selected) {
-      // Nothing to change yet: the dock holds the edits button alone.
-      want = false;
-      row.hidden = true;
-      show("");
-    } else if (!on) {
-      want = true;
-      show("");
+      hideDock();
+      return;
     }
-    if (want) hideDock();
-    else showDock();
-    if (dockWasHidden && !dock.hidden) {
-      // The bar is what opens, so the bar is what moves: the dock does not grow
-      // around it, and no second animation runs inside it.
-      extendBar();
-    } else if (rowWasHidden && !row.hidden) {
-      // The dock stayed, and the row came back on its own: a shift-click that
-      // puts the selection back to one element.
-      extendBar();
-    }
+    if (dock.hidden) showDock();
+    else dock.style.pointerEvents = "";
+    row.hidden = false;
+    if (dockWasHidden && !dock.hidden) extendBar();
+    syncRow();
   }
 
   /**
@@ -5538,8 +5453,10 @@ function decorations() {
     changes.forEach(function (rec) {
       var d = diff(rec);
       if (!d) return;
+      if (rec.mark == null) rec.mark = markTop++;
       var src = sourceOf(rec.el);
       out.push({
+        mark: rec.mark,
         label: nameOf(rec.el).trim(),
         selector: rec.selector || selectorFor(rec.el),
         source: rec.source ? rec.source.at : src ? src.at : null,
@@ -5606,7 +5523,9 @@ function decorations() {
   /** Keep the number on the edits button in step with the edits. */
   function tally() {
     keepSoon();
-    var n = report().length;
+    var items = report();
+    var n = items.length;
+    paintMarks(items);
     var was = countBadge.hidden ? 0 : Number(countBadge.textContent) || 0;
     countBadge.hidden = !n;
     countBadge.textContent = n ? String(n) : "";
@@ -5625,6 +5544,26 @@ function decorations() {
     // it while the user types: a redraw on each key resets the scroll position of
     // the list.
     if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
+  }
+
+  /** Numbered marks on changed elements. One per element, hidden while working. */
+  function paintMarks(items) {
+    items = items || report();
+    while (marksBox.firstChild) marksBox.removeChild(marksBox.firstChild);
+    var busy = !active || selected || !elementMenu.hidden || !pop.hidden || editing || !activeTool;
+    if (busy || !items.length) {
+      marksBox.hidden = true;
+      return;
+    }
+    items.forEach(function (item) {
+      if (item.mark == null) return;
+      var m = document.createElement("span");
+      m.className = "mark";
+      m.textContent = String(item.mark);
+      m.appendChild(text(String(item.mark)));
+      marksBox.appendChild(m);
+    });
+    marksBox.hidden = !marksBox.firstChild;
   }
 
   /**
@@ -5688,7 +5627,7 @@ function decorations() {
         show("changes");
       }, "");
       name.disabled = item.removed;
-      name.appendChild(text(item.label + " · " + n + (n === 1 ? " edit" : " edits")));
+      name.appendChild(text(item.mark + " \u00b7 " + item.label + " \u00b7 " + n + (n === 1 ? " edit" : " edits")));
       var undo = button("ic", svg("undo-2"), "Revert " + item.label, function () {
         if (item.rec.el === editing) stopEditing();
         revert(item.rec);
@@ -6591,20 +6530,22 @@ function decorations() {
         syncElementMenu();
       }, "cancel-variations"));
       box.appendChild(head);
-      box.appendChild(waitLine("wait-line", "Ask it:", "vartest"));
-      // The user is typing in the agent anyway, so the direction goes there too.
-      var hint = document.createElement("p");
-      hint.className = "wait-say";
-      hint.appendChild(text("Say what you want in the same message."));
-      box.appendChild(hint);
       // The page cannot see whether the agent has the server, so it says how to
-      // add it, set off from the lines above.
+      // add it, set off from the line above.
       box.appendChild(waitLine("wait-hint", "Not connected? Add it:", "npx edityy mcp"));
       openVariationBox = box;
       return box;
     }
     var countRow = document.createElement("label");
     countRow.className = "element-comment-count";
+    var area = document.createElement("textarea");
+    area.className = "element-comment-text";
+    area.rows = 2;
+    area.maxLength = 240;
+    area.placeholder = "Optional comment, such as: thinner and darker";
+    area.setAttribute("aria-label", "What to vary");
+    area.value = variationPrompt;
+    box.appendChild(area);
     countRow.appendChild(text("Number of variants"));
     var count = document.createElement("input");
     count.type = "number";
@@ -6614,14 +6555,6 @@ function decorations() {
     count.value = String(variationCount);
     countRow.appendChild(count);
     box.appendChild(countRow);
-    var area = document.createElement("textarea");
-    area.className = "element-comment-text";
-    area.rows = 2;
-    area.maxLength = 240;
-    area.placeholder = "Optional comment, such as: thinner and darker";
-    area.setAttribute("aria-label", "What to vary");
-    area.value = variationPrompt;
-    box.appendChild(area);
     if (variationWords) box.appendChild(noteBox(variationWords));
     openVariationBox = box;
     var actions = document.createElement("div");
@@ -6632,7 +6565,8 @@ function decorations() {
       variationCount = asked >= 2 && asked <= 10 ? asked : variationCount;
       variationPrompt = String(area.value || "").trim();
       variationWaiting = true;
-      variationWords = ""; // the waiting card says what to type
+      variationWords = "";
+      cardDoneFor = null;
       syncElementMenu();
       requestVariations(el, variationCount, variationPrompt, function (problem) {
         variationWaiting = false;
@@ -6644,6 +6578,7 @@ function decorations() {
     actions.appendChild(send);
     var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
       closeVariants();
+      cardDoneFor = el;
       syncElementMenu();
     }, "cancel-variations");
     cancel.appendChild(text("Cancel"));
@@ -6686,6 +6621,7 @@ function decorations() {
 
   review.addEventListener("click", function () {
     show(review.getAttribute("aria-expanded") === "true" ? "" : "changes");
+    syncRow();
   });
 
   /** The edits as Markdown, for scripts and for anything that wants them. */
@@ -6695,21 +6631,17 @@ function decorations() {
 
   /* -------------------------------------------------------------- session */
 
-  // A reload or a hot update throws the page away and every inline style with
-  // it. The edits are kept in sessionStorage, per path, while the mode is on,
-  // and put back when the payload mounts again. Storage can be missing or throw
-  // (a private window, blocked site data), so every touch is guarded and the
-  // editor works the same without it — it just forgets on reload.
-  function storeKey() {
-    var path = window.location && window.location.pathname;
-    return "edityy:" + (path || "/");
-  }
-
-  function storage() {
+  // The canvas survives a reload through the dev server, not the browser store.
+  // Every change is POSTed to /__edityy/session, restored on load, and the
+  // server forgets it when the mode is left. An unreachable server never
+  // breaks the editor.
+  var SESSION_URL = "/__edityy/session";
+  function sessionPath() {
     try {
-      return window.sessionStorage || null;
+      var p = window.location && window.location.pathname;
+      return p || "/";
     } catch (e) {
-      return null;
+      return "/";
     }
   }
 
@@ -6727,42 +6659,42 @@ function decorations() {
     });
   }
 
-  /** Save the mode and its edits, or forget them once the mode is off. */
+  /** Save the canvas, or forget it once the mode is off. */
   function keep() {
     if (keepTimer) clearTimeout(keepTimer);
     keepTimer = 0;
-    var store = storage();
-    if (!store) return;
-    try {
-      if (!active) {
-        store.removeItem(storeKey());
-        return;
-      }
-      var edits = [];
-      changes.forEach(function (rec) {
-        if (rec.created || rec.removed || rec.location) return;
-        var props = {};
-        var any = false;
-        Object.keys(rec.props).forEach(function (prop) {
-          if (OWN[prop]) return;
-          props[prop] = {
-            before: rec.props[prop],
-            set: rec.set[prop],
-            was: rec.was[prop],
-            now: readProp(rec, prop),
-          };
-          any = true;
-        });
-        var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
-        if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length)) return;
-        var location = rec.location;
-        var moved = location && (rec.el.parentElement !== location.parent || rec.el.nextSibling !== location.before);
-        edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!moved, googleFont: rec.googleFont || null });
-      });
-      store.setItem(storeKey(), JSON.stringify({ v: 1, edits: edits }));
-    } catch (e) {
-      /* full or blocked: the edits still work, they just do not survive a reload */
+    if (typeof window.fetch !== "function") return;
+    var path = sessionPath();
+    if (!active) {
+      try {
+        window.fetch(SESSION_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+      } catch (e) {}
+      return;
     }
+    var edits = [];
+    changes.forEach(function (rec) {
+      if (rec.created || rec.removed || rec.location) return;
+      var props = {};
+      var any = false;
+      Object.keys(rec.props).forEach(function (prop) {
+        if (OWN[prop]) return;
+        props[prop] = {
+          before: rec.props[prop],
+          set: rec.set[prop],
+          was: rec.was[prop],
+          now: readProp(rec, prop)
+        };
+        any = true;
+      });
+      var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
+      if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length)) return;
+      if (rec.mark == null) rec.mark = markTop++;
+      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], mark: rec.mark });
+    });
+    var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: [] });
+    try {
+      window.fetch(SESSION_URL, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: body }).catch(function () {});
+    } catch (e) {}
   }
 
   /**
@@ -6770,42 +6702,48 @@ function decorations() {
    * the mode on. An element that is no longer on the page takes its edits with it.
    */
   function resume() {
-    var store = storage();
-    var saved = null;
-    try {
-      saved = store && JSON.parse(store.getItem(storeKey()) || "null");
-    } catch (e) {
-      saved = null;
-    }
-    if (!saved || saved.v !== 1 || !Array.isArray(saved.edits)) return;
-    saved.edits.forEach(function (edit) {
-      var el = null;
-      try {
-        el = document.querySelector ? document.querySelector(edit.selector) : null;
-      } catch (e) {
-        el = null; // a selector the page no longer parses the same way
-      }
-      if (!el || host.contains && host.contains(el)) return;
-      var rec = record(el);
-      Object.keys(edit.props || {}).forEach(function (prop) {
-        var p = edit.props[prop];
-        rec.props[prop] = p.before;
-        rec.set[prop] = !!p.set;
-        rec.was[prop] = p.was;
-        writeProp(rec, prop, p.now || "");
+    if (typeof window.fetch !== "function") return;
+    var path = sessionPath();
+    var url = SESSION_URL + "?path=" + encodeURIComponent(path);
+    var done = function (saved) {
+      if (!saved || (saved.v !== 1 && saved.version !== 1) || !Array.isArray(saved.edits)) return;
+      if (saved.markTop) markTop = saved.markTop;
+      saved.edits.forEach(function (edit) {
+        var el = null;
+        try {
+          el = document.querySelector ? document.querySelector(edit.selector) : null;
+        } catch (e) {
+          el = null;
+        }
+        if (!el || (host.contains && host.contains(el))) return;
+        var rec = record(el);
+        Object.keys(edit.props || {}).forEach(function (prop) {
+          var p = edit.props[prop];
+          rec.props[prop] = p.before;
+          rec.set[prop] = !!p.set;
+          rec.was[prop] = p.was;
+          writeProp(rec, prop, p.now || "");
+        });
+        if (edit.text && isLeafText(el) && el.textContent === edit.text.before) {
+          rec.text = edit.text.before;
+          el.textContent = edit.text.after;
+        }
+        if (edit.added && edit.added.length) rec.added = edit.added.slice();
+        if (typeof edit.comment === "string") rec.comment = edit.comment;
+        if (edit.mark != null) {
+          rec.mark = edit.mark;
+          if (edit.mark >= markTop) markTop = edit.mark + 1;
+        }
+        if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
       });
-      // Text only where it is still one run of words: anything else would
-      // destroy elements a framework has rendered inside it since.
-      if (edit.text && isLeafText(el) && el.textContent === edit.text.before) {
-        rec.text = edit.text.before;
-        el.textContent = edit.text.after;
-      }
-      if (edit.added && edit.added.length) rec.added = edit.added.slice();
-      if (typeof edit.comment === "string") rec.comment = edit.comment;
-      if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
-    });
-    enter();
-    tally(); // the count on the edits button, for the edits just put back
+      enter();
+      tally();
+    };
+    try {
+      window.fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok) done(j.session);
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   /* ----------------------------------------------------- keyboard selection */
@@ -6875,6 +6813,8 @@ function decorations() {
 
   function enter() {
     active = true;
+    activeTool = "comment";
+    buildRow();
     keep();
     anchor();
     // The way home is not on any more: the dot is going out, not back.
@@ -7261,16 +7201,13 @@ function decorations() {
   }
 
   function onClick(e) {
-    // Edityy's own chrome keeps its clicks.
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
-    // A click in the words being typed belongs to the caret: it lands where the
-    // pointer did, and the menu stays out of the way until Done.
     if (editing) {
       var inWords = pickAt(e.clientX, e.clientY);
       if (inWords && (inWords.el === editing || (editing.contains && editing.contains(inWords.el)))) return;
     }
-    // Everything else is swallowed: a link must not navigate, and the page's own
-    // handlers must not run against an element that is mid-edit.
+    // Browse keeps every page click: no tool is on, so nothing is picked.
+    if (!activeTool) return;
     e.preventDefault();
     e.stopPropagation();
     if (moving) {
@@ -7338,17 +7275,23 @@ function decorations() {
     }
     if (e.key === "Escape") {
       if (previewCurrent) {
-        discardPreview(); // a preview goes back to the page it replaced
+        discardPreview();
       } else if (previewList.length) {
-        discardList(); // the whole list goes back, none of it kept
-      } else if (variationBoxFor || !variantsBox.hidden) {
-        // The variations go, the edits they made stay: they are undoable edits.
+        discardList();
+      } else if (!pop.hidden) {
+        var opener = openKey === "changes" ? review : slot(openKey);
+        show("");
+        syncRow();
+        if (opener) {
+          if (opener !== review) rove(opener);
+          if (opener.focus) opener.focus();
+        }
+      } else if (editing) {
+        stopEditing();
+        syncElementMenu();
+      } else if (variationBoxFor || commentFor || !variantsBox.hidden) {
         closeVariants();
-        syncElementMenu();
-      } else if (commentFor) {
-        // Back to the buttons, with the words still unsaved.
-        commentFor = null;
-        syncElementMenu();
+        select(null);
       } else if (moving) {
         var rec = record(moving);
         var location = rec.moveFrom;
@@ -7362,19 +7305,29 @@ function decorations() {
         syncSelectionFrames();
         syncDock();
         syncElementMenu();
-      } else if (!pop.hidden) {
-        // Focus goes back to the icon that opened the control, so a keyboard user
-        // is where they were rather than at the top of the page.
-        var opener = openKey === "changes" ? review : slot(openKey);
-        show("");
-        if (opener) {
-          if (opener !== review) rove(opener);
-          if (opener.focus) opener.focus();
-        }
-      } else if (editing) {
-        stopEditing();
+      } else if (selected) {
+        select(null);
       } else exit();
+      syncRow();
       return;
+    }
+    // Enter edits the words. Delete removes the element. One tool at a time.
+    if ((e.key === "Enter" || e.key === "Delete") && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      if (!editing && selected && selectedItems.length === 1 && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+        if (e.key === "Enter" && selectedKind === "text" && canEditText(selected)) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          editText(selected);
+          syncElementMenu();
+          return;
+        }
+        if (e.key === "Delete") {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          deleteSelected();
+          return;
+        }
+      }
     }
     // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redoes.
     var mod = e.metaKey || e.ctrlKey;
