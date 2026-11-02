@@ -267,6 +267,11 @@
     ".row>.ic[aria-pressed=true]{background:var(--ink);color:var(--paper);box-shadow:none;opacity:1}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
     ".row>.ic[aria-pressed=true]>svg{color:var(--paper)}",
+    // The keyboard stop wears the same accent ring the fields do: all:initial
+    // takes the native ring away, and the glide fill alone is too faint to
+    // mark the stop. Mouse clicks do not match focus-visible on buttons, so
+    // the pointer keeps the fill alone.
+    ".row>.ic:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     // Numbered marks on changed elements and saved regions. One circle per
     // edit, drawn over the page where the edit is, never in its way.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
