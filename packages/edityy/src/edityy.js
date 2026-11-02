@@ -234,8 +234,8 @@
     // A row wider than the viewport wraps onto a second line, so every control
     // stays on screen; it does not scroll, which would clip the lists that come
     // up out of its controls.
-    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:var(--paper);border:1px solid var(--ink-10);border-radius:10px;",
-    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:var(--paper);border:1px solid transparent;border-radius:10px;",
+    "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
@@ -245,7 +245,7 @@
     ".row:before{content:\"\";position:absolute;left:0;top:0;height:var(--glide-h,32px);width:var(--glide-w,32px);border-radius:7px;",
     "background:var(--ink-6);pointer-events:none;opacity:0;transform:translate(var(--glide-x,0px),var(--glide-y,3px));transition:opacity var(--fade) var(--leave)}",
     ".row[data-glide]:before{opacity:1;transition:opacity var(--fade) var(--arrive)}",
-    ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive)}",
+    ".row[data-glide=warm]:before{transition:opacity var(--fade) var(--arrive),transform var(--rise) var(--arrive),width var(--rise) var(--arrive),height var(--rise) var(--arrive)}",
     ".row>*{position:relative}",
     ".row .ic:hover{background:transparent}",
     // The row of the mode that is left, kept in place while the new one takes
@@ -5271,12 +5271,20 @@ function decorations() {
   });
   row.addEventListener("focusin", function (e) {
     var button = controlOf(e.target);
-    if (button && !inList(e.target)) showTip(button, true);
+    if (button && !inList(e.target)) {
+      // The keyboard gets the same fill the pointer does: a tip alone leaves
+      // the stop on the row invisible.
+      glideTo(button);
+      showTip(button, true);
+    }
   });
-  row.addEventListener("focusout", function () {
+  row.addEventListener("focusout", function (e) {
     tipAt = null;
     tipBlocked = null;
     hideTip();
+    // Focus moving along the row keeps its fill and travels with it; only
+    // focus leaving the row takes the fill away.
+    if (!inRow(e.relatedTarget)) glideOff();
   });
 
   /** The element-menu action under a pointer or the keyboard, if any. */
