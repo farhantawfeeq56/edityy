@@ -203,7 +203,6 @@
     "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
     "--ink-20:color-mix(in srgb,var(--ink) 20%,transparent);--ink-25:color-mix(in srgb,var(--ink) 25%,transparent);",
     "--ink-35:color-mix(in srgb,var(--ink) 35%,transparent);--ink-40:color-mix(in srgb,var(--ink) 40%,transparent);",
-    "--ink-60:color-mix(in srgb,var(--ink) 60%,transparent);", // the pressed tool: ink, softened off pure black
     "--rose-30:color-mix(in srgb,var(--rose) 30%,transparent);--rose-40:color-mix(in srgb,var(--rose) 40%,transparent);",
     "--paper-88:color-mix(in srgb,var(--paper) 88%,transparent);",
     // A control that is open, and one under the pointer: paper stepped once
@@ -265,9 +264,11 @@
     ".ic[aria-pressed=true]>svg{position:relative;color:var(--ink)}",
     // The toolbar is one segmented control: four icons, and the one that is on
     // is filled. The fill is the active state, so no second icon set is needed.
-    ".row>.ic[aria-pressed=true]{background:var(--ink-60);color:var(--ink);box-shadow:none;opacity:1}",
+    // The pressed tool wears the hover fill one step darker, so on and hover
+    // read as one language. The icon stays ink: paper on this fill would fail
+    // contrast.
+    ".row>.ic[aria-pressed=true]{background:var(--ink-12);color:var(--ink);box-shadow:none;opacity:1}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
-    // The icon stays ink: paper on the softened fill would fall under contrast.
     ".row>.ic[aria-pressed=true]>svg{color:var(--ink)}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
     // takes the native ring away, and the glide fill alone is too faint to
