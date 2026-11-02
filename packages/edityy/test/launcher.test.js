@@ -1076,7 +1076,7 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   assert.equal(menu.children[0].children[0].value, "half written");
   menu.children[0].children[0].value = "";
   pressButton(inMenu("Save comment"));
-  assert.doesNotMatch(app.win.__edityy_changes(), /Comment/);
+  assert.match(app.win.__edityy_changes(), /Comment: "make this bigger"/, "an empty save keeps the old words");
   // Escape backs out of the box without saving.
   app.clickPage();
   menu.children[0].children[0].value = "never saved";
@@ -1324,9 +1324,9 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
     assert.match(markup, /<(path|rect|circle|line|polyline|ellipse|polygon)[\s/]/, `no shape drawn: ${markup}`);
     assert.match(markup, /stroke="currentColor"/, `not a Lucide glyph: ${markup}`);
   };
-  // Three tools and the edits list, all drawn from the one glyph table.
+  // Four icons, all drawn from the one glyph table.
   const icons = app.root.nodes.row.children.filter((b) => b.innerHTML.includes("<svg"));
-  assert.equal(icons.length, 3, "the three tools are drawn");
+  assert.equal(icons.length, 4, "the four tools are drawn");
   for (const button of icons) drawn(button.innerHTML);
   assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
 });
@@ -1340,7 +1340,7 @@ test("the toolbar is up with nothing selected, offering the four things it has",
   assert.equal(app.root.nodes.row.hidden, false, "and it is the whole toolbar");
   assert.equal(app.root.nodes.pop.hidden, true, "and no list opens on its own");
   const row = app.root.nodes.row.children;
-  assert.deepEqual(row.slice(0, 3).map((chip) => chip.dataset.key), ["vartest", "comment", "add"], "the three tools");
+  assert.deepEqual(row.map((chip) => chip.dataset.key), ["vartest", "comment", "add", "edits"], "the four tools");
   assert.equal(row[3], app.root.nodes.review, "the edits list is the last segment of the same row");
   assert.equal(row[1].getAttribute("aria-pressed"), "true", "Comment is the default tool");
   assert.equal(row[0].getAttribute("aria-pressed"), "false");
@@ -1361,6 +1361,35 @@ test("the toolbar is up with nothing selected, offering the four things it has",
 
 
 
+
+test("Add is freeform: nothing is selected, and a drag saves a numbered box", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  assert.equal(app.root.selection().el, p, "a click selected the words first");
+  quiet(() => press(app, "add"));
+  assert.equal(app.root.selection(), null, "Add starts with nothing selected");
+  assert.equal(app.root.nodes["element-menu"].hidden, true, "and no card stays open");
+  // A click alone picks nothing while Add is on.
+  app.hover(p);
+  quiet(() => app.clickPage());
+  assert.equal(app.root.selection(), null, "a click draws no box and selects nothing");
+  // A drag draws the box, and the comment box opens for it.
+  const path = () => [];
+  quiet(() => app.fire("mousedown", { clientX: 10, clientY: 10, button: 0, composedPath: path, preventDefault() {}, stopPropagation() {} }));
+  app.move(60, 50);
+  quiet(() => app.fire("mouseup", { clientX: 60, clientY: 50, composedPath: path, preventDefault() {}, stopPropagation() {} }));
+  const menu = app.root.nodes["element-menu"];
+  assert.equal(menu.hidden, false, "the comment box opens for the box");
+  assert.equal(menu.children[0].children[0].getAttribute("aria-label"), "Add comment");
+  assert.equal(app.root.nodes.region.hidden, false, "the box stays drawn while its comment is open");
+  menu.children[0].children[0].value = "a hero here";
+  const save = menu.children[0].children[1].children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save the comment on the box");
+  for (const fn of save.bubbles.click.bubble) fn({});
+  assert.match(app.win.__edityy_changes(), /Region:/, "the box reaches the agent's Markdown");
+  assert.match(app.win.__edityy_changes(), /a hero here/);
+  assert.equal(app.root.nodes.marks.children.length, 1, "the box keeps its number on the page");
+});
 
 /** Open the edits list. */
 const openEdits = (app) => {
@@ -1557,7 +1586,7 @@ test("the canvas survives a reload, and the mode comes back on", async () => {
   // The numbered mark is on the element: gold, numbered 1.
   const marks = again.root.nodes.marks.children;
   assert.equal(marks.length, 1);
-  assert.equal(marks[0].textContent, "1");
+  assert.equal(marks[0].children[0].nodeValue, "1");
 
   // Leaving the mode reverts the restored edits like any others, and forgets
   // the canvas on the server.
@@ -1824,28 +1853,22 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(app.root.nodes.row.children[0].getAttribute("aria-pressed"), "true");
   const box = menu.children[0];
   const area = box.children[0];
-  const count = box.children[1].children[1];
-  assert.equal(area.getAttribute("aria-label"), "What to vary", "the words come first");
-  assert.equal(box.children[1].children[0].nodeValue, "Number of variants", "and how many under them");
-  assert.equal(count.type, "number", "the box asks how many variants");
-  assert.deepEqual([count.min, count.max, count.value], ["2", "10", "3"], "three unless the user says otherwise");
-  assert.equal(area.placeholder, "Optional comment, such as: thinner and darker");
-  count.value = "2";
+  assert.equal(area.getAttribute("aria-label"), "Vartest comment", "the words come first");
+  assert.equal(area.placeholder, "Comment", "the same box as a comment");
   area.value = "  thinner and darker  ";
-  const ask = inMenu("Send the variations request to the agent");
+  const ask = inMenu("Save the Vartest comment and ask the agent");
   for (const fn of ask.bubbles.click.bubble) fn({});
-  // No waiting card: the same box stays, with the count under the words and
-  // a note while the agent answers.
+  // No waiting card: the same box stays, with a note while the agent answers.
   const asking = menu.children[0];
   assert.equal(asking.className, "element-comment");
-  assert.equal(inMenu("Send the variations request to the agent") !== undefined, true, "the box stays");
-  assert.equal(inMenu("What to vary") !== undefined, true, "the words stay");
+  assert.equal(inMenu("Save the Vartest comment and ask the agent") !== undefined, true, "the box stays");
+  assert.equal(inMenu("Vartest comment") !== undefined, true, "the words stay");
 
   await tick();
   const request = JSON.parse(sent[0].init.body);
   assert.equal(sent[0].url, "/__edityy/variations");
   assert.equal(sent[0].init.method, "POST");
-  assert.equal(request.count, 2, "the number the user chose");
+  assert.equal(request.count, 3, "every request asks for three");
   assert.equal(request.prompt, "thinner and darker");
   assert.equal(request.element.tag, "p", "the tag, not the source code");
   assert.equal(request.element.selector, "p");
@@ -1855,7 +1878,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
   assert.equal(polls, 2);
   assert.equal(strip.hidden, false, "the strip is up");
-  assert.equal(inMenu("Send the variations request to the agent"), undefined, "the prompt box is done");
+  assert.equal(inMenu("Save the Vartest comment and ask the agent"), undefined, "the prompt box is done");
   const rows = strip.children[1].children;
   assert.equal(strip.children[1].className, "variants-list", "the rows sit in a list of their own");
   assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);

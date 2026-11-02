@@ -99,6 +99,7 @@
     "message-circle": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>',
     "circle-plus": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path d="M12 8v8" /></svg>',
     "scroll-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></svg>',
+    "square-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M7 8h10" /> <path d="M7 12h10" /> <path d="M7 16h6" /></svg>',
     "x": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
@@ -261,6 +262,19 @@
     ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
     ".ic[aria-pressed=true]:before{content:\"\";position:absolute;inset:8px;background:#F2F2F2;border-radius:4px;pointer-events:none}",
     ".ic[aria-pressed=true]>svg{position:relative;color:var(--ink)}",
+    // The toolbar is one segmented control: four icons, and the one that is on
+    // is filled. The fill is the active state, so no second icon set is needed.
+    ".row>.ic[aria-pressed=true]{background:var(--ink);color:var(--paper);box-shadow:none;opacity:1}",
+    ".row>.ic[aria-pressed=true]:before{display:none}",
+    ".row>.ic[aria-pressed=true]>svg{color:var(--paper)}",
+    // Numbered marks on changed elements and saved regions. One circle per
+    // edit, drawn over the page where the edit is, never in its way.
+    ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
+    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;",
+    "border-radius:999px;background:var(--ink);color:var(--paper);font:600 12px/20px inherit;pointer-events:none;",
+    "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
+    // The box the Add tool draws: a dashed frame while the pointer drags.
+    ".region{position:fixed;z-index:2;border:1.5px dashed var(--ink);border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
     // thing that moves.
     ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
@@ -885,6 +899,13 @@
   var changes = [];
   // The next number a changed element takes. One per element, never reused.
   var markTop = 1;
+  // Boxes the Add tool drew. Page distances, so a scroll does not move them.
+  var regions = [];
+  var drawing = null; // the box on the pointer now, or null
+  var regionFor = null; // the drawn box whose comment box is open
+  var openRegionBox = null;
+  // A drag smaller than this is a click, not a box.
+  var REGION_MIN = 8;
   var insertion = null;
   var pointerX = null;
   var pointerY = null;
@@ -1547,6 +1568,12 @@
   }
 
   function syncElementMenu() {
+    // The Add box owns the menu while its comment is open: no element needed.
+    if (regionFor) {
+      if (!openRegionBox) drawMenu(regionCommentBox(regionFor));
+      placeAtRect(regionView(regionFor));
+      return;
+    }
     if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen() || !activeTool) {
       commentFor = null;
       openComment = null;
@@ -1708,12 +1735,11 @@
     }
   }
 
-  /** The menu is placed at the element: under it where the page has room, over
-   * it where it does not, and never past the viewport edge. */
-  function placeElementMenu() {
+  /** The menu is placed at a viewport box: under it where the page has room,
+   * over it where it does not, and never past the viewport edge. */
+  function placeAtRect(rect) {
     var appearing = elementMenu.hidden;
     showMenu();
-    var rect = selected.getBoundingClientRect();
     var width = elementMenu.offsetWidth || 280;
     var height = elementMenu.offsetHeight || 92;
     var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
@@ -1732,6 +1758,72 @@
     // It comes out of the element: down from it when it is below, up from it
     // when it is above. Only when it appears; a refit on scroll just places it.
     if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
+  }
+
+  /** The menu at the selected element. */
+  function placeElementMenu() {
+    if (!selected) return;
+    placeAtRect(selected.getBoundingClientRect());
+  }
+
+  /** A saved box as a viewport rect: page distances minus the scroll. */
+  function regionView(region) {
+    var x = window.pageXOffset || window.scrollX || 0;
+    var y = window.pageYOffset || window.scrollY || 0;
+    return {
+      left: region.left - x,
+      top: region.top - y,
+      right: region.left - x + region.width,
+      bottom: region.top - y + region.height
+    };
+  }
+
+  /**
+   * The comment box for one drawn box: a field, a Save button and a Cancel.
+   * Save keeps the box with its words and its number; Cancel drops it.
+   */
+  function regionCommentBox(region) {
+    var box = document.createElement("div");
+    box.className = "element-comment";
+    var area = document.createElement("textarea");
+    area.className = "element-comment-text";
+    area.rows = 3;
+    area.placeholder = "Comment";
+    area.setAttribute("aria-label", "Add comment");
+    area.value = region.comment || "";
+    box.appendChild(area);
+    openRegionBox = box;
+    var actions = document.createElement("div");
+    actions.className = "element-menu-actions";
+    var save = button("element-action element-comment-action", "", "Save the comment on the box", function () {
+      var words = area.value.trim();
+      if (!words) return;
+      region.comment = words;
+      if (region.mark == null) region.mark = markTop++;
+      if (regions.indexOf(region) === -1) regions.push(region);
+      regionFor = null;
+      openRegionBox = null;
+      hideMenu();
+      regionBox.hidden = true;
+      tally();
+    }, "region-save");
+    save.appendChild(text("Save"));
+    // A comment is required: no words, no save.
+    save.disabled = !area.value.trim();
+    area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
+    actions.appendChild(save);
+    var cancel = button("element-action element-comment-action", "", "Drop the drawn box", function () {
+      regionFor = null;
+      openRegionBox = null;
+      regionBox.hidden = true;
+      hideMenu();
+      paintMarks();
+    }, "region-cancel");
+    cancel.appendChild(text("Cancel"));
+    actions.appendChild(cancel);
+    box.appendChild(actions);
+    setTimeout(function () { if (area.focus) area.focus(); }, 0);
+    return box;
   }
 
   /**
@@ -1756,9 +1848,9 @@
     actions.className = "element-menu-actions";
     var save = button("element-action element-comment-action", "", "Save comment", function () {
       var words = area.value.trim();
+      if (!words) return;
       var rec = record(el);
-      if (words) rec.comment = words;
-      else delete rec.comment;
+      rec.comment = words;
       commentFor = null;
       openComment = null;
       cardDoneFor = el;
@@ -1766,6 +1858,9 @@
       tally();
     }, "comment-save");
     save.appendChild(text("Save"));
+    // A comment is required: no words, no save.
+    save.disabled = !area.value.trim();
+    area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
     actions.appendChild(save);
     var cancel = button("element-action element-comment-action", "", "Cancel the comment", function () {
       commentFor = null;
@@ -4414,6 +4509,16 @@ function decorations() {
     }
     activeTool = key;
     show("");
+    // Add is freeform: it starts with nothing selected and no card open, so a
+    // drag can never begin on an element or move one.
+    if (key === "add") {
+      regionFor = null;
+      openRegionBox = null;
+      drawing = null;
+      regionBox.hidden = true;
+      select(null);
+      hideMenu();
+    }
     syncRow();
     syncElementMenu();
   }
@@ -4596,20 +4701,25 @@ function decorations() {
     var tools = [
       { key: "vartest", label: "Vartest", glyph: "sparkles" },
       { key: "comment", label: "Comment", glyph: "message-circle" },
-      { key: "add", label: "Add", glyph: "circle-plus" }
+      { key: "add", label: "Add", glyph: "circle-plus" },
+      { key: "edits", label: "Edits", glyph: "square-text" }
     ];
     tools.forEach(function (tool) {
+      // Edits is the saved list, kept on the review button so its count badge
+      // stays. It wears an icon like the three tools, not words.
+      if (tool.key === "edits") {
+        review.innerHTML = "";
+        review.className = "ic";
+        review.id = "review";
+        review.innerHTML = svg(tool.glyph);
+        review.appendChild(countBadge);
+        review.dataset.key = "edits";
+        review.setAttribute("aria-label", "Edits");
+        row.appendChild(review);
+        return;
+      }
       row.appendChild(button("ic", svg(tool.glyph), tool.label, function () { pressTool(tool.key); }, tool.key));
     });
-    // The edits list is the fourth part of the same row. It wears words, not a
-    // glyph, so the three tools are the three drawn icons the row holds.
-    review.innerHTML = "";
-    var words = document.createElement("span");
-    words.appendChild(text("Edits"));
-    review.appendChild(words);
-    review.appendChild(countBadge);
-    review.dataset.key = "edits";
-    row.appendChild(review);
     for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
     syncRow();
     var first = row.children[0];
@@ -5468,6 +5578,27 @@ function decorations() {
         rec: rec,
       });
     });
+    // Drawn boxes travel with the edits: each one is a change of its own.
+    regions.forEach(function (rg) {
+      if (rg.mark == null) rg.mark = markTop++;
+      out.push({
+        mark: rg.mark,
+        label: "Added region",
+        selector: "",
+        source: null,
+        sourceIsOwn: false,
+        props: [],
+        text: null,
+        comment: rg.comment || null,
+        created: false,
+        added: null,
+        removed: false,
+        moved: false,
+        movedTo: null,
+        region: { left: rg.left, top: rg.top, width: rg.width, height: rg.height },
+        rec: null,
+      });
+    });
     return out;
   }
 
@@ -5492,7 +5623,11 @@ function decorations() {
     items.forEach(function (item, i) {
       out.push("## " + (i + 1) + ". " + item.label);
       out.push("");
-      out.push("- Selector: `" + item.selector + "`");
+      if (item.selector) out.push("- Selector: `" + item.selector + "`");
+      if (item.region) {
+        var r = item.region;
+        out.push("- Region: a `" + r.width + " × " + r.height + "` pixel box at `" + r.left + "px from the left, " + r.top + "px from the top` of the page. Put the new element inside it.");
+      }
       if (item.source) {
         out.push("- Source: `" + item.source + "`" + (item.sourceIsOwn ? "" : " (the nearest element with a known location)"));
       }
@@ -5542,20 +5677,31 @@ function decorations() {
     if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
   }
 
-  /** Numbered marks on changed elements. One per element, hidden while working. */
+  /** Numbered marks on changed elements and saved boxes. One circle each,
+   * drawn where the edit is, shown at once and kept through a reload. */
   function paintMarks(items) {
     items = items || report();
     while (marksBox.firstChild) marksBox.removeChild(marksBox.firstChild);
-    var busy = !active || selected || !elementMenu.hidden || !pop.hidden || editing || !activeTool;
-    if (busy || !items.length) {
+    if (!active || !items.length) {
       marksBox.hidden = true;
       return;
     }
+    var x = window.pageXOffset || window.scrollX || 0;
+    var y = window.pageYOffset || window.scrollY || 0;
     items.forEach(function (item) {
       if (item.mark == null) return;
+      var at = null;
+      if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
+        var box = item.rec.el.getBoundingClientRect();
+        if (box.width || box.height) at = { left: box.left, top: box.top };
+      } else if (item.region) {
+        at = { left: item.region.left - x, top: item.region.top - y };
+      }
+      if (!at) return;
       var m = document.createElement("span");
       m.className = "mark";
-      m.textContent = String(item.mark);
+      m.style.left = Math.round(at.left) + "px";
+      m.style.top = Math.round(at.top) + "px";
       m.appendChild(text(String(item.mark)));
       marksBox.appendChild(m);
     });
@@ -5614,17 +5760,26 @@ function decorations() {
     items.forEach(function (item) {
       var line = document.createElement("div");
       line.className = "chg";
-      var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0);
+      var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0) + (item.region ? 1 : 0);
       var name = button("opt", "", "Select " + item.label, function () {
-        // A deleted element is off the page: there is nothing to frame or edit.
-        if (item.removed) return;
+        // A deleted element is off the page, and a box is not an element:
+        // there is nothing to frame or edit.
+        if (item.removed || !item.rec) return;
         var el = item.rec.el;
         select(el, { el: el, kind: kind(el) });
         show("changes");
       }, "");
-      name.disabled = item.removed;
+      name.disabled = item.removed || !item.rec;
       name.appendChild(text(item.mark + " \u00b7 " + item.label + " \u00b7 " + n + (n === 1 ? " edit" : " edits")));
       var undo = button("ic", svg("undo-2"), "Revert " + item.label, function () {
+        // A drawn box reverts by leaving the canvas.
+        if (!item.rec) {
+          for (var r = regions.length - 1; r >= 0; r--) {
+            if (regions[r].mark === item.mark) regions.splice(r, 1);
+          }
+          show("changes");
+          return;
+        }
         if (item.rec.el === editing) stopEditing();
         revert(item.rec);
         // The row belongs to the selected element, and its controls went with it.
@@ -5653,7 +5808,9 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      return { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      var out = { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      if (item.region) out.region = item.region;
+      return out;
     });
   }
 
@@ -5703,7 +5860,7 @@ function decorations() {
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var variationPrompt = "";
-  var variationCount = 3; // how many variations the next request asks for
+  var variationCount = 3; // fixed: the box no longer asks, every request asks for three
   var variationBoxFor = null; // the element whose prompt box is open
   var openVariationBox = null;
   var openDone = false; // the menu holds the Done card of a text edit
@@ -5738,7 +5895,7 @@ function decorations() {
 
   /**
    * Ask the dev server for variations of one element. The agent reads the same
-   * request over MCP when the user types vartest; `failed` is told why a request
+   * request over MCP once the user chose Vartest; `failed` is told why a request
    * did not go out.
    */
   function requestVariations(el, count, prompt, failed) {
@@ -5772,7 +5929,7 @@ function decorations() {
     if (variationPolls > MAX_POLLS) {
       // Two minutes of asking: the agent is not coming, so the box says so.
       variationId = "";
-      variationWords = "The agent did not answer. Ask it vartest with the Edityy MCP connected.";
+      variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
       syncElementMenu();
       return;
     }
@@ -6489,37 +6646,29 @@ function decorations() {
   }
 
   /** The box that asks how many variations and what to vary, in the element's own card. */
+  /**
+   * The Vartest box for one element: the same comment box, with a fixed count.
+   * Save sends the words as the variation prompt and asks for three.
+   */
   function variationBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
-    var countRow = document.createElement("label");
-    countRow.className = "element-comment-count";
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
-    area.rows = 2;
+    area.rows = 3;
     area.maxLength = 240;
-    area.placeholder = "Optional comment, such as: thinner and darker";
-    area.setAttribute("aria-label", "What to vary");
+    area.placeholder = "Comment";
+    area.setAttribute("aria-label", "Vartest comment");
     area.value = variationPrompt;
     box.appendChild(area);
-    countRow.appendChild(text("Number of variants"));
-    var count = document.createElement("input");
-    count.type = "number";
-    count.min = "2";
-    count.max = "10";
-    count.step = "1";
-    count.value = String(variationCount);
-    countRow.appendChild(count);
-    box.appendChild(countRow);
     if (variationWords) box.appendChild(noteBox(variationWords));
     openVariationBox = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
-    var send = button("element-action element-comment-action", "", "Send the variations request to the agent", function () {
-      // A number the field cannot hold keeps the last one it could.
-      var asked = Math.round(Number(count.value));
-      variationCount = asked >= 2 && asked <= 10 ? asked : variationCount;
-      variationPrompt = String(area.value || "").trim();
+    var send = button("element-action element-comment-action", "", "Save the Vartest comment and ask the agent", function () {
+      var words = String(area.value || "").trim();
+      if (!words) return;
+      variationPrompt = words;
       variationWords = "Asking your agent\u2026";
       cardDoneFor = null;
       openVariationBox = null;
@@ -6530,7 +6679,10 @@ function decorations() {
         syncElementMenu();
       });
     }, "send-variations");
-    send.appendChild(say("Send to agent"));
+    send.appendChild(text("Save"));
+    // A comment is required: no words, no request.
+    send.disabled = !area.value.trim();
+    area.addEventListener("input", function () { send.disabled = !area.value.trim(); });
     actions.appendChild(send);
     var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
       closeVariants();
@@ -6629,7 +6781,7 @@ function decorations() {
     }
     var edits = [];
     changes.forEach(function (rec) {
-      if (rec.created || rec.removed || rec.location) return;
+      if (!rec.el || rec.el.isConnected === false) return;
       var props = {};
       var any = false;
       Object.keys(rec.props).forEach(function (prop) {
@@ -6643,11 +6795,15 @@ function decorations() {
         any = true;
       });
       var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
-      if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length)) return;
+      if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], mark: rec.mark });
+      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, mark: rec.mark });
     });
-    var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: [] });
+    var savedRegions = regions.map(function (rg) {
+      if (rg.mark == null) rg.mark = markTop++;
+      return { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark };
+    });
+    var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: savedRegions });
     try {
       window.fetch(SESSION_URL, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: body }).catch(function () {});
     } catch (e) {}
@@ -6691,6 +6847,12 @@ function decorations() {
           if (edit.mark >= markTop) markTop = edit.mark + 1;
         }
         if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
+      });
+      (Array.isArray(saved.regions) ? saved.regions : []).forEach(function (rg) {
+        if (!rg || typeof rg !== "object") return;
+        var kept = { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark };
+        if (kept.mark != null && kept.mark >= markTop) markTop = kept.mark + 1;
+        regions.push(kept);
       });
       enter();
       tally();
@@ -6783,6 +6945,8 @@ function decorations() {
     // lands on the dot must reach the page below it.
     launch.style.pointerEvents = "none";
     document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("mouseup", onUp, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKey, true);
     // input, not keydown: keydown fires before the browser has changed the
@@ -6812,6 +6976,8 @@ function decorations() {
     label.style.opacity = "";
     launch.style.pointerEvents = "";
     document.removeEventListener("mousemove", onMove, true);
+    document.removeEventListener("mousedown", onDown, true);
+    document.removeEventListener("mouseup", onUp, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKey, true);
     document.removeEventListener("input", onEdit, true);
@@ -6834,6 +7000,11 @@ function decorations() {
     changes.slice().forEach(revert);
     insertion = null;
     moving = null;
+    drawing = null;
+    regionFor = null;
+    openRegionBox = null;
+    regions = [];
+    regionBox.hidden = true;
     menuAway();
     pointerX = null;
     pointerY = null;
@@ -7000,6 +7171,18 @@ function decorations() {
       }
     }
     syncSelectionFrames();
+    // Marks are viewport-fixed like the frames: a scroll moves the element
+    // out from under them, so they are drawn again where it now is. A box
+    // whose comment is open stays drawn with them.
+    if (regionFor) {
+      var held = regionView(regionFor);
+      regionBox.style.left = held.left + "px";
+      regionBox.style.top = held.top + "px";
+      regionBox.style.width = (held.right - held.left) + "px";
+      regionBox.style.height = (held.bottom - held.top) + "px";
+      regionBox.hidden = false;
+    }
+    paintMarks();
     if (!elementMenu.hidden && !moving) syncElementMenu();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
@@ -7129,6 +7312,61 @@ function decorations() {
     tally();
   }
 
+  /** The Add drag starts: a box from this point, drawn on the next move. */
+  function onDown(e) {
+    if (!active || activeTool !== "add" || moving || editing) return;
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    drawing = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+  }
+
+  /** The Add drag moves: the dashed box follows the pointer. */
+  function onDrag(e) {
+    if (!drawing) return;
+    drawing.x1 = e.clientX;
+    drawing.y1 = e.clientY;
+    var left = Math.min(drawing.x0, drawing.x1);
+    var top = Math.min(drawing.y0, drawing.y1);
+    var width = Math.abs(drawing.x1 - drawing.x0);
+    var height = Math.abs(drawing.y1 - drawing.y0);
+    regionBox.style.left = left + "px";
+    regionBox.style.top = top + "px";
+    regionBox.style.width = width + "px";
+    regionBox.style.height = height + "px";
+    regionBox.hidden = false;
+  }
+
+  /** The Add drag ends: a big enough box opens its comment box. */
+  function onUp(e) {
+    if (!drawing) return;
+    var start = drawing;
+    drawing = null;
+    if (activeTool !== "add") {
+      regionBox.hidden = true;
+      return;
+    }
+    var left = Math.min(start.x0, e.clientX);
+    var top = Math.min(start.y0, e.clientY);
+    var width = Math.abs(e.clientX - start.x0);
+    var height = Math.abs(e.clientY - start.y0);
+    if (width < REGION_MIN || height < REGION_MIN) {
+      regionBox.hidden = true;
+      return;
+    }
+    var x = window.pageXOffset || window.scrollX || 0;
+    var y = window.pageYOffset || window.scrollY || 0;
+    // The box stays drawn while its comment is open: the comment is about it.
+    regionBox.style.left = left + "px";
+    regionBox.style.top = top + "px";
+    regionBox.style.width = width + "px";
+    regionBox.style.height = height + "px";
+    regionBox.hidden = false;
+    regionFor = { left: Math.round(left + x), top: Math.round(top + y), width: Math.round(width), height: Math.round(height), comment: null, mark: null };
+    openRegionBox = null;
+    select(null);
+    syncElementMenu();
+  }
+
   function onMove(e) {
     // The dot follows the pointer with no lag: the translate is not
     // transitioned, so the dot is under the cursor and not easing towards it.
@@ -7141,6 +7379,11 @@ function decorations() {
     pointerX = x;
     pointerY = y;
     inFrame("hover", function () {
+      // Add is freeform: no element is outlined or picked, only the box drawn.
+      if (drawing || activeTool === "add") {
+        hideHover();
+        return;
+      }
       if (moving) {
         showMoveInsertion(x, y);
         hideHover();
@@ -7166,6 +7409,8 @@ function decorations() {
     if (!activeTool) return;
     e.preventDefault();
     e.stopPropagation();
+    // Add draws its box with a drag: a click alone picks nothing.
+    if (activeTool === "add" || regionFor) return;
     if (moving) {
       insertElement(e.clientX, e.clientY);
       return;
@@ -7245,7 +7490,19 @@ function decorations() {
       } else if (editing) {
         stopEditing();
         syncElementMenu();
-      } else if (variationBoxFor || commentFor || !variantsBox.hidden) {
+      } else if (drawing || regionFor || variationBoxFor || commentFor || !variantsBox.hidden) {
+        // A drag on its way out never becomes a box. A box whose comment is
+        // open leaves with its comment unsaved.
+        if (drawing) {
+          drawing = null;
+          regionBox.hidden = true;
+        }
+        if (regionFor) {
+          regionFor = null;
+          openRegionBox = null;
+          regionBox.hidden = true;
+          hideMenu();
+        }
         closeVariants();
         select(null);
       } else if (moving) {
