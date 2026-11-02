@@ -1057,7 +1057,7 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   const pressButton = (target) => {
     for (const fn of target.bubbles.click.bubble) fn({});
   };
-  const inMenu = (label) => menu.children[0].children
+  const inMenu = (label) => (menu.children[0] ? menu.children[0].children : [])
     .flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
   selectText(app);
@@ -1815,7 +1815,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   const el = selectText(app);
   const menu = app.root.nodes["element-menu"];
   const strip = app.root.nodes.variants;
-  const inMenu = (label) => menu.children[0].children
+  const inMenu = (label) => (menu.children[0] ? menu.children[0].children : [])
     .flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
   // The sparkles tool turns the click that opened the comment box into a
@@ -1834,22 +1834,12 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   area.value = "  thinner and darker  ";
   const ask = inMenu("Send the variations request to the agent");
   for (const fn of ask.bubbles.click.bubble) fn({});
-  // The box morphs to the waiting card: the pulse, the X, and the connect hint.
-  // There is nothing left to type in the agent: the request is already written.
-  const waiting = menu.children[0];
-  assert.equal(waiting.className, "wait");
-  assert.equal(waiting.children.length, 2);
-  const head = waiting.children[0];
-  assert.equal(head.className, "wait-head");
-  assert.equal(head.children[0].children[1].nodeValue, "Waiting for your agent");
-  assert.equal(head.children[1].getAttribute("aria-label"), "Cancel the variation request");
-  assert.deepEqual(
-    waiting.children[1].children.map((node) => node.nodeValue ?? node.children[0].nodeValue),
-    ["Not connected? Add it:", "npx edityy mcp"],
-    "how to connect the server, set off from the line above",
-  );
-  assert.equal(inMenu("Send the variations request to the agent"), undefined, "the fields are put away");
-  assert.equal(inMenu("What to vary"), undefined);
+  // No waiting card: the same box stays, with the count under the words and
+  // a note while the agent answers.
+  const asking = menu.children[0];
+  assert.equal(asking.className, "element-comment");
+  assert.equal(inMenu("Send the variations request to the agent") !== undefined, true, "the box stays");
+  assert.equal(inMenu("What to vary") !== undefined, true, "the words stay");
 
   await tick();
   const request = JSON.parse(sent[0].init.body);

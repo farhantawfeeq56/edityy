@@ -1587,11 +1587,7 @@
     }
     if (activeTool === "comment" && !variationBoxFor && !commentFor) commentFor = selected;
     if (variationBoxFor) {
-      var state = variationWaiting ? "waiting" : "prompt";
-      if (!openVariationBox || openVariationBoxState !== state) {
-        drawMenu(variationBox(variationBoxFor));
-        openVariationBoxState = state;
-      }
+      if (!openVariationBox) drawMenu(variationBox(variationBoxFor));
       placeElementMenu();
       return;
     }
@@ -5701,9 +5697,8 @@ function decorations() {
   var POLL_DELAY = 1000;
   var MAX_POLLS = 120;
 
-  var variationFor = null; // the element the waiting request is about
+  var variationFor = null; // the element the request is about
   var variationId = ""; // the pending request, "" when there is none
-  var variationWaiting = false;
   var variationTimer = 0;
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
@@ -5711,7 +5706,6 @@ function decorations() {
   var variationCount = 3; // how many variations the next request asks for
   var variationBoxFor = null; // the element whose prompt box is open
   var openVariationBox = null;
-  var openVariationBoxState = "";
   var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
@@ -5776,10 +5770,8 @@ function decorations() {
     var id = variationId;
     variationPolls += 1;
     if (variationPolls > MAX_POLLS) {
-      // Two minutes of asking: the agent is not coming, so the box says so
-      // instead of waiting in silence.
+      // Two minutes of asking: the agent is not coming, so the box says so.
       variationId = "";
-      variationWaiting = false;
       variationWords = "The agent did not answer. Ask it vartest with the Edityy MCP connected.";
       syncElementMenu();
       return;
@@ -5799,28 +5791,29 @@ function decorations() {
       .catch(function (error) {
         if (id !== variationId) return;
         variationId = "";
-        variationWaiting = false;
         variationWords = error.message || "Could not reach the dev server";
+        openVariationBox = null;
         syncElementMenu();
       });
   }
 
-  /** The answer arrived: the strip at the bottom right, and its keys. */
+  /** The answer arrived: the prompt goes away, the strip at the bottom right stays. */
   function showVariants(list) {
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
     variationId = "";
     variationPolls = 0;
-    variationWaiting = false;
     variationWords = "";
     variationBoxFor = null;
     openVariationBox = null;
     variantList = list;
     variantAt = -1;
     variantProps = [];
-    syncElementMenu();
+    while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
+    menuAway();
     paintVariants();
     variantsBox.hidden = false;
+    syncElementMenu();
   }
 
   /**
@@ -6453,7 +6446,6 @@ function decorations() {
     }
     variationId = "";
     variationPolls = 0;
-    variationWaiting = false;
     variationWords = "";
     variationBoxFor = null;
     openVariationBox = null;
@@ -6496,46 +6488,10 @@ function decorations() {
     return note;
   }
 
-  /** A line of the waiting card: a few words, then the command they name. */
-  function waitLine(cls, words, command) {
-    var line = document.createElement("p");
-    line.className = cls;
-    line.appendChild(text(words));
-    var chip = document.createElement("span");
-    chip.className = "wait-chip";
-    chip.appendChild(text(command));
-    line.appendChild(chip);
-    return line;
-  }
-
   /** The box that asks how many variations and what to vary, in the element's own card. */
   function variationBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
-    if (variationWaiting) {
-      // The request is out: nothing left to fill in, only what to type in the
-      // agent, and the X that puts the box away so the page is the page again.
-      box.className = "wait";
-      var head = document.createElement("div");
-      head.className = "wait-head";
-      var title = document.createElement("p");
-      title.className = "wait-title";
-      var dot = document.createElement("span");
-      dot.className = "wait-dot";
-      title.appendChild(dot);
-      title.appendChild(text("Waiting for your agent"));
-      head.appendChild(title);
-      head.appendChild(button("wait-x", svg("x"), "Cancel the variation request", function () {
-        closeVariants();
-        syncElementMenu();
-      }, "cancel-variations"));
-      box.appendChild(head);
-      // The page cannot see whether the agent has the server, so it says how to
-      // add it, set off from the line above.
-      box.appendChild(waitLine("wait-hint", "Not connected? Add it:", "npx edityy mcp"));
-      openVariationBox = box;
-      return box;
-    }
     var countRow = document.createElement("label");
     countRow.className = "element-comment-count";
     var area = document.createElement("textarea");
@@ -6564,13 +6520,13 @@ function decorations() {
       var asked = Math.round(Number(count.value));
       variationCount = asked >= 2 && asked <= 10 ? asked : variationCount;
       variationPrompt = String(area.value || "").trim();
-      variationWaiting = true;
-      variationWords = "";
+      variationWords = "Asking your agent\u2026";
       cardDoneFor = null;
+      openVariationBox = null;
       syncElementMenu();
       requestVariations(el, variationCount, variationPrompt, function (problem) {
-        variationWaiting = false;
         variationWords = problem;
+        openVariationBox = null;
         syncElementMenu();
       });
     }, "send-variations");
