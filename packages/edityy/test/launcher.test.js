@@ -842,7 +842,8 @@ const commentOn = (app, node, words) => {
   const box = app.root.nodes["element-menu"].children[0];
   const area = box.children[0];
   area.value = words;
-  const save = box.children[1].children[0];
+  const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
+    .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
 };
 
@@ -1327,14 +1328,14 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
     assert.match(markup, /<(path|rect|circle|line|polyline|ellipse|polygon)[\s/]/, `no shape drawn: ${markup}`);
     assert.match(markup, /stroke="currentColor"/, `not a Lucide glyph: ${markup}`);
   };
-  // Four icons, all drawn from the one glyph table.
+  // Three icons, all drawn from the one glyph table.
   const icons = app.root.nodes.row.children.filter((b) => b.innerHTML.includes("<svg"));
-  assert.equal(icons.length, 4, "the four tools are drawn");
+  assert.equal(icons.length, 3, "the three tools are drawn");
   for (const button of icons) drawn(button.innerHTML);
   assert.doesNotMatch(app.root.innerHTML, />"[a-z-]+"</, "no name rendered as a glyph");
 });
 
-test("the toolbar is up with nothing selected, offering the four things it has", () => {
+test("the toolbar is up with nothing selected, offering the three things it has", () => {
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
@@ -1343,10 +1344,10 @@ test("the toolbar is up with nothing selected, offering the four things it has",
   assert.equal(app.root.nodes.row.hidden, false, "and it is the whole toolbar");
   assert.equal(app.root.nodes.pop.hidden, true, "and no list opens on its own");
   const row = app.root.nodes.row.children;
-  assert.deepEqual(row.map((chip) => chip.dataset.key), ["vartest", "comment", "add", "edits"], "the four tools");
-  assert.equal(row[3], app.root.nodes.review, "the edits list is the last segment of the same row");
-  assert.equal(row[1].getAttribute("aria-pressed"), "true", "Comment is the default tool");
-  assert.equal(row[0].getAttribute("aria-pressed"), "false");
+  assert.deepEqual(row.map((chip) => chip.dataset.key), ["comment", "add", "edits"], "the three tools");
+  assert.equal(row[2], app.root.nodes.review, "the edits list is the last segment of the same row");
+  assert.equal(row[0].getAttribute("aria-pressed"), "true", "Comment is the default tool");
+  assert.equal(row[1].getAttribute("aria-pressed"), "false");
   assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
 
@@ -1851,28 +1852,28 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   const inMenu = (label) => (menu.children[0] ? menu.children[0].children : [])
     .flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
-  // The sparkles tool turns the click that opened the comment box into a
-  // request for variations.
-  quiet(() => press(app, "vartest"));
+  // More than one variation turns the click that opened the comment box into
+  // a request for variations.
   assert.equal(app.root.nodes.row.children[0].getAttribute("aria-pressed"), "true");
   const box = menu.children[0];
   const area = box.children[0];
-  assert.equal(area.getAttribute("aria-label"), "Vartest comment", "the words come first");
+  assert.equal(area.getAttribute("aria-label"), "Comment", "the words come first");
   assert.equal(area.placeholder, "Comment", "the same box as a comment");
   area.value = "  thinner and darker  ";
-  const ask = inMenu("Save the Vartest comment and ask the agent");
+  inMenu("Variations").value = "3";
+  const ask = inMenu("Save comment");
   for (const fn of ask.bubbles.click.bubble) fn({});
   // No waiting card: the same box stays, with a note while the agent answers.
   const asking = menu.children[0];
   assert.equal(asking.className, "element-comment");
-  assert.equal(inMenu("Save the Vartest comment and ask the agent") !== undefined, true, "the box stays");
-  assert.equal(inMenu("Vartest comment") !== undefined, true, "the words stay");
+  assert.equal(inMenu("Save comment") !== undefined, true, "the box stays");
+  assert.equal(inMenu("Comment") !== undefined, true, "the words stay");
 
   await tick();
   const request = JSON.parse(sent[0].init.body);
   assert.equal(sent[0].url, "/__edityy/variations");
   assert.equal(sent[0].init.method, "POST");
-  assert.equal(request.count, 3, "every request asks for three");
+  assert.equal(request.count, 3, "the count travels with the request");
   assert.equal(request.prompt, "thinner and darker");
   assert.equal(request.element.tag, "p", "the tag, not the source code");
   assert.equal(request.element.selector, "p");
@@ -1882,7 +1883,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
   assert.equal(polls, 2);
   assert.equal(strip.hidden, false, "the strip is up");
-  assert.equal(inMenu("Save the Vartest comment and ask the agent"), undefined, "the prompt box is done");
+  assert.equal(inMenu("Save comment"), undefined, "the prompt box is done");
   const rows = strip.children[1].children;
   assert.equal(strip.children[1].className, "variants-list", "the rows sit in a list of their own");
   assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);

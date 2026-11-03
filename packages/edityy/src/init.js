@@ -38,7 +38,7 @@ const RULES = `${BEGIN}
 The user edits the running site with Edityy, not the code. These tools come from
 the Edityy MCP server.
 
-- **vartest.** When the user chooses Vartest in the Edityy toolbar and presses
+- **vartest.** When the user sets more than one variation in the Edityy comment box and presses
   an element, call \`get_variation_request\`.
   Read it every time: an answer for an older request is refused. Then answer
   with the number of variations it asks for, and call \`place_variations\`.

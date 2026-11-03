@@ -1573,10 +1573,6 @@
       commentFor = null;
       openComment = null;
     }
-    if (variationBoxFor && variationBoxFor !== selected) {
-      variationBoxFor = null;
-      openVariationBox = null;
-    }
     if (editing) {
       if (!openDone) {
         drawMenu(doneBox());
@@ -1585,20 +1581,9 @@
       placeElementMenu();
       return;
     }
-    // One tool at a time. The click that selected the element opens its box.
+    // One box at a time. The click that selected the element opens its box.
     // While the strip shows the answer, the prompt stays put away.
-    if (activeTool === "vartest" && !variationBoxFor && variantsBox.hidden) {
-      variationBoxFor = selected;
-      variationPrompt = "";
-      variationWords = "";
-      openVariationBox = null;
-    }
-    if (activeTool === "comment" && !variationBoxFor && !commentFor) commentFor = selected;
-    if (variationBoxFor) {
-      if (!openVariationBox) drawMenu(variationBox(variationBoxFor));
-      placeElementMenu();
-      return;
-    }
+    if (activeTool === "comment" && !commentFor && variantsBox.hidden) commentFor = selected;
     if (activeTool === "comment" && commentFor) {
       if (!openComment) drawMenu(commentBox(commentFor));
       placeElementMenu();
@@ -1622,16 +1607,6 @@
       commentFor = selected;
       syncElementMenu();
     }, svg(MENU_ICONS.comment)));
-    actions.appendChild(actionButton("Variations", function () {
-      // One box at a time: the prompt replaces the comment's own.
-      commentFor = null;
-      openComment = null;
-      variationBoxFor = selected;
-      variationPrompt = "";
-      variationWords = "";
-      openVariationBox = null;
-      syncElementMenu();
-    }, svg(MENU_ICONS.variations)));
     actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
     return actions;
   }
@@ -1808,11 +1783,12 @@
   }
 
   /**
-   * The comment box for one element: a field, a Save button and a Cancel.
+   * The comment box for one element: a field, a variations count, a Save and a Cancel.
    *
-   * Save writes the words onto the element's record, so the comment travels
-   * with the edits to the agent's Markdown and to the saved file. Emptying the
-   * field and saving takes the comment off the element again.
+   * Save with one variation writes the words onto the element's record, so the
+   * comment travels with the edits to the agent's Markdown and to the saved
+   * file. Save with more than one asks the agent for that many variations of
+   * the element instead, and the strip at the bottom right shows the answer.
    */
   function commentBox(el) {
     var box = document.createElement("div");
@@ -1822,16 +1798,47 @@
     area.rows = 3;
     area.placeholder = "Comment";
     area.setAttribute("aria-label", "Comment");
-    area.value = record(el).comment || "";
+    area.value = variationPrompt || record(el).comment || "";
     box.appendChild(area);
+    var countRow = document.createElement("label");
+    countRow.className = "element-comment-count";
+    countRow.appendChild(text("Variations"));
+    var count = document.createElement("input");
+    count.type = "number";
+    count.min = "1";
+    count.max = "10";
+    count.step = "1";
+    count.value = "1";
+    count.setAttribute("aria-label", "Variations");
+    countRow.appendChild(count);
+    box.appendChild(countRow);
+    if (variationWords) box.appendChild(noteBox(variationWords));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var save = button("element-action element-comment-action", "", "Save comment", function () {
       var words = area.value.trim();
       if (!words) return;
+      var n = Math.round(Number(count.value));
+      if (!(n >= 1)) n = 1;
+      if (n > 10) n = 10;
+      if (n > 1) {
+        variationPrompt = words;
+        variationWords = "Asking your agent\u2026";
+        cardDoneFor = null;
+        openComment = null;
+        syncElementMenu();
+        requestVariations(el, n, variationPrompt, function (problem) {
+          variationWords = problem;
+          openComment = null;
+          syncElementMenu();
+        });
+        return;
+      }
       var rec = record(el);
       rec.comment = words;
+      variationPrompt = "";
+      variationWords = "";
       commentFor = null;
       openComment = null;
       cardDoneFor = el;
@@ -1844,6 +1851,8 @@
     area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
     actions.appendChild(save);
     var cancel = button("element-action element-comment-action", "", "Cancel the comment", function () {
+      closeVariants();
+      variationPrompt = "";
       commentFor = null;
       openComment = null;
       cardDoneFor = el;
@@ -2265,7 +2274,6 @@ function faces() {
     edit: "pencil",
     move: "move",
     comment: "message-square",
-    variations: "sparkles",
     delete: "trash-2",
   };
 
@@ -4477,7 +4485,7 @@ function decorations() {
   };
   // The element the row was last built for, so a re-click on the same words keeps it.
   var rowFor = null;
-  // The toolbar has four parts: Vartest, Comment, Add, Edits. Comment is on entry.
+  // The toolbar has three parts: Comment, Add, Edits. Comment is on entry.
   // One tool at a time. A second click on the active tool drops to browse.
   var activeTool = "comment";
 
@@ -4683,7 +4691,6 @@ function decorations() {
     while (row.firstChild) row.removeChild(row.firstChild);
     delete row.dataset.glide;
     var tools = [
-      { key: "vartest", label: "Vartest", glyph: "sparkles" },
       { key: "comment", label: "Comment", glyph: "message-square" },
       { key: "add", label: "Add", glyph: "square-plus" },
       { key: "edits", label: "Edits", glyph: "square-text" }
@@ -5871,9 +5878,6 @@ function decorations() {
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var variationPrompt = "";
-  var variationCount = 3; // fixed: the box no longer asks, every request asks for three
-  var variationBoxFor = null; // the element whose prompt box is open
-  var openVariationBox = null;
   var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
@@ -5941,6 +5945,7 @@ function decorations() {
       // Two minutes of asking: the agent is not coming, so the box says so.
       variationId = "";
       variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+      openComment = null;
       syncElementMenu();
       return;
     }
@@ -5960,7 +5965,7 @@ function decorations() {
         if (id !== variationId) return;
         variationId = "";
         variationWords = error.message || "Could not reach the dev server";
-        openVariationBox = null;
+        openComment = null;
         syncElementMenu();
       });
   }
@@ -5972,8 +5977,9 @@ function decorations() {
     variationId = "";
     variationPolls = 0;
     variationWords = "";
-    variationBoxFor = null;
-    openVariationBox = null;
+    variationPrompt = "";
+    commentFor = null;
+    openComment = null;
     variantList = list;
     variantAt = -1;
     variantProps = [];
@@ -6615,8 +6621,9 @@ function decorations() {
     variationId = "";
     variationPolls = 0;
     variationWords = "";
-    variationBoxFor = null;
-    openVariationBox = null;
+    variationPrompt = "";
+    commentFor = null;
+    openComment = null;
     variantList = [];
     variantAt = -1;
     variantProps = [];
@@ -6654,58 +6661,6 @@ function decorations() {
     note.className = "note";
     note.appendChild(text(words));
     return note;
-  }
-
-  /** The box that asks how many variations and what to vary, in the element's own card. */
-  /**
-   * The Vartest box for one element: the same comment box, with a fixed count.
-   * Save sends the words as the variation prompt and asks for three.
-   */
-  function variationBox(el) {
-    var box = document.createElement("div");
-    box.className = "element-comment";
-    var area = document.createElement("textarea");
-    area.className = "element-comment-text";
-    area.rows = 3;
-    area.maxLength = 240;
-    area.placeholder = "Comment";
-    area.setAttribute("aria-label", "Vartest comment");
-    area.value = variationPrompt;
-    box.appendChild(area);
-    if (variationWords) box.appendChild(noteBox(variationWords));
-    openVariationBox = box;
-    var actions = document.createElement("div");
-    actions.className = "element-menu-actions";
-    var send = button("element-action element-comment-action", "", "Save the Vartest comment and ask the agent", function () {
-      var words = String(area.value || "").trim();
-      if (!words) return;
-      variationPrompt = words;
-      variationWords = "Asking your agent\u2026";
-      cardDoneFor = null;
-      openVariationBox = null;
-      syncElementMenu();
-      requestVariations(el, variationCount, variationPrompt, function (problem) {
-        variationWords = problem;
-        openVariationBox = null;
-        syncElementMenu();
-      });
-    }, "send-variations");
-    send.appendChild(text("Save"));
-    // A comment is required: no words, no request.
-    send.disabled = !area.value.trim();
-    area.addEventListener("input", function () { send.disabled = !area.value.trim(); });
-    actions.appendChild(send);
-    var cancel = button("element-action element-comment-action", "", "Cancel the variation request", function () {
-      closeVariants();
-      cardDoneFor = el;
-      syncElementMenu();
-    }, "cancel-variations");
-    cancel.appendChild(text("Cancel"));
-    actions.appendChild(cancel);
-    box.appendChild(actions);
-    // A box opened by a click is ready to type into.
-    setTimeout(function () { if (area.focus) area.focus(); }, 0);
-    return box;
   }
 
   /** Put a string on the clipboard, by the API where there is one. */
