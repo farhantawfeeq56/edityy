@@ -391,7 +391,12 @@ function fakeDom() {
         }
         if (name === "Comment") return; // the click that selected it opened the box
         if (name === "Done editing the text") {
-          for (const fn of bucket(doc, "keydown", "capture")) fn({ key: "Escape", target: doc.body, preventDefault() {}, stopPropagation() {} });
+          // Escape leaves the whole mode now, so ending the edit needs the
+          // real Done button in the element card.
+          const box = root.nodes["element-menu"].children[0];
+          const done = box.children.find((item) => item.getAttribute && item.getAttribute("aria-label") === name);
+          assert.ok(done, `no element action "${name}"`);
+          for (const fn of done.bubbles.click.bubble) fn({});
           return;
         }
         const button = root.nodes["element-menu"].children[0].children
@@ -552,7 +557,7 @@ test("the chrome wears its own face, not the host page's", () => {
     "Jakarta through the chrome's hook, with the machine's UI face as the floor");
   assert.doesNotMatch(css, /fonts\.googleapis\.com|@font-face/, "and no font is fetched");
   assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
-  assert.match(css, /#launch img\{width:22px/, "the mark's own size");
+  assert.match(css, /#launch img\{width:18px/, "the mark's own size");
 });
 
 test("loading twice mounts only one launcher", () => {
@@ -569,7 +574,8 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
   quiet(() => app.click());
-  assert.equal(app.countDoc("click"), 1, "a second click while open leaves the mode on");
+  assert.equal(app.countDoc("click"), 0, "a second click on the brand leaves the mode");
+  assert.equal(app.root.nodes.dock.hidden, true);
 });
 
 test("the brand pill stays put and stays a button in edit mode", () => {
@@ -596,7 +602,7 @@ test("leaving edit mode keeps the brand pill as the way back in", () => {
     app.click();
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
-    app.fire("keydown", { key: "Escape" });
+    // One Escape leaves the whole mode: there is no unwinding to get stuck in.
     app.fire("keydown", { key: "Escape" });
   });
   // Escape leaves the mode: the dock hides and the pill stays a button.
@@ -886,19 +892,20 @@ test("a dock that comes back takes clicks again", () => {
   const app = run();
   const dock = app.root.nodes.dock;
   let exit;
-  dock.animate = () => (exit = { cancel() {} });
+  dock.animate = (frames) => (exit = { cancel() {}, frames });
   quiet(() => {
     app.click();
     app.hover(text("p", "body"));
     app.clickPage();
   });
   assert.equal(dock.hidden, false);
-  // The mode ends: the dock leaves, and takes no clicks while it goes.
+  // The mode ends on one Escape: the dock travels back to the pill and takes
+  // no clicks while it goes.
   quiet(() => {
-    app.fire("keydown", { key: "Escape" });
     app.fire("keydown", { key: "Escape" });
   });
   assert.equal(dock.style.pointerEvents, "none", "a dock on its way out is leaving");
+  assert.match(exit.frames[1].transform, /translateX\(12px\)/, "toward the pill it stands beside");
   exit.onfinish();
   assert.equal(dock.hidden, true);
   // Back for another element: the dock is the same node, so the clicks have to
@@ -1917,17 +1924,41 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(sheets().length, 0, "no rule, no sheet");
   quiet(() => app.fire("keydown", { key: "2" }));
 
-  // Escape puts the strip away, and the picks stay: they are ordinary edits.
+  // Escape leaves the whole mode, and the picks go with it: leaving abandons
+  // whatever was never saved.
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(strip.hidden, true);
-  assert.match(app.win.__edityy_changes(), /- `scrollbar-color`: `unset` → `#f43f5e #f4f4f5`/);
-  assert.equal(sheets().length, 1, "the sheet stays while its edit does");
+  assert.equal(app.root.nodes.dock.hidden, true, "the toolbar goes with the mode");
+  assert.equal(app.countDoc("click"), 0, "the page is released");
+  assert.equal(app.win.__edityy_changes(), "", "unsaved picks are abandoned");
+  assert.equal(sheets().length, 0, "and the sheet goes with its edit");
+});
 
-  // Reverting the element takes the rule and its sheet away.
-  const undo = openEdits(app).children[0].children[0].children[1];
-  quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
-  assert.equal(sheets().length, 0, "a reverted element leaves no sheet behind");
-  assert.equal(el.style.getPropertyValue("scrollbar-color"), "", "and no inline style");
+test("a panel that already left takes no ghost down with the mode", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const strip = app.root.nodes.variants;
+  // Browser-faithful insertBefore: a stale child throws.
+  app.root.insertBefore = function (node, before) {
+    if (before && before.parentElement !== app.root) throw new Error("NotFoundError");
+    node.parentElement = app.root;
+    return node;
+  };
+  strip.parentElement = app.root;
+  strip.animate = () => ({ cancel() {} });
+  // The stub has no cloneNode: the ghost is a plain stand-in with the shape
+  // the payload touches.
+  strip.cloneNode = () => ({
+    removeAttribute() {}, setAttribute() {},
+    querySelectorAll: () => [], style: {},
+    animate: () => ({}),
+  });
+  quiet(() => app.click());
+  // The strip is gone from under the payload: whatever moved it, leaving the
+  // mode must not throw on the ghost it leaves behind.
+  strip.parentElement = null;
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(app.countDoc("click"), 0, "the mode still leaves");
 });
 
 test("a chat-placed preview paints, keeps as an edit, and discards cleanly", async () => {

@@ -226,13 +226,12 @@
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
-    // The dock is one surface in one place: fixed at the bottom centre, whatever
-    // the element and the page do. A column, because an open control comes out
-    // over the icon row. Below the pointer's z-index so the dot is never hidden
-    // behind it. As wide as its row, up to the viewport less a 12px margin each
-    // side: left:50% alone would cap it at half the viewport.
-    "#dock{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3;pointer-events:auto;",
-    "width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;align-items:center}",
+    // The dock is one surface in one place: fixed at the bottom right, beside
+    // the brand pill, whatever the element and the page do. A column, because
+    // an open control comes out over the icon row. As wide as its row, up to
+    // the viewport less a 12px margin on the left and room for the pill right.
+    "#dock{position:fixed;right:76px;bottom:24px;z-index:3;pointer-events:auto;",
+    "width:max-content;max-width:calc(100vw - 100px);display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
     // A row wider than the viewport wraps onto a second line, so every control
@@ -553,12 +552,12 @@
     // The brand pill: the second toolbar. Bottom-right on its own when the
     // mode is off, and still bottom-right when the dock is up, so it reads as
     // the toolbar's other half. Same paper and radius as a row.
-    "#launch{position:fixed;right:24px;bottom:24px;height:40px;min-width:40px;",
-    "border-radius:10px;border:1px solid transparent;margin:0;padding:0 9px;cursor:pointer;pointer-events:auto;z-index:4;",
+    "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;",
+    "border-radius:10px;border:1px solid transparent;margin:0;padding:0 8px;cursor:pointer;pointer-events:auto;z-index:4;",
     "display:flex;align-items:center;justify-content:center;background:var(--paper);",
     "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
     "#launch:hover{background:var(--fill-hover)}",
-    "#launch img{width:22px;height:22px;display:block;border-radius:6px}",
+    "#launch img{width:18px;height:18px;display:block;border-radius:5px}",
 
     // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
     // it off the content, as an outside stroke does), with no radius. The frame
@@ -2771,7 +2770,10 @@ function faces() {
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.pointerEvents = "none";
       ghost.style.animation = "none";
-      (into || dock).insertBefore(ghost, panel);
+      // Back where the panel is, not where it was opened: a panel that moved
+      // takes its ghost with it, and insertBefore throws on a stale child.
+      var home = panel.parentNode || into || dock;
+      home.insertBefore(ghost, panel.parentNode === home ? panel : null);
       // The copy starts at the top: put each list back where the user left it.
       ghost.scrollTop = top;
       var copies = ghost.querySelectorAll(".list");
@@ -5368,7 +5370,9 @@ function decorations() {
       hideDock();
       return;
     }
-    if (dock.hidden) showDock();
+    // An exit fade still in flight is put away: re-entering before it lands
+    // must cancel the landing, or it hides the dock under the live mode.
+    if (dock.hidden || dockLeaving) showDock();
     else dock.style.pointerEvents = "";
     row.hidden = false;
     if (dockWasHidden && !dock.hidden) extendBar();
@@ -5376,7 +5380,8 @@ function decorations() {
   }
 
   /**
-   * Put the dock away: it fades out where it stands, the way it came.
+   * Put the dock away: it travels back to the pill it stands beside and
+   * fades on the way, the way it came.
    *
    * A dock that leaves in one frame is a dock that was snatched away, and the
    * reader was not done with it.
@@ -5388,7 +5393,11 @@ function decorations() {
       dock.hidden = true;
       return;
     }
-    var out = sink(dock, "translateX(-50%)", 8);
+    var out = animate(
+      dock,
+      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(12px) scale(.96)" }],
+      { duration: T.fade, easing: LEAVE, fill: "forwards" }
+    );
     if (!out) {
       dock.hidden = true;
       return;
@@ -5416,7 +5425,7 @@ function decorations() {
       // would be a dock that was snatched away and put back in one frame.
       animateFrom(
         dock,
-        [{ opacity: 1, transform: "translateX(-50%)" }],
+        [{ opacity: 1, transform: "none" }],
         { duration: T.enter, easing: ARRIVE }
       );
       dockLeaving.cancel();
@@ -5424,7 +5433,14 @@ function decorations() {
       dock.hidden = false;
       return;
     }
+    if (!dock.hidden) return;
     dock.hidden = false;
+    // Comes back from the pill it stands beside, the way it went.
+    animate(
+      dock,
+      [{ opacity: 0, transform: "translateX(12px)" }, { opacity: 1, transform: "none" }],
+      { duration: T.enter, easing: ARRIVE }
+    );
   }
 
   /** Put the dock away at once, with no fade. For the times it has to go now. */
@@ -6939,6 +6955,9 @@ function decorations() {
   }
 
   function exit() {
+    // Anything open closes first: a stale panel would float over the dock on
+    // the way back in.
+    show("");
     active = false;
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("mousedown", onDown, true);
@@ -7434,52 +7453,10 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      if (previewCurrent) {
-        discardPreview();
-      } else if (previewList.length) {
-        discardList();
-      } else if (!pop.hidden) {
-        var opener = openKey === "changes" ? review : slot(openKey);
-        show("");
-        syncRow();
-        if (opener) {
-          if (opener !== review) rove(opener);
-          if (opener.focus) opener.focus();
-        }
-      } else if (editing) {
-        stopEditing();
-        syncElementMenu();
-      } else if (drawing || regionFor || variationBoxFor || commentFor || !variantsBox.hidden) {
-        // A drag on its way out never becomes a box. A box whose comment is
-        // open leaves with its comment unsaved.
-        if (drawing) {
-          drawing = null;
-          regionBox.hidden = true;
-        }
-        if (regionFor) {
-          regionFor = null;
-          openRegionBox = null;
-          regionBox.hidden = true;
-          hideMenu();
-        }
-        closeVariants();
-        select(null);
-      } else if (moving) {
-        var rec = record(moving);
-        var location = rec.moveFrom;
-        location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
-        delete rec.moveFrom;
-        moving = null;
-        insertion = null;
-        pointerX = null;
-        pointerY = null;
-        delete insertLine.dataset.on;
-        syncSelectionFrames();
-        syncDock();
-        syncElementMenu();
-      } else if (selected) {
-        select(null);
-      } else exit();
+      // One press leaves the whole mode: whatever is open — a control, the
+      // words, a box, the strip — goes with it, unsaved. There is no
+      // unwinding to get stuck in, and the pill is the way back in.
+      exit();
       syncRow();
       return;
     }
@@ -7524,7 +7501,8 @@ function decorations() {
   launch.addEventListener("click", function (e) {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
-    if (!active) enter();
+    if (active) exit();
+    else enter();
   });
 
   (document.body || document.documentElement).appendChild(host);
