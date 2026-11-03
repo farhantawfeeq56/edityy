@@ -7,7 +7,8 @@
  *    page's CSS cannot reach it and it cannot leak styles back out. It shows
  *    only the mark when the mode is off; clicking it dispatches
  *    `edityy:launcher-click` on window — the seam a host app can listen to —
- *    and opens the editing mode below.
+ *    and opens the editing mode below. While the mode is on, the pill hides
+ *    and the dock stands where it stood: one toolbar in the corner, never two.
  *
  * 2. A temporary editing mode. The pointer stays the pointer. Hovering
  *    outlines an element; clicking selects it and opens its actions.
@@ -226,11 +227,11 @@
     // down to the button and stops there.
     "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
-    // The dock is one surface in one place: fixed at the bottom right, beside
-    // the brand pill, whatever the element and the page do. A column, because
-    // an open control comes out over the icon row. As wide as its row, up to
-    // the viewport less a 12px margin on the left and room for the pill right.
-    "#dock{position:fixed;right:76px;bottom:24px;z-index:3;pointer-events:auto;",
+    // The dock is one surface in one place: fixed at the bottom right, where
+    // the brand pill stood, whatever the element and the page do. A column,
+    // because an open control comes out over the icon row. As wide as its row,
+    // up to the viewport less a 12px margin on the left.
+    "#dock{position:fixed;right:24px;bottom:24px;z-index:3;pointer-events:auto;",
     "width:max-content;max-width:calc(100vw - 100px);display:flex;flex-direction:column;align-items:center}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
@@ -547,11 +548,8 @@
     "input[type=search]::placeholder{-webkit-text-fill-color:var(--muted);color:var(--muted)}",
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
-    // One pill, both states: on its own while the mode is off, and the second
-    // toolbar while the dock is up.
-    // The brand pill: the second toolbar. Bottom-right on its own when the
-    // mode is off, and still bottom-right when the dock is up, so it reads as
-    // the toolbar's other half. Same paper and radius as a row.
+    // The brand pill: bottom-right while the mode is off, hidden while it is
+    // on. Same paper and radius as a row.
     "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;",
     "border-radius:10px;border:1px solid transparent;margin:0;padding:0 8px;cursor:pointer;pointer-events:auto;z-index:4;",
     "display:flex;align-items:center;justify-content:center;background:var(--paper);",
@@ -714,19 +712,14 @@
     ".sides .side-link{width:34px;height:30px;border-radius:8px;background:transparent;color:var(--muted)}",
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
-    // The row and the edits button, side by side under the open control.
+    // The bar holds the row under the open control.
     ".bar{display:flex;align-items:center;gap:6px;max-width:100%}",
-    ".bar>.solo{flex:none}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
-    ".ic.solo{position:relative;width:36px;height:36px;background:var(--paper);border:1px solid var(--ink-10);",
-    "border-radius:10px;",
-    "box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
     // The one mark of a control that is open, declared after every control it can
     // land on: the warm fill, a hairline in the ramp and the ink. A control that
-    // opens says so the same way, whether it is the row's, the Edits button or
-    // the colour button.
+    // opens says so the same way, whether it is the row's or the colour button.
     ".ic[aria-expanded=true]{background:var(--accent-soft);border-color:var(--rose);color:var(--ink)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
     // because the browser own title is slow and cannot wear the ramp. Its size is
@@ -810,12 +803,12 @@
     "<div id=\"dock\" hidden>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar" id="bar">',
-    '<div class="row" id="row" role="toolbar" aria-label="Edityy toolbar"></div>',
-    // The edits so far, apart from the row: the row is this element's controls,
-    // and the list is every element's changes.
-    '<button type="button" class="ic solo" id="review" title="Edits" aria-label="Edits" aria-expanded="false">',
-    svg("list"),
-    '<span class="count" id="count" hidden></span></button>',
+    '<div class="row" id="row" role="toolbar" aria-label="Edityy toolbar">',
+    // The edits list is the row's last tool, dressed like the three before it:
+    // the same icon, with the count badge on it while there are edits to list.
+    '<button type="button" class="ic" id="review" data-key="edits" aria-label="Edits" aria-expanded="false">',
+    svg("square-text"),
+    '<span class="count" id="count" hidden></span></button></div>',
     "</div>",
     "</div>",
     "</div>",
@@ -5380,7 +5373,7 @@ function decorations() {
   }
 
   /**
-   * Put the dock away: it travels back to the pill it stands beside and
+   * Put the dock away: it travels back to the corner it came from and
    * fades on the way, the way it came.
    *
    * A dock that leaves in one frame is a dock that was snatched away, and the
@@ -5435,7 +5428,7 @@ function decorations() {
     }
     if (!dock.hidden) return;
     dock.hidden = false;
-    // Comes back from the pill it stands beside, the way it went.
+    // Comes back from the corner, the way it went.
     animate(
       dock,
       [{ opacity: 0, transform: "translateX(12px)" }, { opacity: 1, transform: "none" }],
@@ -6930,6 +6923,9 @@ function decorations() {
   function enter() {
     active = true;
     activeTool = "comment";
+    // The pill is the closed toolbar: it hides, and the dock stands where it
+    // stood. Escape is the way back while it is hidden.
+    launch.hidden = true;
     buildRow();
     keep();
     document.addEventListener("mousemove", onMove, true);
@@ -6959,6 +6955,8 @@ function decorations() {
     // the way back in.
     show("");
     active = false;
+    // The mode is off: the pill is back, and the dock is gone.
+    launch.hidden = false;
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("mousedown", onDown, true);
     document.removeEventListener("mouseup", onUp, true);

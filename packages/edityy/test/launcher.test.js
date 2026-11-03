@@ -573,12 +573,15 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   quiet(() => app.click());
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
+  assert.equal(app.launch().hidden, true, "the pill hides and the dock stands where it stood");
+  assert.match(app.root.innerHTML, /#dock\{[^}]*right:24px/, "the dock stands where the pill stood");
   quiet(() => app.click());
   assert.equal(app.countDoc("click"), 0, "a second click on the brand leaves the mode");
   assert.equal(app.root.nodes.dock.hidden, true);
+  assert.equal(app.launch().hidden, false, "the pill is back");
 });
 
-test("the brand pill stays put and stays a button in edit mode", () => {
+test("the pill hides in edit mode and the dock stands where it stood", () => {
   const { run, text } = fakeDom();
   const app = run();
   quiet(() => {
@@ -586,12 +589,10 @@ test("the brand pill stays put and stays a button in edit mode", () => {
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
-  // No dot follows the pointer: the pill never moves and never hands its
-  // clicks to the page.
-  assert.equal(app.launch().style.translate, undefined);
-  assert.equal(app.launch().style.scale, undefined);
-  assert.equal(app.launch().style.pointerEvents || "", "");
-  assert.match(app.root.innerHTML, /src="\/__edityy\/logo\.png"/, "the pill shows the brand mark");
+  // One toolbar in the corner, never two: the pill hides while the mode is on.
+  assert.equal(app.launch().hidden, true);
+  assert.equal(app.root.nodes.dock.hidden, false);
+  assert.match(app.root.innerHTML, /src="\/__edityy\/logo\.png"/, "the pill keeps the brand mark for the way back");
   assert.equal(app.countDoc("click"), 1, "the page is still captured in edit mode");
 });
 
@@ -605,13 +606,15 @@ test("leaving edit mode keeps the brand pill as the way back in", () => {
     // One Escape leaves the whole mode: there is no unwinding to get stuck in.
     app.fire("keydown", { key: "Escape" });
   });
-  // Escape leaves the mode: the dock hides and the pill stays a button.
+  // Escape leaves the mode: the dock hides and the pill is back as the way in.
   assert.equal(app.root.nodes.dock.hidden, true);
+  assert.equal(app.launch().hidden, false);
   assert.equal(app.launch().style.pointerEvents || "", "");
   assert.equal(app.countDoc("click"), 0, "the page is released");
   // And the pill opens the mode again.
   quiet(() => app.click());
   assert.equal(app.countDoc("click"), 1, "the brand opens the toolbar again");
+  assert.equal(app.launch().hidden, true, "and hides again while the mode is on");
 });
 
 test("many pointer moves in one frame find and measure once", () => {
