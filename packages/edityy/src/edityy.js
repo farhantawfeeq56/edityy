@@ -775,7 +775,7 @@
     "input[type=search],.element-comment-text,.variants-keep{",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     "</style>",
-    '<button type="button" id="launch" title="Edityy" aria-label="Open Edityy"><img id="label" alt="Edityy logo" src="' + LOGO + '">' ,
+    '<button type="button" id="launch" title="Edityy" aria-label="Open Edityy"><img id="label" alt="Edityy logo" src="' + LOGO + '"></button>',
     '<div class="frame" id="hover" hidden></div>',
     // The selection frame carries the four corner markers, so their
     // positions follow the frame wherever the element moves.
