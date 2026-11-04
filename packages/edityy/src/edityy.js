@@ -266,14 +266,15 @@
     ".ic[aria-pressed=true]{opacity:1;background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12)}",
     ".ic[aria-pressed=true]:before{content:\"\";position:absolute;inset:8px;background:#F2F2F2;border-radius:4px;pointer-events:none}",
     ".ic[aria-pressed=true]>svg{position:relative;color:var(--ink)}",
-    // The toolbar is one segmented control: four icons, and the one that is on
-    // is filled. The fill is the active state, so no second icon set is needed.
-    // The pressed tool wears the hover fill one step darker, so on and hover
-    // read as one language. The icon stays ink: paper on this fill would fail
-    // contrast.
-    ".row>.ic[aria-pressed=true]{background:var(--ink-12);color:var(--ink);box-shadow:none;opacity:1}",
+    // The toolbar is one segmented control: three icons, and the one that is
+    // on wears the hover fill itself, so on and hover read as one language.
+    // The filled icon is what says it is on: its shapes take the fill, so
+    // the glyph turns solid while the background stays the hover colour.
+    // The icon stays ink: paper on this fill would fail contrast.
+    ".row>.ic[aria-pressed=true]{background:var(--ink-6);color:var(--ink);box-shadow:none;opacity:1}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
     ".row>.ic[aria-pressed=true]>svg{color:var(--ink)}",
+    ".row>.ic[aria-pressed=true]>svg>svg{fill:currentColor}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
     // takes the native ring away, and the glide fill alone is too faint to
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
