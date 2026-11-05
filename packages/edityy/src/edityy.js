@@ -250,9 +250,23 @@
     // The dock is one surface in one place: fixed at the bottom right, where
     // the brand pill stood, whatever the element and the page do. A column,
     // because an open control comes out over the icon row. As wide as its row,
-    // up to the viewport less a 12px margin on the left.
+    // up to the viewport less a 12px margin on the left. The grip moves it by
+    // writing its left and top inline, over this corner, until exit clears them.
     "#dock{position:fixed;right:24px;bottom:24px;z-index:3;pointer-events:auto;",
     "width:max-content;max-width:calc(100vw - 100px);display:flex;flex-direction:column;align-items:center}",
+    // The grip sticks to the row's left edge: one stuck bar with a hairline
+    // between, so the hand reads it as the toolbar's handle and not a tool.
+    // It keeps the row's full height, and it only shows while the pointer is
+    // over the dock or the keyboard is on it: at rest the toolbar is three tools.
+    ".grip{flex:none;align-self:stretch;width:26px;height:auto;display:grid;place-items:center;margin:0;",
+    "padding:0;border:1px solid transparent;border-right-color:var(--ink-10);border-radius:9px 0 0 9px;",
+    "background:#F9F8F6;color:var(--muted);cursor:grab;touch-action:none;opacity:0;pointer-events:none;",
+    "box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
+    "transition:opacity var(--tint) var(--standard)}",
+    "#dock:hover .grip,.grip:focus-visible{opacity:1;pointer-events:auto}",
+    ".grip:active{cursor:grabbing}",
+    ".grip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
+    ".grip>svg{width:16px;height:16px;display:block;color:inherit}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
     // A row wider than the viewport wraps onto a second line, so every control
@@ -739,7 +753,7 @@
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The bar holds the row under the open control.
-    ".bar{display:flex;align-items:center;gap:6px;max-width:100%}",
+    ".bar{display:flex;align-items:center;gap:0;max-width:100%}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -831,6 +845,13 @@
     "</button>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar" id="bar">',
+    // The grip is the toolbar's handle: left of the row, its own pill, so it
+    // reads as the way to move the bar and not a fourth tool. Six dots.
+    '<button type="button" class="grip" id="grip" aria-label="Move toolbar">',
+    '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">',
+    '<circle cx="5.5" cy="3.5" r="1.5"/><circle cx="10.5" cy="3.5" r="1.5"/>',
+    '<circle cx="5.5" cy="8" r="1.5"/><circle cx="10.5" cy="8" r="1.5"/>',
+    '<circle cx="5.5" cy="12.5" r="1.5"/><circle cx="10.5" cy="12.5" r="1.5"/></svg></button>',
     '<div class="row" id="row" role="toolbar" aria-label="Edityy toolbar">',
     // The edits list is the row's last tool, dressed like the three before it:
     // the same icon, with the count badge on it while there are edits to list.
@@ -857,6 +878,7 @@
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
+  var gripBtn = $("grip");
   var launchImg = $("label");
   // The row and the edits button it sits beside: one surface on the page.
   var barEl = $("bar");
@@ -2771,9 +2793,9 @@ function faces() {
    * edits bar extending rather than a second bar arriving.
    */
   function extendBar() {
-    // How much of the bar is drawn out: whatever stands left of its right edge.
-    // With no row that is the edits button itself, at the very start.
-    var grow = row.hidden ? barEl.offsetWidth : row.offsetWidth + 6;
+    // How much of the bar is drawn out: the whole bar, grip and row, from
+    // its right edge, so the bar arrives as one line.
+    var grow = barEl.offsetWidth;
     if (!grow) return;
     animate(
       barEl,
@@ -2865,6 +2887,65 @@ function faces() {
       { duration: T.enter, easing: ARRIVE }
     );
   }
+
+  /**
+   * The toolbar follows the grip anywhere on the page. The dock is fixed, so
+   * moving it is writing its left and top over the corner it stands in. The
+   * pointer keeps the grip until it lets go, so the hand may cross the page
+   * without the bar stopping. Exit clears the inline place, so the dock is
+   * back in its corner the next time it stands up.
+   */
+  function placeDock(left, top) {
+    var width = dock.offsetWidth || 0;
+    var height = dock.offsetHeight || 0;
+    var across = (window.innerWidth || 0) - width - 8;
+    var down = (window.innerHeight || 0) - height - 8;
+    dock.style.left = Math.max(8, Math.min(left, Math.max(8, across))) + "px";
+    dock.style.top = Math.max(8, Math.min(top, Math.max(8, down))) + "px";
+    dock.style.right = "auto";
+    dock.style.bottom = "auto";
+  }
+  function unplaceDock() {
+    dock.style.left = "";
+    dock.style.top = "";
+    dock.style.right = "";
+    dock.style.bottom = "";
+  }
+  (function () {
+    var held = false;
+    var offX = 0;
+    var offY = 0;
+    gripBtn.addEventListener("pointerdown", function (e) {
+      if (e.preventDefault) e.preventDefault();
+      if (gripBtn.setPointerCapture && e.pointerId !== undefined) gripBtn.setPointerCapture(e.pointerId);
+      var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+      offX = box ? e.clientX - box.left : 0;
+      offY = box ? e.clientY - box.top : 0;
+      held = true;
+    });
+    gripBtn.addEventListener("pointermove", function (e) {
+      if (held) placeDock(e.clientX - offX, e.clientY - offY);
+    });
+    function letGo() { held = false; }
+    gripBtn.addEventListener("pointerup", letGo);
+    gripBtn.addEventListener("pointercancel", letGo);
+    // The keyboard moves the bar too: arrows walk it, so it is not pointer-only.
+    gripBtn.addEventListener("keydown", function (e) {
+      var step = e.shiftKey ? 1 : 24;
+      var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+      if (!box) return;
+      var left = box.left;
+      var top = box.top;
+      if (e.key === "ArrowLeft") left -= step;
+      else if (e.key === "ArrowRight") left += step;
+      else if (e.key === "ArrowUp") top -= step;
+      else if (e.key === "ArrowDown") top += step;
+      else return;
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+      placeDock(left, top);
+    });
+  })();
 
   /**
    * A copy of the open panel, to fade out over the dock while the real one is
@@ -7109,6 +7190,7 @@ function decorations() {
     future = [];
     select(null);
     hideHover();
+    unplaceDock(); // the dock goes home: the next entry starts in its corner
     keep(); // the mode is off: nothing to bring back on the next load
   }
 

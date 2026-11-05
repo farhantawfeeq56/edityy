@@ -1402,6 +1402,43 @@ test("Alt+S drops to browse: no tool on, nothing picked", () => {
   assert.equal(app.root.selection(), null, "nothing stays picked");
 });
 
+test("the grip sticks to the row, six dots, and only shows on hover", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  const html = app.root.innerHTML;
+  const gripAt = html.indexOf('id="grip"');
+  assert.ok(gripAt !== -1, "the bar carries a grip");
+  assert.ok(gripAt < html.indexOf('id="row"'), "left of the row");
+  assert.match(html, /class="grip"[^>]*aria-label="Move toolbar"/, "stuck but its own piece, named for the move");
+  assert.doesNotMatch(html.slice(gripAt, html.indexOf("</button>", gripAt)), /title=/, "no tooltip on the grip");
+  assert.match(html, /\.bar\{[^}]*gap:0/, "stuck to the row, no gap");
+  assert.match(html, /\.row\{[^}]*border-radius:10px/, "the toolbar keeps its corners");
+  assert.match(html, /\.grip\{[^}]*opacity:0/, "hidden at rest");
+  assert.match(html, /#dock:hover \.grip/, "shown while the pointer is over the dock");
+  assert.ok(!app.root.nodes.row.children.includes(app.root.nodes.grip), "no fourth tool");
+  assert.equal(app.root.nodes.grip.bubbles.pointerover, undefined, "no tooltip listener");
+  const dots = (html.slice(gripAt, html.indexOf("</button>", gripAt)).match(/<circle/g) || []).length;
+  assert.equal(dots, 6, "six dots");
+});
+
+test("dragging the grip moves the toolbar, and exit puts it home", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  const grip = app.root.nodes.grip;
+  const dock = app.root.nodes.dock;
+  dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
+  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
+  for (const fn of grip.bubbles.pointerup.bubble) fn({});
+  assert.equal(dock.style.left, "390px");
+  assert.equal(dock.style.top, "290px");
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(dock.style.left, "");
+  assert.equal(dock.style.top, "");
+});
+
 
 
 
