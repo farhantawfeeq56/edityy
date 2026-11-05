@@ -1464,6 +1464,23 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   assert.equal(dock.style.top, "290px");
 });
 
+test("the logo pill itself drags, and a drag never opens", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const launch = app.root.nodes.launch;
+  const dock = app.root.nodes.dock;
+  launch.getBoundingClientRect = () => ({ left: 1130, top: 750, right: 1200, bottom: 788, width: 70, height: 38 });
+  for (const fn of launch.bubbles.pointerdown.bubble) fn({ clientX: 1140, clientY: 760, preventDefault() {} });
+  for (const fn of launch.bubbles.pointermove.bubble) fn({ clientX: 500, clientY: 400 });
+  for (const fn of launch.bubbles.pointerup.bubble) fn({});
+  assert.equal(launch.style.left, "490px", "the pill follows the hand");
+  assert.equal(launch.style.top, "390px");
+  quiet(() => app.click());
+  assert.equal(dock.hidden, true, "letting go over the pill does not open");
+  quiet(() => app.click());
+  assert.equal(dock.hidden, false, "a tap still opens");
+});
+
 
 
 

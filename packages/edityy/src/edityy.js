@@ -589,7 +589,7 @@
     "{-webkit-appearance:none;margin:0}",
     // The brand pill: bottom-right while the mode is off, hidden while it is
     // on. Same surface and radius as a row.
-    "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;",
+    "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;touch-action:none;",
     "border-radius:10px;border:1px solid transparent;margin:0;padding:0 8px;cursor:pointer;pointer-events:auto;z-index:4;",
     "display:flex;align-items:center;justify-content:center;background:#F9F8F6;",
     "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
@@ -2918,6 +2918,17 @@ function faces() {
     dock.style.right = "";
     dock.style.bottom = "";
     dock.removeAttribute("data-placed");
+  }
+  /** The pill stands where it is put, clamped to the page like the bar. */
+  function placeLaunch(left, top) {
+    var width = launch.offsetWidth || 0;
+    var height = launch.offsetHeight || 0;
+    var across = (window.innerWidth || 0) - width - 8;
+    var down = (window.innerHeight || 0) - height - 8;
+    launch.style.left = Math.max(8, Math.min(left, Math.max(8, across))) + "px";
+    launch.style.top = Math.max(8, Math.min(top, Math.max(8, down))) + "px";
+    launch.style.right = "auto";
+    launch.style.bottom = "auto";
   }
   (function () {
     var held = false;
@@ -7751,10 +7762,43 @@ function decorations() {
 
   launch.addEventListener("click", function (e) {
     e.stopPropagation();
+    // A drag lets go over the pill: that press moved it, it does not open it.
+    if (pillMoved) { pillMoved = false; return; }
     window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
     if (active) exit();
     else enter();
   });
+
+  // The pill itself drags, with no handle and no special cursor: a press that
+  // travels past a tap moves the pill, a tap still opens. The bar stands up
+  // where a dragged pill is, and the pill comes back where a dragged bar was.
+  var pillMoved = false;
+  (function () {
+    var down = false;
+    var startX = 0;
+    var startY = 0;
+    var offX = 0;
+    var offY = 0;
+    launch.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (launch.setPointerCapture && e.pointerId !== undefined) launch.setPointerCapture(e.pointerId);
+      var box = launch.getBoundingClientRect ? launch.getBoundingClientRect() : null;
+      offX = box ? e.clientX - box.left : 0;
+      offY = box ? e.clientY - box.top : 0;
+      startX = e.clientX;
+      startY = e.clientY;
+      down = true;
+    });
+    launch.addEventListener("pointermove", function (e) {
+      if (!down) return;
+      if (!pillMoved && Math.abs(e.clientX - startX) < 6 && Math.abs(e.clientY - startY) < 6) return;
+      pillMoved = true;
+      placeLaunch(e.clientX - offX, e.clientY - offY);
+    });
+    function letGo() { down = false; }
+    launch.addEventListener("pointerup", letGo);
+    launch.addEventListener("pointercancel", letGo);
+  })();
 
   $("dock-close").addEventListener("click", function (e) {
     e.stopPropagation();
