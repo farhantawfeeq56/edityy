@@ -1418,6 +1418,7 @@ test("the grip is part of the primary toolbar, with six dots and no tooltip", ()
   assert.match(html, /\.grip\{[^}]*opacity:0/, "the grip stays hidden at rest");
   assert.match(html, /\.grip\{[^}]*position:absolute/, "the grip floats, outside the flow");
   assert.match(html, /#dock:hover \.bar[^}]*padding-left:24px/, "hover widens the bar left, tools undisturbed");
+  assert.match(html, /#dock\[data-placed\]:hover[^}]*margin-left:-24px/, "a dragged bar grows left too, tools undisturbed");
   assert.match(html, /#dock:hover \.grip[^}]*width:30px/, "hover shows the grip in the room");
   assert.ok(!app.root.nodes.row.children.includes(app.root.nodes.grip), "grip is not a tool");
   assert.equal(app.root.nodes.grip.bubbles.pointerover, undefined, "no tooltip listener");
@@ -1437,9 +1438,11 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
   for (const fn of grip.bubbles.pointerup.bubble) fn({});
   assert.equal(dock.style.left, "390px");
   assert.equal(dock.style.top, "290px");
+  assert.equal(dock.getAttribute("data-placed"), "true", "placed, so hover pays back the widening");
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(dock.style.left, "");
   assert.equal(dock.style.top, "");
+  assert.equal(dock.getAttribute("data-placed"), undefined, "home again, corner behaviour back");
 });
 
 

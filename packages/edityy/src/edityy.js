@@ -755,6 +755,11 @@
     ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:#F9F8F6;border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
     "transition:padding-left var(--slide) var(--arrive)}",
     "#dock:hover .bar,#dock:focus-within .bar{padding-left:24px}",
+    // A dragged dock stands from its left edge, so its widening would run
+    // right, under the tools. While it is placed it gives back on its left
+    // exactly what the bar takes, in the same beat, and the tools stand still.
+    "#dock[data-placed]{transition:margin-left var(--slide) var(--arrive)}",
+    "#dock[data-placed]:hover,#dock[data-placed]:focus-within{margin-left:-24px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -2905,12 +2910,14 @@ function faces() {
     dock.style.top = Math.max(8, Math.min(top, Math.max(8, down))) + "px";
     dock.style.right = "auto";
     dock.style.bottom = "auto";
+    dock.setAttribute("data-placed", "true");
   }
   function unplaceDock() {
     dock.style.left = "";
     dock.style.top = "";
     dock.style.right = "";
     dock.style.bottom = "";
+    dock.removeAttribute("data-placed");
   }
   (function () {
     var held = false;
