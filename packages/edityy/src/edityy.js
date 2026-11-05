@@ -297,7 +297,7 @@
     // The filled icon is what says it is on: its shapes take the fill, so
     // the glyph turns solid while the background stays the hover colour.
     // The icon stays ink: paper on this fill would fail contrast.
-    ".row>.ic[aria-pressed=true]{background:var(--ink-6);color:var(--ink);box-shadow:none;opacity:1}",
+    ".row>.ic[aria-pressed=true]{background:var(--ink-6);color:var(--ink);box-shadow:none;opacity:1;border-color:transparent}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
     ".row>.ic[aria-pressed=true]>svg{color:var(--ink)}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
@@ -748,11 +748,10 @@
     // opens says so the same way, whether it is the row's or the colour button.
     ".ic[aria-expanded=true]{background:var(--accent-soft);border-color:var(--rose);color:var(--ink)}",
     // The tooltip of a control in the primary dock: ink on paper, drawn here
-    // because the browser own title is slow and cannot wear the ramp. Its size is
-    // the dock's: a touch under the 13px the dock's own words are, in the 7px
-    // corner its buttons have, so it reads as part of the row and not a card.
-    ".tip{position:fixed;z-index:6;pointer-events:none;padding:4px 7px;border-radius:7px;",
-    "background:var(--ink);color:var(--paper);font:500 11px/1.2 inherit;white-space:nowrap;",
+    // because the browser own title is slow and cannot wear the ramp. It stays
+    // smaller than the row itself, so it reads as a label on the toolbar.
+    ".tip{position:fixed;z-index:6;pointer-events:none;padding:3px 6px;border-radius:6px;",
+    "background:var(--ink);color:var(--paper);font:500 10px/1.2 inherit;white-space:nowrap;",
     "box-shadow:0 1px 1px var(--ink-8),0 4px 10px var(--ink-12);transform-origin:50% 100%}",
     ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
@@ -4605,16 +4604,19 @@ function decorations() {
 
   /** Press a tool in the row. A second press drops to browse. */
   function pressTool(key) {
+    // Edits is one of the tools now, not a button beside them: pressing it
+    // makes it the one on, so Comment and Add drop off as they do for each
+    // other. A second press closes the list and leaves no tool on.
     if (activeTool === key) {
       activeTool = "";
       show("");
-      select(null);
+      if (key !== "edits") select(null);
       syncRow();
       syncElementMenu();
       return;
     }
     activeTool = key;
-    show("");
+    show(key === "edits" ? "changes" : "");
     // Add is freeform: it starts with nothing selected and no card open, so a
     // drag can never begin on an element or move one.
     if (key === "add") {
@@ -4634,9 +4636,12 @@ function decorations() {
     for (var i = 0; i < row.children.length; i++) {
       var b = row.children[i];
       if (b === review) {
-        var changesOn = openKey === "changes";
-        b.setAttribute("aria-pressed", changesOn ? "true" : "false");
-        paintTool(b, "edits", changesOn);
+        // If the list closed some other way, Edits is no longer the tool on:
+        // it cannot stay pressed with nothing open.
+        if (activeTool === "edits" && openKey !== "changes") activeTool = "";
+        var editsOn = activeTool === "edits";
+        b.setAttribute("aria-pressed", editsOn ? "true" : "false");
+        paintTool(b, "edits", editsOn);
         continue;
       }
       var on = b.dataset.key === activeTool && !!activeTool;
@@ -6838,8 +6843,7 @@ function decorations() {
   }
 
   review.addEventListener("click", function () {
-    show(review.getAttribute("aria-expanded") === "true" ? "" : "changes");
-    syncRow();
+    pressTool("edits");
   });
 
   /** The edits as Markdown, for scripts and for anything that wants them. */
@@ -7465,6 +7469,12 @@ function decorations() {
     pointerX = x;
     pointerY = y;
     inFrame("hover", function () {
+      // No tool on means browse: the pointer finds nothing and the hover
+      // frame stays away.
+      if (!activeTool) {
+        hideHover();
+        return;
+      }
       // Add is freeform: no element is outlined or picked, only the box drawn.
       if (drawing || activeTool === "add") {
         hideHover();

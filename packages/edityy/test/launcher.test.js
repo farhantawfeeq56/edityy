@@ -1352,6 +1352,42 @@ test("the toolbar is up with nothing selected, offering the three things it has"
   assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
 
+test("Edits is one of the three tools: only one is on at a time", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const row = () => app.root.nodes.row.children;
+  const pressed = () => row().map((b) => b.getAttribute("aria-pressed"));
+  quiet(() => app.click());
+  assert.deepEqual(pressed(), ["true", "false", "false"], "Comment starts on");
+  press(app, "edits");
+  assert.deepEqual(pressed(), ["false", "false", "true"], "Edits takes the place of Comment");
+  assert.equal(app.root.nodes.pop.hidden, false, "the list is open");
+  press(app, "add");
+  assert.deepEqual(pressed(), ["false", "true", "false"], "Add takes the place of Edits");
+  assert.equal(app.root.nodes.pop.hidden, true, "the list is closed");
+  press(app, "comment");
+  assert.deepEqual(pressed(), ["true", "false", "false"], "Comment takes the place of Add");
+  press(app, "edits");
+  press(app, "edits");
+  assert.deepEqual(pressed(), ["false", "false", "false"], "a second press on Edits leaves none on");
+  const css = app.root.innerHTML;
+  assert.match(css, /\.row>\.ic\[aria-pressed=true\]\{[^}]*border-color:transparent/, "the chosen tool keeps the toolbar border, not the warm one");
+});
+
+test("with no tool on, hovering the page shows no bounding box", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const heading = text("h1", "Edityy");
+  quiet(() => app.click());
+  press(app, "comment");
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.getAttribute("aria-pressed")), ["false", "false", "false"]);
+  quiet(() => {
+    app.hover(heading);
+    app.fire("mousemove", { clientX: 10, clientY: 10 });
+  });
+  assert.equal(app.root.nodes.hover.hidden, true, "browse does not frame the words under the pointer");
+});
+
 
 
 
