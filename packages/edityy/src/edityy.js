@@ -768,12 +768,16 @@
     // The bar holds the row under the open control.
     ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:#F9F8F6;border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
     "transition:padding-left var(--slide) var(--arrive)}",
-    "#dock:hover .bar,#dock:focus-within .bar{padding-left:24px}",
+    // The bar gives the grip its room only while it is hovered, or while the
+    // grip itself is keyboard-focused. A clicked tool keeps :focus-within
+    // and would pin the bar wide after the mouse has gone; :focus-visible
+    // on the grip does not, and the mouse still gets its widening on hover.
+    "#dock:hover .bar,#dock:has(.grip:focus-visible) .bar{padding-left:24px}",
     // A dragged dock stands from its left edge, so its widening would run
     // right, under the tools. While it is placed it gives back on its left
     // exactly what the bar takes, in the same beat, and the tools stand still.
     "#dock[data-placed]{transition:margin-left var(--slide) var(--arrive)}",
-    "#dock[data-placed]:hover,#dock[data-placed]:focus-within{margin-left:-24px}",
+    "#dock[data-placed]:hover,#dock[data-placed]:has(.grip:focus-visible){margin-left:-24px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
