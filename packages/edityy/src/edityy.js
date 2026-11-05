@@ -858,8 +858,12 @@
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
+  var launchImg = $("label");
   // The row and the edits button it sits beside: one surface on the page.
   var barEl = $("bar");
+  // True only while the open choreography below is running: it is what lets
+  // the controls stagger in on entry, and nowhere else.
+  var entering = false;
   var pop = $("pop");
   var review = $("review");
   var marksBox = $("marks");
@@ -2779,6 +2783,87 @@ function faces() {
         { clipPath: "inset(0 0 0 0px)", transform: "none" },
       ],
       { duration: T.rise, easing: ARRIVE }
+    );
+  }
+
+  /**
+   * The open choreography, in the order it plays. The logo shrinks, the bar
+   * draws out from its right edge, and the controls land on it one by one,
+   * rightmost first, so they arrive in the direction the bar grew. `next`
+   * runs when the shrink is done and the pill can hide. Where motion is not
+   * allowed this runs at once, so less motion sees no sequence at all.
+   *
+   * Only the image shrinks, never the pill: the paper stays put and the mark
+   * is what moves.
+   */
+  function shrinkLogo(next) {
+    var done = animate(
+      launchImg,
+      [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.6)", opacity: 0 }],
+      { duration: T.settle, easing: STANDARD, fill: "forwards" }
+    );
+    if (!done) { next(); return; }
+    done.onfinish = function () { done.cancel(); next(); };
+  }
+
+  /**
+   * The controls land from the right, one half-press apart, as the bar is
+   * drawing out: the first one starts while the bar is still growing, so
+   * the row fills in as one wave rather than as clicks after a wait. Each
+   * one waits at its small scale until its turn, so nothing pops in.
+   */
+  function staggerIn() {
+    var items = Array.prototype.slice.call(row.children);
+    for (var i = items.length - 1, step = 0; i >= 0; i--, step++) {
+      animate(
+        items[i],
+        [{ opacity: 0, transform: "scale(.8)" }, { opacity: 1, transform: "none" }],
+        { duration: T.enter, easing: ARRIVE, delay: T.slide + step * (T.press / 2), fill: "backwards" }
+      );
+    }
+  }
+
+  /**
+   * The same wave out, in the same direction, before the bar goes: the
+   * controls leave rightmost first, then `next` hides the dock. `next` runs
+   * once at least one control has had time to leave, or at once where motion
+   * is not allowed.
+   */
+  function staggerOut(next) {
+    if (dock.hidden) { next(); return; }
+    var items = Array.prototype.slice.call(row.children);
+    var last = null;
+    for (var i = items.length - 1, step = 0; i >= 0; i--, step++) {
+      var run = animate(
+        items[i],
+        [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.8)" }],
+        { duration: T.fade, easing: LEAVE, delay: step * (T.press / 2), fill: "backwards" }
+      );
+      // Each next run waits longer than the one before, so the last one the
+      // loop starts is the last to land: it bounds the wait.
+      if (run) last = run;
+    }
+    if (!last) { next(); return; }
+    var waited = false;
+    var fire = function () { if (!waited) { waited = true; next(); } };
+    last.onfinish = fire;
+    // A run that is cancelled fires no finish event, so the dock cannot be
+    // left standing with no way home: the same timeout the ghost copy uses.
+    setTimeout(fire, (items.length * (T.press / 2) + T.fade) * 2);
+  }
+
+  /**
+   * The way back out of the chrome: the pill returns, and the logo grows
+   * into it. The pill comes first, so the mark grows inside a surface that
+   * is already there. Nothing grows where the mode is on again.
+   */
+  function restoreLogo() {
+    if (active) return;
+    launch.hidden = false;
+    animate(
+      launchImg,
+      [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+      { duration: T.enter, easing: ARRIVE }
     );
   }
 
@@ -5416,7 +5501,9 @@ function decorations() {
     // without a selection, and with one element or several.
     if (!active) {
       show("");
-      hideDock();
+      // The way back out is the way in, backwards: the controls wave out,
+      // the bar and dock fade, and the pill with the logo grows back.
+      staggerOut(function () { hideDock(restoreLogo); });
       return;
     }
     // An exit fade still in flight is put away: re-entering before it lands
@@ -5424,7 +5511,12 @@ function decorations() {
     if (dock.hidden || dockLeaving) showDock();
     else dock.style.pointerEvents = "";
     row.hidden = false;
-    if (dockWasHidden && !dock.hidden) extendBar();
+    if (dockWasHidden && !dock.hidden) {
+      extendBar();
+      // Only an entry waves the controls in: a dock that reappears mid-mode
+      // simply draws out, as it always did.
+      if (entering) staggerIn();
+    }
     syncRow();
   }
 
@@ -5435,11 +5527,12 @@ function decorations() {
    * A dock that leaves in one frame is a dock that was snatched away, and the
    * reader was not done with it.
    */
-  function hideDock() {
-    if (dock.hidden) return;
+  function hideDock(done) {
+    if (dock.hidden) { if (done) done(); return; }
     if (dockLeaving) return;
     if (!moves(dock)) {
       dock.hidden = true;
+      if (done) done();
       return;
     }
     var out = animate(
@@ -5449,6 +5542,7 @@ function decorations() {
     );
     if (!out) {
       dock.hidden = true;
+      if (done) done();
       return;
     }
     // A dock that is on its way out takes no clicks: it is leaving.
@@ -5458,6 +5552,7 @@ function decorations() {
       dockLeaving = null;
       dock.hidden = true;
       out.cancel();
+      if (done) done();
     };
   }
 
@@ -6928,8 +7023,10 @@ function decorations() {
     active = true;
     activeTool = "comment";
     // The pill is the closed toolbar: it hides, and the dock stands where it
-    // stood. Escape is the way back while it is hidden.
-    launch.hidden = true;
+    // stood. Escape is the way back while it is hidden. The pill hides only
+    // once the logo has shrunk: it is the first beat of the choreography,
+    // not a cut.
+    entering = true;
     buildRow();
     keep();
     document.addEventListener("mousemove", onMove, true);
@@ -6951,7 +7048,14 @@ function decorations() {
     previewPolls = 0;
     previewSeen = "";
     pollPreviews(); // an agent may have placed a preview while the page was idle
-    syncDock();
+    shrinkLogo(function () {
+      // A close inside the shrink put the mode back off: there is nothing
+      // for the dock to stand up for.
+      if (!active) return;
+      launch.hidden = true;
+      syncDock();
+      entering = false;
+    });
   }
 
   function exit() {
@@ -6959,8 +7063,10 @@ function decorations() {
     // the way back in.
     show("");
     active = false;
-    // The mode is off: the pill is back, and the dock is gone.
-    launch.hidden = false;
+    // The mode is off. The pill comes back last, once the dock has gone, so
+    // there is never a frame with both in the corner: `restoreLogo` brings
+    // it when the exit wave lands.
+    entering = false;
     document.removeEventListener("mousemove", onMove, true);
     document.removeEventListener("mousedown", onDown, true);
     document.removeEventListener("mouseup", onUp, true);
