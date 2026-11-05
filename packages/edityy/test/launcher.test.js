@@ -1402,21 +1402,24 @@ test("Alt+S drops to browse: no tool on, nothing picked", () => {
   assert.equal(app.root.selection(), null, "nothing stays picked");
 });
 
-test("the grip sticks to the row, six dots, and only shows on hover", () => {
+test("the grip is part of the primary toolbar, with six dots and no tooltip", () => {
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
   const html = app.root.innerHTML;
   const gripAt = html.indexOf('id="grip"');
   assert.ok(gripAt !== -1, "the bar carries a grip");
-  assert.ok(gripAt < html.indexOf('id="row"'), "left of the row");
-  assert.match(html, /class="grip"[^>]*aria-label="Move toolbar"/, "stuck but its own piece, named for the move");
+  assert.ok(gripAt < html.indexOf('id="row"'), "left of the tools");
+  assert.match(html, /class="grip"[^>]*aria-label="Move toolbar"/, "accessible drag handle");
   assert.doesNotMatch(html.slice(gripAt, html.indexOf("</button>", gripAt)), /title=/, "no tooltip on the grip");
-  assert.match(html, /\.bar\{[^}]*gap:0/, "stuck to the row, no gap");
-  assert.match(html, /\.row\{[^}]*border-radius:10px/, "the toolbar keeps its corners");
-  assert.match(html, /\.grip\{[^}]*opacity:0/, "hidden at rest");
-  assert.match(html, /#dock:hover \.grip/, "shown while the pointer is over the dock");
-  assert.ok(!app.root.nodes.row.children.includes(app.root.nodes.grip), "no fourth tool");
+  assert.match(html, /\.bar\{[^}]*border-radius:10px/, "one rounded primary surface");
+  assert.match(html, /\.row\{[^}]*border-radius:10px/, "the toolbar keeps its full corners");
+  assert.match(html, /\.grip\{[^}]*width:0/, "the grip takes no space at rest");
+  assert.match(html, /\.grip\{[^}]*opacity:0/, "the grip stays hidden at rest");
+  assert.match(html, /\.grip\{[^}]*position:absolute/, "the grip floats, outside the flow");
+  assert.match(html, /#dock:hover \.bar[^}]*padding-left:24px/, "hover widens the bar left, tools undisturbed");
+  assert.match(html, /#dock:hover \.grip[^}]*width:30px/, "hover shows the grip in the room");
+  assert.ok(!app.root.nodes.row.children.includes(app.root.nodes.grip), "grip is not a tool");
   assert.equal(app.root.nodes.grip.bubbles.pointerover, undefined, "no tooltip listener");
   const dots = (html.slice(gripAt, html.indexOf("</button>", gripAt)).match(/<circle/g) || []).length;
   assert.equal(dots, 6, "six dots");

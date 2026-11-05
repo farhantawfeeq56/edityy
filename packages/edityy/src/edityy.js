@@ -254,16 +254,15 @@
     // writing its left and top inline, over this corner, until exit clears them.
     "#dock{position:fixed;right:24px;bottom:24px;z-index:3;pointer-events:auto;",
     "width:max-content;max-width:calc(100vw - 100px);display:flex;flex-direction:column;align-items:center}",
-    // The grip sticks to the row's left edge: one stuck bar with a hairline
-    // between, so the hand reads it as the toolbar's handle and not a tool.
-    // It keeps the row's full height, and it only shows while the pointer is
-    // over the dock or the keyboard is on it: at rest the toolbar is three tools.
-    ".grip{flex:none;align-self:stretch;width:26px;height:auto;display:grid;place-items:center;margin:0;",
-    "padding:0;border:1px solid transparent;border-right-color:var(--ink-10);border-radius:9px 0 0 9px;",
-    "background:#F9F8F6;color:var(--muted);cursor:grab;touch-action:none;opacity:0;pointer-events:none;",
-    "box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
-    "transition:opacity var(--tint) var(--standard)}",
-    "#dock:hover .grip,.grip:focus-visible{opacity:1;pointer-events:auto}",
+    // The grip is the toolbar's first segment, not a separate pill: it floats
+    // over the bar's left edge, so the bar widens left to show it while the
+    // tools stand exactly where they were. At rest it takes no space and the
+    // toolbar is its old self; hidden, it is still one rounded pill.
+    ".grip{position:absolute;left:0;top:0;bottom:0;width:0;display:grid;place-items:center;margin:0;",
+    "padding:0;border:0;overflow:hidden;border-radius:10px 0 0 10px;",
+    "background:transparent;color:var(--muted);cursor:grab;touch-action:none;opacity:0;pointer-events:none;",
+    "transition:width var(--slide) var(--arrive),opacity var(--tint) var(--standard)}",
+    "#dock:hover .grip,.grip:focus-visible{width:30px;opacity:1;pointer-events:auto}",
     ".grip:active{cursor:grabbing}",
     ".grip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".grip>svg{width:16px;height:16px;display:block;color:inherit}",
@@ -272,8 +271,8 @@
     // A row wider than the viewport wraps onto a second line, so every control
     // stays on screen; it does not scroll, which would clip the lists that come
     // up out of its controls.
-    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:#F9F8F6;border:0;border-radius:10px;",
-    "box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6)}",
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:transparent;border:0;border-radius:10px;",
+    "box-shadow:none}",
     // The close chip: half on the dock's top-right corner, half out, so it
     // reads as the corner's own tab and not a fifth tool in the row.
     ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:var(--paper);color:var(--muted);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
@@ -753,7 +752,9 @@
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The bar holds the row under the open control.
-    ".bar{display:flex;align-items:center;gap:0;max-width:100%}",
+    ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:#F9F8F6;border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
+    "transition:padding-left var(--slide) var(--arrive)}",
+    "#dock:hover .bar,#dock:focus-within .bar{padding-left:24px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
