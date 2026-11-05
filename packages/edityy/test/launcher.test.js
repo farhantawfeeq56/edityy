@@ -1326,9 +1326,10 @@ test("every icon draws a Lucide glyph, not the name it is asked for by", () => {
   const drawn = (markup) => {
     assert.match(markup, /aria-hidden="true">\s*<[a-z]/, `nothing was drawn: ${markup}`);
     assert.match(markup, /<(path|rect|circle|line|polyline|ellipse|polygon)[\s/]/, `no shape drawn: ${markup}`);
-    assert.match(markup, /stroke="currentColor"/, `not a Lucide glyph: ${markup}`);
+    assert.match(markup, /(stroke|fill)="currentColor"/, `not an icon glyph: ${markup}`);
   };
-  // Three icons, all drawn from the one glyph table.
+  // Three icons, drawn from the glyph table: Lucide at rest, the Tabler
+  // filled twin when on.
   const icons = app.root.nodes.row.children.filter((b) => b.innerHTML.includes("<svg"));
   assert.equal(icons.length, 3, "the three tools are drawn");
   for (const button of icons) drawn(button.innerHTML);
