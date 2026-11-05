@@ -7146,9 +7146,37 @@ function decorations() {
       // for the dock to stand up for.
       if (!active) return;
       launch.hidden = true;
+      dockFromLaunch(); // the bar stands up where the pill was
       syncDock();
       entering = false;
     });
+  }
+
+  /**
+   * The pill and the bar are one thing standing in one place: closing the
+   * bar leaves the pill where the bar stood, and opening puts the bar back
+   * where the pill is. Where neither was ever moved both keep the corner.
+   */
+  function dockFromLaunch() {
+    if (!launch.style.left) return;
+    dock.style.left = launch.style.left;
+    dock.style.top = launch.style.top;
+    dock.style.right = "auto";
+    dock.style.bottom = "auto";
+    dock.setAttribute("data-placed", "true");
+  }
+  function launchFromDock() {
+    if (!dock.style.left) {
+      launch.style.left = "";
+      launch.style.top = "";
+      launch.style.right = "";
+      launch.style.bottom = "";
+      return;
+    }
+    launch.style.left = dock.style.left;
+    launch.style.top = dock.style.top;
+    launch.style.right = "auto";
+    launch.style.bottom = "auto";
   }
 
   function exit() {
@@ -7198,7 +7226,8 @@ function decorations() {
     future = [];
     select(null);
     hideHover();
-    unplaceDock(); // the dock goes home: the next entry starts in its corner
+    launchFromDock(); // the pill stays where the bar stood
+    unplaceDock(); // the dock goes home: the next entry starts at the pill
     keep(); // the mode is off: nothing to bring back on the next load
   }
 

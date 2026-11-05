@@ -1445,6 +1445,25 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
   assert.equal(dock.getAttribute("data-placed"), undefined, "home again, corner behaviour back");
 });
 
+test("closing a dragged toolbar leaves the logo where it stood", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  const grip = app.root.nodes.grip;
+  const dock = app.root.nodes.dock;
+  const launch = app.root.nodes.launch;
+  dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
+  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
+  for (const fn of grip.bubbles.pointerup.bubble) fn({});
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(launch.style.left, "390px", "the pill stays where the bar stood");
+  assert.equal(launch.style.top, "290px");
+  quiet(() => app.click());
+  assert.equal(dock.style.left, "390px", "the bar stands back up where the pill was");
+  assert.equal(dock.style.top, "290px");
+});
+
 
 
 
