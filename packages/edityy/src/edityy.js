@@ -115,6 +115,26 @@
     var glyph = GLYPHS[name] || name;
     return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + glyph + "</svg>";
   };
+  // Tabler (MIT): each tool ships a true filled twin. The outline wears the
+  // tool at rest, the filled glyph wears it when the tool is on.
+  var TOOL_FAMILIES = {
+    tabler: {
+      comment: { outline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1" /></svg>',
+        filled: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.821 4.91c3.899 -2.765 9.468 -2.539 13.073 .535c3.667 3.129 4.168 8.238 1.152 11.898c-2.841 3.447 -7.965 4.583 -12.231 2.805l-.233 -.101l-4.374 .931l-.04 .006l-.035 .007h-.018l-.022 .005h-.038l-.033 .004l-.021 -.001l-.023 .001l-.033 -.003h-.035l-.022 -.004l-.022 -.002l-.035 -.007l-.034 -.005l-.016 -.004l-.024 -.005l-.049 -.016l-.024 -.005l-.011 -.005l-.022 -.007l-.045 -.02l-.03 -.012l-.011 -.006l-.014 -.006l-.031 -.018l-.045 -.024l-.016 -.011l-.037 -.026l-.04 -.027l-.002 -.004l-.013 -.009l-.043 -.04l-.025 -.02l-.006 -.007l-.056 -.062l-.013 -.014l-.011 -.014l-.039 -.056l-.014 -.019l-.005 -.01l-.042 -.073l-.007 -.012l-.004 -.008l-.007 -.012l-.014 -.038l-.02 -.042l-.004 -.016l-.004 -.01l-.017 -.061l-.007 -.018l-.002 -.015l-.005 -.019l-.005 -.033l-.008 -.042l-.002 -.031l-.003 -.01v-.016l-.004 -.054l.001 -.036l.001 -.023l.002 -.053l.004 -.025v-.019l.008 -.035l.005 -.034l.005 -.02l.004 -.02l.018 -.06l.003 -.013l1.15 -3.45l-.022 -.037c-2.21 -3.747 -1.209 -8.391 2.413 -11.119z" /></svg>' },
+      add: { outline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c7.2 0 9 1.8 9 9c0 7.2 -1.8 9 -9 9c-7.2 0 -9 -1.8 -9 -9c0 -7.2 1.8 -9 9 -9" /> <path d="M15 12h-6" /> <path d="M12 9v6" /></svg>',
+        filled: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.324 .001l.318 .004l.616 .017l.299 .013l.579 .034l.553 .046c4.785 .464 6.732 2.411 7.196 7.196l.046 .553l.034 .579c.005 .098 .01 .198 .013 .299l.017 .616l.005 .642l-.005 .642l-.017 .616l-.013 .299l-.034 .579l-.046 .553c-.464 4.785 -2.411 6.732 -7.196 7.196l-.553 .046l-.579 .034c-.098 .005 -.198 .01 -.299 .013l-.616 .017l-.642 .005l-.642 -.005l-.616 -.017l-.299 -.013l-.579 -.034l-.553 -.046c-4.785 -.464 -6.732 -2.411 -7.196 -7.196l-.046 -.553l-.034 -.579a28.058 28.058 0 0 1 -.013 -.299l-.017 -.616c-.003 -.21 -.005 -.424 -.005 -.642l.001 -.324l.004 -.318l.017 -.616l.013 -.299l.034 -.579l.046 -.553c.464 -4.785 2.411 -6.732 7.196 -7.196l.553 -.046l.579 -.034c.098 -.005 .198 -.01 .299 -.013l.616 -.017c.21 -.003 .424 -.005 .642 -.005zm0 6a1 1 0 0 0 -1 1v2h-2l-.117 .007a1 1 0 0 0 .117 1.993h2v2l.007 .117a1 1 0 0 0 1.993 -.117v-2h2l.117 -.007a1 1 0 0 0 -.117 -1.993h-2v-2l-.007 -.117a1 1 0 0 0 -.993 -.883z" fill="currentColor" /></svg>' },
+      edits: { outline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4" /> <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /> <path d="M9 17h6" /> <path d="M9 13h6" /></svg>',
+        filled: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2" /> <path d="M19 7h-4l-.001 -4.001z" /></svg>' },
+    },
+
+  };
+
+  /** The toolbar glyph for a tool: the trial outline at rest, its filled twin when on. */
+  function toolSvg(key, glyph, pressed) {
+    var pair = TOOL_FAMILIES.tabler[key];
+    if (!pair) return svg(glyph);
+    return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + (pressed ? pair.filled : pair.outline) + "</svg>";
+  };
 
   // The motion tokens. The values live in src/motion.css, which the site
   // imports, so the site and the chrome run on the same timings. The chrome
@@ -238,8 +258,14 @@
     // A row wider than the viewport wraps onto a second line, so every control
     // stays on screen; it does not scroll, which would clip the lists that come
     // up out of its controls.
-    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:var(--paper);border:1px solid transparent;border-radius:10px;",
-    "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8)}",
+    ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:#F9F8F6;border:0;border-radius:10px;",
+    "box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6)}",
+    // The close chip: half on the dock's top-right corner, half out, so it
+    // reads as the corner's own tab and not a fifth tool in the row.
+    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:var(--paper);color:var(--muted);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
+    ".dock-close:hover{background:var(--ink-6);color:var(--ink)}","#dock:hover .dock-close,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
+    ".dock-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
+    ".dock-close>svg{width:11px;height:11px;display:block;color:inherit}",
     // One hover fill for the whole row, not one per icon: it travels from the
     // control the pointer left to the one it is on, so the eye follows a single
     // thing instead of watching fills blink on and off. A pseudo-element, so it
@@ -274,7 +300,6 @@
     ".row>.ic[aria-pressed=true]{background:var(--ink-6);color:var(--ink);box-shadow:none;opacity:1}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
     ".row>.ic[aria-pressed=true]>svg{color:var(--ink)}",
-    ".row>.ic[aria-pressed=true]>svg>svg{fill:currentColor}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
     // takes the native ring away, and the glide fill alone is too faint to
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
@@ -802,6 +827,9 @@
     svg("plus"),
     "</div>",
     "<div id=\"dock\" hidden>",
+    '<button type="button" class="dock-close" id="dock-close" aria-label="Close editing" title="Close editing">' +
+    svg("x") +
+    "</button>",
     '<div class="pop" id="pop" hidden></div>',
     '<div class="bar" id="bar">',
     '<div class="row" id="row" role="toolbar" aria-label="Edityy toolbar">',
@@ -4521,12 +4549,32 @@ function decorations() {
     for (var i = 0; i < row.children.length; i++) {
       var b = row.children[i];
       if (b === review) {
-        b.setAttribute("aria-pressed", openKey === "changes" ? "true" : "false");
+        var changesOn = openKey === "changes";
+        b.setAttribute("aria-pressed", changesOn ? "true" : "false");
+        paintTool(b, "edits", changesOn);
         continue;
       }
-      b.setAttribute("aria-pressed", b.dataset.key === activeTool && activeTool ? "true" : "false");
+      var on = b.dataset.key === activeTool && !!activeTool;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      paintTool(b, b.dataset.key, on);
     }
   }
+
+  /** Swap a toolbar button between its outline and its filled twin. Only the
+      three tools have twins, and only while a trial family is on: with Lucide
+      there is no filled twin, so the markup stays as buildRow painted it. */
+  function paintTool(b, key, pressed) {
+    if (!TOOL_FAMILIES.tabler[key]) return;
+    var want = pressed ? "filled" : "outline";
+    if (b.dataset.twin === want) return;
+    b.dataset.twin = want;
+    var badge = b === review && countBadge.parentNode === b ? countBadge : null;
+    if (badge) b.removeChild(badge);
+    b.innerHTML = toolSvg(key, "", pressed);
+    if (badge) b.appendChild(badge);
+  }
+
+
 
   /**
    * How many tracks a grid-template value names. A computed value has already
@@ -4703,14 +4751,14 @@ function decorations() {
         review.innerHTML = "";
         review.className = "ic";
         review.id = "review";
-        review.innerHTML = svg(tool.glyph);
+        review.innerHTML = toolSvg(tool.key, tool.glyph, false);
         review.appendChild(countBadge);
         review.dataset.key = "edits";
         review.setAttribute("aria-label", "Edits");
         row.appendChild(review);
         return;
       }
-      row.appendChild(button("ic", svg(tool.glyph), tool.label, function () { pressTool(tool.key); }, tool.key));
+      row.appendChild(button("ic", toolSvg(tool.key, tool.glyph, false), tool.label, function () { pressTool(tool.key); }, tool.key));
     });
     for (var t = 0; t < row.children.length; t++) row.children[t].title = "";
     syncRow();
@@ -7459,7 +7507,17 @@ function decorations() {
     else enter();
   });
 
+  $("dock-close").addEventListener("click", function (e) {
+    e.stopPropagation();
+    exit();
+    syncRow();
+  });
+
   (document.body || document.documentElement).appendChild(host);
+
+
+
+
 
   // Not now, and not at load either: a framework hydrating the page compares its
   // own markup with the DOM, and an edit put back before it is done is a
