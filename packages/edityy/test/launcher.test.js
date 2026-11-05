@@ -1440,8 +1440,16 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
   assert.equal(dock.style.left, "390px");
   assert.equal(dock.style.top, "290px");
   assert.equal(dock.getAttribute("data-placed"), "true", "placed, so hover pays back the widening");
+  // The fade is driven by hand here, so the middle of the close can be seen.
+  let fade = null;
+  dock.animate = (frames) => (fade = { cancel() {}, frames });
   quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(dock.style.left, "");
+  assert.ok(fade, "the close fades");
+  assert.equal(dock.style.left, "390px", "the bar stands its ground while it fades");
+  assert.equal(dock.getAttribute("data-placed"), "true");
+  fade.onfinish();
+  assert.equal(dock.hidden, true);
+  assert.equal(dock.style.left, "", "home once the fade lands");
   assert.equal(dock.style.top, "");
   assert.equal(dock.getAttribute("data-placed"), undefined, "home again, corner behaviour back");
 });
@@ -1461,9 +1469,7 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(launch.style.left, "390px", "the pill stays where the bar stood");
   assert.equal(launch.style.top, "290px");
-  assert.equal(dock.style.transition, "none", "the close plays on a frozen dock");
   quiet(() => app.click());
-  assert.equal(dock.style.transition, "", "opening thaws it for the hover payback");
   assert.equal(dock.style.left, "390px", "the bar stands back up where the pill was");
   assert.equal(dock.style.top, "290px");
 });

@@ -2887,6 +2887,10 @@ function faces() {
   function restoreLogo() {
     if (active) return;
     launch.hidden = false;
+    // The dock stood its ground for the whole way out, so the wave and the
+    // fade played where the bar was. Only now, hidden, does it go home: the
+    // next entry starts at the pill, wherever the pill is.
+    unplaceDock();
     animate(
       launchImg,
       [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
@@ -5626,8 +5630,8 @@ function decorations() {
   }
 
   /**
-   * Put the dock away: it travels back to the corner it came from and
-   * fades on the way, the way it came.
+   * Put the dock away: it fades where it stands, the way it came. The pill
+   * already waits where the bar stood, and takes over when the fade lands.
    *
    * A dock that leaves in one frame is a dock that was snatched away, and the
    * reader was not done with it.
@@ -7126,7 +7130,6 @@ function decorations() {
   function enter() {
     active = true;
     activeTool = "comment";
-    dock.style.transition = ""; // exits freeze the dock: opening thaws it
     // The pill is the closed toolbar: it hides, and the dock stands where it
     // stood. Escape is the way back while it is hidden. The pill hides only
     // once the logo has shrunk: it is the first beat of the choreography,
@@ -7204,6 +7207,11 @@ function decorations() {
     dock.style.bottom = "auto";
     dock.setAttribute("data-placed", "true");
   }
+  /**
+   * The pill takes the bar's visual place, not its inline one: a hovered
+   * placed dock stands a payback shift left of where its left says. Where
+   * the dock was never moved both keep the corner, so the pill is cleared.
+   */
   function launchFromDock() {
     if (!dock.style.left) {
       launch.style.left = "";
@@ -7212,13 +7220,20 @@ function decorations() {
       launch.style.bottom = "";
       return;
     }
-    launch.style.left = dock.style.left;
-    launch.style.top = dock.style.top;
+    var box = !dock.hidden && dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+    var left = box ? box.left : parseFloat(dock.style.left) || 0;
+    var top = box ? box.top : parseFloat(dock.style.top) || 0;
+    launch.style.left = left + "px";
+    launch.style.top = top + "px";
     launch.style.right = "auto";
     launch.style.bottom = "auto";
   }
 
   function exit() {
+    // First: the pill takes the bar's place while it still has one. The way
+    // out unplaces the dock when the fade lands, so anything later in here
+    // would copy an already empty place.
+    launchFromDock();
     // Anything open closes first: a stale panel would float over the dock on
     // the way back in.
     show("");
@@ -7265,11 +7280,6 @@ function decorations() {
     future = [];
     select(null);
     hideHover();
-    // The exit plays on a frozen dock: unplacing it must not slide it sideways
-    // while it fades, which is the jump the close showed. Opening thaws it.
-    dock.style.transition = "none";
-    launchFromDock(); // the pill stays where the bar stood
-    unplaceDock(); // the dock goes home: the next entry starts at the pill
     keep(); // the mode is off: nothing to bring back on the next load
   }
 
