@@ -7126,6 +7126,7 @@ function decorations() {
   function enter() {
     active = true;
     activeTool = "comment";
+    dock.style.transition = ""; // exits freeze the dock: opening thaws it
     // The pill is the closed toolbar: it hides, and the dock stands where it
     // stood. Escape is the way back while it is hidden. The pill hides only
     // once the logo has shrunk: it is the first beat of the choreography,
@@ -7264,6 +7265,9 @@ function decorations() {
     future = [];
     select(null);
     hideHover();
+    // The exit plays on a frozen dock: unplacing it must not slide it sideways
+    // while it fades, which is the jump the close showed. Opening thaws it.
+    dock.style.transition = "none";
     launchFromDock(); // the pill stays where the bar stood
     unplaceDock(); // the dock goes home: the next entry starts at the pill
     keep(); // the mode is off: nothing to bring back on the next load

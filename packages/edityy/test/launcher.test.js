@@ -1461,7 +1461,9 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(launch.style.left, "390px", "the pill stays where the bar stood");
   assert.equal(launch.style.top, "290px");
+  assert.equal(dock.style.transition, "none", "the close plays on a frozen dock");
   quiet(() => app.click());
+  assert.equal(dock.style.transition, "", "opening thaws it for the hover payback");
   assert.equal(dock.style.left, "390px", "the bar stands back up where the pill was");
   assert.equal(dock.style.top, "290px");
 });
