@@ -10,8 +10,10 @@
  *    and opens the editing mode below. While the mode is on, the pill hides
  *    and the dock stands where it stood: one toolbar in the corner, never two.
  *
- * 2. A temporary editing mode. The pointer stays the pointer. Hovering
- *    outlines an element; clicking selects it and opens its actions.
+ * 2. A temporary editing mode. The pointer wears the toolbar's own
+ *    paper while it is on, and Add draws with the precision point;
+ *    hovering outlines an element, clicking selects it, and the
+ *    actions open where it stands.
  *
  * Selecting an element opens its actions in a card at the element — Edit text,
  * Move, Parent, Child and Delete — and the style dock, fixed at the bottom
@@ -38,6 +40,18 @@
   // The brand mark, served beside the payload. A URL, not a blob,
   // so the payload stays small and the file keeps one format.
   var LOGO = "/__edityy/logo.png";
+
+  // The pointers, drawn not named, all at 16px to sit at the toolbar's own
+  // scale, so one rule in the light DOM carries the canvas pointer and the
+  // grip wears the pointing hand with `grab` behind it. The point is the
+  // bar's own paper in its ink stroke, and Add's precision point is a
+  // cross to the ring at the middle of the square.
+  var POINTER_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M4%202L20%2012L11.5%2014L9%2021Z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
+  var HAND_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M10%2022C8%2022%206.5%2020.5%206%2017.5L5.2%2013.5C5%2011.5%206%2010.5%207.5%2010.5C8.2%2010.5%209%2011%209.5%2011.5V8a1.5%201.5%200%200%201%203%200v3.5C13%209%2014.5%209%2015.5%2010L17%2011.5C18%2012.3%2018.3%2013.7%2017.8%2015.5L17%2018C16%2020.5%2014%2022%2011.5%2022z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'%20stroke-linecap=\'round\'/%3E%3C/svg%3E")';
+  var POINTER = POINTER_IMG + " 3 1, auto";
+  var POINTER_GRAB = HAND_IMG + " 7 5, grab";
+  var POINTER_GRABBING = HAND_IMG + " 7 5, grabbing";
+  var PRECISION = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M12%202v6M12%2016v6M2%2012h6M16%2012h6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'%20stroke-linecap=\'round\'/%3E%3Ccircle%20cx=\'12\'%20cy=\'12\'%20r=\'3.5\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'/%3E%3C/svg%3E") 8 8, crosshair';
 
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
@@ -260,10 +274,10 @@
     // toolbar is its old self; hidden, it is still one rounded pill.
     ".grip{position:absolute;left:0;top:0;bottom:0;width:0;display:grid;place-items:center;margin:0;",
     "padding:0;border:0;overflow:hidden;border-radius:10px 0 0 10px;",
-    "background:transparent;color:var(--muted);cursor:grab;touch-action:none;opacity:0;pointer-events:none;",
+"background:transparent;color:var(--muted);cursor:" + POINTER_GRAB + ";touch-action:none;opacity:0;pointer-events:none;",
     "transition:width var(--slide) var(--arrive),opacity var(--tint) var(--standard)}",
     "#dock:hover .grip,.grip:focus-visible{width:30px;opacity:1;pointer-events:auto}",
-    ".grip:active{cursor:grabbing}",
+    ".grip:active{cursor:" + POINTER_GRABBING + "}",
     ".grip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".grip>svg{width:16px;height:16px;display:block;color:inherit}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
@@ -4717,6 +4731,7 @@ function decorations() {
       if (key !== "edits") select(null);
       syncRow();
       syncElementMenu();
+      syncPointer();
       return;
     }
     activeTool = key;
@@ -4733,6 +4748,7 @@ function decorations() {
     }
     syncRow();
     syncElementMenu();
+    syncPointer();
   }
 
   /** Paint which tool is on. Browse presses none. */
@@ -7125,6 +7141,29 @@ function decorations() {
     if (next.scrollIntoView) next.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
+  /* --------------------------------------------------------- the page pointer */
+
+  var cursorStyleEl = null; // the <style> on the page that carries the pointer
+
+  /**
+   * The pointer on the page: one rule carrying it, removed when the mode
+   * is off. It stays in the light DOM, so the chrome above it keeps its
+   * own cursors, and the grip wears the pointing hand's twin.
+   */
+  function paintPointer(value) {
+    if (cursorStyleEl && cursorStyleEl.parentNode) cursorStyleEl.parentNode.removeChild(cursorStyleEl);
+    cursorStyleEl = null;
+    if (!value) return;
+    cursorStyleEl = document.createElement("style");
+    cursorStyleEl.textContent = "html,body,*{cursor:" + value + "!important}";
+    (document.head || document.documentElement).appendChild(cursorStyleEl);
+  }
+
+  /** The pointer the context wears: Add draws with the precision point. */
+  function syncPointer() {
+    paintPointer(activeTool === "add" ? PRECISION : POINTER);
+  }
+
   /* ----------------------------------------------------------------- mode */
 
   function enter() {
@@ -7156,6 +7195,8 @@ function decorations() {
     previewPolls = 0;
     previewSeen = "";
     pollPreviews(); // an agent may have placed a preview while the page was idle
+    // The page pointer: the toolbar's paper, while the mode is on.
+    syncPointer();
     shrinkLogo(function () {
       // A close inside the shrink put the mode back off: there is nothing
       // for the dock to stand up for.
@@ -7254,6 +7295,8 @@ function decorations() {
     // Exiting always puts the page back exactly as it was.
     stopEditing();
     closeVariants();
+    // The page pointer goes with the mode: the page wears its own again.
+    paintPointer("");
     if (previewCurrent) discardPreview();
     else if (previewList.length) discardList();
     if (previewTimer) clearTimeout(previewTimer);
@@ -7739,6 +7782,7 @@ function decorations() {
         select(null);
         syncRow();
         syncElementMenu();
+        syncPointer();
       }
       return;
     }
