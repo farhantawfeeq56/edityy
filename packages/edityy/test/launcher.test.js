@@ -1429,10 +1429,11 @@ test("the grip is part of the primary toolbar, with six dots and no tooltip", ()
 test("dragging the grip moves the toolbar, and exit puts it home", () => {
   const { run } = fakeDom();
   const app = run();
-  quiet(() => app.click());
   const grip = app.root.nodes.grip;
   const dock = app.root.nodes.dock;
-  dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  // The stub has no layout: the rect follows the inline place, as it would.
+  dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  quiet(() => app.click());
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({});
@@ -1448,11 +1449,12 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
 test("closing a dragged toolbar leaves the logo where it stood", () => {
   const { run } = fakeDom();
   const app = run();
-  quiet(() => app.click());
   const grip = app.root.nodes.grip;
   const dock = app.root.nodes.dock;
   const launch = app.root.nodes.launch;
-  dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  // The stub has no layout: the rect follows the inline place, as it would.
+  dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  quiet(() => app.click());
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({});
@@ -1462,6 +1464,23 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   quiet(() => app.click());
   assert.equal(dock.style.left, "390px", "the bar stands back up where the pill was");
   assert.equal(dock.style.top, "290px");
+});
+
+test("opening where the bar would hang off pulls it back on", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const dock = app.root.nodes.dock;
+  const launch = app.root.nodes.launch;
+  // The stub has no layout: the rect follows the inline place, as it would.
+  dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 0, top: parseFloat(dock.style.top) || 0, right: 0, bottom: 0, width: 270, height: 40 });
+  // The narrow pill fits where the wider bar does not: near the right edge.
+  launch.style.left = "1150px";
+  launch.style.top = "750px";
+  launch.style.right = "auto";
+  launch.style.bottom = "auto";
+  quiet(() => app.click());
+  assert.equal(dock.style.left, "922px", "the bar comes back inside the page");
+  assert.equal(dock.style.top, "750px", "a side that fits stays put");
 });
 
 test("the logo pill itself drags, and a drag never opens", () => {
@@ -1475,6 +1494,9 @@ test("the logo pill itself drags, and a drag never opens", () => {
   for (const fn of launch.bubbles.pointerup.bubble) fn({});
   assert.equal(launch.style.left, "490px", "the pill follows the hand");
   assert.equal(launch.style.top, "390px");
+  // The picture never leaves the pill: it cannot start a native image drag.
+  assert.match(app.root.innerHTML, /id="label"[^>]*draggable="false"/, "the logo is not natively draggable");
+  assert.match(app.root.innerHTML, /#launch img\{[^}]*pointer-events:none/, "presses land on the pill, not the picture");
   quiet(() => app.click());
   assert.equal(dock.hidden, true, "letting go over the pill does not open");
   quiet(() => app.click());

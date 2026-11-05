@@ -594,7 +594,7 @@
     "display:flex;align-items:center;justify-content:center;background:#F9F8F6;",
     "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
     "#launch:hover{background:var(--fill-hover)}",
-    "#launch img{width:18px;height:18px;display:block;border-radius:5px}",
+    "#launch img{width:18px;height:18px;display:block;border-radius:5px;pointer-events:none;-webkit-user-drag:none;user-select:none}",
 
     // The bounding box: a 1.5px line, drawn outside the element (the inset keeps
     // it off the content, as an outside stroke does), with no radius. The frame
@@ -820,7 +820,7 @@
     "input[type=search],.element-comment-text,.variants-keep{",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     "</style>",
-    '<button type="button" id="launch" title="Edityy" aria-label="Open Edityy"><img id="label" alt="Edityy logo" src="' + LOGO + '"></button>',
+    '<button type="button" id="launch" title="Edityy" aria-label="Open Edityy"><img id="label" alt="Edityy logo" draggable="false" src="' + LOGO + '"></button>',
     '<div class="frame" id="hover" hidden></div>',
     // The selection frame carries the four corner markers, so their
     // positions follow the frame wherever the element moves.
@@ -7159,8 +7159,35 @@ function decorations() {
       launch.hidden = true;
       dockFromLaunch(); // the bar stands up where the pill was
       syncDock();
+      keepDockOnPage(); // whatever hangs off the page comes back inside
       entering = false;
     });
+  }
+
+  /**
+   * No control gets lost off the page: after the bar stands up, whatever
+   * hangs past an edge is pulled back inside, in the same frame the entry
+   * plays in, so the draw-out and the stagger land on a bar already home.
+   * A dragged pill is narrower than the bar, so the bar can outgrow the
+   * corner the pill fitted in.
+   */
+  function keepDockOnPage() {
+    if (dock.hidden) return;
+    var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+    if (!box) return;
+    var width = box.width || dock.offsetWidth || 0;
+    var height = box.height || dock.offsetHeight || 0;
+    var margin = 8;
+    var maxLeft = Math.max(margin, (window.innerWidth || 0) - width - margin);
+    var maxTop = Math.max(margin, (window.innerHeight || 0) - height - margin);
+    var left = Math.max(margin, Math.min(box.left, maxLeft));
+    var top = Math.max(margin, Math.min(box.top, maxTop));
+    if (left === box.left && top === box.top) return;
+    dock.style.left = left + "px";
+    dock.style.top = top + "px";
+    dock.style.right = "auto";
+    dock.style.bottom = "auto";
+    dock.setAttribute("data-placed", "true");
   }
 
   /**
