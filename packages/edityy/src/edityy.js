@@ -4951,9 +4951,9 @@ function decorations() {
     while (row.firstChild) row.removeChild(row.firstChild);
     delete row.dataset.glide;
     var tools = [
-      { key: "comment", label: "Comment", glyph: "message-square" },
-      { key: "add", label: "Add", glyph: "square-plus" },
-      { key: "edits", label: "Edits", glyph: "square-text" }
+      { key: "comment", label: "Comment (C)", glyph: "message-square" },
+      { key: "add", label: "Add (A)", glyph: "square-plus" },
+      { key: "edits", label: "Edits (E)", glyph: "square-text" }
     ];
     tools.forEach(function (tool) {
       // Edits is the saved list, kept on the review button so its count badge
@@ -4965,7 +4965,7 @@ function decorations() {
         review.innerHTML = toolSvg(tool.key, tool.glyph, false);
         review.appendChild(countBadge);
         review.dataset.key = "edits";
-        review.setAttribute("aria-label", "Edits");
+        review.setAttribute("aria-label", "Edits (E)");
         row.appendChild(review);
         return;
       }
@@ -7771,6 +7771,19 @@ function decorations() {
       e.stopPropagation();
       autoLayout();
       return;
+    }
+    // C, A and E press the three tools, the way the buttons do: a second
+    // press of the one that is on drops to browse. A letter in a field
+    // belongs to the field, and one in the dock belongs to the dock, so
+    // both are already answered above or by the host check.
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !editing && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+      var toolKey = { c: "comment", a: "add", e: "edits" }[String(e.key || "").toLowerCase()];
+      if (toolKey) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        pressTool(toolKey);
+        return;
+      }
     }
     // Alt+S drops to browse: no tool on, nothing open, nothing picked. The
     // pointer then finds nothing until a tool is pressed again.
