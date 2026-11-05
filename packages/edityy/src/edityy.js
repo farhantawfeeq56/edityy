@@ -43,14 +43,14 @@
 
   // The pointers, drawn not named, all at 16px to sit at the toolbar's own
   // scale, so one rule in the light DOM carries the canvas pointer and the
-  // grip wears the pointing hand with `grab` behind it. The point is the
+  // grip wears an open hand with `grab` behind it. The point is the
   // bar's own paper in its ink stroke, and Add's precision point is a
   // cross to the ring at the middle of the square.
   var POINTER_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M4%202L20%2012L11.5%2014L9%2021Z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
-  var HAND_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M10%2022C8%2022%206.5%2020.5%206%2017.5L5.2%2013.5C5%2011.5%206%2010.5%207.5%2010.5C8.2%2010.5%209%2011%209.5%2011.5V8a1.5%201.5%200%200%201%203%200v3.5C13%209%2014.5%209%2015.5%2010L17%2011.5C18%2012.3%2018.3%2013.7%2017.8%2015.5L17%2018C16%2020.5%2014%2022%2011.5%2022z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'%20stroke-linecap=\'round\'/%3E%3C/svg%3E")';
+  var HAND_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M4%2021V19a2%202%200%200%201%200-4V13V7a1.3%201.3%200%200%201%202.6%200V13H8V5.5a1.3%201.3%200%200%201%202.6%200V13H12V6.5a1.3%201.3%200%200%201%202.6%200V13H16V8.5a1.3%201.3%200%200%201%202.6%200V13V21H4z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
   var POINTER = POINTER_IMG + " 3 1, auto";
-  var POINTER_GRAB = HAND_IMG + " 7 5, grab";
-  var POINTER_GRABBING = HAND_IMG + " 7 5, grabbing";
+  var POINTER_GRAB = HAND_IMG + " 7 11, grab";
+  var POINTER_GRABBING = HAND_IMG + " 7 11, grabbing";
   var PRECISION = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M12%202v6M12%2016v6M2%2012h6M16%2012h6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'%20stroke-linecap=\'round\'/%3E%3Ccircle%20cx=\'12\'%20cy=\'12\'%20r=\'3.5\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'/%3E%3C/svg%3E") 8 8, crosshair';
 
   var host = document.createElement("div");
