@@ -1388,6 +1388,20 @@ test("with no tool on, hovering the page shows no bounding box", () => {
   assert.equal(app.root.nodes.hover.hidden, true, "browse does not frame the words under the pointer");
 });
 
+test("Alt+S drops to browse: no tool on, nothing picked", () => {
+  const { run, text } = fakeDom();
+  const app = run();
+  const heading = text("h1", "Edityy");
+  quiet(() => app.click());
+  app.hover(heading);
+  quiet(() => app.clickPage());
+  assert.ok(app.root.selection(), "a click picked the words first");
+  quiet(() => app.fire("keydown", { key: "s", altKey: true, preventDefault() {}, stopPropagation() {} }));
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.getAttribute("aria-pressed")), ["false", "false", "false"], "no tool stays on");
+  assert.equal(app.root.nodes.pop.hidden, true, "nothing stays open");
+  assert.equal(app.root.selection(), null, "nothing stays picked");
+});
+
 
 
 

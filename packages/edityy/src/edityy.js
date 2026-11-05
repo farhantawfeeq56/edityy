@@ -7557,6 +7557,20 @@ function decorations() {
       autoLayout();
       return;
     }
+    // Alt+S drops to browse: no tool on, nothing open, nothing picked. The
+    // pointer then finds nothing until a tool is pressed again.
+    if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && String(e.key || "").toLowerCase() === "s") {
+      if (!editing) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        activeTool = "";
+        show("");
+        select(null);
+        syncRow();
+        syncElementMenu();
+      }
+      return;
+    }
     // The dock is mounted after the page, so Tab from the page would go through
     // every link first. With an element selected, Tab from the page goes to the
     // dock. From there Tab and Shift+Tab go on as usual, so focus is not held.
