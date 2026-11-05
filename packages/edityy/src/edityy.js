@@ -575,10 +575,10 @@
     "input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button",
     "{-webkit-appearance:none;margin:0}",
     // The brand pill: bottom-right while the mode is off, hidden while it is
-    // on. Same paper and radius as a row.
+    // on. Same surface and radius as a row.
     "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;",
     "border-radius:10px;border:1px solid transparent;margin:0;padding:0 8px;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:flex;align-items:center;justify-content:center;background:var(--paper);",
+    "display:flex;align-items:center;justify-content:center;background:#F9F8F6;",,
     "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
     "#launch:hover{background:var(--fill-hover)}",
     "#launch img{width:18px;height:18px;display:block;border-radius:5px}",
