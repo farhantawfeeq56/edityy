@@ -104,6 +104,7 @@
     "pencil": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>',
     "pipette": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9" /> <path d="M3 21v-3l9-9" /> <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.6.6a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4l1-1a1 1 0 0 1 1.4 0z" /></svg>',
     "plus": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="M12 5v14" /></svg>',
+    "minus": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /></svg>',
     "rows-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M3 12h18" /></svg>',
     "square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /></svg>',
     "strikethrough": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4H9a3 3 0 0 0-2.83 4" /> <path d="M14 12a4 4 0 0 1 0 8H6" /> <line x1="4" x2="20" y1="12" y2="12" /></svg>',
@@ -680,23 +681,44 @@
     ".element-comment-row input:checked+.mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
     ".element-comment-row .mark>svg{width:10px;height:10px}",
     ".element-comment-row:focus-within{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
-    ".element-comment-stepper{margin-left:auto;width:56px;height:26px;padding:0 8px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:500 13px/1 inherit;font-variant-numeric:tabular-nums;text-align:center}",
-    ".element-comment-stepper:disabled{opacity:.4}",
+    ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:26px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
+    ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
+    ".element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}",
+    ".element-comment-stepper button:disabled{opacity:.4;cursor:default}",
+    ".element-comment-stepper button>svg{width:12px;height:12px;display:block;color:inherit}",
+    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 13px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
+    ".element-comment-stepper input::-webkit-outer-spin-button,.element-comment-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}",
+    ".element-comment-stepper input:disabled{opacity:.4}",
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
     // The comment box. It wears the toolbar's scale: no wider than the
     // dock, no taller than its rows, so the comment never dwarfs what it
     // comments on. The typing field keeps one color here and everywhere;
-    // only shape moves. Save sits last in the row, gold — brand fill,
-    // ink on it, the dock's own — and Cancel before it, quiet.
+    // only shape moves. Save sits alone in its row, right, gold — brand fill,
+    // ink on it, the dock's own.
     ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
     ".element-menu .element-comment .element-comment-action{flex:none;height:28px;padding:0 12px}",
     ".element-menu .element-comment [data-key=comment-save],.element-menu .element-comment [data-key=region-save]{background:var(--brand);color:var(--ink)}",
-    ".element-menu .element-comment [data-key=comment-cancel],.element-menu .element-comment [data-key=region-cancel]{color:var(--muted)}",
-    // The field, then the two ticks, then the commands. The count sits
-    // at the end of the variants row, where a value sits in the dock.
-    ".element-comment{width:240px}",
+    // The title row: the box names itself, and the X does what Cancel did.
+    ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px}",
+    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 15px/1.3 inherit;color:var(--ink)}",
+    // Edit or Variant: one of two, with the count at the row's end, where a
+    // value sits in the dock. The pressed button wears the accent wash.
+    ".element-comment-modes{display:flex;align-items:center;gap:8px}",
+    ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
+    ".element-comment-mode{flex:1;height:26px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer}",
+    ".element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}",
+    ".element-comment-mode[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
+    // The switch: a track and a knob, with its label and why in two lines.
+    ".element-comment-switch{position:relative;width:36px;height:22px;flex:none;border-radius:999px;background:var(--ink-12);transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--paper);transition:left var(--tint) var(--standard)}",
+    ".element-comment-row input:checked+.element-comment-switch{background:var(--accent)}",
+    ".element-comment-row input:checked+.element-comment-switch::after{left:17px}",
+    ".element-comment-switch-words{display:flex;flex-direction:column;gap:2px}",
+    ".element-comment-switch-words strong{font:600 13px/1.25 inherit;color:var(--ink)}",
+    ".element-comment-switch-words span{font:400 12px/1.3 inherit;color:var(--muted)}",
+    ".element-comment{width:300px}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -1876,65 +1898,137 @@
   }
 
   /**
-   * The comment box for one element: a field, two checkboxes, a Save and a
-   * Cancel.
+   * What the comment box heading says: the element it belongs to. A text
+   * element shows its words, cut short; media shows "Media"; anything else
+   * shows its tag, first letter raised.
+   */
+  function headingFor(el) {
+    if (!el || !el.tagName) return "Comment";
+    var k = kind(el);
+    if (k === "media") return "Media";
+    if (k === "text") {
+      var words = String(el.textContent || "").replace(/\s+/g, " ").trim();
+      if (words) return words.length > 24 ? words.slice(0, 24) + "\u2026" : words;
+    }
+    var tag = el.tagName.toLowerCase();
+    return tag.charAt(0).toUpperCase() + tag.slice(1);
+  }
+
+  /**
+   * The comment box for one element: a title, a field, the Edit/Variant
+   * split, the temporary-canvas switch and a Save.
    *
-   * Save with nothing ticked writes the words onto the element's record, so
-   * the comment travels with the edits to the agent's Markdown and to the
-   * saved file. Save with Variants ticked asks the agent for that many
-   * variations of the element instead, and the strip at the bottom right
-   * shows the answer.
+   * Save in Edit mode writes the words onto the element's record, so the
+   * comment travels with the edits to the agent's Markdown and to the saved
+   * file. Save in Variant mode asks the agent for that many variations of the
+   * element instead, and the strip at the bottom right shows the answer.
    */
   function commentBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
+    // The title row: the box names itself, and the X does what Cancel did.
+    var head = document.createElement("div");
+    head.className = "element-comment-head";
+    var title = document.createElement("p");
+    title.className = "element-comment-title";
+    title.appendChild(text(headingFor(el)));
+    head.appendChild(title);
+    var cancel = button("wait-x", svg("x"), "Cancel the comment", function () {
+      closeVariants();
+      variationPrompt = "";
+      commentFor = null;
+      openComment = null;
+      cardDoneFor = el;
+      syncElementMenu();
+    }, "comment-cancel");
+    head.appendChild(cancel);
+    box.appendChild(head);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
-    area.rows = 3;
+    area.rows = 4;
     area.placeholder = "Comment";
     area.setAttribute("aria-label", "Comment");
     area.value = variationPrompt || record(el).comment || "";
     box.appendChild(area);
-    // Two checkboxes decide what Save does. Unticked, Save writes the words.
-    // Tick Variants and Save asks for that many instead, so one is never a
-    // thing anyone says.
-    var canvasRow = document.createElement("label");
-    canvasRow.className = "element-comment-row";
-    var canvasTick = document.createElement("input");
-    canvasTick.type = "checkbox";
-    canvasTick.className = "tick";
-    canvasTick.setAttribute("aria-label", "Temporary canvas");
-    canvasRow.appendChild(canvasTick);
-    var canvasMark = document.createElement("span");
-    canvasMark.className = "mark";
-    canvasMark.innerHTML = svg("check");
-    canvasRow.appendChild(canvasMark);
-    canvasRow.appendChild(text("Temporary canvas"));
-    box.appendChild(canvasRow);
-    var varRow = document.createElement("label");
-    varRow.className = "element-comment-row";
-    var varTick = document.createElement("input");
-    varTick.type = "checkbox";
-    varTick.className = "tick";
-    varTick.setAttribute("aria-label", "Variants");
-    varRow.appendChild(varTick);
-    var varMark = document.createElement("span");
-    varMark.className = "mark";
-    varMark.innerHTML = svg("check");
-    varRow.appendChild(varMark);
-    varRow.appendChild(text("Variants"));
+    // Edit or Variant decides what Save does. In Edit, Save writes the words.
+    // In Variant, Save asks for that many instead, so one is never a thing
+    // anyone says.
+    var mode = "edit";
+    var modes = document.createElement("div");
+    modes.className = "element-comment-modes";
+    var modeGroup = document.createElement("div");
+    modeGroup.className = "element-comment-mode-group";
+    modeGroup.setAttribute("role", "group");
+    modeGroup.setAttribute("aria-label", "Save mode");
+    var editMode = button("element-comment-mode", "", "Edit", function () { setMode("edit"); }, "comment-mode-edit");
+    editMode.setAttribute("aria-pressed", "true");
+    editMode.appendChild(text("Edit"));
+    var variantMode = button("element-comment-mode", "", "Variant", function () { setMode("variant"); }, "comment-mode-variant");
+    variantMode.setAttribute("aria-pressed", "false");
+    variantMode.appendChild(text("Variant"));
+    modeGroup.appendChild(editMode);
+    modeGroup.appendChild(variantMode);
+    modes.appendChild(modeGroup);
+    // The count is a stepper: minus and plus, with the field between them.
+    var step = document.createElement("div");
+    step.className = "element-comment-stepper";
+    var fewer = button("", svg("minus"), "Fewer variations", function () { bump(-1); });
+    fewer.disabled = true;
+    step.appendChild(fewer);
     var count = document.createElement("input");
     count.type = "number";
-    count.className = "element-comment-stepper";
     count.min = "2";
     count.max = "10";
     count.step = "1";
     count.value = "2";
     count.disabled = true;
     count.setAttribute("aria-label", "Variations");
-    varRow.appendChild(count);
-    box.appendChild(varRow);
-    varTick.addEventListener("change", function () { count.disabled = !varTick.checked; });
+    step.appendChild(count);
+    var more = button("", svg("plus"), "More variations", function () { bump(1); });
+    more.disabled = true;
+    step.appendChild(more);
+    modes.appendChild(step);
+    box.appendChild(modes);
+    function bump(by) {
+      var n = Math.round(Number(count.value)) || 2;
+      n = Math.max(2, Math.min(10, n + by));
+      count.value = String(n);
+      fewer.disabled = n <= 2;
+      more.disabled = n >= 10;
+    }
+    function setMode(next) {
+      mode = next;
+      editMode.setAttribute("aria-pressed", String(mode === "edit"));
+      variantMode.setAttribute("aria-pressed", String(mode === "variant"));
+      var on = mode === "variant";
+      count.disabled = !on;
+      fewer.disabled = !on || Number(count.value) <= 2;
+      more.disabled = !on || Number(count.value) >= 10;
+    }
+    // The switch decides whether the change previews on a temporary canvas
+    // first.
+    var canvasRow = document.createElement("label");
+    canvasRow.className = "element-comment-row";
+    var canvasTick = document.createElement("input");
+    canvasTick.type = "checkbox";
+    canvasTick.className = "tick";
+    canvasTick.setAttribute("aria-label", "Apply on temporary canvas");
+    // The switch starts on: the change previews on the temporary canvas.
+    canvasTick.checked = true;
+    canvasRow.appendChild(canvasTick);
+    var track = document.createElement("span");
+    track.className = "element-comment-switch";
+    canvasRow.appendChild(track);
+    var words = document.createElement("span");
+    words.className = "element-comment-switch-words";
+    var wordsTitle = document.createElement("strong");
+    wordsTitle.appendChild(text("Apply on temporary canvas"));
+    var wordsSub = document.createElement("span");
+    wordsSub.appendChild(text("Preview the changes without touching code"));
+    words.appendChild(wordsTitle);
+    words.appendChild(wordsSub);
+    canvasRow.appendChild(words);
+    box.appendChild(canvasRow);
     if (variationWords) box.appendChild(noteBox(variationWords));
     openComment = box;
     var actions = document.createElement("div");
@@ -1943,7 +2037,7 @@
       var words = area.value.trim();
       if (!words) return;
       var n = 1;
-      if (varTick.checked) {
+      if (mode === "variant") {
         n = Math.round(Number(count.value));
         if (!(n >= 2)) n = 2;
         if (n > 10) n = 10;
@@ -1976,16 +2070,6 @@
     save.disabled = !area.value.trim();
     area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
     actions.appendChild(save);
-    var cancel = button("element-action element-comment-action", "", "Cancel the comment", function () {
-      closeVariants();
-      variationPrompt = "";
-      commentFor = null;
-      openComment = null;
-      cardDoneFor = el;
-      syncElementMenu();
-    }, "comment-cancel");
-    cancel.appendChild(text("Cancel"));
-    actions.appendChild(cancel);
     box.appendChild(actions);
     // A box opened by a click is ready to type into.
     setTimeout(function () { if (area.focus) area.focus(); }, 0);

@@ -840,7 +840,7 @@ const commentOn = (app, node, words) => {
   app.hover(node);
   quiet(() => app.clickPage());
   const box = app.root.nodes["element-menu"].children[0];
-  const area = box.children[0];
+  const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
   area.value = words;
   const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
@@ -1044,7 +1044,8 @@ test("a click on an element opens its comment box, and Enter edits the words", (
   const menu = app.root.nodes["element-menu"];
   assert.equal(menu.hidden, false);
   assert.equal(menu.children[0].className, "element-comment", "the card is the comment box");
-  assert.equal(menu.children[0].children[0].getAttribute("aria-label"), "Comment");
+  const area = menu.children[0].children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
+  assert.equal(area.getAttribute("aria-label"), "Comment");
   app.action("Edit text");
   assert.equal(p.getAttribute("contenteditable"), "plaintext-only");
   // The card stays, with the one button that ends the edit.
@@ -1061,11 +1062,12 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   const pressButton = (target) => {
     for (const fn of target.bubbles.click.bubble) fn({});
   };
-  const inMenu = (label) => (menu.children[0] ? menu.children[0].children : [])
-    .flatMap((child) => (child.children.length ? child.children : [child]))
-    .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  const inMenu = (label) => {
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
   selectText(app);
-  const area = menu.children[0].children[0];
+  const area = inMenu("Comment");
   assert.equal(area.getAttribute("aria-label"), "Comment", "the click opened a field to write in");
   area.value = "  make this bigger  ";
   pressButton(inMenu("Save comment"));
@@ -1073,17 +1075,17 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
   assert.match(app.win.__edityy_changes(), /- Comment: "make this bigger"/);
   // Clicking the same element again shows what was written.
   app.clickPage();
-  assert.equal(menu.children[0].children[0].value, "make this bigger");
+  assert.equal(inMenu("Comment").value, "make this bigger");
   // A scroll re-places the box, it must not rebuild it and take the words.
-  menu.children[0].children[0].value = "half written";
+  inMenu("Comment").value = "half written";
   app.scroll();
-  assert.equal(menu.children[0].children[0].value, "half written");
-  menu.children[0].children[0].value = "";
+  assert.equal(inMenu("Comment").value, "half written", "a scroll keeps the words");
+  inMenu("Comment").value = "";
   pressButton(inMenu("Save comment"));
   assert.match(app.win.__edityy_changes(), /Comment: "make this bigger"/, "an empty save keeps the old words");
   // Escape backs out of the box without saving.
   app.clickPage();
-  menu.children[0].children[0].value = "never saved";
+  inMenu("Comment").value = "never saved";
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.equal(menu.hidden, true, "the box and the selection are back on the page");
   assert.doesNotMatch(app.win.__edityy_changes(), /never saved/);
@@ -2009,18 +2011,19 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   const el = selectText(app);
   const menu = app.root.nodes["element-menu"];
   const strip = app.root.nodes.variants;
-  const inMenu = (label) => (menu.children[0] ? menu.children[0].children : [])
-    .flatMap((child) => (child.children.length ? child.children : [child]))
-    .find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  const inMenu = (label) => {
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
   // More than one variation turns the click that opened the comment box into
   // a request for variations.
   assert.equal(app.root.nodes.row.children[0].getAttribute("aria-pressed"), "true");
-  const box = menu.children[0];
-  const area = box.children[0];
+  const area = inMenu("Comment");
   assert.equal(area.getAttribute("aria-label"), "Comment", "the words come first");
   assert.equal(area.placeholder, "Comment", "the same box as a comment");
   area.value = "  thinner and darker  ";
-  inMenu("Variants").checked = true;
+  const variant = inMenu("Variant");
+  for (const fn of variant.bubbles.click.bubble) fn({});
   inMenu("Variations").value = "3";
   const ask = inMenu("Save comment");
   for (const fn of ask.bubbles.click.bubble) fn({});
