@@ -2020,6 +2020,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(area.getAttribute("aria-label"), "Comment", "the words come first");
   assert.equal(area.placeholder, "Comment", "the same box as a comment");
   area.value = "  thinner and darker  ";
+  inMenu("Variants").checked = true;
   inMenu("Variations").value = "3";
   const ask = inMenu("Save comment");
   for (const fn of ask.bubbles.click.bubble) fn({});
