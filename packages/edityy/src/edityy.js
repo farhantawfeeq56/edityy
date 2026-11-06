@@ -1898,8 +1898,8 @@
   }
 
   /**
-   * What the comment box heading says: the element it belongs to. A text
-   * element shows its words, cut short; media shows "Media"; anything else
+   * What the comment box heading says: the element it belongs to, as a tag.
+   * Text shows its words cut short; media shows "Media"; anything else
    * shows its tag, first letter raised.
    */
   function headingFor(el) {
@@ -1908,7 +1908,7 @@
     if (k === "media") return "Media";
     if (k === "text") {
       var words = String(el.textContent || "").replace(/\s+/g, " ").trim();
-      if (words) return words.length > 24 ? words.slice(0, 24) + "\u2026" : words;
+      if (words) return "Text \u00b7 " + (words.length > 24 ? words.slice(0, 24) + "\u2026" : words);
     }
     var tag = el.tagName.toLowerCase();
     return tag.charAt(0).toUpperCase() + tag.slice(1);
