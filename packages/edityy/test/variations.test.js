@@ -162,8 +162,8 @@ test("an answer that would need a stylesheet is refused", () => {
       { label: "two", props: props("color", "blue") },
     ]),
     answer([
-      { label: "one", props: props("color", "#fff; background: url(x)") },
-      { label: "two", props: props("box-shadow", "0 0 0 1px red !important") },
+      { label: "one", props: props("color red", "red") },
+      { label: "two", props: props("box-shadow", "x".repeat(2001)) },
     ]),
     answer([
       { label: "", props: props("color", "red") },

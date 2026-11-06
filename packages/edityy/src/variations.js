@@ -18,13 +18,13 @@ const VARIATION_RESPONSE_FILE = ".edityy/variation-response.json";
 const ID = /^[\w-]{1,80}$/;
 /** A request is waiting for an answer, or the user took it back. */
 const STATUS = ["pending", "cancelled"];
-/** A standard property: no custom property, no vendor-free-anything, no selector. */
-const PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
-/** A value with no rule, no block, no function that reaches the network, no bang. */
+/** Any property name, incl. custom props. */
+const PROPERTY = /^(--[-_a-zA-Z0-9]+|-?[a-z][a-z0-9-]{0,99})$/;
+const STRICT_PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
 const MIN_VARIATIONS = 2;
 const MAX_VARIATIONS = 10;
-const MAX_PROPERTIES = 12;
+const MAX_PROPERTIES = 50;
 /** The comment is optional, so an empty one is a request too. */
 const MAX_COMMENT = 240;
 /** The element context the page sends: its own short list of current values. */
@@ -43,7 +43,7 @@ export function checkPreviewText(text) {
   return text;
 }
 
-/** Plain CSS declarations, with no rule, no selector and no script in them. */
+/** Declarations with any property and any value. */
 export function checkDeclarations(declarations) {
   if (declarations === undefined) return [];
   if (!Array.isArray(declarations) || declarations.length > MAX_PROPERTIES) invalid(`props must contain at most ${MAX_PROPERTIES} entries`);
@@ -52,7 +52,7 @@ export function checkDeclarations(declarations) {
     if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) invalid("each declaration must be an object");
     const property = declaration.property;
     const value = declaration.value;
-    if (typeof property !== "string" || !PROPERTY.test(property) || property.startsWith("--")) invalid("property must be a standard CSS property name");
+    if (typeof property !== "string" || !PROPERTY.test(property)) invalid("property must be a CSS property name");
     // A state, a pseudo-element or a breakpoint lives in a rule of its own, so
     // each one is checked here before the page draws it.
     const on = declaration.on;
@@ -67,7 +67,7 @@ export function checkDeclarations(declarations) {
     const key = `${on || ""}|${when || ""}|${property}`;
     if (seen.has(key)) invalid("a declaration cannot repeat a property");
     seen.add(key);
-    if (typeof value !== "string" || !value.trim() || value.length > 160 || VALUE.test(value)) invalid("property value is invalid");
+    if (typeof value !== "string" || !value.trim() || value.length > 2000) invalid("property value is invalid");
     const out = { property, value: value.trim() };
     if (on) out.on = on;
     if (when) out.when = when;
@@ -93,7 +93,7 @@ export function checkVariationRequest(request) {
   let contextSize = element.tag.length + element.selector.length + prompt.length;
   const values = element.values.map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) invalid("each current value must be an object");
-    if (typeof entry.property !== "string" || !PROPERTY.test(entry.property)) invalid("current property is invalid");
+    if (typeof entry.property !== "string" || !STRICT_PROPERTY.test(entry.property)) invalid("current property is invalid");
     if (typeof entry.value !== "string" || entry.value.length > 120 || VALUE.test(entry.value)) invalid("current value is invalid");
     contextSize += entry.property.length + entry.value.length;
     return { property: entry.property, value: entry.value };

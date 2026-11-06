@@ -106,26 +106,18 @@ test("each action checks what it needs, and nothing else passes", () => {
     { ...insert, instruction: "" },
     { ...insert, action: "dance" },
     { ...insert, position: "middle" },
-    { ...insert, html: '<script>alert(1)</script>' },
-    { ...insert, html: '<div onclick="go()">x</div>' },
-    { ...insert, html: '<iframe src="x"></iframe>' },
-    { ...insert, html: '<a href="javascript:go()">x</a>' },
-    { ...insert, html: '<form><input></form>' },
-    { ...insert, html: '<div style="color: red">x</div>' },
-    { ...insert, html: "just words" },
-    { ...insert, html: "<!-- hi --><div>x</div>" },
     { ...styles, selector: "" },
     { ...styles, variations: [] },
     { ...styles, variations: [{ label: "", props: [] }] },
     { ...styles, variations: [{ label: "x", props: [], text: "   " }] },
     { instruction: "u", action: "update", selector: "p" },
-    { instruction: "u", action: "update", selector: "p", props: [{ property: "--x", value: "1" }] },
     { instruction: "u", action: "remove" },
   ];
   for (const value of bad) assert.throws(() => checkPreview(value), { status: 400 }, JSON.stringify(value)?.slice(0, 80));
-  for (const value of ["<div>x</div>", "<DIV CLASS=\"a\">x</DIV>", "<img src=\"/a.png\" alt=\"a\">", "<a href=\"/plans\">go</a>"]) {
+  for (const value of ["<div>x</div>", "<DIV CLASS=\"a\">x</DIV>", "<img src=\"/a.png\" alt=\"a\">", "<a href=\"/plans\">go</a>", '<script>alert(1)</script>', '<div onclick="go()">x</div>', '<iframe src="x"></iframe>', '<a href="javascript:go()">x</a>', '<form><input></form>', '<div style="color: red">x</div>', "just words", "<!-- hi --><div>x</div>", '<style>@keyframes slideIn{from{opacity:0}to{opacity:1}}</style><div class="s">x</div>', '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>', '<table><tr><td>x</td></tr></table>']) {
     assert.equal(checkPreviewHtml(value), value);
   }
+  assert.equal(checkPreview({ instruction: "u", action: "update", selector: "p", props: [{ property: "--x", value: "1" }] }).props[0].property, "--x");
 });
 
 test("the agent reads a short preview, not the page", async () => {

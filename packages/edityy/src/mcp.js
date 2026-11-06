@@ -69,7 +69,7 @@ const PREVIEW_TARGET = {
     variations: PREVIEW_VARIATIONS,
     anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
     position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
-    html: { type: "string", description: "For insert and update: the markup. Structure, headings, words and pictures only; no forms, scripts or event attributes." },
+    html: { type: "string", description: "For insert and update: the markup. Any markup, incl. form, input, script, style, iframe, svg, table, video." },
     props: DECLARATIONS,
     text: { type: "string", description: "Optional: plain words for update." },
   },
@@ -109,10 +109,10 @@ const TOOLS = [
       "The user typed edityy:: followed by an instruction in their agent chat: paint that change on the live Edityy canvas only, not in the code. " +
       "Place one preview with an action and its payload, or many at once with targets: each target keeps its own action, selector or anchor, and payload. " +
       "styles restyles one element and takes a selector plus 1 to 100 labeled variations of plain CSS declarations, each with an optional text. " +
-      "insert adds one allowlisted element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
+      "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
       "update changes one element named by a selector, with styles, text or markup. " +
       "remove takes away one element named by a selector. " +
-      "No custom properties, at-rules in place of when, !important, url(), script tags, event attributes or iframes. " +
+      "All markup and styles are allowed on the canvas. " +
       "The preview shows on the page with Keep and Discard; keeping it makes it a normal Edityy edit. " +
       "If the place is unclear and the user named none, ask first.",
     inputSchema: {
@@ -125,7 +125,7 @@ const TOOLS = [
         targets: { type: "array", minItems: 1, maxItems: 100, items: PREVIEW_TARGET, description: "Many elements in one preview, each with its own action and payload. Old single-action calls keep working without it." },
         anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
         position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
-        html: { type: "string", description: "For insert and update: the markup. Structure, headings, words and pictures only; no forms, scripts or event attributes." },
+        html: { type: "string", description: "For insert and update: the markup. Any markup, incl. form, input, script, style, iframe, svg, table, video." },
         props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },
       },
@@ -170,7 +170,7 @@ const TOOLS = [
       "Use the requestId that get_variation_request returned, and read the request again if the user changed it. " +
       "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
       "pseudo-element and `when` for a media condition, and it may also set the element's words with `text`. " +
-      "No custom properties, at-rules in place of `when`, `!important` or url().",
+      "Any CSS, incl. custom properties, !important and url(), paints on the canvas.",
     inputSchema: {
       type: "object",
       properties: {

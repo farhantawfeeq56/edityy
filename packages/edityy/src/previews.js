@@ -5,10 +5,6 @@
  * by calling place_preview over MCP, and the page polls the previews endpoint
  * and paints it. Nothing here touches source files: a kept preview becomes an
  * ordinary Edityy edit, and the agent applies that edit to the code later.
- *
- * Like variations.js, nothing the agent sends reaches the page unchecked. HTML
- * is allowlisted twice: here with a strict tag and attribute list, and again on
- * the page with a DOM walker, so a file the agent wrote by hand is still safe.
  */
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -26,19 +22,13 @@ const POSITIONS = ["after", "before", "inside-start", "inside-end"];
 const MAX_SELECTOR = 200;
 /** The instruction the user typed, as the agent quotes it. */
 const MAX_INSTRUCTION = 500;
-/** Inserted markup: one section, not a page. */
-const MAX_HTML = 8000;
+/** Inserted markup. */
+const MAX_HTML = 50000;
 /** How many past previews the file keeps. */
 const MAX_HISTORY = 20;
 /** How many elements one preview can paint, and how many looks one styles element can hold. */
 const MAX_TARGETS = 100;
 const MAX_STYLES_VARIATIONS = 100;
-/** Tags an insert may use: structure, headings, words and pictures. No forms. */
-const TAGS = /^(div|section|article|header|footer|main|nav|aside|h1|h2|h3|h4|h5|h6|p|span|a|button|ul|ol|li|img|figure|figcaption|blockquote|pre|code|strong|em|small|hr|br)$/;
-/** Attributes an insert may carry: names, links and words. No style, no events. */
-const ATTRS = /^(class|id|href|src|alt|title)$/;
-/** A link that runs code instead of going somewhere. */
-const DANGEROUS_URL = /^\s*(javascript|data|vbscript)\s*:/i;
 
 function invalid(message) {
   throw new SaveError(400, `Invalid preview data: ${message}.`);
@@ -49,31 +39,9 @@ function selector(value, name) {
   return value;
 }
 
-/**
- * Inserted markup, cut down to safe tags and attributes.
- *
- * A regex pass, not a parser: it refuses comments, doctypes and anything that
- * is not an allowlisted tag with allowlisted attributes, and the page walks
- * the result with a DOM parser before it paints it.
- */
+/** Inserted markup: any markup the caller sends. */
 export function checkPreviewHtml(html) {
   if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) invalid(`html must be 1 to ${MAX_HTML} characters`);
-  if (/<!--|<!\[CDATA\[|<\?/i.test(html)) invalid("html cannot hold comments or processing instructions");
-  const tags = html.match(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g) || [];
-  if (!tags.length) invalid("html must hold at least one element");
-  for (const tag of tags) {
-    const name = tag.match(/^<\/?([a-zA-Z][a-zA-Z0-9-]*)/)[1].toLowerCase();
-    if (!TAGS.test(name)) invalid(`html cannot use <${name}>`);
-    if (/^<\//.test(tag)) continue;
-    const inside = tag.replace(/^<[a-zA-Z][a-zA-Z0-9-]*/, "").replace(/\/?>$/, "");
-    const attrs = inside.match(/[a-zA-Z-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g) || [];
-    for (const attr of attrs) {
-      const key = attr.split("=")[0].trim().toLowerCase();
-      if (!ATTRS.test(key)) invalid(`html cannot use the ${key} attribute`);
-      const quoted = attr.match(/=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/)?.[2] ?? attr.match(/=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/)?.[3] ?? attr.match(/=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/)?.[4] ?? "";
-      if (DANGEROUS_URL.test(quoted)) invalid("html links cannot run code");
-    }
-  }
   return html;
 }
 

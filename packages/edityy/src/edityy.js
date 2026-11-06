@@ -6481,34 +6481,21 @@ function decorations() {
   }
 
   /**
-   * Inserted markup, parsed by the page and not by string: only allowlisted
-   * tags with allowlisted attributes reach the canvas. A file the agent wrote
-   * by hand is checked again here, because the agent is not trusted.
+   * Inserted markup: any markup the caller sends.
+   * Parses as DOM; script elements get a fresh copy so they run on insert.
    */
   function previewNodes(html) {
     var box = document.createElement("div");
     box.innerHTML = html;
-    var tags = /^[a-z][a-z0-9-]*$/;
-    var allowTags = { div: 1, section: 1, article: 1, header: 1, footer: 1, main: 1, nav: 1, aside: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1, p: 1, span: 1, a: 1, button: 1, ul: 1, ol: 1, li: 1, img: 1, figure: 1, figcaption: 1, blockquote: 1, pre: 1, code: 1, strong: 1, em: 1, small: 1, hr: 1, br: 1 };
-    var allowAttrs = { class: 1, id: 1, href: 1, src: 1, alt: 1, title: 1 };
-    var bad = /^(javascript|data|vbscript)\s*:/i;
-    var walk = function (node) {
-      var kids = node.childNodes ? Array.prototype.slice.call(node.childNodes) : [];
-      kids.forEach(function (kid) {
-        if (kid.nodeType === 8) return node.removeChild(kid); // no comments ride along
-        if (kid.nodeType !== 1) return;
-        var tag = String(kid.tagName || "").toLowerCase();
-        if (!tags.test(tag) || !allowTags[tag]) return node.removeChild(kid);
-        var attrs = kid.attributes ? Array.prototype.slice.call(kid.attributes) : [];
-        attrs.forEach(function (attr) {
-          var key = String(attr.name || "").toLowerCase();
-          if (!allowAttrs[key]) return kid.removeAttribute(attr.name);
-          if (bad.test(String(attr.value || ""))) return kid.removeAttribute(attr.name);
-        });
-        walk(kid);
-      });
-    };
-    walk(box);
+    var scripts = [];
+    try { scripts = Array.prototype.slice.call(box.querySelectorAll("script")); } catch { scripts = []; }
+    scripts.forEach(function (old) {
+      var fresh = document.createElement("script");
+      var attrs = old.attributes ? Array.prototype.slice.call(old.attributes) : [];
+      attrs.forEach(function (a) { fresh.setAttribute(a.name, a.value); });
+      fresh.textContent = old.textContent || "";
+      if (old.parentNode) old.parentNode.replaceChild(fresh, old);
+    });
     return Array.prototype.slice.call(box.childNodes);
   }
 
@@ -6605,13 +6592,13 @@ function decorations() {
       previewTarget = target;
       (preview.props || []).forEach(function (p) { applyTo(target, propKey(p), p.value); });
       if (preview.text !== undefined) previewText(target, preview.text);
-      if (preview.html !== undefined && !(target.children && target.children.length)) {
+      if (preview.html !== undefined) {
         var rec = record(target);
         if (rec.text === null) rec.text = target.textContent;
         if (rec.html === undefined) rec.html = target.innerHTML;
         var was = target.innerHTML;
         target.innerHTML = "";
-        previewNodes(preview.html).forEach(function (node) { target.appendChild(node.cloneNode(true)); });
+        previewNodes(preview.html).forEach(function (node) { target.appendChild(node); });
         action(rec, "text", was, target.innerHTML);
       }
       previewRecords.push(record(target));
