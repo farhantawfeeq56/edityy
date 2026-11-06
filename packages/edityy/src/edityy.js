@@ -685,73 +685,18 @@
     // The two buttons of the comment box carry words, so they take the width
     // they are given rather than the square an action is.
     ".element-comment-action{flex:1;width:auto;height:34px;justify-content:center;padding:0 10px}",
-    // The comment box in ten designs: data-cv on the box picks one, and the
-    // floating control at the bottom right switches between them. Every
-    // design holds the same two commands — Save last in the row, gold, and
-    // Cancel before it, quiet — so structure changes below, never the
-    // answer. Gold is the dock's own: brand fill, ink on it. The box wears
-    // the toolbar's scale: no wider than the dock, no taller than its
-    // rows, so the comment never dwarfs what it comments on.
-    ".comment-vartest{position:fixed;right:24px;bottom:76px;z-index:6;display:flex;gap:2px;padding:3px;background:#F9F8F6;border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);pointer-events:auto}",
-    ".comment-vartest button{width:28px;height:24px;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);font:500 12px/1 inherit;cursor:pointer}",
-    "@media (hover:hover){.comment-vartest button:hover{background:var(--ink-6);color:var(--ink)}}",
-    ".comment-vartest button[aria-pressed=true]{background:var(--paper);box-shadow:inset 0 0 0 1px var(--ink-12);color:var(--ink)}",
+    // The comment box. It wears the toolbar's scale: no wider than the
+    // dock, no taller than its rows, so the comment never dwarfs what it
+    // comments on. The typing field keeps one color here and everywhere;
+    // only shape moves. Save sits last in the row, gold — brand fill,
+    // ink on it, the dock's own — and Cancel before it, quiet.
     ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
     ".element-menu .element-comment .element-comment-action{flex:none;height:28px;padding:0 12px}",
     ".element-menu .element-comment [data-key=comment-save],.element-menu .element-comment [data-key=region-save]{background:var(--brand);color:var(--ink)}",
     ".element-menu .element-comment [data-key=comment-cancel],.element-menu .element-comment [data-key=region-cancel]{color:var(--muted)}",
-    // 1: flat. The field, then the two ticks, then the commands. The
-    // count sits at the end of the variants row, where a value sits in
-    // the dock.
-    ".element-comment[data-cv=\"1\"]{width:240px}",
-    // 2: boxed ticks. Each tick in its own hairline box, so the two
-    // choices read as two choices and not as one paragraph.
-    ".element-comment[data-cv=\"2\"]{width:240px}",
-    ".element-comment[data-cv=\"2\"] .element-comment-row{border:1px solid var(--ink-10);border-radius:8px;padding:6px 8px}",
-    // 3: variants first. The rarer choice on top, the common one under
-    // it, so the eye meets the decision that changes Save first.
-    ".element-comment[data-cv=\"3\"]{width:240px}",
-    ".element-comment[data-cv=\"3\"] .element-comment-row{order:0}",
-    ".element-comment[data-cv=\"3\"] label.element-comment-row{order:1}",
-    // 4: two columns. The ticks side by side, so the box reads as
-    // field, choices, commands in three lines.
-    ".element-comment[data-cv=\"4\"]{flex-wrap:wrap;width:260px}",
-    ".element-comment[data-cv=\"4\"] .element-comment-text{flex:1 1 100%}",
-    ".element-comment[data-cv=\"4\"] .element-comment-row{flex:1 1 40%}",
-    ".element-comment[data-cv=\"4\"] .element-menu-actions{flex:1 1 100%;justify-content:flex-end}",
-    // 5: wide. A wide box for long words, and a count with room in it.
-    ".element-comment[data-cv=\"5\"]{width:280px}",
-    ".element-comment[data-cv=\"5\"] .element-comment-stepper{width:64px;height:26px}",
-    // 6: headlined. The word the box answers to, in the head's own
-    // voice, above the field.
-    ".element-comment[data-cv=\"6\"]{width:260px}",
-    ".element-comment[data-cv=\"6\"]::before{content:\"Comment\";display:block;font:500 12px/1 inherit;color:var(--ink)}",
-    // 7: switches. A tick is a switch, so on and off read as two places
-    // of the same rail rather than a box that fills.
-    ".element-comment[data-cv=\"7\"]{width:240px}",
-    ".element-comment[data-cv=\"7\"] .element-comment-row .mark{width:26px;height:16px;border-radius:999px}",
-    ".element-comment[data-cv=\"7\"] .element-comment-row .mark>svg{display:none}",
-    ".element-comment[data-cv=\"7\"] .element-comment-row .mark::before{content:\"\";width:10px;height:10px;border-radius:50%;background:var(--muted);transition:transform var(--slide) var(--standard),background-color var(--tint) var(--standard)}",
-    ".element-comment[data-cv=\"7\"] .element-comment-row input:checked+.mark::before{transform:translateX(10px);background:var(--paper)}",
-    // 8: borderless. The ramp has no second neutral, so the field is
-    // paper stepped once towards ink, and the hairlines are gone.
-    ".element-comment[data-cv=\"8\"]{width:240px}",
-    ".element-comment[data-cv=\"8\"] .element-comment-text{border:0;border-radius:8px}",
-    ".element-comment[data-cv=\"8\"] .element-comment-text:hover{background:var(--fill-hover)}",
-    ".element-comment[data-cv=\"8\"] .element-comment-text:focus{background:var(--fill-open);box-shadow:inset 0 0 0 1px var(--ink-10)}",
-    ".element-comment[data-cv=\"8\"] .element-comment-stepper{border:0;border-radius:8px}",
-    // 9: warm. The open fill on the field and the count alone, so the
-    // box stays paper and the words stand in the warm place.
-    ".element-comment[data-cv=\"9\"]{width:260px}",
-    ".element-comment[data-cv=\"9\"] .element-comment-row{border:1px solid var(--ink-10);border-radius:8px;padding:6px 8px}",
-    ".element-comment[data-cv=\"9\"] .element-comment-stepper{background:var(--accent-soft);border-color:transparent}",
-    // 10: the underlined field. No box at all: a hairline under the
-    // words, and a count written on one too.
-    ".element-comment[data-cv=\"10\"]{width:240px}",
-    ".element-comment[data-cv=\"10\"] .element-comment-text{border:0;border-bottom:1px solid var(--ink-20);border-radius:0;padding:6px 2px}",
-    ".element-comment[data-cv=\"10\"] .element-comment-text:hover{background:var(--fill-hover)}",
-    ".element-comment[data-cv=\"10\"] .element-comment-text:focus{background:var(--fill-open);border-bottom-color:var(--accent)}",
-    ".element-comment[data-cv=\"10\"] .element-comment-stepper{border:0;border-bottom:1px solid var(--ink-20);border-radius:0;background:transparent;padding:0 2px}",
+    // The field, then the two ticks, then the commands. The count sits
+    // at the end of the variants row, where a value sits in the dock.
+    ".element-comment{width:240px}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -892,14 +837,14 @@
     // way down is quick and the way back is the release — with no list of
     // durations to keep in step with the list of properties.
     ".ic,.opt,.cta,.element-action,.variant,.icon-button,.fld,.sides-pair>label,.value-field,.pop .weight-control,",
-    ".comment-vartest button,.custom-select-trigger,.custom-option{",
+    ".custom-select-trigger,.custom-option{",
     "--press-dur:var(--settle);",
     "transition:background-color var(--tint) var(--standard),border-color var(--tint) var(--standard),color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--press-dur) var(--arrive)}",
     // One press, for every control that answers the pointer: one amount and one
     // pair of times. A local :active is how the amounts drifted apart.
     ".ic:active,.opt:active,.cta:active:not(:disabled),.element-action:active,.variant:active,.icon-button:active,",
     ".fld:active,.sides-pair>label:active,.value-field:active,.pop .weight-control:active,",
-    ".comment-vartest button:active,.custom-select-trigger:active,.custom-option:active{--press-dur:var(--press);transform:scale(.96)}",
+    ".custom-select-trigger:active,.custom-option:active{--press-dur:var(--press);transform:scale(.96)}",
     // The keyboard ring, in one place too: a 2px line in the accent that reads on
     // paper. Every button in the chrome wears it, so nothing falls back to the
     // browser's own ring inside the shadow root.
@@ -930,20 +875,6 @@
     // The chat-initiated preview: one box per agent answer, with Keep and
     // Discard, and the same keys the variant strip answers to.
     '<div class="variants" id="preview" hidden role="group" aria-label="Canvas preview"></div>',
-    // The comment box's ten designs: one button per design, bottom right
-    // while a comment box is open. The numbers are the keys too, 1 to 0.
-    '<div class="comment-vartest" id="comment-vartest" hidden role="group" aria-label="Comment box design">' +
-    '<button type="button" data-cv="1" aria-pressed="true">1</button>' +
-    '<button type="button" data-cv="2" aria-pressed="false">2</button>' +
-    '<button type="button" data-cv="3" aria-pressed="false">3</button>' +
-    '<button type="button" data-cv="4" aria-pressed="false">4</button>' +
-    '<button type="button" data-cv="5" aria-pressed="false">5</button>' +
-    '<button type="button" data-cv="6" aria-pressed="false">6</button>' +
-    '<button type="button" data-cv="7" aria-pressed="false">7</button>' +
-    '<button type="button" data-cv="8" aria-pressed="false">8</button>' +
-    '<button type="button" data-cv="9" aria-pressed="false">9</button>' +
-    '<button type="button" data-cv="10" aria-pressed="false">0</button>' +
-    "</div>",
     '<div class="insert" id="insert" aria-hidden="true">',
     svg("plus"),
     "</div>",
@@ -983,7 +914,6 @@
   var elementMenu = $("element-menu");
   var variantsBox = $("variants");
   var previewBox = $("preview");
-  var commentVartest = $("comment-vartest");
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
@@ -1687,9 +1617,6 @@
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
   var openComment = null;
-  // Which of the comment box's ten designs is on. data-cv on the box picks
-  // it, and the floating control plus the number keys write it.
-  var commentVariant = 1;
   // The element whose card was closed on purpose. It stays shut until the next click.
   var cardDoneFor = null;
   // The buttons of the card, and the element they belong to. They are kept
@@ -1718,7 +1645,6 @@
     // The Add box owns the menu while its comment is open: no element needed.
     if (regionFor) {
       if (!openRegionBox) drawMenu(regionCommentBox(regionFor));
-      syncCommentVartest();
       placeAtRect(regionView(regionFor));
       return;
     }
@@ -1753,7 +1679,6 @@
     if (activeTool === "comment" && !commentFor && variantsBox.hidden) commentFor = selected;
     if (activeTool === "comment" && commentFor) {
       if (!openComment) drawMenu(commentBox(commentFor));
-      syncCommentVartest();
       placeElementMenu();
       return;
     }
@@ -1784,7 +1709,6 @@
    * came.
    */
   function hideMenu() {
-    commentVartest.hidden = true;
     if (elementMenu.hidden) return;
     if (menuLeaving) return;
     if (!moves(elementMenu)) {
@@ -1828,7 +1752,6 @@
 
   /** Put the card away at once, with no fade. For the times it has to go now. */
   function menuAway() {
-    commentVartest.hidden = true;
     if (menuLeaving) {
       menuLeaving.cancel();
       menuLeaving = null;
@@ -1905,35 +1828,12 @@
   }
 
   /**
-   * Paint the design the user picked: the box wears data-cv, and the
-   * floating control marks it. The box keeps its words either way.
-   */
-  function setCommentVariant(n) {
-    if (!(n >= 1) || n > 10) return;
-    commentVariant = n;
-    if (openComment) openComment.dataset.cv = String(n);
-    if (openRegionBox) openRegionBox.dataset.cv = String(n);
-    var segs = commentVartest.children;
-    for (var i = 0; i < segs.length; i++) {
-      segs[i].setAttribute("aria-pressed", Number(segs[i].dataset.cv) === n ? "true" : "false");
-    }
-  }
-
-  // The floating control stands only while a comment box is on the page.
-  function syncCommentVartest() {
-    var open = openComment || openRegionBox;
-    commentVartest.hidden = !open;
-    if (open) setCommentVariant(commentVariant);
-  }
-
-  /**
    * The comment box for one drawn box: a field, a Save button and a Cancel.
    * Save keeps the box with its words and its number; Cancel drops it.
    */
   function regionCommentBox(region) {
     var box = document.createElement("div");
     box.className = "element-comment";
-    box.dataset.cv = String(commentVariant);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
     area.rows = 3;
@@ -1988,7 +1888,6 @@
   function commentBox(el) {
     var box = document.createElement("div");
     box.className = "element-comment";
-    box.dataset.cv = String(commentVariant);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
     area.rows = 3;
@@ -7968,18 +7867,6 @@ function decorations() {
       }
       return;
     }
-    // 1 to 0 picks one of the comment box's ten designs while its box is
-    // open, the way the strip's numbers pick a variation. A digit in a
-    // field belongs to the field, so nothing here fires while typing.
-    if ((openComment || openRegionBox) && variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
-      var commentTyping = editing || pageField;
-      if (!commentTyping) {
-        if (e.preventDefault) e.preventDefault();
-        if (e.stopPropagation) e.stopPropagation();
-        setCommentVariant(e.key === "0" ? 10 : Number(e.key));
-      }
-      return;
-    }
     if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       e.preventDefault();
       e.stopPropagation();
@@ -8117,15 +8004,6 @@ function decorations() {
     e.stopPropagation();
     exit();
     syncRow();
-  });
-
-  commentVartest.addEventListener("click", function (e) {
-    var b = e.target;
-    if (b && b.dataset && b.dataset.cv) {
-      e.stopPropagation();
-      setCommentVariant(Number(b.dataset.cv));
-      b.focus();
-    }
   });
 
   (document.body || document.documentElement).appendChild(host);
