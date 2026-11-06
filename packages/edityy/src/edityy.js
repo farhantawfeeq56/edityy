@@ -6487,14 +6487,33 @@ function decorations() {
   function previewNodes(html) {
     var box = document.createElement("div");
     box.innerHTML = html;
+    var banned = /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|localStorage|sessionStorage|document\.cookie|\beval\s*\(|new\s+Function|importScripts|document\.write\b|window\.location|document\.location|location\s*=(?!=)|location\.href/i;
+    var danger = /^\s*((javascript|vbscript)\s*:|data\s*:\s*(text\/html|application\/javascript|application\/xhtml\+xml))/i;
+    var external = /^\s*(https?:\/\/|\/\/)/i;
     var scripts = [];
     try { scripts = Array.prototype.slice.call(box.querySelectorAll("script")); } catch { scripts = []; }
     scripts.forEach(function (old) {
+      var src = old.getAttribute ? old.getAttribute("src") : null;
+      if (src !== null || banned.test(old.textContent || "")) {
+        if (old.parentNode) old.parentNode.removeChild(old);
+        return;
+      }
       var fresh = document.createElement("script");
-      var attrs = old.attributes ? Array.prototype.slice.call(old.attributes) : [];
-      attrs.forEach(function (a) { fresh.setAttribute(a.name, a.value); });
       fresh.textContent = old.textContent || "";
       if (old.parentNode) old.parentNode.replaceChild(fresh, old);
+    });
+    var all = [];
+    try { all = Array.prototype.slice.call(box.querySelectorAll("*")); } catch { all = []; }
+    all.forEach(function (el) {
+      var attrs = el.attributes ? Array.prototype.slice.call(el.attributes) : [];
+      attrs.forEach(function (a) {
+        var key = String(a.name || "").toLowerCase();
+        var value = String(a.value || "");
+        if (key.indexOf("on") === 0 && banned.test(value)) return el.removeAttribute(a.name);
+        if (["href", "src", "action", "formaction", "xlink:href", "poster", "data"].indexOf(key) !== -1 && danger.test(value)) return el.removeAttribute(a.name);
+        if ((key === "action" || key === "formaction") && external.test(value)) return el.removeAttribute(a.name);
+        if (String(el.tagName || "").toLowerCase() === "iframe" && key === "srcdoc" && /<script|javascript\s*:/i.test(value)) return el.removeAttribute(a.name);
+      });
     });
     return Array.prototype.slice.call(box.childNodes);
   }

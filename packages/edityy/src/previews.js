@@ -29,6 +29,11 @@ const MAX_HISTORY = 20;
 /** How many elements one preview can paint, and how many looks one styles element can hold. */
 const MAX_TARGETS = 100;
 const MAX_STYLES_VARIATIONS = 100;
+/** Strict-inline JS: inline script + on* allowed, network/storage blocked. */
+const BANNED_JS = /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|localStorage|sessionStorage|document\.cookie|\beval\s*\(|new\s+Function|importScripts|document\.write\b|window\.location|document\.location|location\s*=(?!=)|location\.href/i;
+/** A URL that runs code instead of showing content. */
+const DANGEROUS_URL = /^\s*((javascript|vbscript)\s*:|data\s*:\s*(text\/html|application\/javascript|application\/xhtml\+xml))/i;
+const EXTERNAL_URL = /^\s*(https?:\/\/|\/\/)/i;
 
 function invalid(message) {
   throw new SaveError(400, `Invalid preview data: ${message}.`);
@@ -39,9 +44,35 @@ function selector(value, name) {
   return value;
 }
 
-/** Inserted markup: any markup the caller sends. */
+/** Inserted markup: strict-inline JS only, no network in script. */
 export function checkPreviewHtml(html) {
   if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) invalid(`html must be 1 to ${MAX_HTML} characters`);
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+  for (const body of scripts) {
+    if (BANNED_JS.test(body)) invalid("html cannot use network or storage in script");
+  }
+  const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
+  for (const body of styles) {
+    if (/@import/i.test(body)) invalid("html cannot use @import in style");
+  }
+  const tags = html.match(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g) || [];
+  for (const tag of tags) {
+    const name = tag.match(/^<\/?([a-zA-Z][a-zA-Z0-9-]*)/)[1].toLowerCase();
+    if (/^<\//.test(tag)) continue;
+    const inside = tag.replace(/^<[a-zA-Z][a-zA-Z0-9-]*/, "").replace(/\/?>$/, "");
+    const attrs = inside.match(/[a-zA-Z:-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g) || [];
+    for (const attr of attrs) {
+      const eq = attr.indexOf("=");
+      const key = (eq === -1 ? attr : attr.slice(0, eq)).trim().toLowerCase();
+      const raw = eq === -1 ? "" : attr.slice(eq + 1).trim();
+      const value = raw.replace(/^("|')|("|')$/g, "");
+      if (name === "script" && key === "src") invalid("html cannot use script src");
+      if (key.startsWith("on") && BANNED_JS.test(value)) invalid("html cannot use network or storage in event handler");
+      if (["href", "src", "action", "formaction", "xlink:href", "poster", "data"].includes(key) && DANGEROUS_URL.test(value)) invalid("html links cannot run code");
+      if ((key === "action" || key === "formaction") && EXTERNAL_URL.test(value)) invalid("html forms cannot post to another site");
+      if (name === "iframe" && key === "srcdoc" && /<script|javascript\s*:/i.test(value)) invalid("html cannot put script in iframe");
+    }
+  }
   return html;
 }
 
