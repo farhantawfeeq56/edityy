@@ -30,6 +30,9 @@ const MAX_INSTRUCTION = 500;
 const MAX_HTML = 8000;
 /** How many past previews the file keeps. */
 const MAX_HISTORY = 20;
+/** How many elements one preview can paint, and how many looks one styles element can hold. */
+const MAX_TARGETS = 100;
+const MAX_STYLES_VARIATIONS = 100;
 /** Tags an insert may use: structure, headings, words and pictures. No forms. */
 const TAGS = /^(div|section|article|header|footer|main|nav|aside|h1|h2|h3|h4|h5|h6|p|span|a|button|ul|ol|li|img|figure|figcaption|blockquote|pre|code|strong|em|small|hr|br)$/;
 /** Attributes an insert may carry: names, links and words. No style, no events. */
@@ -85,18 +88,16 @@ export function newPreviewId() {
  * The id is made here, not taken: an agent that names its own id could shadow
  * another preview. Status and time are made here too.
  */
-export function checkPreview(placed) {
-  if (!placed || typeof placed !== "object" || Array.isArray(placed)) invalid("expected an object");
-  if (typeof placed.instruction !== "string" || !placed.instruction.trim() || placed.instruction.length > MAX_INSTRUCTION) {
-    invalid(`instruction must be 1 to ${MAX_INSTRUCTION} characters`);
-  }
+/** One element of a preview: its action and its own payload. */
+function checkTarget(placed) {
+  if (!placed || typeof placed !== "object" || Array.isArray(placed)) invalid("each target must be an object");
   const action = placed.action;
   if (!ACTIONS.includes(action)) invalid("action must be styles, insert, update or remove");
-  const out = { instruction: placed.instruction.trim(), action };
+  const out = { action };
   if (action === "styles") {
     out.selector = selector(placed.selector, "selector");
-    if (!Array.isArray(placed.variations) || placed.variations.length < 1 || placed.variations.length > 10) {
-      invalid("styles needs 1 to 10 variations");
+    if (!Array.isArray(placed.variations) || placed.variations.length < 1 || placed.variations.length > MAX_STYLES_VARIATIONS) {
+      invalid(`styles needs 1 to ${MAX_STYLES_VARIATIONS} variations`);
     }
     out.variations = placed.variations.map((variation) => {
       if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
@@ -129,6 +130,25 @@ export function checkPreview(placed) {
     out.selector = selector(placed.selector, "selector");
   }
   return out;
+}
+
+export function checkPreview(placed) {
+  if (!placed || typeof placed !== "object" || Array.isArray(placed)) invalid("expected an object");
+  if (typeof placed.instruction !== "string" || !placed.instruction.trim() || placed.instruction.length > MAX_INSTRUCTION) {
+    invalid(`instruction must be 1 to ${MAX_INSTRUCTION} characters`);
+  }
+  // Many elements at once, or the old single-action call: both land as
+  // `targets`, and the top level keeps the first target for old readers.
+  let targets;
+  if (placed.targets !== undefined) {
+    if (!Array.isArray(placed.targets) || !placed.targets.length || placed.targets.length > MAX_TARGETS) {
+      invalid(`targets must be a list of 1 to ${MAX_TARGETS} elements`);
+    }
+    targets = placed.targets.map(checkTarget);
+  } else {
+    targets = [checkTarget(placed)];
+  }
+  return { instruction: placed.instruction.trim(), ...targets[0], targets };
 }
 
 /** The newest preview the page or the agent still reads: not discarded yet. */
@@ -252,24 +272,27 @@ export async function clearPreviews(root = process.cwd()) {
 
 /** One preview as text for the agent: what to change in the source. */
 export function previewText(preview) {
+  const targets = Array.isArray(preview.targets) ? preview.targets : [preview];
   const lines = [`# Preview ${preview.id} from Edityy`, "", `Instruction: ${JSON.stringify(preview.instruction)}`, `Action: ${preview.action}`, `Status: ${preview.status}`];
-  if (preview.selector) lines.push(`Target: \`${preview.selector}\``);
-  if (preview.action === "styles") {
-    for (const variation of preview.variations) {
-      lines.push("", `## ${variation.label}`);
-      for (const prop of variation.props) {
-        lines.push(`- \`${prop.property}\`${prop.on ? ` on \`${prop.on}\`` : ""}${prop.when ? ` in \`@media ${prop.when}\`` : ""}: \`${prop.value}\``);
+  for (const target of targets) {
+    if (target.selector) lines.push(`Target: \`${target.selector}\``);
+    if (target.action === "styles") {
+      for (const variation of target.variations) {
+        lines.push("", `## ${variation.label}`);
+        for (const prop of variation.props) {
+          lines.push(`- \`${prop.property}\`${prop.on ? ` on \`${prop.on}\`` : ""}${prop.when ? ` in \`@media ${prop.when}\`` : ""}: \`${prop.value}\``);
+        }
+        if (variation.text !== undefined) lines.push(`- Text: ${JSON.stringify(variation.text)}`);
       }
-      if (variation.text !== undefined) lines.push(`- Text: ${JSON.stringify(variation.text)}`);
     }
-  }
-  if (preview.action === "insert") {
-    lines.push(`Anchor: ${preview.anchor ? `\`${preview.anchor}\`` : "end of main"}`, `Position: ${preview.position}`, "", preview.html);
-  }
-  if (preview.action === "update") {
-    for (const prop of preview.props) lines.push(`- \`${prop.property}\`: \`${prop.value}\``);
-    if (preview.text !== undefined) lines.push(`- Text: ${JSON.stringify(preview.text)}`);
-    if (preview.html !== undefined) lines.push("", preview.html);
+    if (target.action === "insert") {
+      lines.push(`Anchor: ${target.anchor ? `\`${target.anchor}\`` : "end of main"}`, `Position: ${target.position}`, "", target.html);
+    }
+    if (target.action === "update") {
+      for (const prop of target.props) lines.push(`- \`${prop.property}\`: \`${prop.value}\``);
+      if (target.text !== undefined) lines.push(`- Text: ${JSON.stringify(target.text)}`);
+      if (target.html !== undefined) lines.push("", target.html);
+    }
   }
   lines.push("", "Apply this to the source in the way the project already styles things, then tell the user it is in.");
   return lines.join("\n");

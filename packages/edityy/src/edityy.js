@@ -6376,6 +6376,20 @@ function decorations() {
   var previewVariantProps = [];
   var previewTarget = null; // the styled element, for a styles preview
   var previewFresh = []; // the inserted elements, for an insert preview
+  var previewStyled = []; // every styles element in the preview: { el, props }
+
+  /** Every element one preview paints: the many-target form, or the old single one. */
+  function previewTargets(preview) {
+    return preview && Array.isArray(preview.targets) && preview.targets.length ? preview.targets : preview ? [preview] : [];
+  }
+  function previewStyleTargets(preview) {
+    return previewTargets(preview).filter(function (t) { return t.action === "styles"; });
+  }
+  /** The rows one variant number picks from: the first styles target's looks. */
+  function previewRowVariations(preview) {
+    var styles = previewStyleTargets(preview);
+    return styles.length ? styles[0].variations || [] : [];
+  }
 
   /** Ask once for the agent's previews, and again in a moment while there are none. */
   function pollPreviews() {
@@ -6448,17 +6462,16 @@ function decorations() {
   }
 
   /** Put one declaration set on an element, through the same records as a pick. */
-  function previewApply(el, props) {
+  function previewApply(el, props, prev) {
     var rec = record(el);
     var next = {};
     props.forEach(function (p) { next[propKey(p)] = p.value; });
-    previewVariantProps.forEach(function (prop) {
+    (prev || previewVariantProps).forEach(function (prop) {
       if (prop in next) return;
       applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
     });
     Object.keys(next).forEach(function (prop) { applyTo(el, prop, next[prop]); });
-    previewVariantProps = Object.keys(next);
-    return rec;
+    return Object.keys(next);
   }
 
   /** Set plain words on a leaf element: no markup is ever written as words. */
@@ -6473,18 +6486,41 @@ function decorations() {
     if (before !== words) action(rec, "text", before, words);
   }
 
-  /** Paint one agent preview on the canvas. Inserts and updates are new records; they stay ordinary edits. */
+  /** Paint every element of one agent preview. Inserts and updates are new records; they stay ordinary edits. */
   function paintPreview(preview) {
     previewRecords = [];
     previewVariantProps = [];
     previewVariantAt = -1;
     previewTarget = null;
     previewFresh = [];
+    previewStyled = [];
     if (!preview || typeof preview !== "object") return false;
+    var painted = true;
+    previewTargets(preview).forEach(function (target) {
+      if (painted && !paintTarget(target)) painted = false;
+    });
+    if (!painted) {
+      previewFresh.forEach(function (node) {
+        if (node.parentElement) node.parentElement.removeChild(node);
+      });
+      previewRecords.slice().forEach(revert);
+      previewRecords = [];
+      previewFresh = [];
+      previewStyled = [];
+      previewVariantProps = [];
+      previewTarget = null;
+      return false;
+    }
+    return true;
+  }
+
+  /** Paint one element of a preview. A styles element waits for a pick. */
+  function paintTarget(preview) {
     if (preview.action === "styles") {
       var el = previewQuery(preview.selector);
       if (!el) return false;
-      previewTarget = el;
+      if (!previewTarget) previewTarget = el;
+      previewStyled.push({ el: el, props: [] });
       return true; // the rows paint it: nothing lands until a pick does
     }
     if (preview.action === "insert") {
@@ -6565,6 +6601,7 @@ function decorations() {
     previewRows = [];
     previewKeep = null;
     previewTarget = null;
+    previewStyled = [];
     previewCurrent = null;
     while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
     previewBox.hidden = true;
@@ -6605,10 +6642,10 @@ function decorations() {
     line.className = "preview-say";
     line.appendChild(text(preview.instruction));
     previewBox.appendChild(line);
-    if (preview.action === "styles" && previewTarget) {
+    if (previewRowVariations(preview).length && previewTarget) {
       var list = document.createElement("div");
       list.className = "variants-list";
-      preview.variations.forEach(function (variation, i) {
+      previewRowVariations(preview).forEach(function (variation, i) {
         var row = button("variant", "", "Use " + variation.label, function () { pickPreviewVariant(i); }, "preview-" + (i + 1));
         row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
         var key = document.createElement("span");
@@ -6628,7 +6665,7 @@ function decorations() {
     foot.className = "preview-foot";
     var keep = button("variants-keep", "", "Keep the preview as an edit", function () { keepPreview(); }, "preview-keep");
     keep.appendChild(say("Keep"));
-    keep.disabled = preview.action === "styles" && previewVariantAt < 0;
+    keep.disabled = previewStyleTargets(preview).length > 0 && previewVariantAt < 0;
     previewKeep = keep;
     foot.appendChild(keep);
     var discard = button("variants-keep", "", "Discard the preview", function () { discardPreview(); }, "preview-discard");
@@ -6680,15 +6717,25 @@ function decorations() {
     tally();
   }
 
-  /** One styled look on the element, through the same records as a variant. */
+  /** One styled look on every styles element, through the same records as a variant. */
   function pickPreviewVariant(index) {
     var preview = previewCurrent;
-    if (!preview || preview.action !== "styles" || !previewTarget) return;
-    var variation = preview.variations[index];
-    if (!variation) return;
-    previewApply(previewTarget, variation.props || []);
-    if (variation.text !== undefined) previewText(previewTarget, variation.text);
-    if (previewRecords.indexOf(record(previewTarget)) === -1) previewRecords.push(record(previewTarget));
+    if (!preview || !previewTarget) return;
+    var picked = false;
+    previewStyleTargets(preview).forEach(function (target) {
+      var variation = (target.variations || [])[index];
+      if (!variation) return;
+      var el = previewQuery(target.selector);
+      if (!el) return;
+      var entry = null;
+      previewStyled.forEach(function (one) { if (one.el === el) entry = one; });
+      previewVariantProps = previewApply(el, variation.props || [], entry ? entry.props : []);
+      if (entry) entry.props = previewVariantProps;
+      if (variation.text !== undefined) previewText(el, variation.text);
+      if (previewRecords.indexOf(record(el)) === -1) previewRecords.push(record(el));
+      picked = true;
+    });
+    if (!picked) return;
     select(previewTarget, { el: previewTarget, kind: "container" });
     previewVariantAt = index;
     previewRows.forEach(function (row, i) {
@@ -6701,13 +6748,15 @@ function decorations() {
 
   /** Where one preview aims, in words a reader can follow on the page. */
   function previewWhere(preview) {
-    if (preview.action === "insert") {
-      if (!preview.anchor) return "End of main";
-      var place = { after: "After /", before: "Before /", "inside-start": "First inside /" }[preview.position] || "End of /";
-      return place + preview.anchor;
-    }
-    if (preview.action === "remove") return "Takes away /" + preview.selector;
-    return "/" + preview.selector;
+    return previewTargets(preview).map(function (target) {
+      if (target.action === "insert") {
+        if (!target.anchor) return "End of main";
+        var place = { after: "After /", before: "Before /", "inside-start": "First inside /" }[target.position] || "End of /";
+        return place + target.anchor;
+      }
+      if (target.action === "remove") return "Takes away /" + target.selector;
+      return "/" + target.selector;
+    }).join("; ");
   }
 
   /** The checkbox list: one row per instruction, and one batch button under it. */
@@ -6857,6 +6906,7 @@ function decorations() {
     previewVariantProps = [];
     previewVariantAt = -1;
     previewTarget = null;
+    previewStyled = [];
     previewFresh = [];
     refit();
     tally();
@@ -7759,7 +7809,7 @@ function decorations() {
           if (e.stopPropagation) e.stopPropagation();
           toggleRow(previewIndex);
         }
-      } else if (!previewTyping && previewCurrent && previewCurrent.action === "styles" && previewIndex < (previewCurrent.variations || []).length) {
+      } else if (!previewTyping && previewCurrent && previewIndex < previewRowVariations(previewCurrent).length) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
         pickPreviewVariant(previewIndex);

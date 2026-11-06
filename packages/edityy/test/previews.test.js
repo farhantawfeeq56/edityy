@@ -139,3 +139,25 @@ test("the agent reads a short preview, not the page", async () => {
   await assert.rejects(decidePreview("e-nope", "keep", root), /Unknown preview id/);
   await assert.rejects(decidePreview(preview.id, "maybe", root), /keep or discard/);
 });
+
+test("one preview takes many elements, and a styles element takes many variations", async () => {
+  const root = tmp();
+  const many = Array.from({ length: 100 }, (_, i) => ({ label: `look ${i + 1}`, props: [{ property: "color", value: "red" }] }));
+  const preview = await placePreview({
+    instruction: "restyle two, add one",
+    targets: [
+      { action: "styles", selector: "h1", variations: many },
+      { action: "styles", selector: "p", variations: many.slice(0, 3) },
+      { action: "insert", position: "inside-end", html: "<p>new</p>" },
+    ],
+  }, root);
+  assert.equal(preview.targets.length, 3);
+  assert.equal(preview.targets[0].variations.length, 100);
+  assert.equal((await readPreview(preview.id, root)).targets[2].action, "insert");
+  const text = previewText(await readPreview(preview.id, root));
+  assert.match(text, /look 100/);
+  assert.match(text, /new/);
+  assert.throws(() => checkPreview({ instruction: "x", targets: [] }), { status: 400 });
+  assert.throws(() => checkPreview({ instruction: "x", targets: [{ action: "styles", selector: "h1", variations: [...many, { label: "one more", props: [] }] }] }), { status: 400 });
+  assert.throws(() => checkPreview({ instruction: "x", targets: [{ action: "dance" }] }), { status: 400 });
+});

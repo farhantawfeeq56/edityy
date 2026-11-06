@@ -32,6 +32,51 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  */
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
+const DECLARATIONS = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
+      value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+      on: { type: "string", description: "Optional: a state or pseudo-element on the element, such as :hover or ::before." },
+      when: { type: "string", description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint." },
+    },
+    required: ["property", "value"],
+    additionalProperties: false,
+  },
+};
+const PREVIEW_VARIATIONS = {
+  type: "array",
+  minItems: 1,
+  maxItems: 100,
+  items: {
+    type: "object",
+    properties: {
+      label: { type: "string", description: "Two or three words the user will see." },
+      props: DECLARATIONS,
+      text: { type: "string", description: "Optional: plain words that replace the element's own words." },
+    },
+    required: ["label", "props"],
+    additionalProperties: false,
+  },
+};
+const PREVIEW_TARGET = {
+  type: "object",
+  properties: {
+    action: { type: "string", description: "One of styles, insert, update or remove." },
+    selector: { type: "string", description: "The element to change, for styles, update and remove." },
+    variations: PREVIEW_VARIATIONS,
+    anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
+    position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
+    html: { type: "string", description: "For insert and update: the markup. Structure, headings, words and pictures only; no forms, scripts or event attributes." },
+    props: DECLARATIONS,
+    text: { type: "string", description: "Optional: plain words for update." },
+  },
+  required: ["action"],
+  additionalProperties: false,
+};
+
 const TOOLS = [
   {
     name: "get_visual_changes",
@@ -62,8 +107,8 @@ const TOOLS = [
     name: "place_preview",
     description:
       "The user typed edityy:: followed by an instruction in their agent chat: paint that change on the live Edityy canvas only, not in the code. " +
-      "Place one preview with an action and its payload. " +
-      "styles restyles one element and takes a selector plus 1 to 10 labeled variations of plain CSS declarations, each with an optional text. " +
+      "Place one preview with an action and its payload, or many at once with targets: each target keeps its own action, selector or anchor, and payload. " +
+      "styles restyles one element and takes a selector plus 1 to 100 labeled variations of plain CSS declarations, each with an optional text. " +
       "insert adds one allowlisted element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
       "update changes one element named by a selector, with styles, text or markup. " +
       "remove takes away one element named by a selector. " +
@@ -76,54 +121,15 @@ const TOOLS = [
         instruction: { type: "string", description: "The change the user asked for, quoted." },
         action: { type: "string", description: "One of styles, insert, update or remove." },
         selector: { type: "string", description: "The element to change, for styles, update and remove." },
-        variations: {
-          type: "array",
-          minItems: 1,
-          maxItems: 10,
-          items: {
-            type: "object",
-            properties: {
-              label: { type: "string", description: "Two or three words the user will see." },
-              props: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
-                    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
-                    on: { type: "string", description: "Optional: a state or pseudo-element on the element, such as :hover or ::before." },
-                    when: { type: "string", description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint." },
-                  },
-                  required: ["property", "value"],
-                  additionalProperties: false,
-                },
-              },
-              text: { type: "string", description: "Optional: plain words that replace the element's own words." },
-            },
-            required: ["label", "props"],
-            additionalProperties: false,
-          },
-        },
+        variations: PREVIEW_VARIATIONS,
+        targets: { type: "array", minItems: 1, maxItems: 100, items: PREVIEW_TARGET, description: "Many elements in one preview, each with its own action and payload. Old single-action calls keep working without it." },
         anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
         position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
         html: { type: "string", description: "For insert and update: the markup. Structure, headings, words and pictures only; no forms, scripts or event attributes." },
-        props: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              property: { type: "string", description: "A standard CSS property name." },
-              value: { type: "string", description: "The value." },
-              on: { type: "string", description: "Optional: a state or pseudo-element, such as :hover." },
-              when: { type: "string", description: "Optional: a media condition, such as (max-width: 640px)." },
-            },
-            required: ["property", "value"],
-            additionalProperties: false,
-          },
-        },
+        props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },
       },
-      required: ["instruction", "action"],
+      required: ["instruction"],
       additionalProperties: false,
     },
   },
