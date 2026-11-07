@@ -641,7 +641,7 @@
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
     // A pronounced container: thin low-contrast border, softer corner and a
     // diffused shadow so it stands apart without floating high.
-    ".element-menu:has(.element-comment){z-index:7;border-radius:24px;padding:14px;background:#F9F8F6;border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8)}",
+    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:13px;background:#F9F8F6;border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8)}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -655,7 +655,7 @@
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:10px;width:272px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
+    ".element-comment{display:flex;flex-direction:column;gap:9px;width:245px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
     "@keyframes cardIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
@@ -677,14 +677,14 @@
     ".wait-x>svg{width:14px;height:14px;display:block}",
     // 1. Comment input: the primary field — roomier padding, larger type,
     // a soft radius and a brand-accent focus ring.
-    ".element-comment-text{width:100%;min-height:64px;resize:vertical;padding:12px;border:1px solid var(--ink-20);border-radius:14px;background:var(--paper);color:var(--ink);font:400 12px/1.5 inherit;box-shadow:0 1px 2px var(--ink-6),inset 0 1px 2px var(--ink-6);transition:border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
+    ".element-comment-text{width:100%;min-height:58px;resize:vertical;padding:11px;border:1px solid var(--ink-20);border-radius:13px;background:var(--paper);color:var(--ink);font:400 12px/1.5 inherit;box-shadow:0 1px 2px var(--ink-6),inset 0 1px 2px var(--ink-6);transition:border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-text::placeholder{color:var(--muted);opacity:.7}",
     "@media (hover:hover){.element-comment-text:hover{border-color:var(--ink-25)}}",
     ".element-comment-text:focus{outline:none;border-color:var(--accent);background:var(--paper);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}",
     ".element-comment-text:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}",
     // 2. Temporary canvas: a full-width row with a visible hover fill and a
     // keyboard-visible tick.
-    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;width:100%;padding:8px 10px 8px 6px;border:0;border-radius:12px;background:transparent;font:400 10px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;width:100%;padding:7px 9px 7px 5px;border:0;border-radius:12px;background:transparent;font:400 10px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-row:hover{background:var(--ink-6)}}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
@@ -700,8 +700,8 @@
     // 5. Footer: taller buttons, Save dominant, Cancel outlined, both with
     // hover, press, disabled and focus states.
     ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px}",
-    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:34px;padding:0 16px;border-radius:10px;white-space:nowrap;font:500 11px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard)}",
-    ".element-menu .element-comment [data-key=comment-save]{min-width:88px;background:var(--brand);color:var(--ink);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:31px;padding:0 15px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard)}",
+    ".element-menu .element-comment [data-key=comment-save]{min-width:80px;background:var(--brand);color:var(--ink);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
     "@media (hover:hover){.element-menu .element-comment [data-key=comment-save]:hover:not(:disabled){filter:brightness(1.06)}}",
     ".element-menu .element-comment [data-key=comment-save]:active:not(:disabled){filter:brightness(.96)}",
     ".element-menu .element-comment [data-key=comment-save]:disabled{opacity:.45;cursor:default;box-shadow:none}",
@@ -714,20 +714,20 @@
     // words that say what Save does.
     ".element-comment-modes{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%}",
     ".element-comment-chips{display:flex;width:100%;gap:6px}",
-    ".element-comment-chip{display:grid;place-items:center;flex:1;height:32px;padding:0 8px;border:1px solid var(--ink-20);border-radius:999px;background:#FDFDFC;color:var(--muted);font:500 11px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".element-comment-chip{display:grid;place-items:center;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:#FDFDFC;color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 1px 3px var(--ink-15)}",
     // The tick: a square and a clear check, with its label beside it.
-    ".element-comment-mark{display:grid;place-items:center;width:18px;height:18px;flex:none;border:1.5px solid var(--ink-20);border-radius:6px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
+    ".element-comment-mark{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1.5px solid var(--ink-20);border-radius:6px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
-    ".element-comment-mark>svg{width:11px;height:11px;display:block}",
+    ".element-comment-mark>svg{width:10px;height:10px;display:block}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:6px;flex:none;min-width:0}",
     ".element-comment-switch-words span{font:500 10px/1.3 inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:6px;color:var(--muted);opacity:.8;cursor:help;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
+    ".element-comment-help{display:grid;place-items:center;width:18px;height:18px;flex:none;border-radius:6px;color:var(--muted);opacity:.8;cursor:help;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-help:hover{color:var(--ink);background:var(--ink-6)}}",
-    ".element-comment-help>svg{width:16px;height:16px;display:block}",
+    ".element-comment-help>svg{width:15px;height:15px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
