@@ -639,8 +639,9 @@
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
-    // The comment card wears the concentric radius: inner 8px plus 12px padding is 20px.
-    ".element-menu:has(.element-comment){border-radius:20px;padding:12px;background:#F9F8F6}",
+    // The comment card wears the concentric radius: inner 10px plus 12px padding is 22px.
+    // A pronounced container: stronger border and a soft lift so it stands apart.
+    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:12px;background:#F9F8F6;border-color:var(--ink-20);box-shadow:0 1px 3px var(--ink-6),0 10px 28px var(--ink-8)}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -654,7 +655,8 @@
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:10px;width:280px}",
+    ".element-comment{display:flex;flex-direction:column;gap:9px;width:272px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
+    "@keyframes cardIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
     // chips, and the connect hint is set off by a hairline.
@@ -673,23 +675,17 @@
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
-    ".element-comment-text{width:100%;resize:vertical;padding:10px 12px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 10px/1.45 inherit}",
+    // 1. Comment input: taller than before, roomier padding, a distinct primary field.
+    ".element-comment-text{width:100%;min-height:56px;resize:vertical;padding:9px 11px;border:1px solid var(--ink-20);border-radius:12px;background:var(--paper);color:var(--ink);font:400 10px/1.45 inherit;box-shadow:0 1px 2px var(--ink-6),inset 0 1px 2px var(--ink-6)}",
     "@media (hover:hover){.element-comment-text:hover{background:var(--fill-hover)}}",
     ".element-comment-text:focus{background:var(--fill-open)}",
     ".element-comment-text:focus-visible{outline:2px solid var(--ink);outline-offset:1px}",
-    // How many variations to ask for: a label and the field, on one line.
-    ".element-comment-row{display:flex;align-items:center;gap:6px;font:400 10px/1.2 inherit;color:var(--muted);cursor:pointer}",
+    // 2. Temporary canvas: its own full-width row, larger tick and room to breathe.
+    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;width:100%;padding:6px 2px 6px 0;border:0;border-radius:10px;background:transparent;font:400 10px/1.3 inherit;color:var(--muted);cursor:pointer}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
-    ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:24px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
-    ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
-    "@media (hover:hover){.element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}}",
-    ".element-comment-stepper button:disabled{opacity:.4;cursor:default}",
-    ".element-comment-stepper button>svg{width:12px;height:12px;display:block;color:inherit}",
-    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
-    ".element-comment-stepper input::-webkit-outer-spin-button,.element-comment-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}",
-    ".element-comment-stepper input:disabled{opacity:.4}",
+
     // The Save button carries words, so it takes the width it is given
     // rather than the square an action is.
     // The comment box. It wears the toolbar's scale: no wider than the
@@ -697,23 +693,26 @@
     // comments on. The typing field keeps one color here and everywhere;
     // only shape moves. Cancel and Save sit together at the right, Save
     // gold — brand fill, ink on it, the dock's own.
-    ".element-menu .element-comment .element-menu-actions{justify-content:flex-end;gap:8px}",
-    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:30px;padding:0 16px;white-space:nowrap;font:500 10px/1 inherit}",
-    ".element-menu .element-comment [data-key=comment-save]{background:var(--brand);color:var(--ink)}",
-    // Edit or Variant: one of two, with the count at the row's end, where a
-    // value sits in the dock. The pressed button wears the toolbar's ink-6.
-    ".element-comment-modes{display:flex;align-items:center;gap:10px}",
-    ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
-    ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 10px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
-    "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
-    ".element-comment-mode[aria-checked=true]{background:var(--ink-6);color:var(--ink)}",
+    // 5. Footer: taller buttons, wider gap, Save dominant, Cancel outlined.
+    ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:0}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:32px;padding:0 16px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit}",
+    ".element-menu .element-comment [data-key=comment-save]{min-width:88px;background:var(--brand);color:var(--ink);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
+    ".element-menu .element-comment [data-key=comment-save]:hover:not(:disabled){filter:brightness(1.06)}",
+    ".element-menu .element-comment [data-key=comment-cancel]:hover:not(:disabled){background:var(--ink-6)}",
+    ".element-menu .element-comment [data-key=comment-cancel]{background:var(--paper);border:1px solid var(--ink-20);color:var(--ink)}",
+    // 3. The count: preset chips, and words that say what Save does.
+    ".element-comment-modes{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%}",
+    ".element-comment-chips{display:flex;width:100%;gap:6px}",
+    ".element-comment-chip{display:grid;place-items:center;flex:1;height:30px;padding:0 8px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink)}}",
+    ".element-comment-chip[aria-checked=true]{background:var(--ink);border-color:var(--ink);color:var(--paper)}",
     // The tick: a square and a check, with its label and why in two lines.
-    ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1px solid var(--ink-20);border-radius:4px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    ".element-comment-mark{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
-    ".element-comment-mark>svg{width:9px;height:9px;display:block}",
-    ".element-comment-switch-words{display:flex;align-items:center;gap:4px;flex:none}",
-    ".element-comment-switch-words span{font:500 9px/1 inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;color:var(--muted);cursor:help}",
+    ".element-comment-mark>svg{width:10px;height:10px;display:block}",
+    ".element-comment-switch-words{display:flex;align-items:center;gap:6px;flex:none;min-width:0}",
+    ".element-comment-switch-words span{font:500 10px/1.3 inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-help{display:grid;place-items:center;width:18px;height:18px;flex:none;color:var(--muted);cursor:help}",
     ".element-comment-help>svg{width:16px;height:16px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
@@ -1846,15 +1845,15 @@
 
   /**
    * The one comment box: for one element or one drawn box. A field,
-   * the temporary-canvas tick, Edit or Variant, Cancel and Save.
+   * the temporary-canvas tick, preset chips, Cancel and Save.
    *
-   * A drawn box has no element to vary, so its box has no Edit/Variant split:
-   * Edit saves the words on the box itself. An element's box carries the
-   * split: Save in Edit mode writes the words onto the element's record, so
-   * the comment travels with the edits to the agent's Markdown and to the
-   * saved file. Save in Variant mode asks the agent for that many variations
-   * of the element instead, and the strip at the bottom right shows the
-   * answer.
+   * A drawn box has no element to vary, so its box has no chips: Save
+   * saves the words on the box itself. An element's box carries the
+   * chips: 1 makes a single edit, so Save writes the words onto the
+   * element's record and the comment travels with the edits to the
+   * agent's Markdown and to the saved file. Above 1, Save asks the
+   * agent to explore that many variations of the element instead, and
+   * the strip at the bottom right shows the answer.
    */
   function commentBox(target) {
     var el = target.el || null;
@@ -1892,88 +1891,51 @@
     help.className = "element-comment-help";
     help.setAttribute("title", "Preview the changes without touching code");
     help.setAttribute("aria-label", "Preview the changes without touching code");
-    // Tabler (MIT) help: a question mark in a circle, the ? it replaces.
-    help.innerHTML = svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9.5 9.5c.5 -1.5 1.5 -2.5 2.5 -2.5c1 0 2 .5 2 2c0 1.5 -2 2 -2 3.5" /><path d="M12 17l.01 0" /></svg>');
+    // Tabler (MIT) info-circle: an i in a circle.
+    help.innerHTML = svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" /></svg>');
     words.appendChild(wordsTitle);
     words.appendChild(help);
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
-    // Edit or Variant decides what Save does. In Edit, Save writes the words.
-    // In Variant, Save asks for that many instead, so one is never a thing
-    // anyone says. A drawn box has no element to vary, so Edit is all it gets.
-    var mode = "edit";
+    // The chips decide what Save does. 1 makes a single edit; above 1,
+    // Save asks the agent to explore that many variations. A drawn box
+    // has no element to vary, so it gets no chips.
+    var count = 1;
     if (el) {
       var modes = document.createElement("div");
       modes.className = "element-comment-modes";
-      var modeGroup = document.createElement("div");
-      modeGroup.className = "element-comment-mode-group";
-      modeGroup.setAttribute("role", "radiogroup");
-      modeGroup.setAttribute("aria-label", "Save mode");
-      var editMode = button("element-comment-mode", "", "Edit", function () { setMode("edit"); }, "comment-mode-edit");
-      editMode.setAttribute("role", "radio");
-      editMode.setAttribute("aria-checked", "true");
-      editMode.tabIndex = 0;
-      editMode.appendChild(text("Edit"));
-      var variantMode = button("element-comment-mode", "", "Variant", function () { setMode("variant"); }, "comment-mode-variant");
-      variantMode.setAttribute("role", "radio");
-      variantMode.setAttribute("aria-checked", "false");
-      variantMode.tabIndex = -1;
-      variantMode.appendChild(text("Variant"));
-      modeGroup.appendChild(editMode);
-      modeGroup.appendChild(variantMode);
-      // The arrow keys move between the two, like a radio group does.
-      modeGroup.addEventListener("keydown", function (e) {
+      var chips = document.createElement("div");
+      chips.className = "element-comment-chips";
+      chips.setAttribute("role", "radiogroup");
+      chips.setAttribute("aria-label", "How many");
+      modes.appendChild(chips);
+      var chipButtons = [1, 2, 5, 10].map(function (n) {
+        var chip = button("element-comment-chip", "", n === 1 ? "Make a single edit" : "Explore " + n + " variations", function () { setCount(n); }, "comment-count-" + n);
+        chip.setAttribute("role", "radio");
+        chip.setAttribute("aria-checked", String(n === count));
+        chip.tabIndex = n === count ? 0 : -1;
+        chip.appendChild(text(String(n)));
+        chips.appendChild(chip);
+        return chip;
+      });
+      // The arrow keys move between the chips, like a radio group does.
+      chips.addEventListener("keydown", function (e) {
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-        setMode(mode === "edit" ? "variant" : "edit");
-        var next = mode === "edit" ? editMode : variantMode;
+        var at = chipButtons.indexOf(document.activeElement);
+        if (at < 0) return;
+        var next = chipButtons[(at + (e.key === "ArrowRight" ? 1 : chipButtons.length - 1)) % chipButtons.length];
+        setCount(Number(next.textContent));
         if (next.focus) next.focus();
       });
-      modes.appendChild(modeGroup);
-      // The count is a stepper: minus and plus, with the field between them.
-      var step = document.createElement("div");
-      step.className = "element-comment-stepper";
-      var fewer = button("", svg("minus"), "Fewer variations", function () { bump(-1); });
-      fewer.disabled = true;
-      step.appendChild(fewer);
-      var count = document.createElement("input");
-      count.type = "number";
-      count.min = "2";
-      count.max = "10";
-      count.step = "1";
-      count.value = "2";
-      count.disabled = true;
-      count.setAttribute("aria-label", "Variations");
-      step.appendChild(count);
-      var more = button("", svg("plus"), "More variations", function () { bump(1); });
-      more.disabled = true;
-      step.appendChild(more);
-      modes.appendChild(step);
-      box.appendChild(modes);
-      function bump(by) {
-        var n = Math.round(Number(count.value)) || 2;
-        n = Math.max(2, Math.min(10, n + by));
-        count.value = String(n);
-        fewer.disabled = n <= 2;
-        more.disabled = n >= 10;
-      }
-      // A typed count is brought back in range where it stands.
-      count.addEventListener("change", function () {
-        var n = Math.round(Number(count.value));
-        n = Math.max(2, Math.min(10, isNaN(n) ? 2 : n));
-        count.value = String(n);
-        fewer.disabled = n <= 2;
-        more.disabled = n >= 10;
-      });
-      function setMode(next) {
-        mode = next;
-        editMode.setAttribute("aria-checked", String(mode === "edit"));
-        variantMode.setAttribute("aria-checked", String(mode === "variant"));
-        editMode.tabIndex = mode === "edit" ? 0 : -1;
-        variantMode.tabIndex = mode === "variant" ? 0 : -1;
-        var on = mode === "variant";
-        count.disabled = !on;
-        fewer.disabled = !on || Number(count.value) <= 2;
-        more.disabled = !on || Number(count.value) >= 10;
+      // The chips line sits below the comment field, above the tick.
+      box.insertBefore(modes, canvasRow);
+      function setCount(next) {
+        count = next;
+        chipButtons.forEach(function (chip) {
+          var on = Number(chip.textContent) === next;
+          chip.setAttribute("aria-checked", String(on));
+          chip.tabIndex = on ? 0 : -1;
+        });
       }
     }
     if (el && variationWords) box.appendChild(noteBox(variationWords));
@@ -1994,12 +1956,7 @@
         tally();
         return;
       }
-      var n = 1;
-      if (mode === "variant") {
-        n = Math.round(Number(count.value));
-        if (!(n >= 2)) n = 2;
-        if (n > 10) n = 10;
-      }
+      var n = count;
       if (n > 1) {
         variationPrompt = words;
         variationWords = "Asking your agent\u2026";
