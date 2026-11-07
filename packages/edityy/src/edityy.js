@@ -833,7 +833,7 @@
     // pointing at the control. Drawn here because the browser own title is
     // slow and cannot wear the ramp. It stays smaller than the row itself,
     // so it reads as a label on the toolbar.
-    ".tip{position:fixed;z-index:9;pointer-events:none;max-width:240px;padding:6px 9px;border-radius:8px;",
+    ".tip{position:fixed;z-index:9;pointer-events:none;min-width:44px;padding:6px 10px;border-radius:8px;text-align:center;white-space:nowrap;",
     "background:var(--paper);color:var(--ink);border:1px solid var(--ink-10);font:500 11px/1.4 inherit;",
     "box-shadow:0 2px 4px var(--ink-6),0 12px 28px var(--ink-12);transform-origin:50% 100%}",
     // The arrow: a diamond straddling the border, pointing at the control.
