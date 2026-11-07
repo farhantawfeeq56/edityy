@@ -5630,18 +5630,14 @@ function decorations() {
   /** The element-menu action under a pointer or the keyboard, if any. */
   /**
    * The control of the menu under a pointer or the keyboard, if any: an
-   * action, and the comment card's own — a count chip, and the canvas row,
-   * whose tick names it. Each names itself through the drawn tip.
+   * action, and a count chip in the comment card. The canvas row is left
+   * out — its words are its own name.
    */
   function tipOf(node) {
     while (node && node !== elementMenu) {
       var cls = String(node.className || "").split(" ");
       if (cls.indexOf("element-action") !== -1) return node;
       if (cls.indexOf("element-comment-chip") !== -1) return node;
-      if (cls.indexOf("element-comment-row") !== -1) {
-        var tick = node.querySelector && node.querySelector("input[type=checkbox]");
-        return tick || node;
-      }
       node = node.parentElement;
     }
     return null;
