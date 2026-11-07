@@ -639,6 +639,8 @@
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
+    // The comment card wears the concentric radius: inner 8px plus 8px padding is 16px.
+    ".element-menu:has(.element-comment){border-radius:16px}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -646,13 +648,13 @@
     // one it lands in.
     ".element-action{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;padding:0;",
     "background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer}",
-    ".element-action:hover{background:var(--ink-6);color:var(--ink)}",
+    "@media (hover:hover){.element-action:hover{background:var(--ink-6);color:var(--ink)}}",
     ".element-action:disabled{opacity:.42;cursor:default;pointer-events:none}",
     ".element-action.delete{color:var(--muted)}",
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:8px;width:260px}",
+    ".element-comment{display:flex;flex-direction:column;gap:8px;width:300px}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
     // chips, and the connect hint is set off by a hairline.
@@ -672,8 +674,8 @@
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
     ".element-comment-text{width:100%;resize:vertical;padding:8px 10px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 14px/1.45 inherit}",
-    ".element-comment-text:hover{background:var(--fill-hover)}",
-    ".element-comment-text:focus{background:var(--fill-open)}",
+    "@media (hover:hover){.element-comment-text:hover{background:var(--fill-hover)}}",
+    ".element-comment-text:focus{background:var(--fill-open)}",,
     // How many variations to ask for: a label and the field, on one line.
     ".element-comment-row{display:flex;align-items:center;gap:8px;font:400 13px/1.2 inherit;color:var(--muted);cursor:pointer}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
@@ -682,8 +684,8 @@
     ".element-comment-row .mark>svg{width:10px;height:10px}",
     ".element-comment-row:focus-within{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:26px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
-    ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
-    ".element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}",
+    ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
+    "@media (hover:hover){.element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-stepper button:disabled{opacity:.4;cursor:default}",
     ".element-comment-stepper button>svg{width:12px;height:12px;display:block;color:inherit}",
     ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 13px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
@@ -707,18 +709,17 @@
     // value sits in the dock. The pressed button wears the accent wash.
     ".element-comment-modes{display:flex;align-items:center;gap:8px}",
     ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
-    ".element-comment-mode{flex:1;height:26px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer}",
-    ".element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}",
+    ".element-comment-mode{flex:1;height:26px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
+    "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-mode[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The switch: a track and a knob, with its label and why in two lines.
     ".element-comment-switch{position:relative;width:36px;height:22px;flex:none;border-radius:999px;background:var(--ink-12);transition:background-color var(--tint) var(--standard)}",
-    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--paper);transition:left var(--tint) var(--standard)}",
+    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--paper);transform:translateX(0);transition:transform var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-switch{background:var(--accent)}",
-    ".element-comment-row input:checked+.element-comment-switch::after{left:17px}",
+    ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(14px)}",
     ".element-comment-switch-words{display:flex;flex-direction:column;gap:2px}",
     ".element-comment-switch-words strong{font:600 13px/1.25 inherit;color:var(--ink)}",
     ".element-comment-switch-words span{font:400 12px/1.3 inherit;color:var(--muted)}",
-    ".element-comment{width:300px}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
