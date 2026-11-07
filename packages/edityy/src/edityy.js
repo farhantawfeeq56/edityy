@@ -725,9 +725,6 @@
     ".element-comment-mark>svg{width:9px;height:9px;display:block}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:5px;flex:none;min-width:0}",
     ".element-comment-switch-words span{font:500 9px/1.3 inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border-radius:5px;color:var(--muted);opacity:.8;cursor:help;position:relative;top:1px;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
-    "@media (hover:hover){.element-comment-help:hover{color:var(--ink);background:var(--ink-6)}}",
-    ".element-comment-help>svg{width:13px;height:13px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -831,12 +828,20 @@
     // land on: the warm fill, a hairline in the ramp and the ink. A control that
     // opens says so the same way, whether it is the row's or the colour button.
     ".ic[aria-expanded=true]{background:var(--accent-soft);border-color:var(--rose);color:var(--ink)}",
-    // The tooltip of a control in the primary dock: ink on paper, drawn here
-    // because the browser own title is slow and cannot wear the ramp. It stays
-    // smaller than the row itself, so it reads as a label on the toolbar.
-    ".tip{position:fixed;z-index:6;pointer-events:none;padding:3px 6px;border-radius:6px;",
-    "background:var(--ink);color:var(--paper);font:500 10px/1.2 inherit;white-space:nowrap;",
-    "box-shadow:0 1px 1px var(--ink-8),0 4px 10px var(--ink-12);transform-origin:50% 100%}",
+    // The tooltip of a control, in the dock and in the element card alike:
+    // a callout — paper card, ink words, a hairline border and a small arrow
+    // pointing at the control. Drawn here because the browser own title is
+    // slow and cannot wear the ramp. It stays smaller than the row itself,
+    // so it reads as a label on the toolbar.
+    ".tip{position:fixed;z-index:9;pointer-events:none;max-width:240px;padding:6px 9px;border-radius:8px;",
+    "background:var(--paper);color:var(--ink);border:1px solid var(--ink-10);font:500 11px/1.4 inherit;",
+    "box-shadow:0 2px 4px var(--ink-6),0 12px 28px var(--ink-12);transform-origin:50% 100%}",
+    // The arrow: a diamond straddling the border, pointing at the control.
+    // Above the control it points down; below, it points up.
+    ".tip::after{content:\"\";position:absolute;left:50%;width:8px;height:8px;background:var(--paper);",,
+    "border-right:1px solid var(--ink-10);border-bottom:1px solid var(--ink-10)}",
+    ".tip[data-side=top]::after{bottom:-1px;transform:translate(-50%,50%) rotate(45deg)}",
+    ".tip[data-side=bottom]::after{top:-1px;transform:translate(-50%,-50%) rotate(-135deg)}",
     ".tip>span{display:block}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
@@ -1901,14 +1906,7 @@
     words.className = "element-comment-switch-words";
     var wordsTitle = document.createElement("span");
     wordsTitle.appendChild(text("Apply on temporary canvas"));
-    var help = document.createElement("span");
-    help.className = "element-comment-help";
-    help.setAttribute("title", "Preview the changes on a temporary canvas \u2014 your code stays untouched until you keep them");
-    help.setAttribute("aria-label", "Preview the changes on a temporary canvas \u2014 your code stays untouched until you keep them");
-    // Tabler (MIT) info-circle: an i in a circle.
-    help.innerHTML = svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" /></svg>');
     words.appendChild(wordsTitle);
-    words.appendChild(help);
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
     // The chips decide what Save does. 1 makes a single edit; above 1,
@@ -5216,6 +5214,9 @@ function decorations() {
     // between two counts — and a mark says which field this is, not what it is.
     // So a chip keeps its tip, whether the field is empty or holds a value.
     if (String(node.className || "").split(" ").indexOf("dock-count") !== -1) return false;
+    // A count chip in the comment card is the same: its number is its value,
+    // not its name, so it keeps its tip too.
+    if (String(node.className || "").split(" ").indexOf("element-comment-chip") !== -1) return false;
     var words = node.innerText;
     if (words === undefined || words === null) words = node.textContent || "";
     if (String(words).trim()) return true;
@@ -5627,9 +5628,20 @@ function decorations() {
   });
 
   /** The element-menu action under a pointer or the keyboard, if any. */
-  function actionOf(node) {
+  /**
+   * The control of the menu under a pointer or the keyboard, if any: an
+   * action, and the comment card's own — a count chip, and the canvas row,
+   * whose tick names it. Each names itself through the drawn tip.
+   */
+  function tipOf(node) {
     while (node && node !== elementMenu) {
-      if (String(node.className || "").split(" ").indexOf("element-action") !== -1) return node;
+      var cls = String(node.className || "").split(" ");
+      if (cls.indexOf("element-action") !== -1) return node;
+      if (cls.indexOf("element-comment-chip") !== -1) return node;
+      if (cls.indexOf("element-comment-row") !== -1) {
+        var tick = node.querySelector && node.querySelector("input[type=checkbox]");
+        return tick || node;
+      }
       node = node.parentElement;
     }
     return null;
@@ -5638,16 +5650,16 @@ function decorations() {
   // The menu is rebuilt under the element it belongs to, so its hints are
   // delegated too: an action is its icon alone, and the words are the drawn tip.
   elementMenu.addEventListener("pointerover", function (e) {
-    var action = actionOf(e.target);
+    var action = tipOf(e.target);
     if (action) showTip(action);
   });
   elementMenu.addEventListener("pointerout", function (e) {
-    if (actionOf(e.relatedTarget)) return;
+    if (tipOf(e.relatedTarget)) return;
     tipAt = null;
     hideTip();
   });
   elementMenu.addEventListener("focusin", function (e) {
-    var action = actionOf(e.target);
+    var action = tipOf(e.target);
     if (action) showTip(action, true);
   });
   elementMenu.addEventListener("focusout", function () {
