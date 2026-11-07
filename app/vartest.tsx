@@ -26,20 +26,20 @@ const PACKAGES = [
   { id: "dark", label: "Dark", key: "d" },
 ];
 
-// Bounding-box (selected element frame) vartest: Q-P, brand colours first.
-// Sets --edityy-frame on <html>; the chrome's frameInk reads it. Pressing
-// the active key again clears it back to the automatic contrast colour.
-const FRAMES = [
-  { key: "q", label: "Gold", color: "#d4a72c" },
-  { key: "w", label: "Blue", color: "#2f6fb2" },
-  { key: "e", label: "Green", color: "#4a7c3a" },
-  { key: "r", label: "Rose", color: "#c2526e" },
-  { key: "t", label: "Violet", color: "#6d55c0" },
-  { key: "y", label: "Teal", color: "#2e8c7a" },
-  { key: "u", label: "Orange", color: "#d9662b" },
-  { key: "i", label: "Ink", color: "#25241f" },
-  { key: "o", label: "Magenta", color: "#a61e6e" },
-  { key: "p", label: "Red", color: "#c92a2a" },
+// Package palette vartest (Q-P): sets data-palette on <html>. Only the
+// brand family moves, so L/D still decides light or dark on top of it.
+// The bounding box is the brand colour, so it follows the palette.
+const PALETTES = [
+  { id: "gold", key: "q", label: "Gold", color: "#d4a72c" },
+  { id: "blue", key: "w", label: "Blue", color: "#2f6fb2" },
+  { id: "green", key: "e", label: "Green", color: "#4a7c3a" },
+  { id: "rose", key: "r", label: "Rose", color: "#c2526e" },
+  { id: "violet", key: "t", label: "Violet", color: "#6d55c0" },
+  { id: "teal", key: "y", label: "Teal", color: "#2e8c7a" },
+  { id: "orange", key: "u", label: "Orange", color: "#d9662b" },
+  { id: "magenta", key: "i", label: "Magenta", color: "#a61e6e" },
+  { id: "red", key: "o", label: "Red", color: "#c92a2a" },
+  { id: "slate", key: "p", label: "Slate", color: "#3f3f46" },
 ];
 
 function typing(e: KeyboardEvent) {
@@ -50,7 +50,7 @@ function typing(e: KeyboardEvent) {
 export function Vartest() {
   const [active, setActive] = useState("light");
   const [pkg, setPkg] = useState("light");
-  const [frame, setFrame] = useState<string | null>(null);
+  const [palette, setPalette] = useState("gold");
 
   useEffect(() => {
     document.documentElement.dataset.vartest = active;
@@ -61,17 +61,14 @@ export function Vartest() {
   }, [pkg]);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (frame) root.style.setProperty("--edityy-frame", frame);
-    else root.style.removeProperty("--edityy-frame");
-  }, [frame]);
+    document.documentElement.dataset.palette = palette;
+  }, [palette]);
 
-  const pickFrame = useCallback((color: string) => {
-    setFrame((current) => (current === color ? null : color));
-  }, []);
+  const pickPalette = useCallback((id: string) => setPalette(id), []);
 
-  // Digits pick the page colour. Bubble phase, so the chrome's own digit
-  // keys (variant strip up) still win when they answer.
+  // Digits pick the page colour, L/D pick the package mode. Bubble phase,
+  // so the chrome's own digit keys (variant strip up) still win when they
+  // answer.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
@@ -87,20 +84,20 @@ export function Vartest() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Q-P pick the frame colour. Capture phase: the chrome claims E as its
-  // edits tool in capture on document, so this must run before it.
+  // Q-P pick the package palette. Capture phase: the chrome claims E as
+  // its edits tool in capture on document, so this must run before it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
-      const hit = FRAMES.find((f) => f.key === e.key.toLowerCase());
+      const hit = PALETTES.find((p) => p.key === e.key.toLowerCase());
       if (!hit) return;
       e.preventDefault();
       e.stopPropagation();
-      pickFrame(hit.color);
+      pickPalette(hit.id);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [pickFrame]);
+  }, [pickPalette]);
 
   return (
     <div className="fixed bottom-[76px] right-6 z-50 flex max-w-[min(92vw,36rem)] flex-col items-end gap-1.5">
@@ -156,27 +153,27 @@ export function Vartest() {
       </div>
       <div
         role="group"
-        aria-label="Vartest: bounding box colour"
+        aria-label="Vartest: package colour palette"
         className="flex max-w-full flex-wrap justify-end gap-1 rounded-2xl border border-neutral-200 bg-neutral-100/90 p-1.5 shadow-layer backdrop-blur-md"
       >
-        {FRAMES.map((f) => {
-          const on = f.color === frame;
+        {PALETTES.map((p) => {
+          const on = p.id === palette;
           return (
             <button
-              key={f.key}
+              key={p.id}
               type="button"
               aria-pressed={on}
-              title={`${f.label} frame (${f.key.toUpperCase()})`}
-              onClick={() => pickFrame(f.color)}
+              title={`${p.label} palette (${p.key.toUpperCase()})`}
+              onClick={() => pickPalette(p.id)}
               className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[0.6875rem] font-medium tint ${
                 on ? "bg-neutral-900 text-neutral-50" : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
               }`}
             >
               <kbd className={`font-mono text-[0.625rem] ${on ? "text-neutral-50/70" : "text-neutral-400"}`}>
-                {f.key.toUpperCase()}
+                {p.key.toUpperCase()}
               </kbd>
-              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: f.color }} />
-              {f.label}
+              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: p.color }} />
+              {p.label}
             </button>
           );
         })}

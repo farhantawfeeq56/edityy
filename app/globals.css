@@ -162,6 +162,112 @@ html[data-package="dark"] {
   --edityy-brand: #d4a72c;
 }
 
+/* Package palette vartest (Q-P): data-palette on <html> swaps the four
+ * brand-family values only. Ink, paper, surface and muted stay, so L/D
+ * still decides light or dark on top of any palette. The frame is the
+ * brand colour, so it follows the palette too. */
+html[data-palette="blue"] {
+  --edityy-brand: #2f6fb2;
+  --edityy-accent: #1d4e7e;
+  --edityy-accent-soft: #e3edf7;
+  --edityy-rose: #b9d2ea;
+}
+html[data-palette="green"] {
+  --edityy-brand: #4a7c3a;
+  --edityy-accent: #2f5a24;
+  --edityy-accent-soft: #e6f0e0;
+  --edityy-rose: #bcd8b0;
+}
+html[data-palette="rose"] {
+  --edityy-brand: #c2526e;
+  --edityy-accent: #93354d;
+  --edityy-accent-soft: #fbe9ed;
+  --edityy-rose: #f0c3cf;
+}
+html[data-palette="violet"] {
+  --edityy-brand: #6d55c0;
+  --edityy-accent: #4c368f;
+  --edityy-accent-soft: #eee9fa;
+  --edityy-rose: #d4c9f2;
+}
+html[data-palette="teal"] {
+  --edityy-brand: #2e8c7a;
+  --edityy-accent: #1c6353;
+  --edityy-accent-soft: #e0f0ec;
+  --edityy-rose: #b5ddd3;
+}
+html[data-palette="orange"] {
+  --edityy-brand: #d9662b;
+  --edityy-accent: #a34a18;
+  --edityy-accent-soft: #fdeadd;
+  --edityy-rose: #f5c3a3;
+}
+html[data-palette="magenta"] {
+  --edityy-brand: #a61e6e;
+  --edityy-accent: #7c154f;
+  --edityy-accent-soft: #fae6f1;
+  --edityy-rose: #efb9d6;
+}
+html[data-palette="red"] {
+  --edityy-brand: #c92a2a;
+  --edityy-accent: #8f1d1d;
+  --edityy-accent-soft: #fcebe9;
+  --edityy-rose: #f2bcb9;
+}
+html[data-palette="slate"] {
+  --edityy-brand: #3f3f46;
+  --edityy-accent: #26262b;
+  --edityy-accent-soft: #ececef;
+  --edityy-rose: #c9c9cf;
+}
+/* In dark, the accent must read on dark paper: each palette carries its
+ * own light accent, soft and rose. The brand fill stays the same. */
+html[data-package="dark"][data-palette="blue"] {
+  --edityy-accent: #7db4ea;
+  --edityy-accent-soft: #16283a;
+  --edityy-rose: #2c4a6b;
+}
+html[data-package="dark"][data-palette="green"] {
+  --edityy-accent: #8fce7f;
+  --edityy-accent-soft: #1a2c1c;
+  --edityy-rose: #39603a;
+}
+html[data-package="dark"][data-palette="rose"] {
+  --edityy-accent: #e59db2;
+  --edityy-accent-soft: #341a24;
+  --edityy-rose: #6b3040;
+}
+html[data-package="dark"][data-palette="violet"] {
+  --edityy-accent: #b49ae0;
+  --edityy-accent-soft: #241a35;
+  --edityy-rose: #4d3a6e;
+}
+html[data-package="dark"][data-palette="teal"] {
+  --edityy-accent: #6fc7b4;
+  --edityy-accent-soft: #14302a;
+  --edityy-rose: #2a5d52;
+}
+html[data-package="dark"][data-palette="orange"] {
+  --edityy-accent: #f09a5f;
+  --edityy-accent-soft: #38200f;
+  --edityy-rose: #7a4218;
+}
+html[data-package="dark"][data-palette="magenta"] {
+  --edityy-accent: #e072ac;
+  --edityy-accent-soft: #331224;
+  --edityy-rose: #6e2547;
+}
+html[data-package="dark"][data-palette="red"] {
+  --edityy-accent: #ee8080;
+  --edityy-accent-soft: #381615;
+  --edityy-rose: #742b29;
+}
+html[data-package="dark"][data-palette="slate"] {
+  --edityy-accent: #d4d4d8;
+  --edityy-accent-soft: #26262a;
+  --edityy-rose: #52525b;
+}
+
 /* Landing colour vartest: data-vartest on <html> swaps the page ramp only.
  * The --edityy-* values above stand on their own hex, so this switch cannot
  * repaint the chrome. "light" is the default ramp above and needs no block. */

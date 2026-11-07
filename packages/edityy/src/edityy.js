@@ -1523,25 +1523,11 @@
    * no pixel, so an element painted that way falls through to the page's own
    * paper, which is light.
    *
-   * Paper on ink, ink on paper: two of the five palette values, chosen by the
-   * luminance of that background. The photographic negative this used to write
-   * answered with a hue from outside the palette — olive over a pale rose page —
-   * and a pure black when nothing at all was painted behind the element.
+   * The frame wears the brand colour, the one hue the chrome paints itself
+   * with. A page that hands the chrome a brand gets the frame in it.
    */
-  function frameInk(el) {
-    // A page may pin the frame colour with --edityy-frame (the vartest does);
-    // unset, the contrast rule below picks it.
-    var pinned = chromeColour("--edityy-frame", "");
-    if (pinned) return pinned;
-    for (var node = el; node; node = node.parentElement) {
-      var m = String(viewOf(node).getPropertyValue("background-color")).match(
-        /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
-      if (!m || (m[4] !== undefined && Number(m[4]) === 0)) continue;
-      var luminance = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3])) / 255;
-      return luminance > 0.55 ? chromeColour("--ink", "#25241f") : chromeColour("--paper", "#ffffff");
-    }
-    // Nothing is painted behind it: the canvas is paper, so the line is ink.
-    return chromeColour("--ink", "#25241f");
+  function frameInk() {
+    return chromeColour("--brand", "#d4a72c");
   }
 
   /**
