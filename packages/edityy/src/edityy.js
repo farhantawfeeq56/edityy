@@ -684,7 +684,7 @@
     ".element-comment-text:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}",
     // 2. Temporary canvas: a full-width row with a visible hover fill and a
     // keyboard-visible tick.
-    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;width:100%;padding:7px 9px 7px 5px;border:0;border-radius:12px;background:transparent;font:400 10px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;padding:7px 8px 7px 5px;border:0;border-radius:12px;background:transparent;font:400 9px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-row:hover{background:var(--ink-6)}}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
@@ -720,14 +720,14 @@
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 1px 3px var(--ink-15)}",
     // The tick: a square and a clear check, with its label beside it.
-    ".element-comment-mark{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1.5px solid var(--ink-20);border-radius:6px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
+    ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
-    ".element-comment-mark>svg{width:10px;height:10px;display:block}",
-    ".element-comment-switch-words{display:flex;align-items:center;gap:6px;flex:none;min-width:0}",
-    ".element-comment-switch-words span{font:500 10px/1.3 inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:18px;height:18px;flex:none;border-radius:6px;color:var(--muted);opacity:.8;cursor:help;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
+    ".element-comment-mark>svg{width:9px;height:9px;display:block}",
+    ".element-comment-switch-words{display:flex;align-items:center;gap:5px;flex:none;min-width:0}",
+    ".element-comment-switch-words span{font:500 9px/1.3 inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border-radius:5px;color:var(--muted);opacity:.8;cursor:help;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-help:hover{color:var(--ink);background:var(--ink-6)}}",
-    ".element-comment-help>svg{width:15px;height:15px;display:block}",
+    ".element-comment-help>svg{width:13px;height:13px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
