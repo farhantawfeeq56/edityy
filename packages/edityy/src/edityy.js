@@ -200,15 +200,16 @@
   // The tokens, for a page that wants to read them.
   window.__edityyMotion = { ease: EASE, time: TIME };
 
-  // DESIGN.md is the source of truth for the values below: Ink #25241f,
-  // Paper #ffffff, Muted #5d5a50, hairline #25241f1a, Brand gold #d4a72c for
-  // a fill, Brand ink #8a6a10 for a ring or a word, and Brand soft #fbf3d9 for
-  // the control the user has open. The ramp is closed. The ramp has no second
-  // neutral, so a control that needs a fill on paper wears ink alpha (the ink
-  // 6% below), never a grey.
+  // DESIGN.md is the source of truth for the values below: Ink #f5f2e9,
+  // Paper #22211c, Muted #a8a294, hairline #f5f2e91a, Brand gold #d4a72c for
+  // a fill, Brand bronze #e9c766 for a ring or a word, and Brand soft #2c2817
+  // for the control the user has open. The ramp is closed. The ramp has no
+  // second neutral, so a control that needs a fill on paper wears ink alpha
+  // (the ink 6% below), never a grey.
   //
   // Gold is never a thin line on paper: #d4a72c is 2.1:1 there. It is a fill
-  // with ink on it, and --accent carries the darker bronze that reads as a ring.
+  // with ink on it, and --accent carries the lighter bronze that reads as a
+  // ring on dark paper.
   //
   // The sheet paints itself from the variables on the first :host rule, so a
   // page that sets --edityy-ink and its neighbours repaints the whole chrome.
@@ -230,11 +231,11 @@
     // The five values, and the steps drawn from them. The numbers on an ink or
     // a rose step are its alpha percentage: colour-mix against transparent
     // keeps the alpha and the colour, so a step holds whatever the ink is.
-    ":host{--ink:var(--edityy-ink,#25241f);--paper:var(--edityy-paper,#ffffff);--muted:var(--edityy-muted,#5d5a50);",
-    "--accent:var(--edityy-accent,#8a6a10);--rose:var(--edityy-rose,#e9d28b);",
+    ":host{--ink:var(--edityy-ink,#f5f2e9);--paper:var(--edityy-paper,#22211c);--muted:var(--edityy-muted,#a8a294);",
+    "--accent:var(--edityy-accent,#e9c766);--rose:var(--edityy-rose,#6b5a1e);",
     // The fill of the control the user has open, and of the row that is chosen:
     // warm, because the open control is the one thing on the bar that is not paper.
-    "--accent-soft:var(--edityy-accent-soft,#fbf3d9);--brand:var(--edityy-brand,#d4a72c);--surface:var(--edityy-surface,#F9F8F6);",
+    "--accent-soft:var(--edityy-accent-soft,#2c2817);--brand:var(--edityy-brand,#d4a72c);--surface:var(--edityy-surface,#2a2924);--on-brand:var(--edityy-on-brand,#1a1915);",
     "--ink-4:color-mix(in srgb,var(--ink) 4%,transparent);--ink-6:color-mix(in srgb,var(--ink) 6%,transparent);",
     "--ink-8:color-mix(in srgb,var(--ink) 8%,transparent);--ink-10:color-mix(in srgb,var(--ink) 10%,transparent);",
     "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
@@ -700,7 +701,7 @@
     // hover, press, disabled and focus states.
     ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:0}",
     ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:31px;padding:0 15px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard)}",
-    ".element-menu .element-comment [data-key=comment-save]{min-width:80px;background:var(--brand);color:var(--ink);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
+    ".element-menu .element-comment [data-key=comment-save]{min-width:80px;background:var(--brand);color:var(--on-brand);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
     "@media (hover:hover){.element-menu .element-comment [data-key=comment-save]:hover:not(:disabled){filter:brightness(1.06)}}",
     ".element-menu .element-comment [data-key=comment-save]:active:not(:disabled){filter:brightness(.96)}",
     ".element-menu .element-comment [data-key=comment-save]:disabled{opacity:.45;cursor:default;box-shadow:none}",
@@ -753,7 +754,7 @@
     "color:var(--muted);font:500 12px/1 inherit;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     // The one on the element wears gold, the way the open control in the dock
     // does, and keeps ink on it: gold under paper words is 2.1:1.
-    ".variant[aria-pressed=true] .key{background:var(--brand);color:var(--ink)}",
+    ".variant[aria-pressed=true] .key{background:var(--brand);color:var(--on-brand)}",
     ".variant .words{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     // The agent-placed preview: the same card as the variant strip, with the
     // instruction on top and Keep and Discard at its foot.
@@ -988,7 +989,6 @@
   var countBadge = $("count");
   // The `+` sits at the end of the row and a revealed control goes in before it,
   // so adding one grows the row leftwards from the button that added it.
-  var addBtn = null;
 
   // The font stacks a machine already has. No webfonts load with the editor: it
   // must not change what the page loads, only what it looks like. A Google font
@@ -1627,19 +1627,6 @@
     });
   }
 
-  function actionButton(label, action, icon, className) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "element-action" + (className ? " " + className : "");
-    // Markup as a string, for the same reason the dock's button() gives: an SVG
-    // element cannot be made with createElement(). The button is its icon alone,
-    // so the name lives in aria-label, and the drawn tooltip speaks it.
-    button.innerHTML = icon;
-    button.setAttribute("aria-label", label);
-    button.addEventListener("click", action);
-    return button;
-  }
-
   // The element whose comment box is open, or null while the menu shows its
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
@@ -1651,8 +1638,6 @@
   // The buttons of the card, and the element they belong to. They are kept
   // between redraws: a card that is rebuilt on every scroll throws the row the
   // pointer is on away, and a card that rebuilds itself is a card that blinks.
-  var openActions = null;
-  var openActionsFor = null;
 
   /**
    * Is a dock control open over the dock?
@@ -1715,24 +1700,6 @@
     hideMenu();
     paintMarks();
   }
-  function menuActions() {
-    var actions = document.createElement("div");
-    actions.className = "element-menu-actions";
-    var edit = actionButton("Edit text", function () {
-      if (selectedKind === "text") editText(selected);
-      syncElementMenu();
-    }, svg(MENU_ICONS.edit));
-    edit.disabled = !canEditText(selected);
-    actions.appendChild(edit);
-    actions.appendChild(actionButton("Move", function () { startMove(); }, svg(MENU_ICONS.move)));
-    actions.appendChild(actionButton("Comment", function () {
-      commentFor = selected;
-      syncElementMenu();
-    }, svg(MENU_ICONS.comment)));
-    actions.appendChild(actionButton("Delete", function () { deleteSelected(); }, svg(MENU_ICONS.delete), "delete"));
-    return actions;
-  }
-
   /**
    * Put the element's card away: it fades out where it stands, the way it
    * came.
@@ -1744,7 +1711,10 @@
       elementMenu.hidden = true;
       return;
     }
-    var out = sink(elementMenu, "", 4);
+    // The comment card wears scale(.9) in CSS; the animation must end
+    // there, not at full size, or the card zooms out as it leaves.
+    var base = elementMenu.querySelectorAll(".element-comment").length ? "scale(" + commentScale + ")" : "";
+    var out = sink(elementMenu, base, 4);
     if (!out) {
       elementMenu.hidden = true;
       return;
@@ -1820,7 +1790,7 @@
     showMenu();
     // The layout box keeps its full size under a scale: place by the size
     // the reader sees.
-    var seen = elementMenu.querySelector(".element-comment") ? commentScale : 1;
+    var seen = elementMenu.querySelectorAll(".element-comment").length ? commentScale : 1;
     var width = (elementMenu.offsetWidth || 280) * seen;
     var height = (elementMenu.offsetHeight || 92) * seen;
     var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
@@ -1838,7 +1808,9 @@
     elementMenu.style.top = Math.max(12, Math.min(top, floor - height)) + "px";
     // It comes out of the element: down from it when it is below, up from it
     // when it is above. Only when it appears; a refit on scroll just places it.
-    if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
+    // The comment card wears scale(.9) in CSS; rise must end there, not at
+    // full size, or the card zooms in as it arrives.
+    if (appearing) rise(elementMenu, seen === 1 ? "" : "scale(" + seen + ")", below ? -6 : 6, below ? "0 0" : "0 100%");
   }
 
   /** The menu at the selected element. */
@@ -1907,45 +1879,60 @@
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
     // The chips decide what Save does. 1 makes a single edit; above 1,
-    // Save asks the agent to explore that many variations. A drawn box
-    // has no element to vary, so it gets no chips.
+    // Save asks the agent to explore that many variations. The Add box is
+    // the same card: a drawn box has no element to vary, so its chips
+    // above 1 stay off and Save keeps the words on the box itself.
     var count = 1;
-    if (el) {
-      var modes = document.createElement("div");
-      modes.className = "element-comment-modes";
-      var chips = document.createElement("div");
-      chips.className = "element-comment-chips";
-      chips.setAttribute("role", "radiogroup");
-      chips.setAttribute("aria-label", "How many");
-      modes.appendChild(chips);
-      var chipButtons = [1, 2, 5, 10].map(function (n) {
-        var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () { setCount(n); }, "comment-count-" + n);
-        chip.setAttribute("role", "radio");
-        chip.setAttribute("aria-checked", String(n === count));
-        chip.tabIndex = n === count ? 0 : -1;
-        chip.appendChild(text(String(n)));
-        chips.appendChild(chip);
-        return chip;
-      });
-      // The arrow keys move between the chips, like a radio group does.
-      chips.addEventListener("keydown", function (e) {
-        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-        var at = chipButtons.indexOf(document.activeElement);
-        if (at < 0) return;
-        var next = chipButtons[(at + (e.key === "ArrowRight" ? 1 : chipButtons.length - 1)) % chipButtons.length];
-        setCount(Number(next.textContent));
-        if (next.focus) next.focus();
-      });
-      // The chips line sits at the top of the card, above the comment field.
-      box.insertBefore(modes, area);
-      function setCount(next) {
-        count = next;
-        chipButtons.forEach(function (chip) {
-          var on = Number(chip.textContent) === next;
-          chip.setAttribute("aria-checked", String(on));
-          chip.tabIndex = on ? 0 : -1;
-        });
+    var modes = document.createElement("div");
+    modes.className = "element-comment-modes";
+    var chips = document.createElement("div");
+    chips.className = "element-comment-chips";
+    chips.setAttribute("role", "radiogroup");
+    chips.setAttribute("aria-label", "How many");
+    modes.appendChild(chips);
+    // The counts live in an array of their own, not in the chips' words:
+    // the words are for the reader, the array is for the choice.
+    var counts = [1, 2, 5, 10];
+    var chipButtons = counts.map(function (n) {
+      var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () { setCount(n); }, "comment-count-" + n);
+      chip.setAttribute("role", "radio");
+      chip.setAttribute("aria-checked", String(n === count));
+      chip.tabIndex = n === count ? 0 : -1;
+      // A drawn box has no element to vary: only the single edit stays on.
+      if (!el && n !== 1) {
+        chip.disabled = true;
+        chip.title = "A drawn box has no element to vary";
       }
+      chip.appendChild(text(String(n)));
+      chips.appendChild(chip);
+      return chip;
+    });
+    // The arrow keys move between the chips, like a radio group does.
+    // Off chips are skipped: a drawn box keeps the single edit.
+    chips.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var at = chipButtons.indexOf(document.activeElement);
+      if (at < 0) return;
+      var dir = e.key === "ArrowRight" ? 1 : chipButtons.length - 1;
+      var idx = (at + dir) % chipButtons.length;
+      var guard = 0;
+      while (chipButtons[idx].disabled && guard++ < chipButtons.length) idx = (idx + dir) % chipButtons.length;
+      var next = chipButtons[idx];
+      if (next.disabled) return;
+      setCount(counts[idx]);
+      if (next.focus) next.focus();
+    });
+    // The chips line sits at the top of the card, above the comment field.
+    box.insertBefore(modes, area);
+    function setCount(next) {
+      var idx = counts.indexOf(next);
+      if (idx === -1 || chipButtons[idx].disabled) return;
+      count = next;
+      chipButtons.forEach(function (chip, i) {
+        var on = counts[i] === next;
+        chip.setAttribute("aria-checked", String(on));
+        chip.tabIndex = on ? 0 : -1;
+      });
     }
     if (el && variationWords) box.appendChild(noteBox(variationWords));
     openComment = box;
@@ -2164,14 +2151,14 @@ function faces() {
       Array.prototype.forEach.call(document.fonts || [], function (face) {
         names.push(face.family);
       });
-    } catch (e) {
+    } catch {
       /* no FontFaceSet: the stylesheets below are the whole story */
     }
     for (var i = 0; i < document.styleSheets.length; i++) {
       var rules;
       try {
         rules = document.styleSheets[i].cssRules;
-      } catch (e) {
+      } catch {
         continue; // cross-origin: nothing to read, and nothing to fail on
       }
       for (var j = 0; rules && j < rules.length; j++) {
@@ -2336,7 +2323,6 @@ function faces() {
       });
   }
 
-  var WEIGHTS = [300, 400, 500, 600, 700, 800];
   var ALIGNS = [
     { v: "left", label: "Align left", icon: "align-left" },
     { v: "center", label: "Align centre", icon: "align-center" },
@@ -2352,13 +2338,6 @@ function faces() {
   // Container controls are mode-specific: the dock mirrors the layout table,
   // rather than showing one mixed panel whose controls change meaning.
   var MODES = ["flex", "grid", "absolute"];
-  var MODE_LABELS = { stack: "Default", flex: "Flex", grid: "Grid", absolute: "Absolute" };
-  var MODE_GLYPHS = {
-    stack: "rows-2",
-    flex: "columns-2",
-    grid: "layout-grid",
-    absolute: "frame",
-  };
   var DIRECTIONS = [
     { v: "row", label: "Row", icon: "arrow-right" },
     { v: "column", label: "Column", icon: "arrow-down" },
@@ -2382,54 +2361,6 @@ function faces() {
     { v: "center:flex-end", label: "Bottom center" },
     { v: "flex-end:flex-end", label: "Bottom right" },
   ];
-
-  var BOX_GLYPHS = {
-    direction: "move-horizontal",
-    gap: "unfold-horizontal",
-    alignment: "grip",
-    wrap: "wrap-text",
-  };
-
-  var ICONS = [
-    // The selected face is text in the dock, so users can identify it without
-    // opening a list. CSS truncates long family names without hiding the value.
-    { key: "family", label: "Font family", glyph: "" },
-    // The size editor is embedded in the dock button itself.
-    { key: "size", label: "Font size", glyph: "" },
-    // A bold B: the weight scale is what the control sets.
-    {
-      key: "weight",
-      label: "Font weight",
-      glyph: "bold",
-    },
-    // The colour control is the colour itself: a chip, and nothing over it.
-    { key: "color", label: "Text colour", glyph: "" },
-    // Four bars, each ending short of a different edge: what the button does.
-    {
-      key: "align",
-      label: "Text alignment",
-      glyph: "align-left",
-    },
-    // Line and letter spacing belong to one typography-spacing control.
-    {
-      key: "spacing",
-      label: "Typography spacing",
-      glyph: "move-vertical",
-    },
-    // An A over a line: the two decorations at once.
-    {
-      key: "decorate",
-      label: "Text decoration",
-      glyph: "baseline",
-    },
-  ];
-
-  var MENU_ICONS = {
-    edit: "pencil",
-    move: "move",
-    comment: "message-square",
-    delete: "trash-2",
-  };
 
   var PAD_GLYPH = "expand";
   var MARGIN_GLYPH = "move-diagonal";
@@ -2719,30 +2650,6 @@ function faces() {
     show("");
     select(wrapper, { el: wrapper, kind: "container" });
     tally();
-  }
-
-  function startMove() {
-    if (!selected || !selected.parentElement) return;
-    moving = selected;
-    var rec = record(moving);
-    rec.moveFrom = { parent: moving.parentElement, before: moving.nextSibling };
-    if (!rec.location) rec.location = rec.moveFrom;
-    if (!rec.selector) {
-      rec.selector = selectorFor(moving);
-      rec.source = sourceOf(moving);
-    }
-    moving.parentElement.removeChild(moving);
-    syncSelectionFrames();
-    // The placement cursor is on: the dock yields, and the pointer picks the
-    // place the element drops into.
-    menuAway();
-    insertion = null;
-    pointerX = null;
-    pointerY = null;
-    dockAway();
-    delete insertLine.dataset.on;
-    hideHover();
-    show("");
   }
 
   /**
@@ -3258,19 +3165,6 @@ function faces() {
     b.setAttribute("aria-label", "Font family: " + name);
   }
 
-  /** Update the visible size value without closing the open control. */
-  function updateSizeLabel() {
-    var b = slot("size");
-    if (!b) return;
-    var value = num("font-size", 16);
-    var input = b.querySelector && b.querySelector("input");
-    if (input) input.value = String(value);
-    var trigger = b.querySelector && b.querySelector(".custom-select-trigger");
-    // The arrow says there is a list; the field says the value. Never both.
-    if (trigger && String(trigger.className).indexOf("chevron") === -1) trigger.textContent = value + "px";
-    b.setAttribute("aria-label", "Font size: " + value + "px");
-  }
-
   /** Return the weight choices the selected face exposes, if known. */
   function weightInfo() {
     var name = faceName(get("font-family")).toLowerCase();
@@ -3297,7 +3191,7 @@ function faces() {
       });
       for (var i = 0; i < document.styleSheets.length; i++) {
         var rules;
-        try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+        try { rules = document.styleSheets[i].cssRules; } catch { continue; }
         for (var j = 0; rules && j < rules.length; j++) {
           if (rules[j].type !== 5) continue;
           var style = rules[j].style;
@@ -3309,7 +3203,7 @@ function faces() {
           weight.split(/\s+/).forEach(add);
         }
       }
-    } catch (e) {
+    } catch {
       /* FontFaceSet and stylesheet inspection are optional. */
     }
     values.sort(function (a, b) { return a - b; });
@@ -4758,44 +4652,11 @@ function decorations() {
     show(open ? "" : key);
   }
 
-  var BASE_ICONS = ICONS.slice(); // the type controls, the ones always there on text
   /**
    * A media element's dock is its own three controls, worn in the row: the two
    * lengths, and the corner on them. Its opacity is added with the `+`, as a
    * shadow or a border is.
    */
-  var IMAGE_ICONS = [
-    { key: "width", label: "Width" },
-    { key: "height", label: "Height" },
-    { key: "radius", label: "Radius", glyph: "corner-radius" },
-  ];
-  // The container dock mirrors the requested table. Mode is always present;
-  // every other button is rebuilt from the current mode.
-  var BOX_ICONS = {
-    stack: [
-      { key: "direction", label: "Direction", glyph: BOX_GLYPHS.direction },
-      { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
-      { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
-    ],
-    flex: [
-      { key: "direction", label: "Direction", glyph: BOX_GLYPHS.direction },
-      { key: "wrap", label: "Wrap", glyph: BOX_GLYPHS.wrap },
-      { key: "alignment", label: "Alignment", glyph: BOX_GLYPHS.alignment },
-      { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
-    ],
-    // A grid's size is the counts themselves in the row, as columns × rows, and
-    // it offers no alignment: the cells of a grid are placed by the grid.
-    grid: [
-      { key: "grid", label: "Columns × rows", glyph: "" },
-      { key: "gap", label: "Gap", glyph: BOX_GLYPHS.gap },
-    ],
-    // An element that is placed by its own offsets wears all four in the row.
-    absolute: [
-      { key: "bounds", label: "Top / Right / Bottom / Left", glyph: "" },
-    ],
-  };
-  // The element the row was last built for, so a re-click on the same words keeps it.
-  var rowFor = null;
   // The toolbar has three parts: Comment, Add, Edits. Comment is on entry.
   // One tool at a time. A second click on the active tool drops to browse.
   var activeTool = "comment";
@@ -4865,163 +4726,6 @@ function decorations() {
   }
 
 
-
-  /**
-   * How many tracks a grid-template value names. A computed value has already
-   * expanded repeat(), so it arrives as the list itself; a value that still
-   * names a repeat counts what the repeat names, a line name in brackets is not
-   * a track, and "none" means the grid names none of its own.
-   */
-  function trackCount(value) {
-    var seen = String(value || "").trim();
-    if (!seen || seen === "none") return 0;
-    var count = 0;
-    var word = "";
-    var depth = 0;
-    function flush() {
-      var repeat = word && word.charAt(0) !== "[" && word.match(/^repeat\(\s*(\d+)/i);
-      count += repeat ? Number(repeat[1]) : word && word.charAt(0) !== "[" ? 1 : 0;
-      word = "";
-    }
-    for (var i = 0; i < seen.length; i++) {
-      var ch = seen.charAt(i);
-      if (ch === "(") depth++;
-      else if (ch === ")" && depth) depth--;
-      // A space inside a function belongs to the track: minmax(0, 1fr).
-      if (!depth && (ch === " " || ch === "\t" || ch === "\n")) flush();
-      else word += ch;
-    }
-    flush();
-    return count;
-  }
-
-  /**
-   * A grid's size, worn in the row as the counts themselves: columns × rows,
-   * with "auto" where the grid names no tracks of its own. Nothing to open.
-   */
-  function gridCountField() {
-    var field = button("ic dock-count", "", "Columns × rows", function () {}, "grid");
-    ["grid-template-columns", "grid-template-rows"].forEach(function (prop, i) {
-      if (i) {
-        var times = document.createElement("span");
-        times.className = "times";
-        times.textContent = "×";
-        field.appendChild(times);
-      }
-      var input = document.createElement("input");
-      input.type = "number";
-      input.min = 1;
-      input.max = 12;
-      input.step = 1;
-      input.value = String(trackCount(get(prop)) || "");
-      input.placeholder = "auto";
-      input.setAttribute("aria-label", prop === "grid-template-columns" ? "Columns" : "Rows");
-      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
-      input.addEventListener("input", function () {
-        hold();
-        // A blank field is auto: the grid names no tracks of its own.
-        if (input.value === "") return set(prop, "");
-        var tracks = Math.round(Number(input.value));
-        if (!(tracks >= 1)) return;
-        set(prop, "repeat(" + tracks + ", minmax(0, 1fr))");
-      });
-      input.addEventListener("change", release);
-      field.appendChild(input);
-    });
-    return field;
-  }
-
-  /**
-   * The absolute offsets, worn in the row: top, right, bottom and left, each a
-   * field of its own with its own letter, so the hover fill and the hint name
-   * the one side the pointer is on. A side that names no offset says "auto".
-   */
-  function boundsFields() {
-    return [["top", "T"], ["right", "R"], ["bottom", "B"], ["left", "L"]].map(function (axis) {
-      var prop = axis[0];
-      var field = button("ic dock-count", '<span class="axis">' + axis[1] + "</span>", prop.charAt(0).toUpperCase() + prop.slice(1), function () {}, prop);
-      var input = document.createElement("input");
-      input.type = "number";
-      input.min = -1000;
-      input.max = 1000;
-      input.step = 1;
-      var at = Math.round(parseFloat(get(prop)));
-      input.value = isNaN(at) ? "" : String(at);
-      input.placeholder = "auto";
-      input.setAttribute("aria-label", prop.charAt(0).toUpperCase() + prop.slice(1));
-      input.addEventListener("click", function (e) { if (e.stopPropagation) e.stopPropagation(); });
-      input.addEventListener("input", function () {
-        hold();
-        // A blank side is auto: the element sits where the page puts it.
-        if (input.value === "") return set(prop, "");
-        var offset = Number(input.value);
-        if (isNaN(offset)) return;
-        set(prop, offset + "px");
-      });
-      input.addEventListener("change", release);
-      field.appendChild(input);
-      return field;
-    });
-  }
-
-  /**
-   * A number the row wears in a chip of its own, the way a grid wears its
-   * counts: a mark first, then the figure, and the chevron for the list of the
-   * words the value can also be. The figure is a field, so an exact number
-   * needs no list.
-   */
-  function dockNumber(spec) {
-    var mark = spec.mark ? '<span class="axis">' + spec.mark + "</span>" : "";
-    var field = button("ic dock-count", mark, spec.label, function () {}, spec.key);
-    var input = document.createElement("input");
-    input.type = "number";
-    input.min = spec.min;
-    input.max = spec.max;
-    input.step = 1;
-    input.value = spec.value === null ? "" : String(spec.value);
-    if (spec.auto) input.placeholder = "auto";
-    input.setAttribute("aria-label", spec.label + " in pixels");
-    // A press on the value — on the word auto too — lands in the field, ready to
-    // type over it. It is the field's own press: no pointer capture, so a press
-    // that leaves the dock cannot hold the pointer away from the page.
-    input.addEventListener("click", function (e) {
-      if (e.stopPropagation) e.stopPropagation();
-      if (input.focus) input.focus();
-    });
-    input.addEventListener("input", function () {
-      // A blank field is not a number. Where the length may be auto, it is auto.
-      if (input.value === "") {
-        if (spec.auto) spec.onInput(null);
-        return;
-      }
-      hold();
-      spec.onInput(Number(input.value));
-    });
-    input.addEventListener("change", release);
-    field.appendChild(input);
-    if (spec.auto) {
-      field.appendChild(customSelect([{ value: null, label: "Auto" }], null, function () {
-        input.value = "";
-        spec.onInput(null);
-      }, spec.label + " options", true));
-    }
-    return field;
-  }
-
-  /** The image's own length: the page's size, or a number of pixels. */
-  function imageLengthField(prop) {
-    var size = Math.round(parseFloat(get(prop)));
-    return dockNumber({
-      key: prop,
-      label: prop.charAt(0).toUpperCase() + prop.slice(1),
-      mark: prop === "width" ? "W" : "H",
-      min: 0,
-      max: 4000,
-      value: isNaN(size) ? null : size,
-      auto: true,
-      onInput: function (value) { set(prop, value === null ? "" : value + "px"); },
-    });
-  }
 
   /** The controls on show: the seven (text only), plus whatever was added to this element. */
   function buildRow() {
@@ -5662,12 +5366,6 @@ function decorations() {
     hideTip();
   });
 
-  /** Which optional controls this element has been given, in the order added. */
-  function addedTo(el) {
-    var rec = record(el);
-    return rec.added || [];
-  }
-
   /** The row starts empty: buildRow() fills it for whichever element is selected. */
   buildRow();
 
@@ -5802,16 +5500,6 @@ function decorations() {
       [{ opacity: 0, transform: "translateX(12px)" }, { opacity: 1, transform: "none" }],
       { duration: T.enter, easing: ARRIVE }
     );
-  }
-
-  /** Put the dock away at once, with no fade. For the times it has to go now. */
-  function dockAway() {
-    if (dockLeaving) {
-      dockLeaving.cancel();
-      dockLeaving = null;
-      dock.style.pointerEvents = "";
-    }
-    dock.hidden = true;
   }
 
   /* --------------------------------------------------------- element menu */
@@ -6163,7 +5851,6 @@ function decorations() {
         revert(item.rec);
         // The row belongs to the selected element, and its controls went with it.
         if (item.rec.el === selected) {
-          rowFor = null;
           select(null);
           refit();
         }
@@ -6258,7 +5945,7 @@ function decorations() {
     var view = null;
     try {
       view = window.getComputedStyle(el);
-    } catch (e) {
+    } catch {
       view = null; // a page that cannot be measured still gets a request
     }
     var values = [];
@@ -7105,7 +6792,7 @@ function decorations() {
       var ok = document.execCommand("copy");
       pop.removeChild(area);
       return !!ok;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -7130,7 +6817,7 @@ function decorations() {
     try {
       var p = window.location && window.location.pathname;
       return p || "/";
-    } catch (e) {
+    } catch {
       return "/";
     }
   }
@@ -7158,7 +6845,7 @@ function decorations() {
     if (!active) {
       try {
         window.fetch(SESSION_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-      } catch (e) {}
+      } catch {}
       return;
     }
     var edits = [];
@@ -7188,7 +6875,7 @@ function decorations() {
     var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: savedRegions });
     try {
       window.fetch(SESSION_URL, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: body }).catch(function () {});
-    } catch (e) {}
+    } catch {}
   }
 
   /**
@@ -7206,7 +6893,7 @@ function decorations() {
         var el = null;
         try {
           el = document.querySelector ? document.querySelector(edit.selector) : null;
-        } catch (e) {
+        } catch {
           el = null;
         }
         if (!el || (host.contains && host.contains(el))) return;
@@ -7243,7 +6930,7 @@ function decorations() {
       window.fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (j) {
         if (j && j.ok) done(j.session);
       }).catch(function () {});
-    } catch (e) {}
+    } catch {}
   }
 
   /* ----------------------------------------------------- keyboard selection */
@@ -7778,22 +7465,6 @@ function decorations() {
     drawing = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
   }
 
-  /** The Add drag moves: the dashed box follows the pointer. */
-  function onDrag(e) {
-    if (!drawing) return;
-    drawing.x1 = e.clientX;
-    drawing.y1 = e.clientY;
-    var left = Math.min(drawing.x0, drawing.x1);
-    var top = Math.min(drawing.y0, drawing.y1);
-    var width = Math.abs(drawing.x1 - drawing.x0);
-    var height = Math.abs(drawing.y1 - drawing.y0);
-    regionBox.style.left = left + "px";
-    regionBox.style.top = top + "px";
-    regionBox.style.width = width + "px";
-    regionBox.style.height = height + "px";
-    regionBox.hidden = false;
-  }
-
   /** The Add drag ends: a big enough box opens its comment box. */
   function onUp(e) {
     if (!drawing) return;
@@ -7883,13 +7554,10 @@ function decorations() {
     var field = e.target;
     var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
     if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
-    // While a page runs the colour vartest (data-vartest on <html>), the
-    // toolbar keys stay off: digits and letters belong to the vartest.
-    var vartest = document.documentElement && document.documentElement.hasAttribute("data-vartest");
     // 1 to 9 pick a variation while the strip is up, and 0 picks the tenth,
     // which is what the strip says on each row. A digit in a field belongs to the
     // field.
-    if (!vartest && !variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var typing = editing || pageField;
       var index = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!typing && index < variantList.length) {
@@ -7899,7 +7567,7 @@ function decorations() {
       }
       return;
     }
-    if (!vartest && previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!previewTyping && previewList.length) {
@@ -7926,7 +7594,7 @@ function decorations() {
     // press of the one that is on drops to browse. A letter in a field
     // belongs to the field, and one in the dock belongs to the dock, so
     // both are already answered above or by the host check.
-    if (!vartest && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !editing && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !editing && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       var toolKey = { c: "comment", a: "add", e: "edits" }[String(e.key || "").toLowerCase()];
       if (toolKey) {
         if (e.preventDefault) e.preventDefault();

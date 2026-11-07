@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
-import { Vartest } from "./vartest";
 import logo from "./logo.png";
 
 const INSTALL = "npm install -D edityy";
@@ -328,7 +327,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-      <Vartest />
     </div>
   );
 }

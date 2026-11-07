@@ -776,9 +776,10 @@ test("the bounding box is one solid frame with four corner markers", () => {
   assert.match(app.root.innerHTML, /\[data-corner="top left"\]\{left:-3\.75px;top:-3\.75px\}/, "a corner disc is centered on its corner");
 });
 
-test("the box wears the ramp value that opposes the colour under it", () => {
+test("the box wears the brand colour", () => {
   const { run, text } = fakeDom();
   const app = run();
+  // The frame is the brand gold on every background: dark, light, or bare.
   const panel = text("div", "hi", { "background-color": "rgb(16, 32, 48)" },
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
   quiet(() => {
@@ -787,33 +788,27 @@ test("the box wears the ramp value that opposes the colour under it", () => {
     app.clickPage();
   });
   const sel = app.root.nodes.sel;
-  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff", "paper on a dark panel");
-  // A true negative of the page's paper would be pure black, which the ramp
-  // does not have. An unpainted background is the page's own canvas: light, so
-  // the line is ink.
+  assert.equal(sel.style.getPropertyValue("--frame"), "#d4a72c", "brand on a dark panel");
   const bare = text("p", "plain", {}, { left: 0, top: 0, right: 80, bottom: 20, width: 80, height: 20 });
   quiet(() => {
     app.hover(bare);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#25241f");
-  // A light background keeps the line in ink rather than inventing a hue.
+  assert.equal(sel.style.getPropertyValue("--frame"), "#d4a72c", "brand on a bare canvas");
   const paper = text("div", "hi", { "background-color": "rgb(249, 242, 238)" },
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
   quiet(() => {
     app.hover(paper);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#25241f", "ink on paper");
-  // A transparent element takes the colour of the nearest ancestor that paints
-  // one, because that is the colour the box actually lies on.
+  assert.equal(sel.style.getPropertyValue("--frame"), "#d4a72c", "brand on paper");
   const child = text("span", "x", {}, { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 });
   panel.appendChild(child);
   quiet(() => {
     app.hover(child);
     app.clickPage();
   });
-  assert.equal(sel.style.getPropertyValue("--frame"), "#ffffff");
+  assert.equal(sel.style.getPropertyValue("--frame"), "#d4a72c", "brand through a transparent child");
 });
 
 /** Select a node and report how it was classified. */
@@ -854,8 +849,6 @@ const press = (app, key) => {
   return icon;
 };
 
-/** Every node a container holds, however deep. */
-const all = (el) => [el, ...(el.children ?? []).flatMap(all)];
 /** The text of a container, which the stub does not accumulate for us. */
 const shown = (el) =>
   [el.tagName === undefined ? (el.nodeValue ?? "") : el.innerHTML,
@@ -2026,9 +2019,8 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(area.getAttribute("aria-label"), "Comment", "the words come first");
   assert.equal(area.placeholder, "Comment", "the same box as a comment");
   area.value = "  thinner and darker  ";
-  const variant = inMenu("Variant");
-  for (const fn of variant.bubbles.click.bubble) fn({});
-  inMenu("Variations").value = "3";
+  const chip = inMenu("2 variations");
+  for (const fn of chip.bubbles.click.bubble) fn({});
   const ask = inMenu("Save comment");
   for (const fn of ask.bubbles.click.bubble) fn({});
   // No waiting card: the same box stays, with a note while the agent answers.
@@ -2041,7 +2033,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   const request = JSON.parse(sent[0].init.body);
   assert.equal(sent[0].url, "/__edityy/variations");
   assert.equal(sent[0].init.method, "POST");
-  assert.equal(request.count, 3, "the count travels with the request");
+  assert.equal(request.count, 2, "the count travels with the request");
   assert.equal(request.prompt, "thinner and darker");
   assert.equal(request.element.tag, "p", "the tag, not the source code");
   assert.equal(request.element.selector, "p");
@@ -2107,7 +2099,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
 });
 
 test("a panel that already left takes no ghost down with the mode", () => {
-  const { run, text } = fakeDom();
+  const { run } = fakeDom();
   const app = run();
   const strip = app.root.nodes.variants;
   // Browser-faithful insertBefore: a stale child throws.
