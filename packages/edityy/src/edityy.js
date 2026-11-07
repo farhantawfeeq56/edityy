@@ -1939,8 +1939,8 @@
         setCount(Number(next.textContent));
         if (next.focus) next.focus();
       });
-      // The chips line sits below the comment field, above the tick.
-      box.insertBefore(modes, canvasRow);
+      // The chips line sits at the top of the card, above the comment field.
+      box.insertBefore(modes, area);
       function setCount(next) {
         count = next;
         chipButtons.forEach(function (chip) {
