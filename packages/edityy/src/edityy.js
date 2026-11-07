@@ -289,7 +289,7 @@
     // The close chip: half on the dock's top-right corner, half out, so it
     // reads as the corner's own tab and not a fifth tool in the row.
     ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:var(--paper);color:var(--muted);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
-    ".dock-close:hover{background:var(--ink-6);color:var(--ink)}","#dock:hover .dock-close,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
+    ".dock-close:hover{background:var(--ink-6);color:var(--ink)}","#dock:hover .dock-close,#dock.dock-warm .dock-close,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
     ".dock-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".dock-close>svg{width:11px;height:11px;display:block;color:inherit}",
     // One hover fill for the whole row, not one per icon: it travels from the
@@ -7716,6 +7716,24 @@ function decorations() {
     launch.addEventListener("pointerup", letGo);
     launch.addEventListener("pointercancel", letGo);
   })();
+
+  // The close chip stays while the dock is warm: the pointer entered the
+  // dock, so the chip stays until the pointer leaves the bottom-right
+  // area or clicks elsewhere on the page. No timer: the area is the
+  // window. The chip sits half outside the dock, so hover alone would
+  // drop it before the pointer reaches it.
+  var DOCK_WARM_PAD = 160;
+  function coolDock() { dock.classList.remove("dock-warm"); }
+  dock.addEventListener("mouseenter", function () { dock.classList.add("dock-warm"); });
+  document.addEventListener("pointermove", function (e) {
+    if (!dock.classList.contains("dock-warm")) return;
+    var r = dock.getBoundingClientRect();
+    if (e.clientX < r.left - DOCK_WARM_PAD || e.clientX > r.right + DOCK_WARM_PAD || e.clientY < r.top - DOCK_WARM_PAD || e.clientY > r.bottom + DOCK_WARM_PAD) coolDock();
+  }, { passive: true });
+  document.addEventListener("click", function (e) {
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    coolDock();
+  });
 
   $("dock-close").addEventListener("click", function (e) {
     e.stopPropagation();
