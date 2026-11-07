@@ -829,22 +829,22 @@
     // opens says so the same way, whether it is the row's or the colour button.
     ".ic[aria-expanded=true]{background:var(--accent-soft);border-color:var(--rose);color:var(--ink)}",
     // The tooltip of a control, in the dock and in the element card alike:
-    // a callout — paper card, ink words, a hairline border and a small arrow
+    // a callout — elevated graphite, ink words, a hairline border and a small arrow
     // pointing at the control. Drawn here because the browser own title is
     // slow and cannot wear the ramp. It stays smaller than the row itself,
     // so it reads as a label on the toolbar.
     ".tip{position:fixed;z-index:9;pointer-events:none;min-width:44px;padding:6px 10px;border-radius:8px;text-align:center;white-space:nowrap;",
-    "background:var(--paper);color:var(--ink);border:1px solid var(--ink-10);font:500 11px/1.4 inherit;",
-    "box-shadow:0 2px 4px var(--ink-6),0 12px 28px var(--ink-12);transform-origin:50% 100%}",
+    "background:color-mix(in srgb,var(--ink) 18%,var(--paper));color:var(--ink);border:1px solid var(--ink-25);font:500 11px/1.4 inherit;",
+    "box-shadow:0 4px 10px var(--ink-8),0 18px 44px var(--ink-15);transform-origin:50% 100%}",
     // The arrow: a diamond straddling the border, pointing at the control.
     // Above the control it points down; below, it points up.
-    ".tip::after{content:\"\";position:absolute;left:50%;width:8px;height:8px;background:var(--paper);",,
-    "border-right:1px solid var(--ink-10);border-bottom:1px solid var(--ink-10)}",
+    ".tip::after{content:\"\";position:absolute;left:50%;width:8px;height:8px;background:color-mix(in srgb,var(--ink) 18%,var(--paper));",,
+    "border-right:1px solid var(--ink-25);border-bottom:1px solid var(--ink-25)}",
     ".tip[data-side=top]::after{bottom:-1px;transform:translate(-50%,50%) rotate(45deg)}",
     ".tip[data-side=bottom]::after{top:-1px;transform:translate(-50%,-50%) rotate(-135deg)}",
     ".tip>span{display:block}",
     // A tip over the comment card wears the card's size: 90% of every part.
-    ".tip[data-size=small]{min-width:40px;padding:5.4px 9px;border-radius:7px;font:500 9.9px/1.4 inherit;box-shadow:0 1.8px 3.6px var(--ink-6),0 10.8px 25.2px var(--ink-12)}",
+    ".tip[data-size=small]{min-width:40px;padding:5.4px 9px;border-radius:7px;font:500 9.9px/1.4 inherit;box-shadow:0 3.6px 9px var(--ink-8),0 16.2px 39.6px var(--ink-15)}",
     ".tip[data-size=small]::after{width:7px;height:7px}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
