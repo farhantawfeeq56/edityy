@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
+import { Vartest } from "./vartest";
 import logo from "./logo.png";
 
 const INSTALL = "npm install -D edityy";
@@ -113,7 +114,7 @@ function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted
   return (
     <p
       className={`flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] ${
-        inverted ? "text-white/60" : "text-neutral-500"
+        inverted ? "text-neutral-50/60" : "text-neutral-500"
       }`}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />
@@ -125,7 +126,7 @@ function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted
 function Install({ note }: { note?: string }) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white py-1 pl-4 pr-1 shadow-layer">
+      <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-100 py-1 pl-4 pr-1 shadow-layer">
         <span aria-hidden="true" className="font-mono text-[0.8125rem] text-neutral-600">
           $
         </span>
@@ -188,7 +189,7 @@ export default function Home() {
 
       <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
         <section className="pt-16 text-center sm:pt-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
             Open source, MIT licensed
           </span>
@@ -253,37 +254,37 @@ export default function Home() {
         </section>
 
         <section id="agent" className="mt-20 scroll-mt-28 sm:mt-24">
-          <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-white sm:px-10 sm:py-14">
+          <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-neutral-50 sm:px-10 sm:py-14">
             <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
               <div>
                 <Eyebrow inverted>Hand-off</Eyebrow>
                 <h2 className="mt-4 text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
                   Your code stays the source of truth.
                 </h2>
-                <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-white/70">
+                <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-50/70">
                   Edityy does not write to your source. It writes down what you changed. Your agent makes the change in
                   the file, in the way the project already styles things.
                 </p>
-                <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
+                <ul className="mt-8 divide-y divide-neutral-50/10 border-y border-neutral-50/10">
                   {handoffs.map((handoff) => (
                     <li key={handoff.label} className="py-4">
                       <p className="text-[0.875rem] font-medium">{handoff.label}</p>
-                      <p className="mt-1 text-[0.875rem] leading-relaxed text-white/60">{handoff.body}</p>
+                      <p className="mt-1 text-[0.875rem] leading-relaxed text-neutral-50/60">{handoff.body}</p>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div aria-hidden="true" className="rounded-xl border border-white/10 bg-white/[0.04] p-1">
-                <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-white/50">
+              <div aria-hidden="true" className="rounded-xl border border-neutral-50/10 bg-neutral-50/[0.04] p-1">
+                <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-neutral-50/50">
                   <span className="size-1.5 rounded-full bg-rose-500" />
                   copied as a prompt to use with your coding agents
                 </div>
-                <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-white/80">
+                <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-neutral-50/80">
                   {promptSample}
                 </pre>
-                <div className="flex items-center gap-2 border-t border-white/10 px-3 py-2.5 font-mono text-[0.6875rem] text-white/60">
-                  <span className="text-white/40">$</span>
+                <div className="flex items-center gap-2 border-t border-neutral-50/10 px-3 py-2.5 font-mono text-[0.6875rem] text-neutral-50/60">
+                  <span className="text-neutral-50/40">$</span>
                   npx edityy mcp
                 </div>
               </div>
@@ -327,6 +328,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      <Vartest />
     </div>
   );
 }

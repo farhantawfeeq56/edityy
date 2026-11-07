@@ -234,7 +234,7 @@
     "--accent:var(--edityy-accent,#8a6a10);--rose:var(--edityy-rose,#e9d28b);",
     // The fill of the control the user has open, and of the row that is chosen:
     // warm, because the open control is the one thing on the bar that is not paper.
-    "--accent-soft:var(--edityy-accent-soft,#fbf3d9);--brand:var(--edityy-brand,#d4a72c);",
+    "--accent-soft:var(--edityy-accent-soft,#fbf3d9);--brand:var(--edityy-brand,#d4a72c);--surface:var(--edityy-surface,#F9F8F6);",
     "--ink-4:color-mix(in srgb,var(--ink) 4%,transparent);--ink-6:color-mix(in srgb,var(--ink) 6%,transparent);",
     "--ink-8:color-mix(in srgb,var(--ink) 8%,transparent);--ink-10:color-mix(in srgb,var(--ink) 10%,transparent);",
     "--ink-12:color-mix(in srgb,var(--ink) 12%,transparent);--ink-15:color-mix(in srgb,var(--ink) 15%,transparent);",
@@ -603,7 +603,7 @@
     // on. Same surface and radius as a row.
     "#launch{position:fixed;right:24px;bottom:24px;height:38px;min-width:38px;touch-action:none;",
     "border-radius:10px;border:1px solid transparent;margin:0;padding:0 8px;cursor:pointer;pointer-events:auto;z-index:4;",
-    "display:flex;align-items:center;justify-content:center;background:#F9F8F6;",
+    "display:flex;align-items:center;justify-content:center;background:var(--surface);",
     "box-shadow:0 0 0 1px var(--ink-10),0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);}",
     "#launch:hover{background:var(--fill-hover)}",
     "#launch img{width:18px;height:18px;display:block;border-radius:5px;pointer-events:none;-webkit-user-drag:none;user-select:none}",
@@ -641,7 +641,7 @@
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
     // A pronounced container: thin low-contrast border, softer corner and a
     // diffused shadow so it stands apart without floating high.
-    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:13px;background:#F9F8F6;border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8);transform:scale(.9);transform-origin:0 0}",
+    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:13px;background:var(--surface);border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8);transform:scale(.9);transform-origin:0 0}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -655,7 +655,7 @@
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:9px;width:245px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
+    ".element-comment{display:flex;flex-direction:column;gap:6px;width:245px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
     "@keyframes cardIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
@@ -684,7 +684,7 @@
     ".element-comment-text:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}",
     // 2. Temporary canvas: a full-width row with a visible hover fill and a
     // keyboard-visible tick.
-    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;padding:7px 8px 7px 5px;border:0;border-radius:12px;background:transparent;font:400 9px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;padding:5px 8px 5px 5px;border:0;border-radius:12px;background:transparent;font:400 8px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
@@ -696,24 +696,24 @@
     // comments on. The typing field keeps one color here and everywhere;
     // only shape moves. Cancel and Save sit together at the right, Save
     // gold — brand fill, ink on it, the dock's own.
-    // 5. Footer: taller buttons, Save dominant, Cancel outlined, both with
+    // 5. Footer: taller buttons, Save dominant, Cancel ghost, both with
     // hover, press, disabled and focus states.
-    ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px}",
+    ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:0}",
     ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:31px;padding:0 15px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard)}",
     ".element-menu .element-comment [data-key=comment-save]{min-width:80px;background:var(--brand);color:var(--ink);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
     "@media (hover:hover){.element-menu .element-comment [data-key=comment-save]:hover:not(:disabled){filter:brightness(1.06)}}",
     ".element-menu .element-comment [data-key=comment-save]:active:not(:disabled){filter:brightness(.96)}",
     ".element-menu .element-comment [data-key=comment-save]:disabled{opacity:.45;cursor:default;box-shadow:none}",
     ".element-menu .element-comment [data-key=comment-save]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
-    "@media (hover:hover){.element-menu .element-comment [data-key=comment-cancel]:hover:not(:disabled){background:var(--ink-6)}}",
+    "@media (hover:hover){.element-menu .element-comment [data-key=comment-cancel]:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}}",
     ".element-menu .element-comment [data-key=comment-cancel]:active:not(:disabled){background:var(--ink-8)}",
     ".element-menu .element-comment [data-key=comment-cancel]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
-    ".element-menu .element-comment [data-key=comment-cancel]{background:var(--paper);border:1px solid var(--ink-20);color:var(--ink)}",
+    ".element-menu .element-comment [data-key=comment-cancel]{background:transparent;border:0;color:var(--muted)}",
     // 3. The count: evenly sized pill chips, a press and a focus ring, and
     // words that say what Save does.
     ".element-comment-modes{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%}",
     ".element-comment-chips{display:flex;width:100%;gap:6px}",
-    ".element-comment-chip{display:grid;place-items:center;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:#FDFDFC;color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".element-comment-chip{display:grid;place-items:center;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
@@ -723,7 +723,7 @@
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
     ".element-comment-mark>svg{width:9px;height:9px;display:block}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:5px;flex:none;min-width:0}",
-    ".element-comment-switch-words span{font:500 9px/1.3 inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-switch-words span{font:500 8px/1.3 inherit;color:var(--ink);white-space:nowrap}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -808,7 +808,7 @@
     ".sides .side-link:hover{background:var(--ink-6)}",
     ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The bar holds the row under the open control.
-    ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:#F9F8F6;border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
+    ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:var(--surface);border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
     "transition:padding-left var(--slide) var(--arrive)}",
     // The bar gives the grip its room only while it is hovered, or while the
     // grip itself is keyboard-focused. A clicked tool keeps :focus-within
@@ -1529,6 +1529,10 @@
    * and a pure black when nothing at all was painted behind the element.
    */
   function frameInk(el) {
+    // A page may pin the frame colour with --edityy-frame (the vartest does);
+    // unset, the contrast rule below picks it.
+    var pinned = chromeColour("--edityy-frame", "");
+    if (pinned) return pinned;
     for (var node = el; node; node = node.parentElement) {
       var m = String(viewOf(node).getPropertyValue("background-color")).match(
         /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
@@ -7893,10 +7897,13 @@ function decorations() {
     var field = e.target;
     var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
     if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
+    // While a page runs the colour vartest (data-vartest on <html>), the
+    // toolbar keys stay off: digits and letters belong to the vartest.
+    var vartest = document.documentElement && document.documentElement.hasAttribute("data-vartest");
     // 1 to 9 pick a variation while the strip is up, and 0 picks the tenth,
     // which is what the strip says on each row. A digit in a field belongs to the
     // field.
-    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (!vartest && !variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var typing = editing || pageField;
       var index = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!typing && index < variantList.length) {
@@ -7906,7 +7913,7 @@ function decorations() {
       }
       return;
     }
-    if (previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (!vartest && previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!previewTyping && previewList.length) {
@@ -7933,7 +7940,7 @@ function decorations() {
     // press of the one that is on drops to browse. A letter in a field
     // belongs to the field, and one in the dock belongs to the dock, so
     // both are already answered above or by the host check.
-    if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !editing && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
+    if (!vartest && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !editing && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
       var toolKey = { c: "comment", a: "add", e: "edits" }[String(e.key || "").toLowerCase()];
       if (toolKey) {
         if (e.preventDefault) e.preventDefault();

@@ -124,22 +124,294 @@
   --color-error-subtle: #fcebe9;
 
   --edityy-font: var(--font-jakarta);
-  --edityy-ink: var(--color-neutral-900);
+  /* The package palette stands on its own hex, never on the page ramp, so a
+     landing theme cannot repaint the chrome. Light is the default below;
+     data-package="dark" swaps only these seven values. */
+  --edityy-ink: #25241f;
   /* The chrome floats on paper white over the warm page, as the study does. */
-  --edityy-paper: var(--color-neutral-100);
-  --edityy-muted: var(--color-neutral-600);
+  --edityy-paper: #ffffff;
+  /* The raised chrome surface (dock, comment card): one step off paper. */
+  --edityy-surface: #faf9f6;
+  --edityy-muted: #5d5a50;
   /* The chrome's --accent: the keyboard ring and an active state. A gold ring
      on paper is under 3:1, so the chrome gets the bronze and keeps the gold for
      fills it draws itself. */
-  --edityy-accent: var(--color-brand-ink);
-  --edityy-accent-soft: var(--color-brand-soft);
-  --edityy-rose: var(--color-brand-line);
+  --edityy-accent: #8a6a10;
+  --edityy-accent-soft: #fbf3d9;
+  --edityy-rose: #e9d28b;
+  --edityy-brand: #d4a72c;
 
   /* The header's paper, at rest and once the page has moved. The element and the
    scroll animation read the same two values, so a reader who asked for less
    motion sees the colour the animation starts from and not a third one. */
   --site-header-paper: rgb(250 249 246 / 0.78);
   --site-header-solid: rgb(250 249 246 / 0.94);
+}
+
+/* Package dark mode (L/D keys): only the seven --edityy-* values move.
+ * The page ramp is untouched, so the comment box, the dock and every other
+ * chrome element go dark while the landing page stays as it is. */
+html[data-package="dark"] {
+  --edityy-ink: #f7f4ec;
+  --edityy-paper: #23221d;
+  --edityy-surface: #1a1915;
+  --edityy-muted: #bcb5a3;
+  --edityy-accent: #e9c766;
+  --edityy-accent-soft: #2e2a18;
+  --edityy-rose: #6b5a1e;
+  --edityy-brand: #d4a72c;
+}
+
+/* Landing colour vartest: data-vartest on <html> swaps the page ramp only.
+ * The --edityy-* values above stand on their own hex, so this switch cannot
+ * repaint the chrome. "light" is the default ramp above and needs no block. */
+html[data-vartest="dark"] {
+  color-scheme: dark;
+  --color-neutral-50: #1a1915;
+  --color-neutral-100: #23221d;
+  --color-neutral-200: #36342c;
+  --color-neutral-300: #4a473d;
+  --color-neutral-400: #7a7566;
+  --color-neutral-500: #a49d8a;
+  --color-neutral-600: #bcb5a3;
+  --color-neutral-700: #d8d3c4;
+  --color-neutral-800: #eae6d9;
+  --color-neutral-900: #f7f4ec;
+  --color-brand: #d4a72c;
+  --color-brand-ink: #e9c766;
+  --color-brand-soft: #2e2a18;
+  --color-brand-line: #6b5a1e;
+  --color-brand-hover: #e0b53a;
+  --color-brand-pressed: #c99e24;
+  --color-brand-foreground: #1a1915;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(26 25 21 / 0.78);
+  --site-header-solid: rgb(26 25 21 / 0.94);
+}
+html[data-vartest="blue"] {
+  --color-neutral-50: #f5f7fa;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #dde4ec;
+  --color-neutral-300: #c3d0de;
+  --color-neutral-400: #93a7bb;
+  --color-neutral-500: #6b8299;
+  --color-neutral-600: #4d6379;
+  --color-neutral-700: #3a4f63;
+  --color-neutral-800: #2c3e4f;
+  --color-neutral-900: #22303d;
+  --color-brand: #2f6fb2;
+  --color-brand-ink: #1d4e7e;
+  --color-brand-soft: #e3edf7;
+  --color-brand-line: #b9d2ea;
+  --color-brand-hover: #285f97;
+  --color-brand-pressed: #1f4c7c;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(245 247 250 / 0.78);
+  --site-header-solid: rgb(245 247 250 / 0.94);
+}
+html[data-vartest="green"] {
+  --color-neutral-50: #f4f7f2;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #dde6d8;
+  --color-neutral-300: #c0d2b6;
+  --color-neutral-400: #94b183;
+  --color-neutral-500: #6f925f;
+  --color-neutral-600: #527445;
+  --color-neutral-700: #3f5c36;
+  --color-neutral-800: #30462a;
+  --color-neutral-900: #243520;
+  --color-brand: #4a7c3a;
+  --color-brand-ink: #2f5a24;
+  --color-brand-soft: #e6f0e0;
+  --color-brand-line: #bcd8b0;
+  --color-brand-hover: #3d6830;
+  --color-brand-pressed: #315527;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(244 247 242 / 0.78);
+  --site-header-solid: rgb(244 247 242 / 0.94);
+}
+html[data-vartest="rose"] {
+  --color-neutral-50: #fbf5f6;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #f3e0e4;
+  --color-neutral-300: #e6c2cb;
+  --color-neutral-400: #d69cad;
+  --color-neutral-500: #c07a8f;
+  --color-neutral-600: #a85d75;
+  --color-neutral-700: #8a4760;
+  --color-neutral-800: #6f3a4e;
+  --color-neutral-900: #572e3e;
+  --color-brand: #c2526e;
+  --color-brand-ink: #93354d;
+  --color-brand-soft: #fbe9ed;
+  --color-brand-line: #f0c3cf;
+  --color-brand-hover: #a94460;
+  --color-brand-pressed: #8f3751;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(251 245 246 / 0.78);
+  --site-header-solid: rgb(251 245 246 / 0.94);
+}
+html[data-vartest="midnight"] {
+  color-scheme: dark;
+  --color-neutral-50: #12181f;
+  --color-neutral-100: #1a222b;
+  --color-neutral-200: #2a3540;
+  --color-neutral-300: #3b4c5e;
+  --color-neutral-400: #5d7288;
+  --color-neutral-500: #8296ab;
+  --color-neutral-600: #a7b8c9;
+  --color-neutral-700: #c3d2df;
+  --color-neutral-800: #e0e8f0;
+  --color-neutral-900: #f2f6fa;
+  --color-brand: #3b82c4;
+  --color-brand-ink: #7db4ea;
+  --color-brand-soft: #16283a;
+  --color-brand-line: #2c4a6b;
+  --color-brand-hover: #4f9be0;
+  --color-brand-pressed: #2f6da8;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(18 24 31 / 0.78);
+  --site-header-solid: rgb(18 24 31 / 0.94);
+}
+html[data-vartest="teal"] {
+  --color-neutral-50: #f3f8f7;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #d9e9e5;
+  --color-neutral-300: #b3d5cd;
+  --color-neutral-400: #83bcb0;
+  --color-neutral-500: #5ca395;
+  --color-neutral-600: #418477;
+  --color-neutral-700: #346a5f;
+  --color-neutral-800: #28534b;
+  --color-neutral-900: #1f423b;
+  --color-brand: #2e8c7a;
+  --color-brand-ink: #1c6353;
+  --color-brand-soft: #e0f0ec;
+  --color-brand-line: #b5ddd3;
+  --color-brand-hover: #257665;
+  --color-brand-pressed: #1d6154;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(243 248 247 / 0.78);
+  --site-header-solid: rgb(243 248 247 / 0.94);
+}
+html[data-vartest="forest"] {
+  color-scheme: dark;
+  --color-neutral-50: #101a12;
+  --color-neutral-100: #182418;
+  --color-neutral-200: #263a28;
+  --color-neutral-300: #38543a;
+  --color-neutral-400: #557a56;
+  --color-neutral-500: #7ba075;
+  --color-neutral-600: #a3c194;
+  --color-neutral-700: #c2d8b4;
+  --color-neutral-800: #e0edd8;
+  --color-neutral-900: #f0f7ec;
+  --color-brand: #4f9450;
+  --color-brand-ink: #8fce7f;
+  --color-brand-soft: #1a2c1c;
+  --color-brand-line: #39603a;
+  --color-brand-hover: #68b258;
+  --color-brand-pressed: #458248;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(16 26 18 / 0.78);
+  --site-header-solid: rgb(16 26 18 / 0.94);
+}
+html[data-vartest="slate"] {
+  color-scheme: dark;
+  --color-neutral-50: #171719;
+  --color-neutral-100: #202024;
+  --color-neutral-200: #323238;
+  --color-neutral-300: #47474f;
+  --color-neutral-400: #6e6e78;
+  --color-neutral-500: #9696a0;
+  --color-neutral-600: #b8b8c0;
+  --color-neutral-700: #d4d4da;
+  --color-neutral-800: #e8e8ec;
+  --color-neutral-900: #f6f6f8;
+  --color-brand: #a1a1aa;
+  --color-brand-ink: #d4d4d8;
+  --color-brand-soft: #26262a;
+  --color-brand-line: #52525b;
+  --color-brand-hover: #b8b8c0;
+  --color-brand-pressed: #8e8e98;
+  --color-brand-foreground: #171719;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(23 23 25 / 0.78);
+  --site-header-solid: rgb(23 23 25 / 0.94);
+}
+html[data-vartest="plum"] {
+  color-scheme: dark;
+  --color-neutral-50: #17121d;
+  --color-neutral-100: #211a2b;
+  --color-neutral-200: #332842;
+  --color-neutral-300: #4a3a5f;
+  --color-neutral-400: #6d558c;
+  --color-neutral-500: #9378b5;
+  --color-neutral-600: #b5a0d1;
+  --color-neutral-700: #d2c4e5;
+  --color-neutral-800: #e7e0f2;
+  --color-neutral-900: #f5f1fa;
+  --color-brand: #8b6cc9;
+  --color-brand-ink: #b49ae0;
+  --color-brand-soft: #241a35;
+  --color-brand-line: #4d3a6e;
+  --color-brand-hover: #9d82d8;
+  --color-brand-pressed: #7a5bb8;
+  --color-brand-foreground: #ffffff;
+  --color-rose-500: var(--color-brand);
+  --color-rose-600: var(--color-brand-ink);
+  --color-rose-900: var(--color-neutral-900);
+  --color-blush: var(--color-brand-soft);
+  --color-rose: var(--color-brand-line);
+  --color-plum: var(--color-neutral-900);
+  --site-header-paper: rgb(23 18 29 / 0.78);
+  --site-header-solid: rgb(23 18 29 / 0.94);
 }
 
 body {
