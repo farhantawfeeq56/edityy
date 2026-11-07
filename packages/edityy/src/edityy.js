@@ -639,8 +639,8 @@
     // A card of its own at the element, not a row of the dock: fixed, so it can
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
-    // The comment card wears the concentric radius: inner 8px plus 8px padding is 16px.
-    ".element-menu:has(.element-comment){border-radius:16px}",
+    // The comment card wears the concentric radius: inner 8px plus 12px padding is 20px.
+    ".element-menu:has(.element-comment){border-radius:20px;padding:12px}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -654,7 +654,7 @@
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:6px;width:264px}",
+    ".element-comment{display:flex;flex-direction:column;gap:10px;width:280px}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
     // chips, and the connect hint is set off by a hairline.
@@ -673,7 +673,7 @@
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
-    ".element-comment-text{width:100%;resize:vertical;padding:7px 9px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 13px/1.45 inherit}",
+    ".element-comment-text{width:100%;resize:vertical;padding:10px 12px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 13px/1.45 inherit}",
     "@media (hover:hover){.element-comment-text:hover{background:var(--fill-hover)}}",
     ".element-comment-text:focus{background:var(--fill-open)}",
     ".element-comment-text:focus-visible{outline:2px solid var(--ink);outline-offset:1px}",
@@ -698,14 +698,14 @@
     // only shape moves. Save sits alone in its row, right, gold — brand fill,
     // ink on it, the dock's own.
     ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
-    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:26px;padding:0 14px;white-space:nowrap}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:30px;padding:0 16px;white-space:nowrap}",
     ".element-menu .element-comment [data-key=comment-save]{background:var(--brand);color:var(--ink)}",
     // The title row: the box names itself, and the X does what Cancel did.
-    ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px}",
+    ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:10px}",
     ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.3 inherit;color:var(--ink)}",
     // Edit or Variant: one of two, with the count at the row's end, where a
     // value sits in the dock. The pressed button wears the toolbar's ink-6.
-    ".element-comment-modes{display:flex;align-items:center;gap:8px}",
+    ".element-comment-modes{display:flex;align-items:center;gap:10px}",
     ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
     ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 12px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
