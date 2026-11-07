@@ -1921,7 +1921,7 @@
       chips.setAttribute("aria-label", "How many");
       modes.appendChild(chips);
       var chipButtons = [1, 2, 5, 10].map(function (n) {
-        var chip = button("element-comment-chip", "", n === 1 ? "Make a single edit" : "Explore " + n + " variations", function () { setCount(n); }, "comment-count-" + n);
+        var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () { setCount(n); }, "comment-count-" + n);
         chip.setAttribute("role", "radio");
         chip.setAttribute("aria-checked", String(n === count));
         chip.tabIndex = n === count ? 0 : -1;
