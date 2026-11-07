@@ -680,7 +680,7 @@
     // How many variations to ask for: a label and the field, on one line.
     ".element-comment-row{display:flex;align-items:center;gap:6px;font:400 10px/1.2 inherit;color:var(--muted);cursor:pointer}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
-    ".element-comment-row input:focus-visible+.element-comment-switch{outline:none}",
+    ".element-comment-row input:focus-visible+.element-comment-mark{outline:none}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
     ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:24px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
     ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
@@ -707,14 +707,14 @@
     ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 10px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-mode[aria-checked=true]{background:var(--ink-6);color:var(--ink)}",
-    // The switch: a track and a knob, with its label and why in two lines.
-    ".element-comment-switch{position:relative;width:30px;height:18px;flex:none;border-radius:999px;background:var(--ink-12);transition:background-color var(--tint) var(--standard)}",
-    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--paper);transform:translateX(0);transition:transform var(--tint) var(--standard)}",
-    ".element-comment-row input:checked+.element-comment-switch{background:var(--ink)}",
-    ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(12px)}",
+    // The tick: a square and a check, with its label and why in two lines.
+    ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1px solid var(--ink-20);border-radius:4px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
+    ".element-comment-mark>svg{width:9px;height:9px;display:block}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:4px;flex:none}",
-    ".element-comment-switch-words span{font:400 10px/16px inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid var(--ink-20);border-radius:50%;color:var(--muted);font:500 10px/1 inherit;cursor:help}",
+    ".element-comment-switch-words span{font:500 9px/1 inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;color:var(--muted);cursor:help}",
+    ".element-comment-help>svg{width:16px;height:16px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -1846,7 +1846,7 @@
 
   /**
    * The one comment box: for one element or one drawn box. A field,
-   * the temporary-canvas switch, Edit or Variant, Cancel and Save.
+   * the temporary-canvas tick, Edit or Variant, Cancel and Save.
    *
    * A drawn box has no element to vary, so its box has no Edit/Variant split:
    * Edit saves the words on the box itself. An element's box carries the
@@ -1868,25 +1868,22 @@
     area.setAttribute("aria-label", "Comment");
     area.value = region ? region.comment || "" : variationPrompt || record(el).comment || "";
     box.appendChild(area);
-    // The switch decides whether the change previews on a temporary canvas
+    // The tick decides whether the change previews on a temporary canvas
     // first.
     var canvasRow = document.createElement("label");
     canvasRow.className = "element-comment-row";
     var canvasTick = document.createElement("input");
     canvasTick.type = "checkbox";
     canvasTick.className = "tick";
-    canvasTick.setAttribute("role", "switch");
     canvasTick.setAttribute("aria-label", "Apply on temporary canvas");
-    // The switch starts on: the change previews on the temporary canvas.
+    // The tick starts on: the change previews on the temporary canvas.
     canvasTick.checked = true;
-    canvasTick.setAttribute("aria-checked", "true");
-    canvasTick.addEventListener("change", function () {
-      canvasTick.setAttribute("aria-checked", String(canvasTick.checked));
-    });
     canvasRow.appendChild(canvasTick);
-    var track = document.createElement("span");
-    track.className = "element-comment-switch";
-    canvasRow.appendChild(track);
+    var mark = document.createElement("span");
+    mark.className = "element-comment-mark";
+    mark.setAttribute("aria-hidden", "true");
+    mark.innerHTML = svg("check");
+    canvasRow.appendChild(mark);
     var words = document.createElement("span");
     words.className = "element-comment-switch-words";
     var wordsTitle = document.createElement("span");
@@ -1895,7 +1892,8 @@
     help.className = "element-comment-help";
     help.setAttribute("title", "Preview the changes without touching code");
     help.setAttribute("aria-label", "Preview the changes without touching code");
-    help.appendChild(text("?"));
+    // Tabler (MIT) help: a question mark in a circle, the ? it replaces.
+    help.innerHTML = svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9.5 9.5c.5 -1.5 1.5 -2.5 2.5 -2.5c1 0 2 .5 2 2c0 1.5 -2 2 -2 3.5" /><path d="M12 17l.01 0" /></svg>');
     words.appendChild(wordsTitle);
     words.appendChild(help);
     canvasRow.appendChild(words);
