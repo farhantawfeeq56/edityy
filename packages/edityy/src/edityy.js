@@ -725,7 +725,7 @@
     ".element-comment-mark>svg{width:9px;height:9px;display:block}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:5px;flex:none;min-width:0}",
     ".element-comment-switch-words span{font:500 9px/1.3 inherit;color:var(--ink);white-space:nowrap}",
-    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border-radius:5px;color:var(--muted);opacity:.8;cursor:help;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
+    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border-radius:5px;color:var(--muted);opacity:.8;cursor:help;position:relative;top:1px;transition:color var(--tint) var(--standard),background-color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-help:hover{color:var(--ink);background:var(--ink-6)}}",
     ".element-comment-help>svg{width:13px;height:13px;display:block}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
