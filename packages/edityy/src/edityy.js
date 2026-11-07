@@ -716,7 +716,7 @@
     ".element-comment-row input:checked+.element-comment-switch{background:var(--ink)}",
     ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(12px)}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:4px;flex:none}",
-    ".element-comment-switch-words strong{font:400 10px/16px inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-switch-words span{font:400 10px/16px inherit;color:var(--ink);white-space:nowrap}",
     ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid var(--ink-20);border-radius:50%;color:var(--muted);font:500 10px/1 inherit;cursor:help}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
@@ -2013,7 +2013,7 @@
     canvasRow.appendChild(track);
     var words = document.createElement("span");
     words.className = "element-comment-switch-words";
-    var wordsTitle = document.createElement("strong");
+    var wordsTitle = document.createElement("span");
     wordsTitle.appendChild(text("Apply on temporary canvas"));
     var help = document.createElement("span");
     help.className = "element-comment-help";
