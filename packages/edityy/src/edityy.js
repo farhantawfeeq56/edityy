@@ -673,12 +673,12 @@
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
-    ".element-comment-text{width:100%;resize:vertical;padding:10px 12px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 13px/1.45 inherit}",
+    ".element-comment-text{width:100%;resize:vertical;padding:10px 12px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 10px/1.45 inherit}",
     "@media (hover:hover){.element-comment-text:hover{background:var(--fill-hover)}}",
     ".element-comment-text:focus{background:var(--fill-open)}",
     ".element-comment-text:focus-visible{outline:2px solid var(--ink);outline-offset:1px}",
     // How many variations to ask for: a label and the field, on one line.
-    ".element-comment-row{display:flex;align-items:center;gap:6px;font:400 12px/1.2 inherit;color:var(--muted);cursor:pointer}",
+    ".element-comment-row{display:flex;align-items:center;gap:6px;font:400 10px/1.2 inherit;color:var(--muted);cursor:pointer}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-switch{outline:none}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
@@ -687,7 +687,7 @@
     "@media (hover:hover){.element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-stepper button:disabled{opacity:.4;cursor:default}",
     ".element-comment-stepper button>svg{width:12px;height:12px;display:block;color:inherit}",
-    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 12px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
+    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
     ".element-comment-stepper input::-webkit-outer-spin-button,.element-comment-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}",
     ".element-comment-stepper input:disabled{opacity:.4}",
     // The Save button carries words, so it takes the width it is given
@@ -698,16 +698,16 @@
     // only shape moves. Save sits alone in its row, right, gold — brand fill,
     // ink on it, the dock's own.
     ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
-    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:30px;padding:0 16px;white-space:nowrap}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:30px;padding:0 16px;white-space:nowrap;font:500 10px/1 inherit}",
     ".element-menu .element-comment [data-key=comment-save]{background:var(--brand);color:var(--ink)}",
     // The title row: the box names itself, and the X does what Cancel did.
     ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:10px}",
-    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.3 inherit;color:var(--ink)}",
+    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 10px/1.3 inherit;color:var(--ink)}",
     // Edit or Variant: one of two, with the count at the row's end, where a
     // value sits in the dock. The pressed button wears the toolbar's ink-6.
     ".element-comment-modes{display:flex;align-items:center;gap:10px}",
     ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
-    ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 12px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
+    ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 10px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-mode[aria-checked=true]{background:var(--ink-6);color:var(--ink)}",
     // The switch: a track and a knob, with its label and why in two lines.
@@ -716,7 +716,7 @@
     ".element-comment-row input:checked+.element-comment-switch{background:var(--ink)}",
     ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(12px)}",
     ".element-comment-switch-words{display:flex;align-items:center;gap:4px;flex:none}",
-    ".element-comment-switch-words strong{font:400 12px/16px inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-switch-words strong{font:400 10px/16px inherit;color:var(--ink);white-space:nowrap}",
     ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid var(--ink-20);border-radius:50%;color:var(--muted);font:500 10px/1 inherit;cursor:help}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
@@ -836,7 +836,7 @@
     ".chg .ic{width:30px;height:30px;flex:none}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     // A note in the element card sits in its own gap, not on a margin of its own.
-    ".element-comment .note{margin:0}",
+    ".element-comment .note{margin:0;font-size:10px}",
     ".cta{flex:1;border:0;border-radius:8px;padding:12px 16px;background:var(--ink);color:var(--paper);white-space:nowrap;",
     "font:500 14px/1 inherit;cursor:pointer;min-width:11rem;text-align:center}",
     ".cta:hover{background:var(--muted)}",
