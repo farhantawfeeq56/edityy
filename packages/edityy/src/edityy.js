@@ -685,7 +685,6 @@
     // 2. Temporary canvas: a full-width row with a visible hover fill and a
     // keyboard-visible tick.
     ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;padding:7px 8px 7px 5px;border:0;border-radius:12px;background:transparent;font:400 9px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
-    "@media (hover:hover){.element-comment-row:hover{background:var(--ink-6)}}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
