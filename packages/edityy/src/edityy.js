@@ -654,7 +654,7 @@
     // The one button of the done card wears its words, not a 34px square.
     ".element-action.done{width:auto;padding:0 12px}",
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
-    ".element-comment{display:flex;flex-direction:column;gap:8px;width:300px}",
+    ".element-comment{display:flex;flex-direction:column;gap:6px;width:264px}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
     // chips, and the connect hint is set off by a hairline.
@@ -673,21 +673,21 @@
     ".wait-x{width:24px;height:24px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;padding:0;background:transparent;color:var(--muted);cursor:pointer}",
     ".wait-x:hover{background:var(--ink-6);color:var(--ink)}",
     ".wait-x>svg{width:14px;height:14px;display:block}",
-    ".element-comment-text{width:100%;resize:vertical;padding:8px 10px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 14px/1.45 inherit}",
+    ".element-comment-text{width:100%;resize:vertical;padding:7px 9px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);color:var(--ink);font:400 13px/1.45 inherit}",
     "@media (hover:hover){.element-comment-text:hover{background:var(--fill-hover)}}",
     ".element-comment-text:focus{background:var(--fill-open)}",
-    ".element-comment-text:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
+    ".element-comment-text:focus-visible{outline:2px solid var(--ink);outline-offset:1px}",
     // How many variations to ask for: a label and the field, on one line.
-    ".element-comment-row{display:flex;align-items:center;gap:8px;font:400 13px/1.2 inherit;color:var(--muted);cursor:pointer}",
+    ".element-comment-row{display:flex;align-items:center;gap:6px;font:400 12px/1.2 inherit;color:var(--muted);cursor:pointer}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
-    ".element-comment-row input:focus-visible+.element-comment-switch{outline:2px solid var(--accent);outline-offset:2px}",
-    ".element-comment-row:focus-within{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
-    ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:26px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
+    ".element-comment-row input:focus-visible+.element-comment-switch{outline:none}",
+    ".element-comment-row:focus-within{outline:none;box-shadow:none}",
+    ".element-comment-stepper{margin-left:auto;display:flex;align-items:stretch;height:24px;border:1px solid var(--ink-10);border-radius:8px;background:var(--paper);overflow:hidden}",
     ".element-comment-stepper button{width:24px;flex:none;display:grid;place-items:center;border:0;padding:0;background:transparent;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-stepper button:hover:not(:disabled){background:var(--ink-6);color:var(--ink)}}",
     ".element-comment-stepper button:disabled{opacity:.4;cursor:default}",
     ".element-comment-stepper button>svg{width:12px;height:12px;display:block;color:inherit}",
-    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 13px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
+    ".element-comment-stepper input{width:28px;border:0;padding:0;background:transparent;color:var(--ink);font:500 12px/1 inherit;font-variant-numeric:tabular-nums;text-align:center;-moz-appearance:textfield}",
     ".element-comment-stepper input::-webkit-outer-spin-button,.element-comment-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}",
     ".element-comment-stepper input:disabled{opacity:.4}",
     // The Save button carries words, so it takes the width it is given
@@ -698,26 +698,26 @@
     // only shape moves. Save sits alone in its row, right, gold — brand fill,
     // ink on it, the dock's own.
     ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
-    ".element-menu .element-comment .element-comment-action{flex:none;height:28px;padding:0 12px}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:26px;padding:0 14px;white-space:nowrap}",
     ".element-menu .element-comment [data-key=comment-save]{background:var(--brand);color:var(--ink)}",
     // The title row: the box names itself, and the X does what Cancel did.
     ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px}",
-    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 15px/1.3 inherit;color:var(--ink)}",
+    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.3 inherit;color:var(--ink)}",
     // Edit or Variant: one of two, with the count at the row's end, where a
-    // value sits in the dock. The pressed button wears the accent wash.
+    // value sits in the dock. The pressed button wears the toolbar's ink-6.
     ".element-comment-modes{display:flex;align-items:center;gap:8px}",
     ".element-comment-mode-group{display:flex;gap:2px;padding:2px;border:1px solid var(--ink-10);border-radius:9px}",
-    ".element-comment-mode{flex:1;height:26px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 13px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
+    ".element-comment-mode{flex:1;height:24px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 12px/1 inherit;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-mode:hover{background:var(--ink-6);color:var(--ink)}}",
-    ".element-comment-mode[aria-checked=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
+    ".element-comment-mode[aria-checked=true]{background:var(--ink-6);color:var(--ink)}",
     // The switch: a track and a knob, with its label and why in two lines.
-    ".element-comment-switch{position:relative;width:36px;height:22px;flex:none;border-radius:999px;background:var(--ink-12);transition:background-color var(--tint) var(--standard)}",
-    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--paper);transform:translateX(0);transition:transform var(--tint) var(--standard)}",
-    ".element-comment-row input:checked+.element-comment-switch{background:var(--accent)}",
-    ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(14px)}",
-    ".element-comment-switch-words{display:flex;flex-direction:column;gap:2px}",
-    ".element-comment-switch-words strong{font:600 13px/1.25 inherit;color:var(--ink)}",
-    ".element-comment-switch-words span{font:400 12px/1.3 inherit;color:var(--muted)}",
+    ".element-comment-switch{position:relative;width:30px;height:18px;flex:none;border-radius:999px;background:var(--ink-12);transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--paper);transform:translateX(0);transition:transform var(--tint) var(--standard)}",
+    ".element-comment-row input:checked+.element-comment-switch{background:var(--ink)}",
+    ".element-comment-row input:checked+.element-comment-switch::after{transform:translateX(12px)}",
+    ".element-comment-switch-words{display:flex;align-items:center;gap:4px;flex:none}",
+    ".element-comment-switch-words strong{font:400 12px/16px inherit;color:var(--ink);white-space:nowrap}",
+    ".element-comment-help{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid var(--ink-20);border-radius:50%;color:var(--muted);font:500 10px/1 inherit;cursor:help}",
     // The variation strip: fixed to the bottom right, out of the dock's way, so
     // the element stays in sight while its variations are compared. It wears the
     // element card's paper, and one row per variation carries its key and label.
@@ -1866,7 +1866,7 @@
 
   /**
    * The one comment box: for one element or one drawn box. A title, a field,
-   * a hint, the temporary-canvas switch and a Save.
+   * the temporary-canvas switch and a Save.
    *
    * A drawn box has no element to vary, so its box has no Edit/Variant split:
    * Edit saves the words on the box itself. An element's box carries the
@@ -1909,18 +1909,11 @@
     box.appendChild(head);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
-    area.rows = 4;
+    area.rows = 3;
     area.placeholder = "Comment";
     area.setAttribute("aria-label", "Comment");
-    area.setAttribute("aria-describedby", "element-comment-hint");
     area.value = region ? region.comment || "" : variationPrompt || record(el).comment || "";
     box.appendChild(area);
-    // The hint says what Save needs: the words themselves.
-    var hint = document.createElement("p");
-    hint.className = "note";
-    hint.id = "element-comment-hint";
-    hint.appendChild(text("Type what to change, then Save."));
-    box.appendChild(hint);
     // Edit or Variant decides what Save does. In Edit, Save writes the words.
     // In Variant, Save asks for that many instead, so one is never a thing
     // anyone says. A drawn box has no element to vary, so Edit is all it gets.
@@ -2022,10 +2015,13 @@
     words.className = "element-comment-switch-words";
     var wordsTitle = document.createElement("strong");
     wordsTitle.appendChild(text("Apply on temporary canvas"));
-    var wordsSub = document.createElement("span");
-    wordsSub.appendChild(text("Preview the changes without touching code"));
+    var help = document.createElement("span");
+    help.className = "element-comment-help";
+    help.setAttribute("title", "Preview the changes without touching code");
+    help.setAttribute("aria-label", "Preview the changes without touching code");
+    help.appendChild(text("?"));
     words.appendChild(wordsTitle);
-    words.appendChild(wordsSub);
+    words.appendChild(help);
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
     if (el && variationWords) box.appendChild(noteBox(variationWords));
