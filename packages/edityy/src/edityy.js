@@ -640,7 +640,7 @@
     // stand at the element while the dock stays at the bottom of the page.
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
     // The comment card wears the concentric radius: inner 8px plus 12px padding is 20px.
-    ".element-menu:has(.element-comment){border-radius:20px;padding:12px}",
+    ".element-menu:has(.element-comment){border-radius:20px;padding:12px;background:#F9F8F6}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
