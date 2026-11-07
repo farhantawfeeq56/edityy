@@ -718,7 +718,7 @@
     "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
-    ".element-comment-chip[aria-checked=true]{background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 1px 3px var(--ink-15)}",
+    ".element-comment-chip[aria-checked=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
     // The tick: a square and a clear check, with its label beside it.
     ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
