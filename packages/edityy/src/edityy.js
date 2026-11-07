@@ -641,7 +641,7 @@
     ".element-menu{position:fixed;z-index:5;width:max-content;max-width:min(420px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 1px 2px var(--ink-6),0 6px 16px var(--ink-8);pointer-events:auto}",
     // A pronounced container: thin low-contrast border, softer corner and a
     // diffused shadow so it stands apart without floating high.
-    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:13px;background:#F9F8F6;border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8)}",
+    ".element-menu:has(.element-comment){z-index:7;border-radius:22px;padding:13px;background:#F9F8F6;border-color:var(--ink-10);box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8);transform:scale(.9);transform-origin:0 0}",
     ".element-menu-actions{display:flex;flex-wrap:wrap;gap:2px}",
     // An action wears what a control in the dock wears: the same 34px square, the
     // same 8px radius, the same hover fill and the same press. The row's fill
@@ -657,14 +657,6 @@
     ".element-action>svg{width:16px;height:16px;display:block;flex:none;color:inherit}",
     ".element-comment{display:flex;flex-direction:column;gap:9px;width:245px;position:relative;transform-origin:50% 0;animation:cardIn var(--enter) var(--arrive)}",
     "@keyframes cardIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
-    // The size test: 10 steps from 10% to 100%, keys 1 to 9 and 0. One scale
-    // on the whole card scales every part together. The bar stands at the
-    // bottom right, unhidden only while the comment box is open.
-    ".size-test{position:fixed;right:24px;bottom:24px;z-index:8;display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;max-width:min(380px,calc(100vw - 48px));padding:6px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;box-shadow:0 2px 6px var(--ink-6),0 16px 40px var(--ink-8)}",
-    ".size-test[hidden]{display:none}",
-    ".size-test-btn{flex:none;height:28px;padding:0 9px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:500 11px/1 inherit;cursor:pointer}",
-    ".size-test-btn:hover{background:var(--ink-6)}",
-    ".size-test-btn[aria-pressed=true]{background:var(--ink);color:var(--paper)}",
     // The waiting state of a variation request: what to type, and the X that puts
     // the box away. The words stay quiet, the two commands the user copies are
     // chips, and the connect hint is set off by a hairline.
@@ -850,6 +842,9 @@
     ".tip[data-side=top]::after{bottom:-1px;transform:translate(-50%,50%) rotate(45deg)}",
     ".tip[data-side=bottom]::after{top:-1px;transform:translate(-50%,-50%) rotate(-135deg)}",
     ".tip>span{display:block}",
+    // A tip over the comment card wears the card's size: 90% of every part.
+    ".tip[data-size=small]{min-width:40px;padding:5.4px 9px;border-radius:7px;font:500 9.9px/1.4 inherit;box-shadow:0 1.8px 3.6px var(--ink-6),0 10.8px 25.2px var(--ink-12)}",
+    ".tip[data-size=small]::after{width:7px;height:7px}",
     ".count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;",
     "border-radius:28px;background:var(--rose);color:var(--ink);font:500 14px/20px inherit;text-align:center}",
     // One edited element per line: its name selects it, the arrow reverts it.
@@ -918,8 +913,6 @@
     // The chat-initiated preview: one box per agent answer, with Keep and
     // Discard, and the same keys the variant strip answers to.
     '<div class="variants" id="preview" hidden role="group" aria-label="Canvas preview"></div>',
-    // The size test for the comment box: one button per size, bottom right.
-    '<div class="size-test" id="size-test" hidden role="group" aria-label="Comment box size"></div>',
     '<div class="insert" id="insert" aria-hidden="true">',
     svg("plus"),
     "</div>",
@@ -959,7 +952,6 @@
   var elementMenu = $("element-menu");
   var variantsBox = $("variants");
   var previewBox = $("preview");
-  var sizeTest = $("size-test");
   var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
@@ -1662,46 +1654,8 @@
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
   var openComment = null;
-  // The size test: 0 is 10%, 9 is 100%. The card starts at its full size.
-  var commentScaleAt = 9;
-  var commentScale = 1;
-  var sizeButtons = [];
-  for (var si = 0; si < 10; si++) {
-    (function (at) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "size-test-btn";
-      btn.textContent = (at + 1) * 10 + "%";
-      btn.title = "Comment box " + (at + 1) * 10 + "% (key " + ((at + 1) % 10) + ")";
-      btn.setAttribute("aria-pressed", String(at === commentScaleAt));
-      btn.addEventListener("click", function () { setCommentScale(at); });
-      sizeButtons.push(btn);
-      sizeTest.appendChild(btn);
-    })(si);
-  }
-  /** One scale on the whole card: every part moves and scales together.
-   * The layout box keeps its full size, so placement reads the scaled
-   * size, and the card grows from its top left. */
-  function setCommentScale(i) {
-    commentScaleAt = Math.max(0, Math.min(9, i));
-    commentScale = (commentScaleAt + 1) / 10;
-    sizeButtons.forEach(function (btn, at) {
-      btn.setAttribute("aria-pressed", String(at === commentScaleAt));
-    });
-    if (regionFor) placeAtRect(regionView(regionFor));
-    else placeElementMenu();
-  }
-  function syncSizeTest() {
-    var open = !!elementMenu.querySelector(".element-comment");
-    sizeTest.hidden = !open;
-    if (!open) {
-      elementMenu.style.transform = "";
-      elementMenu.style.transformOrigin = "";
-      return;
-    }
-    elementMenu.style.transformOrigin = "0 0";
-    elementMenu.style.transform = "scale(" + commentScale + ")";
-  }
+  // The card is 90% of its old size. The scale moves every part together.
+  var commentScale = 0.9;
   // The element whose card was closed on purpose. It stays shut until the next click.
   var cardDoneFor = null;
   // The buttons of the card, and the element they belong to. They are kept
@@ -1794,7 +1748,6 @@
    * came.
    */
   function hideMenu() {
-    sizeTest.hidden = true;
     if (elementMenu.hidden) return;
     if (menuLeaving) return;
     if (!moves(elementMenu)) {
@@ -1838,7 +1791,6 @@
 
   /** Put the card away at once, with no fade. For the times it has to go now. */
   function menuAway() {
-    sizeTest.hidden = true;
     if (menuLeaving) {
       menuLeaving.cancel();
       menuLeaving = null;
@@ -1897,7 +1849,6 @@
     // It comes out of the element: down from it when it is below, up from it
     // when it is above. Only when it appears; a refit on scroll just places it.
     if (appearing) rise(elementMenu, "", below ? -6 : 6, below ? "0 0" : "0 100%");
-    syncSizeTest();
   }
 
   /** The menu at the selected element. */
@@ -5312,6 +5263,8 @@ function decorations() {
     tipWarm = true;
     tipX = x;
     tip.dataset.side = above ? "top" : "bottom";
+    // A tip over the comment card wears the card's size: 90% of every part.
+    tip.dataset.size = button.closest && button.closest(".element-comment") ? "small" : "full";
     tip.hidden = false;
     tip.style.left = x + "px";
     tip.style.top = (above ? box.top - 8 : box.bottom + 8) + "px";
@@ -7967,17 +7920,6 @@ function decorations() {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
         pickPreviewVariant(previewIndex);
-      }
-      return;
-    }
-    // The size test: 1 to 9 and 0 scale the whole comment card, 10% to
-    // 100%. A digit in a field belongs to the field.
-    if (openComment && variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
-      var scaleTyping = editing || pageField;
-      if (!scaleTyping) {
-        if (e.preventDefault) e.preventDefault();
-        if (e.stopPropagation) e.stopPropagation();
-        setCommentScale(e.key === "0" ? 9 : Number(e.key) - 1);
       }
       return;
     }
