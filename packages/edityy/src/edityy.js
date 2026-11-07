@@ -695,14 +695,11 @@
     // The comment box. It wears the toolbar's scale: no wider than the
     // dock, no taller than its rows, so the comment never dwarfs what it
     // comments on. The typing field keeps one color here and everywhere;
-    // only shape moves. Save sits alone in its row, right, gold — brand fill,
-    // ink on it, the dock's own.
-    ".element-menu .element-comment .element-menu-actions{justify-content:flex-end}",
+    // only shape moves. Cancel and Save sit together at the right, Save
+    // gold — brand fill, ink on it, the dock's own.
+    ".element-menu .element-comment .element-menu-actions{justify-content:flex-end;gap:8px}",
     ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:30px;padding:0 16px;white-space:nowrap;font:500 10px/1 inherit}",
     ".element-menu .element-comment [data-key=comment-save]{background:var(--brand);color:var(--ink)}",
-    // The title row: the box names itself, and the X does what Cancel did.
-    ".element-comment-head{display:flex;align-items:center;justify-content:space-between;gap:10px}",
-    ".element-comment-title{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 10px/1.3 inherit;color:var(--ink)}",
     // Edit or Variant: one of two, with the count at the row's end, where a
     // value sits in the dock. The pressed button wears the toolbar's ink-6.
     ".element-comment-modes{display:flex;align-items:center;gap:10px}",
@@ -1848,25 +1845,8 @@
   }
 
   /**
-   * What the comment box heading says: the element it belongs to, as a tag.
-   * Text shows its words cut short; media shows "Media"; anything else
-   * shows its tag, first letter raised.
-   */
-  function headingFor(el) {
-    if (!el || !el.tagName) return "Comment";
-    var k = kind(el);
-    if (k === "media") return "Media";
-    if (k === "text") {
-      var words = String(el.textContent || "").replace(/\s+/g, " ").trim();
-      if (words) return "Text \u00b7 " + (words.length > 24 ? words.slice(0, 24) + "\u2026" : words);
-    }
-    var tag = el.tagName.toLowerCase();
-    return tag.charAt(0).toUpperCase() + tag.slice(1);
-  }
-
-  /**
-   * The one comment box: for one element or one drawn box. A title, a field,
-   * the temporary-canvas switch and a Save.
+   * The one comment box: for one element or one drawn box. A field,
+   * the temporary-canvas switch, Edit or Variant, Cancel and Save.
    *
    * A drawn box has no element to vary, so its box has no Edit/Variant split:
    * Edit saves the words on the box itself. An element's box carries the
@@ -1881,32 +1861,6 @@
     var region = target.region || null;
     var box = document.createElement("div");
     box.className = "element-comment";
-    // The title row: the box names itself, and the X closes it.
-    var head = document.createElement("div");
-    head.className = "element-comment-head";
-    var title = document.createElement("p");
-    title.className = "element-comment-title";
-    title.appendChild(text(el ? headingFor(el) : "Box"));
-    head.appendChild(title);
-    // The X drops the drawn box, or puts the element's card away.
-    var cancel = button("wait-x", svg("x"), el ? "Cancel the comment" : "Drop the drawn box", function () {
-      if (region) {
-        regionFor = null;
-        openComment = null;
-        regionBox.hidden = true;
-        hideMenu();
-        paintMarks();
-        return;
-      }
-      closeVariants();
-      variationPrompt = "";
-      commentFor = null;
-      openComment = null;
-      cardDoneFor = el;
-      syncElementMenu();
-    }, "comment-cancel");
-    head.appendChild(cancel);
-    box.appendChild(head);
     var area = document.createElement("textarea");
     area.className = "element-comment-text";
     area.rows = 3;
@@ -1914,6 +1868,38 @@
     area.setAttribute("aria-label", "Comment");
     area.value = region ? region.comment || "" : variationPrompt || record(el).comment || "";
     box.appendChild(area);
+    // The switch decides whether the change previews on a temporary canvas
+    // first.
+    var canvasRow = document.createElement("label");
+    canvasRow.className = "element-comment-row";
+    var canvasTick = document.createElement("input");
+    canvasTick.type = "checkbox";
+    canvasTick.className = "tick";
+    canvasTick.setAttribute("role", "switch");
+    canvasTick.setAttribute("aria-label", "Apply on temporary canvas");
+    // The switch starts on: the change previews on the temporary canvas.
+    canvasTick.checked = true;
+    canvasTick.setAttribute("aria-checked", "true");
+    canvasTick.addEventListener("change", function () {
+      canvasTick.setAttribute("aria-checked", String(canvasTick.checked));
+    });
+    canvasRow.appendChild(canvasTick);
+    var track = document.createElement("span");
+    track.className = "element-comment-switch";
+    canvasRow.appendChild(track);
+    var words = document.createElement("span");
+    words.className = "element-comment-switch-words";
+    var wordsTitle = document.createElement("span");
+    wordsTitle.appendChild(text("Apply on temporary canvas"));
+    var help = document.createElement("span");
+    help.className = "element-comment-help";
+    help.setAttribute("title", "Preview the changes without touching code");
+    help.setAttribute("aria-label", "Preview the changes without touching code");
+    help.appendChild(text("?"));
+    words.appendChild(wordsTitle);
+    words.appendChild(help);
+    canvasRow.appendChild(words);
+    box.appendChild(canvasRow);
     // Edit or Variant decides what Save does. In Edit, Save writes the words.
     // In Variant, Save asks for that many instead, so one is never a thing
     // anyone says. A drawn box has no element to vary, so Edit is all it gets.
@@ -1992,38 +1978,6 @@
         more.disabled = !on || Number(count.value) >= 10;
       }
     }
-    // The switch decides whether the change previews on a temporary canvas
-    // first.
-    var canvasRow = document.createElement("label");
-    canvasRow.className = "element-comment-row";
-    var canvasTick = document.createElement("input");
-    canvasTick.type = "checkbox";
-    canvasTick.className = "tick";
-    canvasTick.setAttribute("role", "switch");
-    canvasTick.setAttribute("aria-label", "Apply on temporary canvas");
-    // The switch starts on: the change previews on the temporary canvas.
-    canvasTick.checked = true;
-    canvasTick.setAttribute("aria-checked", "true");
-    canvasTick.addEventListener("change", function () {
-      canvasTick.setAttribute("aria-checked", String(canvasTick.checked));
-    });
-    canvasRow.appendChild(canvasTick);
-    var track = document.createElement("span");
-    track.className = "element-comment-switch";
-    canvasRow.appendChild(track);
-    var words = document.createElement("span");
-    words.className = "element-comment-switch-words";
-    var wordsTitle = document.createElement("span");
-    wordsTitle.appendChild(text("Apply on temporary canvas"));
-    var help = document.createElement("span");
-    help.className = "element-comment-help";
-    help.setAttribute("title", "Preview the changes without touching code");
-    help.setAttribute("aria-label", "Preview the changes without touching code");
-    help.appendChild(text("?"));
-    words.appendChild(wordsTitle);
-    words.appendChild(help);
-    canvasRow.appendChild(words);
-    box.appendChild(canvasRow);
     if (el && variationWords) box.appendChild(noteBox(variationWords));
     openComment = box;
     var actions = document.createElement("div");
@@ -2072,6 +2026,26 @@
       tally();
     }, "comment-save");
     save.appendChild(text("Save"));
+    // Cancel drops the drawn box, or puts the element's card away: what the
+    // X did, now left of Save.
+    var cancel = button("element-action element-comment-action", "", el ? "Cancel the comment" : "Drop the drawn box", function () {
+      if (region) {
+        regionFor = null;
+        openComment = null;
+        regionBox.hidden = true;
+        hideMenu();
+        paintMarks();
+        return;
+      }
+      closeVariants();
+      variationPrompt = "";
+      commentFor = null;
+      openComment = null;
+      cardDoneFor = el;
+      syncElementMenu();
+    }, "comment-cancel");
+    cancel.appendChild(text("Cancel"));
+    actions.appendChild(cancel);
     // A comment is required: no words, no save.
     save.disabled = !area.value.trim();
     area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
