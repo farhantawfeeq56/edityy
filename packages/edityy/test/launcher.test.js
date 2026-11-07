@@ -1547,10 +1547,14 @@ test("Add is freeform: nothing is selected, and a drag saves a numbered box", ()
   quiet(() => app.fire("mouseup", { clientX: 60, clientY: 50, composedPath: path, preventDefault() {}, stopPropagation() {} }));
   const menu = app.root.nodes["element-menu"];
   assert.equal(menu.hidden, false, "the comment box opens for the box");
-  assert.equal(menu.children[0].children[0].getAttribute("aria-label"), "Add comment");
   assert.equal(app.root.nodes.region.hidden, false, "the box stays drawn while its comment is open");
-  menu.children[0].children[0].value = "a hero here";
-  const save = menu.children[0].children[1].children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save the comment on the box");
+  const inMenu = (label) => {
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
+  const area = inMenu("Comment");
+  area.value = "a hero here";
+  const save = inMenu("Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
   assert.match(app.win.__edityy_changes(), /Region:/, "the box reaches the agent's Markdown");
   assert.match(app.win.__edityy_changes(), /a hero here/);
