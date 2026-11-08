@@ -5795,43 +5795,12 @@ function decorations() {
   }
 
   /**
-   * Where a mark sits on an element: the middle of its height, and across
-   * its width where its own content sits. Content centred in the box puts
-   * the mark in its centre; content near the right or the left edge puts
-   * the mark near that edge, a little in from the corner. The content is
-   * the union of the direct children's boxes plus the element's own words,
-   * clamped to the element's box, so a full-width line reads as left.
+   * Where a mark sits on an element: the centre of its box, both ways.
+   * One spot for every edit, so the marks line up whatever the element
+   * holds inside itself.
    */
   function markSpot(el, box) {
-    var left = null;
-    var right = null;
-    var grow = function (r) {
-      if (!r || !r.width) return;
-      var l = Math.max(r.left, box.left);
-      var rr = Math.min(r.right, box.right);
-      if (rr <= l) return;
-      if (left === null || l < left) left = l;
-      if (right === null || rr > right) right = rr;
-    };
-    if (el.children && el.children.length) {
-      for (var i = 0; i < el.children.length; i++) grow(el.children[i].getBoundingClientRect && el.children[i].getBoundingClientRect());
-    }
-    // The element's own words: the whole content read as one range covers
-    // any text the children's boxes do not.
-    try {
-      var range = document.createRange();
-      range.selectNodeContents(el);
-      grow(range.getBoundingClientRect && range.getBoundingClientRect());
-    } catch { /* an unmeasurable element still gets the middle */ }
-    var top = Math.round(box.top + box.height / 2);
-    if (left === null) return { left: Math.round(box.left + box.width / 2), top: top };
-    var leftGap = left - box.left;
-    var rightGap = box.right - right;
-    var x;
-    if (Math.abs(leftGap - rightGap) <= 4 && leftGap > 4) x = box.left + box.width / 2;
-    else if (rightGap < leftGap - 4) x = box.right - 10;
-    else x = box.left + 10;
-    return { left: Math.round(x), top: top };
+    return { left: Math.round(box.left + box.width / 2), top: Math.round(box.top + box.height / 2) };
   }
 
   /** Numbered marks on changed elements and saved boxes. One square each,
