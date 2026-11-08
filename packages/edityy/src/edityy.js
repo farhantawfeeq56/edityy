@@ -4965,14 +4965,22 @@ function decorations() {
     tip.style.left = x + "px";
     tip.style.top = (above ? box.top - 8 : box.bottom + 8) + "px";
     tip.style.transform = rest;
-    if (!moves(tip)) {
-      tip.textContent = words;
-      return;
-    }
     var label = document.createElement("span");
     label.textContent = words;
     tip.textContent = "";
     tip.appendChild(label);
+    // The close chip sits on the dock's top-right corner, where a tip for
+    // the last control draws over it. Lift the tip clear of the chip, so
+    // the chip stays visible while its neighbour names itself.
+    var chip = $("dock-close");
+    if (above && chip && chip.getBoundingClientRect) {
+      var cr = chip.getBoundingClientRect();
+      var tr = tip.getBoundingClientRect();
+      if (cr.width && tr.left < cr.right && tr.right > cr.left && tr.top < cr.bottom && tr.bottom > cr.top) {
+        tip.style.top = (parseFloat(tip.style.top) - (tr.bottom - cr.top + 4)) + "px";
+      }
+    }
+    if (!moves(tip)) return;
     var slide = [{ opacity: 0, transform: "translateX(" + travel * 14 + "px)" }, { opacity: 1, transform: "none" }];
     if (shown && from !== null) {
       // On show already: the box travels from the last control to this one,
