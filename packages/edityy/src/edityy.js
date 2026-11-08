@@ -341,8 +341,8 @@
     // own content: centred content gets a centred mark, content near one
     // edge gets a mark near that edge, a little in from the corner.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
-    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;",
-    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 7px/15px inherit;pointer-events:none;",
+    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:13px;height:13px;padding:0 2px;",
+    "border-radius:3px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 6px/13px inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
@@ -5829,8 +5829,8 @@ function decorations() {
     var rightGap = box.right - right;
     var x;
     if (Math.abs(leftGap - rightGap) <= 4 && leftGap > 4) x = box.left + box.width / 2;
-    else if (rightGap < leftGap - 4) x = box.right - 12;
-    else x = box.left + 12;
+    else if (rightGap < leftGap - 4) x = box.right - 10;
+    else x = box.left + 10;
     return { left: Math.round(x), top: top };
   }
 
