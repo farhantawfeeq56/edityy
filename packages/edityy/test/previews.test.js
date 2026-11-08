@@ -8,14 +8,18 @@ import {
   checkPreview,
   checkPreviewHtml,
   clearPreviews,
+  clearPreviewRequest,
   decidePreview,
   decidePreviews,
   placePreview,
+  previewRequestText,
   previewText,
   readActivePreview,
   readPendingPreviews,
   readPreview,
+  readPreviewRequest,
   readPreviews,
+  writePreviewRequest,
 } from "../src/previews.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-previews-"));
@@ -155,4 +159,25 @@ test("one preview takes many elements, and a styles element takes many variation
   assert.throws(() => checkPreview({ instruction: "x", targets: [] }), { status: 400 });
   assert.throws(() => checkPreview({ instruction: "x", targets: [{ action: "styles", selector: "h1", variations: [...many, { label: "one more", props: [] }] }] }), { status: 400 });
   assert.throws(() => checkPreview({ instruction: "x", targets: [{ action: "dance" }] }), { status: 400 });
+});
+
+test("a comment-box preview request is answered once place_preview paints", async () => {
+  const root = tmp();
+  assert.equal(await readPreviewRequest(root), null);
+  const written = await writePreviewRequest(
+    {
+      id: "p-1",
+      instruction: "make the heading bigger",
+      element: { tag: "h1", selector: "main > h1", values: [{ property: "font-size", value: "16px" }] },
+    },
+    root
+  );
+  assert.equal(written.status, "pending");
+  assert.match(previewRequestText(await readPreviewRequest(root)), /make the heading bigger/);
+  const preview = await placePreview(insert, root);
+  const answered = await readPreviewRequest(root);
+  assert.equal(answered.status, "answered");
+  assert.equal(answered.previewId, preview.id);
+  await clearPreviewRequest(root);
+  await assert.rejects(placePreview(insert, root), /withdrew/);
 });

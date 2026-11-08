@@ -13,6 +13,8 @@ import { checkDeclarations, checkPreviewText } from "./variations.js";
 
 export const PREVIEWS_PATH = "/__edityy/previews";
 const PREVIEWS_FILE = ".edityy/previews.json";
+export const PREVIEW_REQUEST_PATH = "/__edityy/preview-request";
+export const PREVIEW_REQUEST_FILE = ".edityy/preview-request.json";
 const ID = /^[\w-]{1,80}$/;
 /** What the preview does: restyle, add, change or take away. */
 const ACTIONS = ["styles", "insert", "update", "remove"];
@@ -216,9 +218,15 @@ export async function readPreview(id, root = process.cwd()) {
   return item ?? null;
 }
 
-/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. */
+/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers a pending comment-box request, when there is one. */
 export async function placePreview(placed, root = process.cwd()) {
   const checked = checkPreview(placed);
+  // A request the user withdrew is not answered: the page already took the
+  // waiting strip away, and a late paint would fight the next request.
+  const waiting = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
+  if (waiting && waiting.status === "cancelled") {
+    throw new Error("The user withdrew the preview request. Do not place it.");
+  }
   const id = newPreviewId();
   const preview = { ...checked, id, status: "active", createdAt: new Date().toISOString() };
   const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };
@@ -226,6 +234,14 @@ export async function placePreview(placed, root = process.cwd()) {
   // Past previews stay listed, newest first, within the cap. An older one waits
   // with its own status, so more than one can be up for a decision at once.
   await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items: items.slice(0, MAX_HISTORY + 1) });
+  // The comment-box request it answered waits no more: it stays on file as
+  // answered, so the agent never paints the same ask twice. A chat-initiated
+  // preview with no request file simply has nothing to answer.
+  if (waiting && waiting.status === "pending") {
+    waiting.status = "answered";
+    waiting.previewId = id;
+    await store(root, PREVIEW_REQUEST_FILE, waiting);
+  }
   return preview;
 }
 
@@ -294,5 +310,89 @@ export function previewText(preview) {
     }
   }
   lines.push("", "Apply this to the source in the way the project already styles things, then tell the user it is in.");
+  return lines.join("\n");
+}
+
+/* ---------------------------------------------------------- preview request */
+
+// One comment-box ask: a request is pending, withdrawn or answered.
+const REQUEST_STATUS = ["pending", "cancelled", "answered"];
+const STRICT_PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
+const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
+const MAX_VALUES = 16;
+const MAX_CONTEXT = 4000;
+
+/** A comment-box preview request: an instruction and an optional element. */
+export function checkPreviewRequest(request) {
+  if (!request || typeof request !== "object" || Array.isArray(request)) invalid("expected an object");
+  if (typeof request.id !== "string" || !ID.test(request.id)) invalid("id is invalid");
+  if (typeof request.instruction !== "string" || !request.instruction.trim() || request.instruction.length > MAX_INSTRUCTION) {
+    invalid(`instruction must be 1 to ${MAX_INSTRUCTION} characters`);
+  }
+  const instruction = request.instruction.trim();
+  let element = null;
+  if (request.element) {
+    const source = request.element;
+    if (typeof source !== "object" || Array.isArray(source)) invalid("element must be an object");
+    if (typeof source.tag !== "string" || !/^[a-z][a-z0-9-]{0,49}$/.test(source.tag)) invalid("element tag is invalid");
+    if (typeof source.selector !== "string" || !source.selector.trim() || source.selector.length > MAX_SELECTOR) {
+      invalid(`selector must be 1 to ${MAX_SELECTOR} characters`);
+    }
+    if (!Array.isArray(source.values) || source.values.length > MAX_VALUES) invalid(`element values must contain at most ${MAX_VALUES} entries`);
+    let size = source.tag.length + source.selector.length + instruction.length;
+    const values = source.values.map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) invalid("each current value must be an object");
+      if (typeof entry.property !== "string" || !STRICT_PROPERTY.test(entry.property)) invalid("current property is invalid");
+      if (typeof entry.value !== "string" || entry.value.length > 120 || VALUE.test(entry.value)) invalid("current value is invalid");
+      size += entry.property.length + entry.value.length;
+      return { property: entry.property, value: entry.value };
+    });
+    if (size > MAX_CONTEXT) invalid("element context is too large");
+    element = { tag: source.tag, selector: source.selector, values };
+  }
+  const status = request.status === undefined ? "pending" : request.status;
+  if (!REQUEST_STATUS.includes(status)) invalid("status is invalid");
+  const out = { id: request.id, instruction, element, status };
+  if (request.previewId !== undefined) {
+    if (typeof request.previewId !== "string" || !ID.test(request.previewId)) invalid("previewId is invalid");
+    out.previewId = request.previewId;
+  }
+  return out;
+}
+
+/** The page writes a preview request; it waits for place_preview. */
+export async function writePreviewRequest(request, root = process.cwd()) {
+  const checked = checkPreviewRequest(request);
+  checked.status = "pending";
+  await store(root, PREVIEW_REQUEST_FILE, checked);
+  return checked;
+}
+
+/** The request as the agent reads it, or null when there is none. */
+export async function readPreviewRequest(root = process.cwd()) {
+  const request = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
+  return request ? checkPreviewRequest(request) : null;
+}
+
+/** The user withdrew a pending request, so no agent answers it late. */
+export async function clearPreviewRequest(root = process.cwd()) {
+  const request = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
+  if (!request) return;
+  request.status = "cancelled";
+  await store(root, PREVIEW_REQUEST_FILE, request);
+}
+
+/** One preview request as text for the agent: what to paint on the canvas. */
+export function previewRequestText(request) {
+  const lines = [`# Preview request from Edityy`, "", `Request: ${request.id}`, `Instruction: ${JSON.stringify(request.instruction)}`];
+  if (request.element) {
+    lines.push("", `Element: <${request.element.tag}> at ${request.element.selector}`, "", "Current values:");
+    for (const entry of request.element.values) lines.push(`- ${entry.property}: ${entry.value}`);
+  }
+  lines.push(
+    "",
+    "Paint this on the live canvas only with place_preview, or many at once with targets. Do not edit files.",
+    "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If the place is unclear and the user named none, ask first."
+  );
   return lines.join("\n");
 }

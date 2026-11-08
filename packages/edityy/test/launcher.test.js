@@ -2023,12 +2023,14 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   const sent = [];
   app.win.fetch = async (url, init) => {
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
+    if (url === "/__edityy/preview-request") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
     sent.push({ url, init });
     return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
   };
   const p = selectText(app);
   commentOn(app, p, "make it warmer");
+  await tick();
   const open = openEdits(app);
   const save = open.children[1].children[1];
   assert.equal(save.dataset.key, "save");
@@ -2046,6 +2048,28 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   assert.match(body.markdown, /# Visual edits from Edityy/);
   assert.match(body.markdown, /- Comment: "make it warmer"/);
   assert.equal(save.textContent, "Saved to .edityy/changes.json");
+});
+
+test("saving a comment also asks the agent for a canvas preview", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const asked = [];
+  app.win.fetch = async (url, init) => {
+    if (url === "/__edityy/preview-request" && init.method === "POST") {
+      asked.push(JSON.parse(init.body));
+      return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
+    }
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, previews: [] }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const p = selectText(app);
+  commentOn(app, p, "make it warmer");
+  await tick();
+  await tick();
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].instruction, "make it warmer");
+  assert.match(app.win.__edityy_changes(), /make it warmer/, "the comment still saves as before");
 });
 
 test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {

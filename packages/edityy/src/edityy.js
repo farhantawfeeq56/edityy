@@ -2038,7 +2038,7 @@
         chip.tabIndex = on ? 0 : -1;
       });
     }
-    if (el && variationWords) box.appendChild(noteBox(variationWords));
+    if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -2054,6 +2054,14 @@
         hideMenu();
         regionBox.hidden = true;
         tally();
+        // The tick also asks for a canvas preview of the words. The words
+        // are already on the box, so a failed ask only leaves a note.
+        if (canvasTick.checked) {
+          previewWords = "";
+          requestPreview(null, region, words, function (problem) {
+            previewWords = problem;
+          });
+        }
         return;
       }
       var n = count;
@@ -2077,14 +2085,23 @@
         return;
       }
       var rec = record(el);
+      // The comment saves as before. With the tick on, the words also go
+      // to the agent as a canvas preview ask. A failed ask only leaves a
+      // note for the next open, never a reopened card.
       rec.comment = words;
       variationPrompt = "";
       variationWords = "";
+      if (n === 1 && canvasTick.checked) previewWords = "";
       commentFor = null;
       openComment = null;
       cardDoneFor = el;
       syncElementMenu();
       tally();
+      if (n === 1 && canvasTick.checked) {
+        requestPreview(el, null, words, function (problem) {
+          previewWords = problem;
+        });
+      }
     }, "comment-save");
     save.appendChild(text("Save"));
     // Cancel drops the drawn box, or puts the element's card away: what the
@@ -6387,6 +6404,7 @@ function decorations() {
   var variationTimer = 0;
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
+  var previewWords = ""; // what a failed preview ask says on the card
   var variationPrompt = "";
   var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
@@ -6599,6 +6617,7 @@ function decorations() {
   // the chat with place_preview, the page polls and paints it here, and Keep
   // makes it an ordinary Edityy edit. Discard puts the page back.
   var PREVIEWS_URL = "/__edityy/previews";
+  var PREVIEW_REQUEST_URL = "/__edityy/preview-request";
   var previewTimer = 0;
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
@@ -6616,11 +6635,12 @@ function decorations() {
   var previewChecked = Object.create(null); // id -> ticked
   var previewBoxRows = []; // the tick rows, kept so a toggle does not rebuild
   var previewBatch = null; // the batch button, kept so the words change in place
-  var previewVariantAt = -1;
-  var previewVariantProps = [];
-  var previewTarget = null; // the styled element, for a styles preview
-  var previewFresh = []; // the inserted elements, for an insert preview
   var previewStyled = []; // every styles element in the preview: { el, props }
+  var previewReqId = ""; // the comment-box ask waiting for its paint
+  var previewReqFor = null; // the element the ask is about
+  var previewReqRegion = null; // the drawn box the ask is about
+  var previewReqInstruction = ""; // the words the ask sent
+  var previewWaiting = false; // the box shows the waiting strip
 
   /** Every element one preview paints: the many-target form, or the old single one. */
   function previewTargets(preview) {
@@ -6635,13 +6655,106 @@ function decorations() {
     return styles.length ? styles[0].variations || [] : [];
   }
 
+  /** Ask the dev server for a canvas preview of one comment. `failed` is told why it never went out. */
+  function requestPreview(el, region, instruction, failed) {
+    if (typeof window.fetch !== "function") return failed("Cannot ask here");
+    var id = newId();
+    window.fetch(PREVIEW_REQUEST_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ id: id, instruction: instruction, element: el ? contextFor(el) : null }),
+    }).then(function (r) {
+      if (r.status === 404) throw new Error("No preview request endpoint");
+      return r.json();
+    }).then(function (j) {
+      if (!j || !j.ok) throw new Error((j && j.error) || "The request was refused");
+      previewReqId = j.requestId || id;
+      previewReqFor = el || null;
+      previewReqRegion = region || null;
+      previewReqInstruction = instruction;
+      previewWords = "";
+      previewPolls = 0;
+      previewSeen = "";
+      pollPreviews(); // at once: a paint already waiting is not waited for
+    }).catch(function (error) {
+      failed(error.message || "Could not ask the dev server");
+    });
+  }
+
+  /** The waiting strip: the ask is on its way, and Cancel takes it back. */
+  function drawPreviewWaiting() {
+    if (previewWaiting) return;
+    previewWaiting = true;
+    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
+    previewBox.hidden = false;
+    var head = document.createElement("div");
+    head.className = "variants-head";
+    var title = document.createElement("p");
+    title.className = "variants-title";
+    title.appendChild(text("Preview"));
+    head.appendChild(title);
+    previewBox.appendChild(head);
+    var line = document.createElement("p");
+    line.className = "preview-say";
+    line.appendChild(text(previewReqInstruction));
+    previewBox.appendChild(line);
+    var foot = document.createElement("div");
+    foot.className = "preview-foot";
+    var cancel = button("variants-keep", "", "Take back the preview request", function () { cancelPreviewRequest(); }, "preview-cancel");
+    cancel.appendChild(say("Cancel"));
+    foot.appendChild(cancel);
+    previewBox.appendChild(foot);
+    refit();
+  }
+
+  /** Cancel a waiting ask, on the strip or leaving the mode: no agent answers it late. */
+  function cancelPreviewRequest() {
+    previewReqId = "";
+    previewReqFor = null;
+    previewReqRegion = null;
+    previewReqInstruction = "";
+    previewWaiting = false;
+    if (typeof window.fetch === "function") {
+      window.fetch(PREVIEW_REQUEST_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    resetPreviewBox();
+    refit();
+    tally();
+  }
+
   /** Ask once for the agent's previews, and again in a moment while there are none. */
   function pollPreviews() {
     if (!active || typeof window.fetch !== "function") return;
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = 0;
     previewPolls += 1;
-    if (previewPolls > MAX_POLLS) return; // the canvas waits quietly: a preview is a gift, not a request
+    if (previewPolls > MAX_POLLS) {
+      // Two minutes of asking: the agent is not coming. A waiting ask reopens
+      // its card with why, the way a variation ask does.
+      if (previewReqId) {
+        var el = previewReqFor;
+        var region = previewReqRegion;
+        previewReqId = "";
+        previewReqFor = null;
+        previewReqRegion = null;
+        previewReqInstruction = "";
+        resetPreviewBox();
+        previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        if (region) {
+          regionFor = region;
+          regionBox.hidden = false;
+          openComment = null;
+          syncElementMenu();
+        } else {
+          cardDoneFor = null;
+          commentFor = el;
+          openComment = null;
+          syncElementMenu();
+        }
+      }
+      return;
+    }
     window.fetch(PREVIEWS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -6869,6 +6982,7 @@ function decorations() {
 
   /** Take whatever the box was showing away: a painted one reverts, a list just leaves. */
   function resetPreviewBox() {
+    previewWaiting = false;
     if (previewCurrent) unpaintPreview();
     else clearPreviewList();
   }
@@ -6946,9 +7060,17 @@ function decorations() {
   function showPreviews(pending) {
     if (variantRows.length) closeVariants();
     if (!pending.length) {
+      if (previewReqId) {
+        drawPreviewWaiting();
+        return;
+      }
       resetPreviewBox();
       return;
     }
+    previewReqId = "";
+    previewReqFor = null;
+    previewReqRegion = null;
+    previewReqInstruction = "";
     if (pending.length === 1) {
       showPreview(pending[0]);
       return;
@@ -7604,6 +7726,7 @@ function decorations() {
     // Exiting always puts the page back exactly as it was.
     stopEditing();
     closeVariants();
+    cancelPreviewRequest();
     // The page pointer goes with the mode: the page wears its own again.
     paintPointer("");
     if (previewCurrent) discardPreview();

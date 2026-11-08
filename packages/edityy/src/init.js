@@ -30,6 +30,7 @@ const END = "<!-- END edityy -->";
 const CHANGES = "/__edityy/changes";
 const VARIATIONS = "/__edityy/variations";
 const PREVIEWS = "/__edityy/previews";
+const PREVIEW_REQUEST = "/__edityy/preview-request";
 const SESSION = "/__edityy/session";
 
 const RULES = `${BEGIN}
@@ -44,8 +45,11 @@ the Edityy MCP server.
   with the number of variations it asks for, and call \`place_variations\`.
   Each variation is plain CSS declarations and may also set the element's words
   with \`text\`. Do not edit files for this.
-- **edityy::** When the user types \`edityy::\` followed by an instruction, paint
-  that change on the live canvas only. Do not edit files. Call
+- **Temporary canvas.** When the user writes a comment in the Edityy comment
+  box with "Apply on temporary canvas" ticked and presses Save, call
+  \`get_preview_request\`.
+  Read it every message: a preview request needs no \`edityy::\` typed in the chat.
+  Then paint the change on the live canvas only. Do not edit files. Call
   \`place_preview\` with the instruction, an action and its payload:
   \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
   element, and \`remove\` takes one away.
@@ -53,10 +57,11 @@ the Edityy MCP server.
   One preview shows with Keep and Discard. Several waiting at once show a
   checkbox list, and the user keeps the ticked ones with "Keep all" or takes
   back the rest with "Discard all changes".
-  The user decides by typing \`implement <id>\` or \`discard <id>\`. When they
-  type \`implement <id>\`, call \`get_preview\` with the id, and apply what it
-  says to the source code. A preview that was painted on the canvas is also in
-  the saved edits, so \`get_visual_changes\` reads it after Save to project.
+  Keep and Discard on the page decide it. Typing \`implement <id>\` or \`discard <id>\`
+  in the chat works the same. When a preview is kept, call \`get_preview\` with
+  the id, and apply what it says to the source code. A preview that was painted
+  on the canvas is also in the saved edits, so \`get_visual_changes\` reads it
+  after Save to project.
 - **Visual edits.** When the user asks for the edits they saved from the site,
   call \`get_visual_changes\`, apply them to the source code, then call
   \`clear_visual_changes\`. That also clears the canvas session.
@@ -119,13 +124,14 @@ if (process.env.NODE_ENV === "development") import("edityy/client");
 `;
 
 const proxy = () => `${MARK}
-import { changesRoute, previewsRoute, sessionRoute, variationsRoute } from "edityy";
+import { changesRoute, previewRequestRoute, previewsRoute, sessionRoute, variationsRoute } from "edityy";
 
 type Handler = (request: Request) => Response | Promise<Response>;
 
 const changes = changesRoute();
 const variations = variationsRoute() as unknown as Record<string, Handler | undefined>;
 const previews = previewsRoute() as unknown as Record<string, Handler | undefined>;
+const previewRequest = previewRequestRoute() as unknown as Record<string, Handler | undefined>;
 const session = sessionRoute() as unknown as Record<string, Handler | undefined>;
 
 /**
@@ -135,7 +141,7 @@ const session = sessionRoute() as unknown as Record<string, Handler | undefined>
 export function proxy(request: Request) {
   const path = new URL(request.url).pathname;
   if (path === "${CHANGES}") return request.method === "POST" ? changes(request) : undefined;
-  const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : path === "${SESSION}" ? session[request.method] : null;
+  const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : path === "${PREVIEW_REQUEST}" ? previewRequest[request.method] : path === "${SESSION}" ? session[request.method] : null;
   return handler ? handler(request) : undefined;
 }
 

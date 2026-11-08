@@ -3,12 +3,14 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
-import { PREVIEWS_PATH, clearPreviews, decidePreview, decidePreviews, readPendingPreviews } from "./previews.js";
+import { PREVIEWS_PATH, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequest, writePreviewRequest } from "./previews.js";
 import { SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
 import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
 export { PREVIEWS_PATH };
+/** The comment-box preview request endpoint path. */
+export { PREVIEW_REQUEST_PATH };
 /** The session endpoint path, answered by sessionFromNode and sessionRoute. */
 export { SESSION_PATH };
 /** The file the canvas session is kept in, beside the saved edit list. */
@@ -121,6 +123,13 @@ export function edityy(options = {}) {
 
       if (pathname === PREVIEWS_PATH && options.save !== false) {
         previewsFromNode(req, res, root, hosts).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
+        return;
+      }
+
+      if (pathname === PREVIEW_REQUEST_PATH && options.save !== false) {
+        previewRequestFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -559,6 +568,40 @@ async function previewsFromNode(req, res, root, allowedHosts) {
 }
 
 /**
+ * The comment-box preview request on a Node dev server.
+ *
+ * POST writes what the page asked for, GET answers with the request as it
+ * stands, and DELETE withdraws it when the user takes the waiting strip back.
+ */
+async function previewRequestFromNode(req, res, root, allowedHosts) {
+  const answer = (status, body) => {
+    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end?.(JSON.stringify(body));
+  };
+  try {
+    const h = req.headers ?? {};
+    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "request a preview");
+    if (req.method === "POST") {
+      const written = await writePreviewRequest(jsonBody(await readBody(req, VARIATION_LIMIT)), root);
+      answer(200, { ok: true, requestId: written.id });
+      return;
+    }
+    if (req.method === "GET") {
+      answer(200, { ok: true, request: await readPreviewRequest(root) });
+      return;
+    }
+    if (req.method === "DELETE") {
+      await clearPreviewRequest(root);
+      answer(200, { ok: true });
+      return;
+    }
+    throw new SaveError(405, "GET, POST or DELETE the preview request.");
+  } catch (error) {
+    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+  }
+}
+
+/**
  * The canvas session on a Node dev server.
  *
  * GET answers with the canvas kept for one page path, POST keeps the canvas the
@@ -771,6 +814,50 @@ export function previewsRoute(options = {}) {
     DELETE: (request) =>
       run(request, async () => {
         await clearPreviews(root);
+        return json(200, { ok: true });
+      }),
+  };
+}
+
+/**
+ * The comment-box preview request as fetch-style route handlers, for Next.js:
+ *
+ *   // app/edityy/preview-request/route.ts  (the app rewrites /__edityy/preview-request onto it)
+ *   import { previewRequestRoute } from "edityy";
+ *   export const { GET, POST, DELETE } = previewRequestRoute();
+ *
+ * Like changesRoute(), it answers 404 unless NODE_ENV is "development".
+ */
+export function previewRequestRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  const json = (status, body) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    });
+  const run = async (request, act) => {
+    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
+    try {
+      const h = request.headers;
+      const host = h.get("host") ?? new URL(request.url).host;
+      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "request a preview");
+      return await act();
+    } catch (error) {
+      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
+    }
+  };
+  return {
+    GET: (request) => run(request, async () => json(200, { ok: true, request: await readPreviewRequest(root) })),
+    POST: (request) =>
+      run(request, async () => {
+        const body = await request.text();
+        if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to request a preview with.");
+        const written = await writePreviewRequest(jsonBody(body), root);
+        return json(200, { ok: true, requestId: written.id });
+      }),
+    DELETE: (request) =>
+      run(request, async () => {
+        await clearPreviewRequest(root);
         return json(200, { ok: true });
       }),
   };

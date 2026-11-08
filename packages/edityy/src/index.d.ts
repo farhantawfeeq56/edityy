@@ -112,6 +112,8 @@ export declare function logoRoute(): (request: Request) => Promise<Response>;
  * onto it. It answers 404 unless `NODE_ENV` is `development`.
  */
 export declare const PREVIEWS_PATH: "/__edityy/previews";
+/** The path the page writes a comment-box preview request to: `/__edityy/preview-request`. */
+export declare const PREVIEW_REQUEST_PATH: "/__edityy/preview-request";
 
 export declare function variationsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
@@ -138,6 +140,19 @@ export declare function sessionRoute(options?: Pick<EdityyOptions, "root" | "all
  * onto it. It answers 404 unless `NODE_ENV` is `development`.
  */
 export declare function previewsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
+  GET: (request: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+  DELETE: (request: Request) => Promise<Response>;
+};
+
+/**
+ * The comment-box preview request as fetch-style route handlers, for Next.js:
+ * `export const { GET, POST, DELETE } = previewRequestRoute();` in
+ * `app/edityy/preview-request/route.ts`, with a rewrite from
+ * `/__edityy/preview-request` onto it. It answers 404 unless `NODE_ENV` is
+ * `development`.
+ */
+export declare function previewRequestRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
   POST: (request: Request) => Promise<Response>;
   DELETE: (request: Request) => Promise<Response>;

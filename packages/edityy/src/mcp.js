@@ -3,11 +3,13 @@
  *
  *   npx edityy mcp
  *
- * The page writes two things: the edits saved with "Save to project"
- * (`.edityy/changes.json`, from index.js), and a variation request — one
+ * The page writes three things: the edits saved with "Save to project"
+ * (`.edityy/changes.json`, from index.js), a variation request — one
  * element, a number of variations and an optional comment
- * (`.edityy/variation-request.json`, from variations.js).
- * This serves both to an agent through seven tools: read the edits, clear them
+ * (`.edityy/variation-request.json`, from variations.js), and a comment-box
+ * preview request — an instruction and an optional element
+ * (`.edityy/preview-request.json`, from previews.js).
+ * This serves all of them to an agent through eight tools: read the edits, clear them
  * once they are in the code, read the variation request, place the
  * variations the agent answers with, place a chat-initiated canvas preview,
  * read a preview to apply it, and decide a preview once it is handled.
@@ -22,7 +24,7 @@ import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
 import { SESSION_FILE } from "./session.js";
-import { decidePreview, placePreview, previewText, readActivePreview, readPreview, readPreviews } from "./previews.js";
+import { decidePreview, placePreview, previewRequestText, previewText, readActivePreview, readPreview, readPreviewRequest, readPreviews } from "./previews.js";
 import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -96,7 +98,7 @@ const TOOLS = [
   {
     name: "get_variation_request",
     description:
-      "The user chose Vartest in the Edityy toolbar and pressed one element of their running site: read the style variations they asked for. " +
+      "The user set more than one variation in the Edityy comment box and pressed an element: read the style variations they asked for. " +
       "Read it at the start of every Vartest: the user may have asked again since the last one, and an answer " +
       "for an old request is refused. " +
       "Returns the number of variations, their optional comment, the element's selector and tag, and its current values. " +
@@ -104,9 +106,17 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
+    name: "get_preview_request",
+    description:
+      "Read the preview the user asked for in the Edityy comment box with \"Apply on temporary canvas\" ticked: a comment and an optional element. " +
+      "Read it at the start of every message, without waiting for the user to type edityy:: in the chat. " +
+      "Returns the instruction and the element's selector, tag and current values. Answer by painting it with place_preview, or many at once with targets.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
     name: "place_preview",
     description:
-      "The user typed edityy:: followed by an instruction in their agent chat: paint that change on the live Edityy canvas only, not in the code. " +
+      "Paint a change on the live Edityy canvas only, not in the code, for a pending comment-box preview request. " +
       "Place one preview with an action and its payload, or many at once with targets: each target keeps its own action, selector or anchor, and payload. " +
       "styles restyles one element and takes a selector plus 1 to 100 labeled variations of plain CSS declarations, each with an optional text. " +
       "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
@@ -138,7 +148,7 @@ const TOOLS = [
     description:
       "Read one placed Edityy canvas preview, with its instruction, action and payload. " +
       "Apply kept previews to the source code: the page saved them with Save to project, so read them with get_visual_changes. " +
-      "Each preview has an id such as e-123: the user types implement <id> to apply it or discard <id> to drop it.",
+      "Each preview has an id such as e-123: the user keeps or discards it with the buttons on the page. Typing implement <id> or discard <id> in the chat works the same.",
     inputSchema: {
       type: "object",
       properties: {
@@ -278,7 +288,7 @@ export async function handle(message, root) {
           const request = await readVariationRequest(root);
           if (!request) {
             return reply({
-              content: [{ type: "text", text: "No pending variation request. In the browser, choose Vartest in the toolbar, then press one element." }],
+              content: [{ type: "text", text: "No pending variation request. In the browser, set more than one variation in the comment box and press an element." }],
             });
           }
           if (request.status === "cancelled") {
@@ -295,6 +305,25 @@ export async function handle(message, root) {
           }
           return reply({ content: [{ type: "text", text: requestText(request) }] });
         }
+        if (params?.name === "get_preview_request") {
+          const request = await readPreviewRequest(root);
+          if (!request) {
+            return reply({
+              content: [{ type: "text", text: "No pending preview request. In the browser, write a comment with \"Apply on temporary canvas\" ticked." }],
+            });
+          }
+          if (request.status === "cancelled") {
+            return reply({
+              content: [{ type: "text", text: `The user withdrew the last preview request (${JSON.stringify(request.instruction)}). Do not place it. If they ask again, a new request will appear.` }],
+            });
+          }
+          if (request.status === "answered") {
+            return reply({
+              content: [{ type: "text", text: `Preview request ${request.id} was already answered with ${request.previewId || "a preview"}. Read it with get_preview.` }],
+            });
+          }
+          return reply({ content: [{ type: "text", text: previewRequestText(request) }] });
+        }
         if (params?.name === "place_preview") {
           const preview = await placePreview(params?.arguments, root);
           return reply({
@@ -308,7 +337,7 @@ export async function handle(message, root) {
             if (typeof id === "string" && id) return reply({ content: [{ type: "text", text: `No preview ${id}.` }] });
             const list = await readPreviews(root);
             if (!list.history.length) {
-              return reply({ content: [{ type: "text", text: "No preview. The user types edityy:: followed by an instruction, and you place it with place_preview." }] });
+              return reply({ content: [{ type: "text", text: "No preview. The user writes a comment with Apply on temporary canvas ticked, and you place it with place_preview." }] });
             }
             const rows = list.history.map((item) => `- ${item.id} (${item.status}): ${item.instruction}`).join("\n");
             return reply({ content: [{ type: "text", text: `Previews, newest first:\n\n${rows}` }] });
