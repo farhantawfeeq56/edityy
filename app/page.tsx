@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CopyButton } from "./copy";
 import logo from "./logo.png";
 
-const INSTALL = "npm install -D edityy";
+const INSTALL = "npx edityy init";
 const NPM = "https://www.npmjs.com/package/edityy";
 const GITHUB = "https://github.com/farhantawfeeq56/edityy";
 
