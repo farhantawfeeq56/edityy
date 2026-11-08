@@ -341,8 +341,11 @@
     // own content: centred content gets a centred mark, content near one
     // edge gets a mark near that edge, a little in from the corner.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
-    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:13px;height:13px;padding:0 2px;",
-    "border-radius:3px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 6px/13px inherit;pointer-events:none;",
+    // The words draw the box, not the other way round: the numeral is the
+    // same size as the typed comment, and 4px of padding goes round it.
+    // Rectangle or square, the words decide.
+    ".marks .mark{position:absolute;display:grid;place-items:center;padding:4px;",
+    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 12px/1 inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
