@@ -1,5 +1,6 @@
 import Link from "next/link";
 import "./edityy.css";
+import { ChangeCountBadgeVartest } from "./comment-count-vartest";
 
 const palette = [
   ["Canvas", "#FAF9F6", "The page around the work", "workspace"],
@@ -41,7 +42,7 @@ export function DesignPreview() {
           <section className="edy-hero" id="system">
             <div className="edy-hero-copy">
               <p className="edy-overline"><span /> THE EDITYY DESIGN SYSTEM</p>
-              <h1>Keep the page<br />in <em>view.</em></h1>
+              <ChangeCountBadgeVartest />
               <p className="edy-intro">A visual language for editing real websites in place: precise enough for detailed work, quiet enough to keep the page—not the tools—at the center.</p>
               <a className="edy-hero-link" href="#controls">Explore the controls <b>↓</b></a>
             </div>
