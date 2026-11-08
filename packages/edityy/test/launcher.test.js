@@ -1570,6 +1570,7 @@ test("Add is freeform: nothing is selected, and a drag saves a numbered box", ()
   const path = () => [];
   quiet(() => app.fire("mousedown", { clientX: 10, clientY: 10, button: 0, composedPath: path, preventDefault() {}, stopPropagation() {} }));
   app.move(60, 50);
+  assert.equal(app.root.nodes.region.hidden, false, "the box is drawn while the drag is still going, not only after it is dropped");
   quiet(() => app.fire("mouseup", { clientX: 60, clientY: 50, composedPath: path, preventDefault() {}, stopPropagation() {} }));
   const menu = app.root.nodes["element-menu"];
   assert.equal(menu.hidden, false, "the comment box opens for the box");

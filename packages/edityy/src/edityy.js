@@ -48,7 +48,7 @@
   // keeps the browser's own hand: no custom drag pointer lives there.
   var POINTER_IMG = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M4%202L20%2012L11.5%2014L9%2021Z\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.5\'%20stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
   var POINTER = POINTER_IMG + " 3 1, auto";
-  var PRECISION = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M12%202v6M12%2016v6M2%2012h6M16%2012h6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'%20stroke-linecap=\'round\'/%3E%3Ccircle%20cx=\'12\'%20cy=\'12\'%20r=\'3.5\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'2\'/%3E%3C/svg%3E") 8 8, crosshair';
+  var PRECISION = 'url("data:image/svg+xml,%3Csvg%20xmlns=\'http://www.w3.org/2000/svg\'%20width=\'16\'%20height=\'16\'%20viewBox=\'0%200%2024%2024\'%3E%3Cpath%20d=\'M12%202v6M12%2016v6M2%2012h6M16%2012h6\'%20stroke=\'%23F9F8F6\'%20stroke-width=\'3.5\'%20stroke-linecap=\'round\'/%3E%3Cpath%20d=\'M12%202v6M12%2016v6M2%2012h6M16%2012h6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.8\'%20stroke-linecap=\'round\'/%3E%3Ccircle%20cx=\'12\'%20cy=\'12\'%20r=\'3\'%20fill=\'%23F9F8F6\'%20stroke=\'%2325241f\'%20stroke-width=\'1.8\'/%3E%3C/svg%3E") 8 8, crosshair';
 
   var host = document.createElement("div");
   host.setAttribute("data-edityy", "");
@@ -342,7 +342,7 @@
     "border-radius:999px;background:var(--ink);color:var(--paper);font:600 12px/20px inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
-    ".region{position:fixed;z-index:2;border:1.5px dashed var(--ink);border-radius:2px;background:var(--ink-6);pointer-events:none}",
+    ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
     // thing that moves.
     ".ic.arriving{animation:rowIn var(--enter) var(--arrive)}",
@@ -7487,10 +7487,22 @@ function decorations() {
   }
 
   /** The Add drag starts: a box from this point, drawn on the next move. */
+  function drawRegion(x1, y1) {
+    var left = Math.min(drawing.x0, x1);
+    var top = Math.min(drawing.y0, y1);
+    regionBox.style.left = left + "px";
+    regionBox.style.top = top + "px";
+    regionBox.style.width = Math.abs(x1 - drawing.x0) + "px";
+    regionBox.style.height = Math.abs(y1 - drawing.y0) + "px";
+    regionBox.hidden = false;
+  }
+
   function onDown(e) {
     if (!active || activeTool !== "add" || moving || editing) return;
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     if (e.button !== undefined && e.button !== 0) return;
+    // Stop the browser starting a text selection for this drag.
+    if (e.preventDefault) e.preventDefault();
     drawing = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
   }
 
@@ -7538,7 +7550,12 @@ function decorations() {
         return;
       }
       // Add is freeform: no element is outlined or picked, only the box drawn.
-      if (drawing || activeTool === "add") {
+      if (drawing) {
+        drawRegion(x, y);
+        hideHover();
+        return;
+      }
+      if (activeTool === "add") {
         hideHover();
         return;
       }
