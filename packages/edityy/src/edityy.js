@@ -290,7 +290,7 @@
     // reads as the corner's own tab and not a fifth tool in the row. It is
     // always on while the toolbar is open, so it takes a click without a
     // hover first.
-    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:var(--paper);color:var(--muted);cursor:pointer;opacity:1;pointer-events:auto;transform:scale(1);transform-origin:center;box-shadow:0 1px 2px var(--ink-6)}",
+    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:1px solid var(--ink-25);padding:0;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 18%,var(--paper));color:var(--ink);cursor:pointer;opacity:1;pointer-events:auto;transform:scale(1);transform-origin:center;box-shadow:0 1px 2px var(--ink-6)}",
     ".dock-close:hover{background:var(--ink-6);color:var(--ink)}",
     ".dock-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".dock-close>svg{width:11px;height:11px;display:block;color:inherit}",
@@ -920,7 +920,7 @@
     svg("plus"),
     "</div>",
     "<div id=\"dock\" hidden>",
-    '<button type="button" class="dock-close" id="dock-close" aria-label="Close editing" title="Close editing">' +
+    '<button type="button" class="dock-close" id="dock-close" aria-label="Close editing">' +
     svg("x") +
     "</button>",
     '<div class="pop" id="pop" hidden></div>',
