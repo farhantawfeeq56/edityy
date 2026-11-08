@@ -1461,19 +1461,20 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
   const dock = app.root.nodes.dock;
   // The stub has no layout: the rect follows the inline place, as it would.
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  dock.offsetHeight = 40;
   quiet(() => app.click());
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
-  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
-  for (const fn of grip.bubbles.pointerup.bubble) fn({});
-  assert.equal(dock.style.left, "390px");
-  assert.equal(dock.style.top, "290px");
+  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1040, clientY: 760 });
+  for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1040, clientY: 760 });
+  assert.equal(dock.style.left, "906px", "the drop settles in the nearest place");
+  assert.equal(dock.style.top, "736px");
   assert.equal(dock.getAttribute("data-placed"), "true", "placed, so hover pays back the widening");
   // The fade is driven by hand here, so the middle of the close can be seen.
   let fade = null;
   dock.animate = (frames) => (fade = { cancel() {}, frames });
   quiet(() => app.fire("keydown", { key: "Escape" }));
   assert.ok(fade, "the close fades");
-  assert.equal(dock.style.left, "390px", "the bar stands its ground while it fades");
+  assert.equal(dock.style.left, "906px", "the bar stands its ground while it fades");
   assert.equal(dock.getAttribute("data-placed"), "true");
   fade.onfinish();
   assert.equal(dock.hidden, true);
@@ -1490,16 +1491,52 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   const launch = app.root.nodes.launch;
   // The stub has no layout: the rect follows the inline place, as it would.
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  dock.offsetHeight = 40;
+  quiet(() => app.click());
+  for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
+  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1040, clientY: 760 });
+  for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1040, clientY: 760 });
+  quiet(() => app.fire("keydown", { key: "Escape" }));
+  assert.equal(launch.style.left, "906px", "the pill stays where the bar stood");
+  assert.equal(launch.style.top, "736px");
+  quiet(() => app.click());
+  assert.equal(dock.style.left, "906px", "the bar stands back up where the pill was");
+  assert.equal(dock.style.top, "736px");
+});
+
+test("dropping between places settles in the nearest one", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const grip = app.root.nodes.grip;
+  const dock = app.root.nodes.dock;
+  // The stub has no layout: the rect follows the inline place, as it would.
+  dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  dock.offsetHeight = 40;
   quiet(() => app.click());
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
-  for (const fn of grip.bubbles.pointerup.bubble) fn({});
-  quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(launch.style.left, "390px", "the pill stays where the bar stood");
-  assert.equal(launch.style.top, "290px");
+  for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 400, clientY: 300 });
+  assert.equal(dock.style.left, "465px", "top centre is the nearest place");
+  assert.equal(dock.style.top, "24px");
+});
+
+test("dropping on a middle edge stands the bar vertical", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const grip = app.root.nodes.grip;
+  const dock = app.root.nodes.dock;
+  // The stub has no layout: the rect follows the inline place, as it would.
+  dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
+  // The stub's size is static: make it follow the posture, as a browser would.
+  Object.defineProperty(dock, "offsetHeight", { configurable: true, get: () => (dock.getAttribute("data-orient") === "vertical" ? 270 : 40) });
+  Object.defineProperty(dock, "offsetWidth", { configurable: true, get: () => (dock.getAttribute("data-orient") === "vertical" ? 40 : 270) });
   quiet(() => app.click());
-  assert.equal(dock.style.left, "390px", "the bar stands back up where the pill was");
-  assert.equal(dock.style.top, "290px");
+  for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
+  for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1150, clientY: 400 });
+  for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1150, clientY: 400 });
+  assert.equal(dock.getAttribute("data-orient"), "vertical");
+  assert.equal(dock.style.left, "1136px");
+  assert.equal(dock.style.top, "265px");
 });
 
 test("opening where the bar would hang off pulls it back on", () => {

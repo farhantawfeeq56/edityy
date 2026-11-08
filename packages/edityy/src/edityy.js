@@ -16,9 +16,9 @@
  *    actions open where it stands.
  *
  * Selecting an element opens its actions in a card at the element — Edit text,
- * Move, Parent, Child and Delete — and the style dock, which drags anywhere
- * and settles in one of eight places: the three across the top and bottom
- * hold it horizontal, the middle edges vertical. An open control comes out
+ * Move, Parent, Child and Delete — and the style dock, which drags
+ * between its eight places and settles in one of them; the three across
+ * the top and bottom hold it horizontal, the middle edges vertical. An open control comes out
  * toward the open page, over the dock. Text becomes editable only
  * after the user chooses Edit text; the control row changes styles and starts
  * with Text and Container options. A selected element also has type controls
@@ -1055,6 +1055,12 @@
   // stands back up in its place on the way in.
   var dockSnap = null;
   var SPOTS = ["top-left", "top-center", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-center", "bottom-right"];
+  // The eight places in a grid; the middle row has no centre spot.
+  var SPOT_GRID = [
+    ["top-left", "top-center", "top-right"],
+    ["middle-left", null, "middle-right"],
+    ["bottom-left", "bottom-center", "bottom-right"],
+  ];
   // How far the pointer can be from a place for that place to fill and take
   // the bar on release.
   var SPOT_NEAR = 140;
@@ -3140,9 +3146,9 @@ function faces() {
   }
 
   /** The place nearest a point, or null beyond the fill distance. */
-  function nearestSpot(x, y) {
+  function nearestSpot(x, y, cap) {
     var best = null;
-    var near = SPOT_NEAR;
+    var near = cap === undefined ? SPOT_NEAR : cap;
     for (var i = 0; i < SPOTS.length; i++) {
       var rect = spotRect(SPOTS[i]);
       var dx = x - (rect.left + rect.width / 2);
@@ -3154,6 +3160,38 @@ function faces() {
       }
     }
     return best;
+  }
+
+  /**
+   * The place an arrow key walks to from a settled place: along the row or
+   * the column until a spot is found, skipping the empty middle centre. At
+   * an edge there is no next place, so the bar stays where it is.
+   */
+  function spotNeighbor(spot, dx, dy) {
+    var r = -1;
+    var c = -1;
+    for (var i = 0; i < 3; i++) {
+      for (var j = 0; j < 3; j++) {
+        if (SPOT_GRID[i][j] === spot) {
+          r = i;
+          c = j;
+        }
+      }
+    }
+    if (r < 0) return null;
+    var k;
+    if (dx) {
+      var dc = dx > 0 ? 1 : -1;
+      for (k = c + dc; k >= 0 && k < 3; k += dc) {
+        if (SPOT_GRID[r][k]) return SPOT_GRID[r][k];
+      }
+      return null;
+    }
+    var dr = dy > 0 ? 1 : -1;
+    for (k = r + dr; k >= 0 && k < 3; k += dr) {
+      if (SPOT_GRID[k][c]) return SPOT_GRID[k][c];
+    }
+    return null;
   }
 
   /**
@@ -3214,21 +3252,37 @@ function faces() {
   /**
    * The way back in, after the pill carried its place: if the pill stands
    * where a preferred place would put the bar, the place takes it back.
-   * Otherwise the bar stands free, horizontal, where the pill was dropped.
+   * Otherwise the bar stands where the pill was dropped, and the place
+   * nearest that point takes it.
    */
   function resnapDock() {
-    if (!dockSnap || !dockSize.w) return;
-    var rect = spotRect(dockSnap);
-    if (Math.abs((parseFloat(dock.style.left) || 0) - rect.left) > 6 || Math.abs((parseFloat(dock.style.top) || 0) - rect.top) > 6) {
+    if (!dockSize.w) return;
+    var curLeft = parseFloat(dock.style.left) || 0;
+    var curTop = parseFloat(dock.style.top) || 0;
+    if (dockSnap) {
+      var rect = spotRect(dockSnap);
+      if (Math.abs(curLeft - rect.left) <= 6 && Math.abs(curTop - rect.top) <= 6) {
+        if (dockSnap === "middle-left" || dockSnap === "middle-right") dock.setAttribute("data-orient", "vertical");
+        else dock.removeAttribute("data-orient");
+        if (dockSnap === "top-left" || dockSnap === "bottom-left") dock.setAttribute("data-grip", "right");
+        else dock.removeAttribute("data-grip");
+        return;
+      }
       dockSnap = null;
-      dock.removeAttribute("data-orient");
-      dock.removeAttribute("data-grip");
-      return;
     }
-    if (dockSnap === "middle-left" || dockSnap === "middle-right") dock.setAttribute("data-orient", "vertical");
-    else dock.removeAttribute("data-orient");
-    if (dockSnap === "top-left" || dockSnap === "bottom-left") dock.setAttribute("data-grip", "right");
-    else dock.removeAttribute("data-grip");
+    // The pill stood between places, or never settled: the bar settles in
+    // the nearest place.
+    var best = null;
+    var bestD = Infinity;
+    for (var i = 0; i < SPOTS.length; i++) {
+      var spot = spotRect(SPOTS[i]);
+      var d = Math.abs(spot.left - curLeft) + Math.abs(spot.top - curTop);
+      if (d < bestD) {
+        bestD = d;
+        best = SPOTS[i];
+      }
+    }
+    dockTo(best);
   }
   /** The pill stands where it is put, clamped to the page like the bar. */
   function placeLaunch(left, top) {
@@ -3277,21 +3331,19 @@ function faces() {
         paintSpots(true, spot, true);
       }
     });
-    function letGo() {
+    function letGo(e) {
       if (held && !dragged) {
         // A press that never moved is a click: the bar takes the place
         // nearest where it stands.
-        dockTo(nearestSpot(startCx, startCy) || "bottom-right");
+        dockTo(nearestSpot(startCx, startCy, 1e9) || "bottom-right");
       } else if (held && hoverSpot) {
         dockTo(hoverSpot);
       } else if (held) {
-        // Dropped between places: the bar stands free, horizontal, where it
-        // was let go.
-        dockSnap = null;
-        dock.removeAttribute("data-orient");
-        dock.removeAttribute("data-grip");
-        paintSpots(false);
-        if (openKey) placePop(openKey);
+        // Dropped between places: the bar settles in the nearest place.
+        // The bar only ever stands in one of the eight.
+        var px = e && typeof e.clientX === "number" ? e.clientX : startCx;
+        var py = e && typeof e.clientY === "number" ? e.clientY : startCy;
+        dockTo(nearestSpot(px, py, 1e9) || "bottom-right");
       }
       held = false;
       paintSpots(false);
@@ -3326,28 +3378,33 @@ function faces() {
       if (next && next.getAttribute && next.getAttribute("data-spot")) return;
       if (!held) paintSpots(false);
     });
-    // The keyboard moves the bar too: arrows walk it, so it is not pointer-only.
+    // The keyboard moves the bar between places: arrows walk the grid, so
+    // it is not pointer-only.
     gripBtn.addEventListener("keydown", function (e) {
-      var step = e.shiftKey ? 1 : 24;
-      var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
-      if (!box) return;
-      var left = box.left;
-      var top = box.top;
-      if (e.key === "ArrowLeft") left -= step;
-      else if (e.key === "ArrowRight") left += step;
-      else if (e.key === "ArrowUp") top -= step;
-      else if (e.key === "ArrowDown") top += step;
+      var dx = 0;
+      var dy = 0;
+      if (e.key === "ArrowLeft") dx = -1;
+      else if (e.key === "ArrowRight") dx = 1;
+      else if (e.key === "ArrowUp") dy = -1;
+      else if (e.key === "ArrowDown") dy = 1;
       else return;
       if (e.preventDefault) e.preventDefault();
       if (e.stopPropagation) e.stopPropagation();
-      placeDock(left, top);
+      var next = dockSnap ? spotNeighbor(dockSnap, dx, dy) : null;
+      if (next) {
+        dockTo(next);
+        return;
+      }
+      if (dockSnap) return;
+      var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+      if (box) dockTo(nearestSpot(box.left + box.width / 2, box.top + box.height / 2, 1e9) || "bottom-right");
     });
     // Keyboard docking: Enter on the grip settles the bar in its nearest place.
     gripBtn.addEventListener("click", function (e) {
       if (e.detail !== 0) return;
       var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
       if (!box) return;
-      dockTo(nearestSpot(box.left + box.width / 2, box.top + box.height / 2) || "bottom-right");
+      dockTo(nearestSpot(box.left + box.width / 2, box.top + box.height / 2, 1e9) || "bottom-right");
     });
     // A resized page moves the places: a settled bar follows its place.
     window.addEventListener("resize", function () {
