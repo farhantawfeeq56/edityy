@@ -335,13 +335,15 @@
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
     // the pointer keeps the fill alone.
     ".row>.ic:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
-    // Numbered marks on changed elements and saved regions. One soft-gold
-    // square per edit, the selected colour, drawn over the page where the
-    // edit is, never in its way. Five pixels is the check mark's radius.
+    // Numbered marks on changed elements and saved regions. One mark per
+    // edit: a golden outline on a light-yellow fill, drawn over the page
+    // where the edit is, never in its way. Its spot follows the element's
+    // own content: centred content gets a centred mark, content near one
+    // edge gets a mark near that edge, a little in from the corner.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
-    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;",
-    "border-radius:5px;background:var(--accent);color:var(--paper);font:600 12px/20px inherit;pointer-events:none;",
-    "transform:translate(-50%,-50%);box-shadow:inset 0 0 0 1px var(--rose),0 1px 2px var(--ink-12)}",
+    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:15px;height:15px;padding:0 3px;",
+    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 9px/15px inherit;pointer-events:none;",
+    "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
@@ -1974,13 +1976,19 @@
       }
       var n = count;
       if (n > 1) {
+        // Like a single edit, the card closes on Save and stays shut while
+        // the agent answers: no waiting words on the card, only the strip.
         variationPrompt = words;
-        variationWords = "Asking your agent\u2026";
-        cardDoneFor = null;
+        commentFor = null;
         openComment = null;
+        cardDoneFor = el;
         syncElementMenu();
         requestVariations(el, n, variationPrompt, function (problem) {
+          // The ask never went out: the card reopens with why, so the
+          // words can go again.
           variationWords = problem;
+          cardDoneFor = null;
+          commentFor = el;
           openComment = null;
           syncElementMenu();
         });
@@ -2020,6 +2028,20 @@
     // A comment is required: no words, no save.
     save.disabled = !area.value.trim();
     area.addEventListener("input", function () { save.disabled = !area.value.trim(); });
+    // While typing, Enter saves and Escape cancels, the way the buttons do.
+    // A modified Enter still breaks the line, and neither key reaches the
+    // page-level handlers behind the card.
+    area.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!save.disabled) save.click();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancel.click();
+      }
+    });
     actions.appendChild(save);
     box.appendChild(actions);
     // A box opened by a click is ready to type into.
@@ -5772,6 +5794,46 @@ function decorations() {
     if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
   }
 
+  /**
+   * Where a mark sits on an element: the middle of its height, and across
+   * its width where its own content sits. Content centred in the box puts
+   * the mark in its centre; content near the right or the left edge puts
+   * the mark near that edge, a little in from the corner. The content is
+   * the union of the direct children's boxes plus the element's own words,
+   * clamped to the element's box, so a full-width line reads as left.
+   */
+  function markSpot(el, box) {
+    var left = null;
+    var right = null;
+    var grow = function (r) {
+      if (!r || !r.width) return;
+      var l = Math.max(r.left, box.left);
+      var rr = Math.min(r.right, box.right);
+      if (rr <= l) return;
+      if (left === null || l < left) left = l;
+      if (right === null || rr > right) right = rr;
+    };
+    if (el.children && el.children.length) {
+      for (var i = 0; i < el.children.length; i++) grow(el.children[i].getBoundingClientRect && el.children[i].getBoundingClientRect());
+    }
+    // The element's own words: the whole content read as one range covers
+    // any text the children's boxes do not.
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      grow(range.getBoundingClientRect && range.getBoundingClientRect());
+    } catch { /* an unmeasurable element still gets the middle */ }
+    var top = Math.round(box.top + box.height / 2);
+    if (left === null) return { left: Math.round(box.left + box.width / 2), top: top };
+    var leftGap = left - box.left;
+    var rightGap = box.right - right;
+    var x;
+    if (Math.abs(leftGap - rightGap) <= 4 && leftGap > 4) x = box.left + box.width / 2;
+    else if (rightGap < leftGap - 4) x = box.right - 12;
+    else x = box.left + 12;
+    return { left: Math.round(x), top: top };
+  }
+
   /** Numbered marks on changed elements and saved boxes. One square each,
    * drawn where the edit is, shown at once and kept through a reload. */
   function paintMarks(items) {
@@ -5788,9 +5850,9 @@ function decorations() {
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
         var box = item.rec.el.getBoundingClientRect();
-        if (box.width || box.height) at = { left: box.left, top: box.top };
+        if (box.width || box.height) at = markSpot(item.rec.el, box);
       } else if (item.region) {
-        at = { left: item.region.left - x, top: item.region.top - y };
+        at = { left: item.region.left - x + item.region.width / 2, top: item.region.top - y + item.region.height / 2 };
       }
       if (!at) return;
       var m = document.createElement("span");
@@ -6021,6 +6083,8 @@ function decorations() {
       // Two minutes of asking: the agent is not coming, so the box says so.
       variationId = "";
       variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+      cardDoneFor = null;
+      commentFor = variationFor;
       openComment = null;
       syncElementMenu();
       return;
@@ -6041,6 +6105,8 @@ function decorations() {
         if (id !== variationId) return;
         variationId = "";
         variationWords = error.message || "Could not reach the dev server";
+        cardDoneFor = null;
+        commentFor = variationFor;
         openComment = null;
         syncElementMenu();
       });
