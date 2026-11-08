@@ -345,7 +345,7 @@
     // same size as the typed comment, and 4px of padding goes round it.
     // Rectangle or square, the words decide.
     ".marks .mark{position:absolute;display:grid;place-items:center;padding:4px;",
-    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 12px/1 inherit;pointer-events:none;",
+    "border-radius:4px;background:#f6e8b0;color:#1a1915;font:600 12px/1 inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
