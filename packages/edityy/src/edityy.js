@@ -833,7 +833,10 @@
     ".sides .side-link[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose);color:var(--ink)}",
     // The bar holds the row under the open control.
     ".bar{position:relative;display:flex;align-items:center;gap:0;width:max-content;max-width:100%;padding-left:0;background:var(--surface);border-radius:10px;box-shadow:0 1px 2px var(--ink-6),0 4px 16px var(--ink-8),0 8px 32px var(--ink-6);",
-    "transition:padding-left var(--slide) var(--arrive)}",
+    "transition:padding-left var(--slide) var(--arrive),box-shadow var(--slide) var(--arrive)}",
+    // Lifted while it is dragged: the shadow deepens, so the bar reads as
+    // held above the page, not part of it.
+    "#dock[data-drag=true] .bar{box-shadow:0 2px 3px var(--ink-8),0 12px 28px var(--ink-12),0 24px 64px var(--ink-8)}",
     // The bar gives the grip its room only while it is hovered, or while the
     // grip itself is keyboard-focused. A clicked tool keeps :focus-within
     // and would pin the bar wide after the mouse has gone; :focus-visible
@@ -2970,7 +2973,7 @@ function faces() {
   function extendBar() {
     // How much of the bar is drawn out: the whole bar, grip and row, from
     // its right edge, so the bar arrives as one line. A vertical bar grows
-    // out of its top edge instead.
+    // out of the edge its grip sits on, the bottom, instead.
     var vertical = dock.getAttribute("data-orient") === "vertical";
     var grow = vertical ? barEl.offsetHeight : barEl.offsetWidth;
     if (!grow) return;
@@ -2978,7 +2981,7 @@ function faces() {
       barEl,
       vertical
         ? [
-            { clipPath: "inset(" + grow + "px 0 0 0)", transform: "translateY(" + -grow / 2 + "px)" },
+            { clipPath: "inset(0 0 " + grow + "px 0)", transform: "translateY(" + grow / 2 + "px)" },
             { clipPath: "inset(0 0 0 0px)", transform: "none" },
           ]
         : [
@@ -3319,16 +3322,26 @@ function faces() {
       dragged = false;
       hoverSpot = null;
       held = true;
+      dock.setAttribute("data-drag", "true");
       paintSpots(true, null, true);
     });
     gripBtn.addEventListener("pointermove", function (e) {
       if (!held) return;
       if (Math.abs(e.clientX - (startLeft + offX)) > 5 || Math.abs(e.clientY - (startTop + offY)) > 5) dragged = true;
-      placeDock(e.clientX - offX, e.clientY - offY);
       var spot = nearestSpot(e.clientX, e.clientY);
       if (spot !== hoverSpot) {
         hoverSpot = spot;
         paintSpots(true, spot, true);
+      }
+      if (spot) {
+        // Magnetic: near a place the bar leans into it, so the release has
+        // somewhere to go and the landing feels pulled, not placed.
+        var rect = spotRect(spot);
+        var left = e.clientX - offX;
+        var top = e.clientY - offY;
+        placeDock(left + (rect.left - left) * 0.4, top + (rect.top - top) * 0.4);
+      } else {
+        placeDock(e.clientX - offX, e.clientY - offY);
       }
     });
     function letGo(e) {
@@ -3346,11 +3359,13 @@ function faces() {
         dockTo(nearestSpot(px, py, 1e9) || "bottom-right");
       }
       held = false;
+      dock.removeAttribute("data-drag");
       paintSpots(false);
     }
     gripBtn.addEventListener("pointerup", letGo);
     gripBtn.addEventListener("pointercancel", function () {
       held = false;
+      dock.removeAttribute("data-drag");
       paintSpots(false);
     });
     // A dotted place docks on a click: the edge, not the bar, is the target.
