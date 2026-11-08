@@ -335,12 +335,13 @@
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
     // the pointer keeps the fill alone.
     ".row>.ic:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
-    // Numbered marks on changed elements and saved regions. One circle per
-    // edit, drawn over the page where the edit is, never in its way.
+    // Numbered marks on changed elements and saved regions. One soft-gold
+    // square per edit, the selected colour, drawn over the page where the
+    // edit is, never in its way. Five pixels is the check mark's radius.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
     ".marks .mark{position:absolute;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;",
-    "border-radius:999px;background:var(--ink);color:var(--paper);font:600 12px/20px inherit;pointer-events:none;",
-    "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
+    "border-radius:5px;background:var(--accent-soft);color:var(--ink);font:600 12px/20px inherit;pointer-events:none;",
+    "transform:translate(-50%,-50%);box-shadow:inset 0 0 0 1px var(--rose),0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
@@ -5771,7 +5772,7 @@ function decorations() {
     if (review.getAttribute("aria-expanded") === "true" && !editing) show("changes");
   }
 
-  /** Numbered marks on changed elements and saved boxes. One circle each,
+  /** Numbered marks on changed elements and saved boxes. One square each,
    * drawn where the edit is, shown at once and kept through a reload. */
   function paintMarks(items) {
     items = items || report();

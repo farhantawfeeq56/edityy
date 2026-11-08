@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 
 const variants = [
-  "Circle", "Soft square", "Pill", "Outline", "Dot", "Ticket", "Ring", "Capsule", "Diamond", "Minimal",
+  "Gold circle", "Gold square", "Gold pill", "Outline circle", "Ink circle", "Ink pill", "Soft gold square", "Outline square", "Square mark", "Minimal",
 ] as const;
 
 /** The saved-change count badge, shown on this heading for visual testing. */
 export function ChangeCountBadgeVartest() {
-  const [variant, setVariant] = useState(0);
+  const [variant, setVariant] = useState(6);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
