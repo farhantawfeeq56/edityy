@@ -845,21 +845,35 @@
     // at the edges, shown while the bar is dragged or hovered, so the reader
     // sees where it will land before letting go. The nearest one fills as the
     // pointer comes close, and the dot itself docks on a click.
-    "#docks{position:fixed;inset:0;z-index:2;pointer-events:none}",
+    "#docks{position:fixed;inset:0;z-index:2;pointer-events:none;transition:background-color var(--fade) var(--arrive)}",
+    // While the bar is dragged the page dims a little: dotted places read on
+    // a light page only once the page stands back, and the dim is the first
+    // thing to go on release.
+    "#docks.docks-drag{background:rgba(18,18,18,.16)}",
+    "#docks.docks-drag .dock-spot{border-color:var(--ink-40)}",
+    "#docks.docks-drag .dock-spot.hot{background:var(--ink-15)}",
     ".dock-spot{position:absolute;width:18px;height:18px;border:1.5px dashed var(--ink-25);border-radius:999px;background:transparent;padding:0;margin:0;cursor:pointer;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.7);transition:opacity var(--tint) var(--standard),transform var(--slide) var(--arrive),background-color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
     "#docks.docks-on .dock-spot{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}",
     ".dock-spot:hover{border-color:var(--ink-40)}",
     ".dock-spot.hot{background:var(--ink-12);border-color:var(--ink-40)}",
     ".dock-spot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
-    // Docked at the middle edges the bar stands vertical: the row runs top to
-    // bottom, the grip sits on top, and the hover room moves with it.
+    // Docked at the middle edges the bar stands vertical, with the grip at
+    // the bottom: the row runs top to bottom, the grip closes the bar, and
+    // the hover room goes below the last tool instead of above the first.
     "#dock[data-orient=vertical] .bar{flex-direction:column}",
     "#dock[data-orient=vertical] .row{flex-direction:column;flex-wrap:nowrap}",
-    "#dock[data-orient=vertical] .grip{left:0;right:0;top:0;bottom:auto;width:auto;height:0;border-radius:10px 10px 0 0}",
+    "#dock[data-orient=vertical] .grip{left:0;right:0;top:auto;bottom:0;width:auto;height:0;border-radius:0 0 10px 10px}",
     "#dock[data-orient=vertical]:hover .grip,#dock[data-orient=vertical] .grip:focus-visible{width:auto;height:30px}",
-    "#dock[data-orient=vertical]:hover .bar,#dock[data-orient=vertical]:has(.grip:focus-visible) .bar{padding-left:0;padding-top:24px}",
-    "#dock[data-orient=vertical][data-placed]{transition:margin-top var(--slide) var(--arrive)}",
-    "#dock[data-orient=vertical][data-placed]:hover,#dock[data-orient=vertical][data-placed]:has(.grip:focus-visible){margin-left:0;margin-top:-24px}",
+    "#dock[data-orient=vertical]:hover .bar,#dock[data-orient=vertical]:has(.grip:focus-visible) .bar{padding-left:0;padding-bottom:24px}",
+    // Settled at the left spots the grip stands on the bar's right edge: the
+    // bar grew leftwards, so the room appears after the last tool, and no
+    // payback shift is paid because no tool moved.
+    "#dock[data-grip=right] .grip{left:auto;right:0;border-radius:0 10px 10px 0}",
+    "#dock[data-grip=right]:hover .grip,#dock[data-grip=right] .grip:focus-visible{width:30px}",
+    "#dock[data-grip=right]:hover .bar,#dock[data-grip=right]:has(.grip:focus-visible) .bar{padding-left:0;padding-right:24px}",
+    "#dock[data-grip=right][data-placed]:hover,#dock[data-grip=right][data-placed]:has(.grip:focus-visible){margin-left:0}",
+    // The vertical bar's hover room is below its tools, so nothing to pay back.
+    "#dock[data-orient=vertical][data-placed]:hover,#dock[data-orient=vertical][data-placed]:has(.grip:focus-visible){margin-left:0;margin-top:0}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -3075,6 +3089,7 @@ function faces() {
     dock.style.bottom = "";
     dock.removeAttribute("data-placed");
     dock.removeAttribute("data-orient");
+    dock.removeAttribute("data-grip");
   }
 
   /**
@@ -3142,9 +3157,9 @@ function faces() {
    * land. What is near fills: the reader sees the place take the bar before
    * the bar goes there.
    */
-  function paintSpots(on, hot) {
+  function paintSpots(on, hot, drag) {
     if (!docks) return;
-    docks.className = on ? "docks-on" : "";
+    docks.className = on ? (drag ? "docks-on docks-drag" : "docks-on") : "";
     var i;
     if (!on) return;
     for (i = 0; i < dockSpots.length; i++) {
@@ -3166,6 +3181,8 @@ function faces() {
     var before = !dock.hidden && dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
     if (spot === "middle-left" || spot === "middle-right") dock.setAttribute("data-orient", "vertical");
     else dock.removeAttribute("data-orient");
+    if (spot === "top-left" || spot === "bottom-left") dock.setAttribute("data-grip", "right");
+    else dock.removeAttribute("data-grip");
     var rect = spotRect(spot);
     dock.style.left = rect.left + "px";
     dock.style.top = rect.top + "px";
@@ -3199,10 +3216,13 @@ function faces() {
     if (Math.abs((parseFloat(dock.style.left) || 0) - rect.left) > 6 || Math.abs((parseFloat(dock.style.top) || 0) - rect.top) > 6) {
       dockSnap = null;
       dock.removeAttribute("data-orient");
+      dock.removeAttribute("data-grip");
       return;
     }
     if (dockSnap === "middle-left" || dockSnap === "middle-right") dock.setAttribute("data-orient", "vertical");
     else dock.removeAttribute("data-orient");
+    if (dockSnap === "top-left" || dockSnap === "bottom-left") dock.setAttribute("data-grip", "right");
+    else dock.removeAttribute("data-grip");
   }
   /** The pill stands where it is put, clamped to the page like the bar. */
   function placeLaunch(left, top) {
@@ -3239,7 +3259,7 @@ function faces() {
       dragged = false;
       hoverSpot = null;
       held = true;
-      paintSpots(true);
+      paintSpots(true, null, true);
     });
     gripBtn.addEventListener("pointermove", function (e) {
       if (!held) return;
@@ -3248,7 +3268,7 @@ function faces() {
       var spot = nearestSpot(e.clientX, e.clientY);
       if (spot !== hoverSpot) {
         hoverSpot = spot;
-        paintSpots(true, spot);
+        paintSpots(true, spot, true);
       }
     });
     function letGo() {
@@ -3263,6 +3283,7 @@ function faces() {
         // was let go.
         dockSnap = null;
         dock.removeAttribute("data-orient");
+        dock.removeAttribute("data-grip");
         paintSpots(false);
         if (openKey) placePop(openKey);
       }
@@ -3284,7 +3305,7 @@ function faces() {
     var dockHovered = false;
     var docksHovered = false;
     function hoverSpots() {
-      if ((dockHovered || docksHovered) && !dock.hidden) paintSpots(true);
+      if ((dockHovered || docksHovered) && !dock.hidden) paintSpots(true, null, held);
       else if (!held) paintSpots(false);
     }
     dock.addEventListener("mouseenter", function () { dockHovered = true; hoverSpots(); });
@@ -5324,17 +5345,6 @@ function decorations() {
     label.textContent = words;
     tip.textContent = "";
     tip.appendChild(label);
-    // The close chip sits on the dock's top-right corner, where a tip for
-    // the last control draws over it. Lift the tip clear of the chip, so
-    // the chip stays visible while its neighbour names itself.
-    var chip = $("dock-close");
-    if (above && chip && chip.getBoundingClientRect) {
-      var cr = chip.getBoundingClientRect();
-      var tr = tip.getBoundingClientRect();
-      if (cr.width && tr.left < cr.right && tr.right > cr.left && tr.top < cr.bottom && tr.bottom > cr.top) {
-        tip.style.top = (parseFloat(tip.style.top) - (tr.bottom - cr.top + 4)) + "px";
-      }
-    }
     if (!moves(tip)) return;
     var slide = [{ opacity: 0, transform: "translateX(" + travel * 14 + "px)" }, { opacity: 1, transform: "none" }];
     if (shown && from !== null) {
@@ -7459,6 +7469,7 @@ function decorations() {
     if (!launch.style.left) {
       dockSnap = null;
       dock.removeAttribute("data-orient");
+      dock.removeAttribute("data-grip");
       return;
     }
     dock.style.left = launch.style.left;
