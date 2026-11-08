@@ -3,9 +3,9 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
-import { PREVIEWS_PATH, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequest, writePreviewRequest } from "./previews.js";
+import { PREVIEWS_PATH, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
 import { SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
-import { VARIATIONS_PATH, clearVariations, readVariationResponse, writeVariationRequest } from "./variations.js";
+import { VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
 export { PREVIEWS_PATH };
@@ -512,12 +512,25 @@ async function variationsFromNode(req, res, root, allowedHosts) {
     }
     if (req.method === "GET") {
       const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? "";
+      // No id asks for the queue itself: the Edits panel reads what is
+      // waiting, or which responses are ready, before anyone polls for one.
+      if (!id) {
+        const requests = await readVariationRequests(root);
+        const responses = await readVariationResponses(root);
+        answer(200, {
+          ok: true,
+          requests: requests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
+          responses: responses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
+        });
+        return;
+      }
       const response = await readVariationResponse(id, root);
       answer(200, response ? { ok: true, requestId: response.requestId, variations: response.variations } : { ok: true, pending: true });
       return;
     }
     if (req.method === "DELETE") {
-      await clearVariations(root);
+      const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? null;
+      await clearVariations(root, id);
       answer(200, { ok: true });
       return;
     }
@@ -587,11 +600,12 @@ async function previewRequestFromNode(req, res, root, allowedHosts) {
       return;
     }
     if (req.method === "GET") {
-      answer(200, { ok: true, request: await readPreviewRequest(root) });
+      answer(200, { ok: true, requests: await readPreviewRequests(root) });
       return;
     }
     if (req.method === "DELETE") {
-      await clearPreviewRequest(root);
+      const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? null;
+      await clearPreviewRequest(root, id);
       answer(200, { ok: true });
       return;
     }
@@ -750,6 +764,15 @@ export function variationsRoute(options = {}) {
     GET: (request) =>
       run(request, async () => {
         const id = new URL(request.url).searchParams.get("id") ?? "";
+        if (!id) {
+          const requests = await readVariationRequests(root);
+          const responses = await readVariationResponses(root);
+          return json(200, {
+            ok: true,
+            requests: requests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
+            responses: responses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
+          });
+        }
         const response = await readVariationResponse(id, root);
         return response
           ? json(200, { ok: true, requestId: response.requestId, variations: response.variations })
@@ -847,7 +870,7 @@ export function previewRequestRoute(options = {}) {
     }
   };
   return {
-    GET: (request) => run(request, async () => json(200, { ok: true, request: await readPreviewRequest(root) })),
+    GET: (request) => run(request, async () => json(200, { ok: true, requests: await readPreviewRequests(root) })),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
@@ -857,7 +880,8 @@ export function previewRequestRoute(options = {}) {
       }),
     DELETE: (request) =>
       run(request, async () => {
-        await clearPreviewRequest(root);
+        const id = new URL(request.url).searchParams.get("id") ?? null;
+        await clearPreviewRequest(root, id);
         return json(200, { ok: true });
       }),
   };

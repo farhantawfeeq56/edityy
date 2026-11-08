@@ -912,6 +912,40 @@
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
+    // The edits panel: a tall sheet over the dock, with a filter grid for the
+    // four states and one card per task. A card goes to its element on click.
+    ".pop.changes{width:min(390px,calc(100vw - 24px));overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
+    ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
+    ".changes-title{font:600 13px/1 inherit;letter-spacing:-.01em}",
+    ".changes-total{margin-left:auto;font:500 11px/1 inherit;color:var(--muted)}",
+    ".changes-filters{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 14px 10px}",
+    ".changes-filter{display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid var(--ink-10);border-radius:8px;padding:7px 2px 6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--muted)}",
+    ".changes-filter b{font:600 13px/1 inherit;color:var(--ink)}",
+    ".changes-filter:hover{background:var(--fill-hover)}",
+    ".changes-filter[aria-pressed=true]{border-color:var(--ink);color:var(--ink);background:var(--fill-open)}",
+    ".changes-filter[aria-pressed=true] b{color:var(--ink)}",
+    ".changes-list{flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 10px 10px;box-sizing:border-box}",
+    ".changes-list .note{max-width:none;margin:10px 6px}",
+    ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer}",
+    ".task:hover{background:var(--fill-hover)}",
+    ".task.selected{border-color:var(--ink)}",
+    ".task-top{display:flex;align-items:center;gap:7px}",
+    ".task-mark{font:500 11px/1 inherit;color:var(--muted);flex:none}",
+    ".task-name{font:500 12px/1.3 inherit;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".task-badge{flex:none;font:600 10px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
+    ".task-badge[data-state=requested]{background:#FFF3D6;color:#7A5A00}",
+    ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
+    ".task-badge[data-state=previewing]{background:#E5F6E8;color:#14532D}",
+    ".task-badge[data-state=kept]{background:var(--ink);color:var(--paper)}",
+    ".task-meta{display:flex;align-items:center;gap:6px;font:400 11px/1.3 inherit;color:var(--muted)}",
+    ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
+    ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}",
+    ".task-actions{display:flex;gap:6px;margin-top:2px}",
+    ".task-actions .mini{flex:0 0 auto;border:1px solid var(--ink-10);border-radius:7px;padding:6px 10px;background:transparent;font:500 11px/1 inherit;cursor:pointer;color:var(--ink)}",
+    ".task-actions .mini:hover{background:var(--fill-hover)}",
+    ".task-actions .mini.danger{color:#9B1C1C}",
+    ".task-actions .mini.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}",
+    ".changes-foot{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--ink-10)}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     // A note in the element card sits in its own gap, not on a margin of its own.
     ".element-comment .note{margin:0;font-size:10px}",
@@ -2839,7 +2873,7 @@ function faces() {
     // The picker paints its own surface: HeroUI's white overlay, not the cream
     // the rest of the controls sit on. Named here are the controls the picker is
     // all of; a shadow keeps its own panel, with the picker standing in it.
-    pop.className = key === "color" || key === "fill" || key === "border" ? "pop color" : "pop";
+    pop.className = key === "color" || key === "fill" || key === "border" ? "pop color" : key === "changes" ? "pop changes" : "pop";
     // The menu comes back when the control closes, and stands down when one
     // opens. Only on that change: a redraw of an open control leaves the menu
     // exactly as it was.
@@ -6192,7 +6226,8 @@ function decorations() {
   function tally() {
     keepSoon();
     var items = report();
-    var n = items.length;
+    var fit = editsTasks();
+    var n = fit.length;
     paintMarks(items);
     var was = countBadge.hidden ? 0 : Number(countBadge.textContent) || 0;
     countBadge.hidden = !n;
@@ -6255,23 +6290,347 @@ function decorations() {
   }
 
   /**
-   * The edits, one line per element: its name selects it, the arrow reverts it,
-   * and one button copies them all for a coding agent.
+   * The edits panel: every task on the page, in the state it is in.
+   *
+   * Requested is an ask with no visual change yet. Exploring is variants
+   * ready, waiting for a pick. Previewing is a paint on the live page,
+   * waiting for Keep or Discard. Kept is an ordinary Edityy edit.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
+  var changesFilter = "all"; // all, requested, exploring, previewing, kept
+  var srvVariationRequests = []; // server queue: asks waiting for variants
+  var srvVariationResponses = []; // server queue: variants ready to try
+  var srvPreviewRequests = []; // server queue: asks waiting for a paint
+  var editsRefreshing = false;
+  var editsRefreshedAt = 0;
+
+  /**
+   * Read the server queues once for the panel, so tasks survive a reload.
+   * The pollers still own the live strips; this only refreshes the list.
+   */
+  function refreshEditsServer() {
+    if (editsRefreshing || typeof window.fetch !== "function") return;
+    var now = Date.now();
+    if (now - editsRefreshedAt < 800) return;
+    editsRefreshedAt = now;
+    editsRefreshing = true;
+    window.fetch("/__edityy/variations", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) {
+          if (Array.isArray(j.requests)) srvVariationRequests = j.requests;
+          if (Array.isArray(j.responses)) srvVariationResponses = j.responses;
+        }
+      })
+      .catch(function () {})
+      .then(function () {
+        return window.fetch("/__edityy/preview-request", { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (j) {
+          if (j && j.ok && Array.isArray(j.requests)) srvPreviewRequests = j.requests;
+        }).catch(function () {});
+      })
+      .then(function () {
+        editsRefreshing = false;
+        if (review.getAttribute("aria-expanded") === "true") show("changes");
+      });
+  }
+
+  function notifyDecidedPreview(id, keep) {
+    if (typeof window.fetch !== "function") return;
+    window.fetch("/__edityy/previews", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ id: id, keep: !!keep }),
+    }).catch(function () {});
+  }
+
+  function cancelVariationId(id) {
+    if (variationId === id) {
+      closeVariants();
+      return;
+    }
+    if (typeof window.fetch === "function") {
+      window.fetch("/__edityy/variations?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    editsRefreshedAt = 0;
+    refreshEditsServer();
+    tally();
+  }
+
+  function cancelPreviewId(id) {
+    if (previewReqId === id) {
+      cancelPreviewRequest();
+      return;
+    }
+    if (typeof window.fetch === "function") {
+      window.fetch("/__edityy/preview-request?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    editsRefreshedAt = 0;
+    refreshEditsServer();
+    tally();
+  }
+
+  function gotoTask(task) {
+    var el = task.el;
+    if (!el) return;
+    try {
+      var box = el.getBoundingClientRect();
+      var off = (box.top < 0 || box.bottom > window.innerHeight) && typeof el.scrollIntoView === "function";
+      if (off) el.scrollIntoView({ block: "center", inline: "nearest" });
+    } catch {}
+    select(el, { el: el, kind: kind(el) });
+    try {
+      if (moves(selBox)) animate(selBox, [{ opacity: 0.3 }, { opacity: 1 }], { duration: T.enter, easing: ARRIVE });
+    } catch {}
+    show("changes");
+  }
+
+  /** Every task for the panel, from the live strips and the server queues. */
+  function editsTasks() {
+    var tasks = [];
+    var seenVariation = {};
+    var seenPreview = {};
+    var responsesById = {};
+    (srvVariationResponses || []).forEach(function (response) {
+      if (response && response.requestId) responsesById[response.requestId] = response;
+    });
+    var requestsById = {};
+    (srvVariationRequests || []).forEach(function (request) {
+      if (request && request.id) requestsById[request.id] = request;
+    });
+    // Requested: a variation ask with no answer.
+    if (variationId) {
+      seenVariation[variationId] = true;
+      tasks.push({
+        state: "requested", el: variationFor || null, label: variationFor ? nameOf(variationFor) : "Element",
+        origin: "Comment", detail: variationPrompt || "Variants requested", kind: "variation", requestId: variationId,
+      });
+    }
+    (srvVariationRequests || []).forEach(function (request) {
+      if (!request || request.status !== "pending" || seenVariation[request.id] || responsesById[request.id]) return;
+      seenVariation[request.id] = true;
+      var el = previewQuery(request.selector);
+      tasks.push({
+        state: "requested", el: el || null, label: el ? nameOf(el) : request.selector || "Element",
+        origin: "Comment", detail: request.prompt || "Variants requested", kind: "variation", requestId: request.id,
+      });
+    });
+    // Requested: a preview ask with no paint.
+    if (previewReqId) {
+      seenPreview[previewReqId] = true;
+      tasks.push({
+        state: "requested", el: previewReqFor || null, label: previewReqFor ? nameOf(previewReqFor) : "Element",
+        origin: "Comment", detail: previewReqInstruction || "Preview requested", kind: "preview", requestId: previewReqId,
+      });
+    }
+    (srvPreviewRequests || []).forEach(function (request) {
+      if (!request || request.status !== "pending" || seenPreview[request.id]) return;
+      seenPreview[request.id] = true;
+      var el = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
+      tasks.push({
+        state: "requested", el: el || null, label: el ? nameOf(el) : (request.element && request.element.selector) || "Element",
+        origin: "Comment", detail: request.instruction || "Preview requested", kind: "preview", requestId: request.id,
+      });
+    });
+    // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
+    if (variantList && variantList.length && variationFor) {
+      tasks.push({
+        state: "exploring", el: variationFor, label: nameOf(variationFor), origin: "Comment",
+        detail: variantList.length + (variantList.length === 1 ? " variant" : " variants") + " ready", kind: "live-variants",
+      });
+    } else {
+      (srvVariationResponses || []).forEach(function (response) {
+        if (!response || !response.requestId || !Array.isArray(response.variations) || !response.variations.length) return;
+        var request = requestsById[response.requestId];
+        if (!request) return;
+        if (request.status === "cancelled") return;
+        var el = previewQuery(request.selector);
+        if (variantList && variantList.length && el === variationFor) return;
+        tasks.push({
+          state: "exploring", el: el || null, label: el ? nameOf(el) : request.selector || "Element", origin: "Comment",
+          detail: response.variations.length + (response.variations.length === 1 ? " variant" : " variants") + " ready" + (request.prompt ? " · " + request.prompt : ""),
+          kind: "server-variants", requestId: response.requestId, list: response.variations,
+        });
+      });
+    }
+    // Previewing: what is painted now, or waiting in a list.
+    if (previewCurrent) {
+      var el = previewTarget || previewQuery(previewCurrent.selector);
+      tasks.push({
+        state: "previewing", el: el || null, label: el ? nameOf(el) : previewWhere(previewCurrent),
+        origin: previewOrigin === "comment" ? "Comment" : "Agent", detail: previewCurrent.instruction || "Preview",
+        kind: "preview-current", previewId: previewCurrent.id,
+      });
+    } else {
+      (previewList || []).forEach(function (item) {
+        if (!item) return;
+        var target = previewTargets(item)[0];
+        var el = target && target.selector ? previewQuery(target.selector) : target && target.anchor ? previewQuery(target.anchor) : null;
+        tasks.push({
+          state: "previewing", el: el || null, label: item.instruction || "Preview", origin: "Agent",
+          detail: previewWhere(item), kind: "preview-listed", previewId: item.id,
+        });
+      });
+    }
+    // Kept: ordinary edits, minus what is still only previewing or exploring.
+    var kept = report().filter(function (item) {
+      if (item.rec && previewRecords.indexOf(item.rec) !== -1) return false;
+      if (item.rec && variantList && variantList.length && item.rec.el === variationFor) return false;
+      return true;
+    });
+    kept.forEach(function (item) {
+      var origin = "Canvas session";
+      if (item.region) origin = "Canvas session";
+      else if (item.rec && item.rec.origin) origin = item.rec.origin;
+      else if (item.comment) origin = "Comment";
+      var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0) + (item.region ? 1 : 0);
+      tasks.push({
+        state: "kept", el: item.rec ? item.rec.el : null, label: item.label, origin: origin,
+        detail: (n === 1 ? "1 edit" : n + " edits") + (item.comment ? " · " + item.comment : ""),
+        kind: "kept", item: item,
+      });
+    });
+    return tasks;
+  }
+
+  function taskCounts(tasks) {
+    var counts = { all: tasks.length, requested: 0, exploring: 0, previewing: 0, kept: 0 };
+    tasks.forEach(function (task) {
+      if (counts[task.state] !== undefined) counts[task.state] += 1;
+    });
+    return counts;
+  }
+
+  function matchingTasks(tasks) {
+    if (changesFilter === "all") return tasks;
+    return tasks.filter(function (task) { return task.state === changesFilter; });
+  }
+
+  function addTaskActions(card, task) {
+    var row = document.createElement("div");
+    row.className = "task-actions";
+    if (task.el) {
+      var go = button("mini primary", "", "Go to element", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        gotoTask(task);
+      }, "task-go-" + (task.previewId || task.requestId || task.label));
+      go.appendChild(text("Go to element"));
+      row.appendChild(go);
+    }
+    if (task.kind === "kept") {
+      var undo = button("mini", "", "Revert this edit", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        var item = task.item;
+        if (!item) return;
+        if (!item.rec) {
+          for (var r = regions.length - 1; r >= 0; r--) {
+            if (regions[r].mark === item.mark) regions.splice(r, 1);
+          }
+          show("changes");
+          return;
+        }
+        if (item.rec.el === editing) stopEditing();
+        revert(item.rec);
+        if (item.rec.el === selected) {
+          select(null);
+          refit();
+        }
+        show("changes");
+      }, "task-undo-" + (task.item && task.item.mark));
+      undo.appendChild(text("Revert"));
+      row.appendChild(undo);
+    }
+    if (task.state === "requested") {
+      var cancel = button("mini danger", "", "Take back this request", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (task.kind === "variation") cancelVariationId(task.requestId);
+        else if (task.kind === "preview") cancelPreviewId(task.requestId);
+      }, "task-cancel-" + (task.requestId || task.label));
+      cancel.appendChild(text("Cancel"));
+      row.appendChild(cancel);
+    }
+    if (task.kind === "live-variants") {
+      var pick = button("mini", "", "The strip is on the canvas: keys 1 to 9 pick a variant.", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (task.el) gotoTask(task);
+      }, "task-pick-" + task.label);
+      pick.appendChild(text("On canvas"));
+      row.appendChild(pick);
+    }
+    if (task.kind === "server-variants" && task.list) {
+      var open = button("mini", "", "Open these variants on the element", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!task.el) return;
+        variationFor = task.el;
+        variationId = "";
+        showVariants(task.list);
+        gotoTask(task);
+      }, "task-open-" + (task.requestId || task.label));
+      open.appendChild(text("Open variants"));
+      row.appendChild(open);
+    }
+    if (task.kind === "preview-current") {
+      var keepIt = button("mini primary", "", "Keep this preview as an edit", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        keepPreview();
+      }, "task-keep-" + task.previewId);
+      keepIt.appendChild(text("Keep"));
+      row.appendChild(keepIt);
+      var dropIt = button("mini danger", "", "Discard this preview", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        discardPreview();
+      }, "task-drop-" + task.previewId);
+      dropIt.appendChild(text("Discard"));
+      row.appendChild(dropIt);
+    }
+    if (task.kind === "preview-listed") {
+      var keepOne = button("mini", "", "Keep this preview", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        notifyDecidedPreview(task.previewId, true);
+        previewSeen = "";
+        tally();
+      }, "task-keep-" + task.previewId);
+      keepOne.appendChild(text("Keep"));
+      row.appendChild(keepOne);
+      var dropOne = button("mini danger", "", "Discard this preview", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        notifyDecidedPreview(task.previewId, false);
+        previewSeen = "";
+        tally();
+      }, "task-drop-" + task.previewId);
+      dropOne.appendChild(text("Discard"));
+      row.appendChild(dropOne);
+    }
+    if (row.firstChild) card.appendChild(row);
+  }
 
   function listChanges() {
-    var items = report();
-    // The edits panel: its rows and the two buttons under them. They are kept
-    // between redraws, so a change that lands while the panel is open does not
-    // throw away the scroll position, or a word that is still fading in.
+    var tasks = editsTasks();
+    var counts = taskCounts(tasks);
+    var shown = matchingTasks(tasks);
+    // The edits panel: header, filter grid, cards, two buttons under them.
+    // They are kept between redraws, so a change that lands while the panel
+    // is open does not throw away the scroll position. The server queues
+    // refresh in the background, so requested and exploring tasks survive
+    // a reload.
     if (!changesPanel) {
       changesPanel = {};
+      changesPanel.head = document.createElement("div");
+      changesPanel.head.className = "changes-head";
+      var title = document.createElement("p");
+      title.className = "changes-title";
+      title.appendChild(text("Edits"));
+      changesPanel.head.appendChild(title);
+      changesPanel.total = document.createElement("span");
+      changesPanel.total.className = "changes-total";
+      changesPanel.head.appendChild(changesPanel.total);
+      changesPanel.filters = document.createElement("div");
+      changesPanel.filters.className = "changes-filters";
       changesPanel.list = document.createElement("div");
-      changesPanel.list.className = "list";
+      changesPanel.list.className = "changes-list";
       changesPanel.actions = document.createElement("div");
-      changesPanel.actions.className = "bar2";
+      changesPanel.actions.className = "changes-foot";
       var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
         copyText(markdown(report()), function (ok) {
           relabel(changesPanel.copy, ok ? "Copied" : "Copy failed");
@@ -6291,59 +6650,75 @@ function decorations() {
       changesPanel.actions.appendChild(copy);
       changesPanel.actions.appendChild(save);
     }
+    changesPanel.total.textContent = counts.all ? (counts.all === 1 ? "1 task" : counts.all + " tasks") : "";
+    while (changesPanel.filters.firstChild) changesPanel.filters.removeChild(changesPanel.filters.firstChild);
+    [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["previewing", "Previewing"], ["kept", "Kept"]].forEach(function (entry) {
+      var key = entry[0];
+      var btn = button("changes-filter", "", entry[1] + ", " + counts[key] + " tasks", function () {
+        changesFilter = key;
+        show("changes");
+      }, "changes-filter-" + key);
+      btn.setAttribute("aria-pressed", changesFilter === key ? "true" : "false");
+      var num = document.createElement("b");
+      num.appendChild(text(String(counts[key])));
+      btn.appendChild(num);
+      btn.appendChild(text(entry[1]));
+      changesPanel.filters.appendChild(btn);
+    });
     var list = changesPanel.list;
-    // The rows are the edits, and the edits have changed, so the rows are
-    // built again. The scroll position is kept: a change that lands while the
-    // reader is down the list must not throw them back to the top.
     var top = list.scrollTop;
     while (list.firstChild) list.removeChild(list.firstChild);
-    if (!items.length) {
+    if (!shown.length) {
       var empty = document.createElement("p");
       empty.className = "note";
-      empty.appendChild(text("No edits yet. Change something on the page and it is listed here."));
+      if (changesFilter === "all") empty.appendChild(text("No edits yet. Change something on the page and it is listed here."));
+      else empty.appendChild(text("No " + changesFilter + " tasks."));
       list.appendChild(empty);
     }
-    items.forEach(function (item) {
-      var line = document.createElement("div");
-      line.className = "chg";
-      var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0) + (item.region ? 1 : 0);
-      var name = button("opt", "", "Select " + item.label, function () {
-        // A deleted element is off the page, and a box is not an element:
-        // there is nothing to frame or edit.
-        if (item.removed || !item.rec) return;
-        var el = item.rec.el;
-        select(el, { el: el, kind: kind(el) });
-        show("changes");
-      }, "");
-      name.disabled = item.removed || !item.rec;
-      name.appendChild(text(item.mark + " \u00b7 " + item.label + " \u00b7 " + n + (n === 1 ? " edit" : " edits")));
-      var undo = button("ic", svg("undo-2"), "Revert " + item.label, function () {
-        // A drawn box reverts by leaving the canvas.
-        if (!item.rec) {
-          for (var r = regions.length - 1; r >= 0; r--) {
-            if (regions[r].mark === item.mark) regions.splice(r, 1);
-          }
-          show("changes");
-          return;
-        }
-        if (item.rec.el === editing) stopEditing();
-        revert(item.rec);
-        // The row belongs to the selected element, and its controls went with it.
-        if (item.rec.el === selected) {
-          select(null);
-          refit();
-        }
-        show("changes");
-      }, "");
-      line.appendChild(name);
-      line.appendChild(undo);
-      list.appendChild(line);
+    shown.forEach(function (task) {
+      var card = document.createElement("div");
+      card.className = task.el && task.el === selected ? "task selected" : "task";
+      var head = document.createElement("div");
+      head.className = "task-top";
+      var name = document.createElement("span");
+      name.className = "task-name";
+      name.appendChild(text(task.label));
+      head.appendChild(name);
+      var badge = document.createElement("span");
+      badge.className = "task-badge";
+      badge.setAttribute("data-state", task.state);
+      var words = { requested: "Requested", exploring: "Exploring", previewing: "Previewing", kept: "Kept" };
+      badge.appendChild(text(words[task.state] || task.state));
+      head.appendChild(badge);
+      card.appendChild(head);
+      var meta = document.createElement("div");
+      meta.className = "task-meta";
+      var origin = document.createElement("span");
+      origin.className = "task-origin";
+      origin.appendChild(text(task.origin));
+      meta.appendChild(origin);
+      var detail = document.createElement("span");
+      detail.className = "task-detail";
+      detail.appendChild(text(task.detail));
+      meta.appendChild(detail);
+      card.appendChild(meta);
+      addTaskActions(card, task);
+      if (task.el) {
+        card.addEventListener("click", function (e) {
+          if (e && e.target && e.target.closest && e.target.closest("button")) return;
+          gotoTask(task);
+        });
+      }
+      list.appendChild(card);
     });
     list.scrollTop = top;
-    changesPanel.copy.disabled = !items.length;
-    changesPanel.save.disabled = !items.length;
+    changesPanel.copy.disabled = !report().length;
+    changesPanel.save.disabled = !report().length;
+    pop.appendChild(changesPanel.head);
+    pop.appendChild(changesPanel.filters);
     pop.appendChild(list);
     pop.appendChild(changesPanel.actions);
+    refreshEditsServer();
   }
 
   // The dev server's save endpoint (index.js) and the file it writes.
@@ -6641,6 +7016,7 @@ function decorations() {
   var previewReqRegion = null; // the drawn box the ask is about
   var previewReqInstruction = ""; // the words the ask sent
   var previewWaiting = false; // the box shows the waiting strip
+  var previewOrigin = "agent"; // where the paint on the canvas came from: comment or agent
 
   /** Every element one preview paints: the many-target form, or the old single one. */
   function previewTargets(preview) {
@@ -6673,6 +7049,7 @@ function decorations() {
       previewReqFor = el || null;
       previewReqRegion = region || null;
       previewReqInstruction = instruction;
+      previewOrigin = "comment";
       previewWords = "";
       previewPolls = 0;
       previewSeen = "";
@@ -6710,13 +7087,14 @@ function decorations() {
 
   /** Cancel a waiting ask, on the strip or leaving the mode: no agent answers it late. */
   function cancelPreviewRequest() {
+    var id = previewReqId;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
     previewReqInstruction = "";
     previewWaiting = false;
-    if (typeof window.fetch === "function") {
-      window.fetch(PREVIEW_REQUEST_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    if (id && typeof window.fetch === "function") {
+      window.fetch(PREVIEW_REQUEST_URL + "?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
     }
     resetPreviewBox();
     refit();
@@ -7044,6 +7422,7 @@ function decorations() {
     resetPreviewBox();
     previewRows = [];
     previewCurrent = preview;
+    if (!previewOrigin) previewOrigin = "agent";
     if (!paintPreview(preview)) {
       previewCurrent = null;
       previewSeen = "";
@@ -7067,10 +7446,12 @@ function decorations() {
       resetPreviewBox();
       return;
     }
+    var fromComment = !!previewReqId;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
     previewReqInstruction = "";
+    previewOrigin = fromComment ? "comment" : previewOrigin || "agent";
     if (pending.length === 1) {
       showPreview(pending[0]);
       return;
@@ -7261,6 +7642,10 @@ function decorations() {
   function keepPreview() {
     var preview = previewCurrent;
     var id = preview && preview.id;
+    // The kept edit remembers where it came from, so the Edits panel can
+    // say Agent or Comment on it later.
+    var origin = previewOrigin || "agent";
+    previewRecords.forEach(function (rec) { rec.origin = origin === "comment" ? "Comment" : "Agent"; });
     previewCurrent = null;
     previewRows = [];
     previewKeep = null;
@@ -7303,10 +7688,12 @@ function decorations() {
 
   /** Put the strip away. A pending request is dropped, so no agent answers it late. */
   function closeVariants() {
+    // A kept variation came from the comment box.
+    if (variationFor && variantAt >= 0) record(variationFor).origin = "Comment";
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
     if (variationId && typeof window.fetch === "function") {
-      window.fetch(VARIATIONS_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {
+      window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(variationId), { method: "DELETE", credentials: "same-origin" }).catch(function () {
         // The request outlives the page, and the next one replaces it anyway.
       });
     }
@@ -7454,7 +7841,7 @@ function decorations() {
       var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
       if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, mark: rec.mark });
+      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark });
     });
     var savedRegions = regions.map(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
@@ -7499,6 +7886,7 @@ function decorations() {
         }
         if (edit.added && edit.added.length) rec.added = edit.added.slice();
         if (typeof edit.comment === "string") rec.comment = edit.comment;
+        if (edit.origin) rec.origin = edit.origin;
         if (edit.mark != null) {
           rec.mark = edit.mark;
           if (edit.mark >= markTop) markTop = edit.mark + 1;

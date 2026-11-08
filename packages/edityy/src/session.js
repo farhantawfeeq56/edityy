@@ -82,6 +82,7 @@ function checkEdit(edit, i) {
     added: Array.isArray(edit.added) ? edit.added.slice(0, 100).map((key) => str(key, `edits[${i}].added`, 200)) : [],
     googleFont: str(edit.googleFont, `edits[${i}].googleFont`, 200) || null,
     moved: edit.moved === true,
+    origin: ["Comment", "Agent", "Canvas session"].includes(edit.origin) ? edit.origin : null,
     mark: Math.max(0, count(edit.mark ?? 0, `edits[${i}].mark`, 100000)),
   };
 }

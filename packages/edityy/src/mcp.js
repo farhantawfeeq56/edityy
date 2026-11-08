@@ -303,6 +303,16 @@ export async function handle(message, root) {
               ],
             });
           }
+          if (request.status === "answered") {
+            return reply({
+              content: [
+                {
+                  type: "text",
+                  text: `Variation request ${request.id} was already answered. Read the answer with get_variation_request on the next ask, or bring the strip back in the browser with Open variants.`,
+                },
+              ],
+            });
+          }
           return reply({ content: [{ type: "text", text: requestText(request) }] });
         }
         if (params?.name === "get_preview_request") {

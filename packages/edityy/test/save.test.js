@@ -272,8 +272,8 @@ test("the variation endpoint takes a request, reports the wait, then the answer"
   const posted = await send(root, variationRequest("POST", JSON.stringify(variation), { origin: "http://localhost:3000" }));
   assert.deepEqual(posted, { status: 200, body: { ok: true, requestId: variation.id } });
   const stored = JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8"));
-  assert.equal(stored.prompt, "thinner and darker scrollbar");
-  assert.deepEqual(stored.element, variation.element);
+  assert.equal(stored[0].prompt, "thinner and darker scrollbar");
+  assert.deepEqual(stored[0].element, variation.element);
 
   const pending = await send(root, variationRequest("GET"));
   assert.deepEqual(pending, { status: 200, body: { ok: true, pending: true } });
@@ -288,7 +288,7 @@ test("the variation endpoint takes a request, reports the wait, then the answer"
   assert.deepEqual(cleared, { status: 200, body: { ok: true } });
   // The request is kept, marked as taken back, so the agent can tell a
   // withdrawal from a request that was never made.
-  assert.equal(JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8")).status, "cancelled");
+  assert.equal(JSON.parse(readFileSync(join(root, VARIATION_REQUEST_FILE), "utf8"))[0].status, "cancelled");
   assert.equal(existsSync(join(root, ".edityy/variation-response.json")), false);
 });
 

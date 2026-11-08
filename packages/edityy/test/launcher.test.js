@@ -1652,16 +1652,19 @@ test("the edits list names each element, and reverts one without the others", ()
 
   const open = openEdits(app);
   assert.equal(app.root.nodes.review.getAttribute("aria-expanded"), "true");
-  const lines = open.children[0].children;
+  const lines = open.children[2].children;
   assert.equal(lines.length, 2);
-  assert.match(shown(lines[0].children[0]), /1 · p “hello” · 1 edit$/);
-  assert.match(shown(lines[1].children[0]), /2 · h2 “second” · 1 edit$/);
+  assert.match(shown(lines[0]), /p “hello”/);
+  assert.match(shown(lines[1]), /h2 “second”/);
+  assert.match(shown(lines[0]), /Kept/);
+  assert.match(shown(lines[0]), /1 edit/);
 
-  const undo = lines[0].children[1];
+  const actions = lines[0].children.find((c) => c.className === "task-actions");
+  const undo = actions.children.find((b) => shown(b).includes("Revert"));
   quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
   assert.doesNotMatch(app.win.__edityy_changes(), /first note/, "the first comment is gone");
   assert.match(app.win.__edityy_changes(), /second note/, "the second is untouched");
-  assert.equal(app.root.nodes.pop.children[0].children.length, 1, "and the list redrew");
+  assert.equal(app.root.nodes.pop.children[2].children.length, 1, "and the list redrew");
   assert.equal(app.root.nodes.count.textContent, "1");
 });
 
@@ -1688,8 +1691,8 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   const app = run();
   selectText(app);
   const open = openEdits(app);
-  assert.match(shown(open.children[0]), /No edits yet/);
-  assert.equal(open.children[1].children[0].disabled, true);
+  assert.match(shown(open.children[2]), /No edits yet/);
+  assert.equal(open.children[3].children[0].disabled, true);
 });
 
 /** Press a key with modifiers; returns whether the payload took it. */
@@ -2024,6 +2027,7 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   app.win.fetch = async (url, init) => {
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
     if (url === "/__edityy/preview-request") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
+    if (String(url).startsWith("/__edityy/variations")) return { status: 200, json: async () => ({ ok: true, requests: [], responses: [] }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
     sent.push({ url, init });
     return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
@@ -2032,7 +2036,7 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   commentOn(app, p, "make it warmer");
   await tick();
   const open = openEdits(app);
-  const save = open.children[1].children[1];
+  const save = open.children[3].children[1];
   assert.equal(save.dataset.key, "save");
   for (const fn of save.bubbles.click.bubble) fn({});
   await tick();

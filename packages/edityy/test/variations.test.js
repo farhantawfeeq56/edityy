@@ -234,7 +234,7 @@ test("a request the user took back is kept, and no answer goes to it", async () 
   assert.equal((await readVariationRequest(root)).id, "v456def");
 });
 
-test("an answer without a request is refused, and a new request drops the old answer", async () => {
+test("an answer without a request is refused, and a new request keeps the old answer", async () => {
   const root = tmp();
   await assert.rejects(
     placeVariations(answer([{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }]), root),
@@ -242,8 +242,10 @@ test("an answer without a request is refused, and a new request drops the old an
   );
   await writeVariationRequest(request, root);
   await placeVariations(answer([{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }]), root);
+  // Several asks can wait at once: the old answer stays for its own ask.
   await writeVariationRequest({ ...request, id: "v456def" }, root);
-  assert.equal(await readVariationResponse("v123abc", root), null, "the old answer is gone");
+  assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2, "the old answer is still there");
+  assert.equal((await readVariationRequest(root)).id, "v456def", "the agent reads the oldest one still waiting");
 });
 
 test("an answer is the number of variations the user asked for", () => {

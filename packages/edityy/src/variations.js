@@ -16,8 +16,8 @@ export const VARIATIONS_PATH = "/__edityy/variations";
 export const VARIATION_REQUEST_FILE = ".edityy/variation-request.json";
 const VARIATION_RESPONSE_FILE = ".edityy/variation-response.json";
 const ID = /^[\w-]{1,80}$/;
-/** A request is waiting for an answer, or the user took it back. */
-const STATUS = ["pending", "cancelled"];
+/** A request is waiting for an answer, withdrawn, or answered. */
+const STATUS = ["pending", "cancelled", "answered"];
 /** Any property name, incl. custom props. */
 const PROPERTY = /^(--[-_a-zA-Z0-9]+|-?[a-z][a-z0-9-]{0,99})$/;
 const STRICT_PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
@@ -160,29 +160,81 @@ export async function writeVariationRequest(request, root = process.cwd()) {
   const checked = checkVariationRequest(request);
   // The page can only make a request that waits for an answer.
   checked.status = "pending";
-  await store(root, VARIATION_REQUEST_FILE, checked);
-  await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
+  const items = await readVariationRequests(root);
+  const at = items.findIndex((entry) => entry.id === checked.id);
+  if (at >= 0) items[at] = checked;
+  else items.push(checked);
+  await store(root, VARIATION_REQUEST_FILE, items);
   return checked;
 }
 
+/** Every request on file, oldest first. A legacy single object reads as one. */
+export async function readVariationRequests(root = process.cwd()) {
+  const saved = await readJson(join(root, VARIATION_REQUEST_FILE), null);
+  if (!saved) return [];
+  const rows = Array.isArray(saved) ? saved : [saved];
+  const out = [];
+  for (const row of rows) {
+    try {
+      out.push(checkVariationRequest(row));
+    } catch {
+      // a row that is not a request is not worth keeping
+    }
+  }
+  return out;
+}
+
 export async function readVariationRequest(root = process.cwd()) {
-  const request = await readJson(join(root, VARIATION_REQUEST_FILE), null);
-  return request ? checkVariationRequest(request) : null;
+  const items = await readVariationRequests(root);
+  if (!items.length) return null;
+  // The agent reads the oldest one still waiting. When none waits, the
+  // newest one on file says whether the last ask was withdrawn.
+  return items.find((entry) => entry.status === "pending") || items[items.length - 1];
 }
 
 export async function placeVariations(response, root = process.cwd()) {
-  const request = await readVariationRequest(root);
+  const requestId = response?.requestId;
+  const items = await readVariationRequests(root);
+  const request = items.find((entry) => entry.id === requestId) || (items.length === 1 ? items[0] : null);
   if (!request) throw new Error("There is no pending variation request.");
   if (request.status === "cancelled") throw new Error("The user withdrew the request. Do not answer it.");
   const checked = checkVariations(response, request.id, request.count);
-  await store(root, VARIATION_RESPONSE_FILE, checked);
+  const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
+  const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
+  const at = rows.findIndex((entry) => entry?.requestId === checked.requestId);
+  if (at >= 0) rows[at] = checked;
+  else rows.push(checked);
+  await store(root, VARIATION_RESPONSE_FILE, rows);
+  // The ask waits no more: the agent reads the next one still waiting.
+  // The response stays on file, so the panel still shows it as ready.
+  const requests = await readVariationRequests(root);
+  const own = requests.find((entry) => entry.id === checked.requestId);
+  if (own) await store(root, VARIATION_REQUEST_FILE, requests.map((entry) => (entry.id === checked.requestId ? { ...entry, status: "answered" } : entry)));
   return checked;
 }
 
 export async function readVariationResponse(id, root = process.cwd()) {
-  const response = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
-  if (!response || response.requestId !== id) return null;
+  if (typeof id !== "string" || !ID.test(id)) return null;
+  const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
+  const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
+  const response = rows.find((entry) => entry?.requestId === id);
+  if (!response) return null;
   return checkVariations(response, id);
+}
+
+/** Every response on file, keyed by its request id. */
+export async function readVariationResponses(root = process.cwd()) {
+  const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
+  const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
+  const out = [];
+  for (const row of rows) {
+    try {
+      if (row?.requestId) out.push(checkVariations(row, row.requestId));
+    } catch {
+      // a row that is not a response is not worth keeping
+    }
+  }
+  return out;
 }
 
 /**
@@ -191,17 +243,38 @@ export async function readVariationResponse(id, root = process.cwd()) {
  * The request is kept, marked as cancelled, and the answer to it is dropped.
  * The agent can then tell a withdrawal from a request that was never made.
  */
-export async function clearVariations(root = process.cwd()) {
-  const path = join(root, VARIATION_REQUEST_FILE);
-  let request = null;
-  try {
-    request = checkVariationRequest(JSON.parse(await readFile(path, "utf8")));
-  } catch {
-    request = null; // a file that is not a request is not worth keeping
+export async function clearVariations(root = process.cwd(), id = null) {
+  const items = await readVariationRequests(root);
+  if (!items.length) {
+    await rm(join(root, VARIATION_REQUEST_FILE), { force: true });
+    await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
+    return;
   }
-  if (request) await store(root, VARIATION_REQUEST_FILE, { ...request, status: "cancelled" });
-  else await rm(path, { force: true });
-  await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
+  let touched = false;
+  items.forEach((entry) => {
+    if ((id === null && entry.status === "pending") || (id !== null && entry.id === id && entry.status !== "cancelled")) {
+      entry.status = "cancelled";
+      touched = true;
+    }
+  });
+  // With no id and nothing still waiting, the last ask on file is the one
+  // withdrawn: the agent can then tell a withdrawal from a request that
+  // was never made or was answered.
+  if (id === null && !items.some((entry) => entry.status === "pending")) {
+    const last = items[items.length - 1];
+    if (last && last.status !== "cancelled") {
+      last.status = "cancelled";
+      touched = true;
+    }
+  }
+  if (items.length || touched) await store(root, VARIATION_REQUEST_FILE, items);
+  if (id) {
+    const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
+    const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
+    await store(root, VARIATION_RESPONSE_FILE, rows.filter((entry) => entry?.requestId !== id));
+  } else {
+    await rm(join(root, VARIATION_RESPONSE_FILE), { force: true });
+  }
 }
 
 

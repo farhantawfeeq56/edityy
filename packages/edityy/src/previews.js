@@ -218,13 +218,16 @@ export async function readPreview(id, root = process.cwd()) {
   return item ?? null;
 }
 
-/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers a pending comment-box request, when there is one. */
+/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the oldest pending comment-box request, when there is one. */
 export async function placePreview(placed, root = process.cwd()) {
   const checked = checkPreview(placed);
   // A request the user withdrew is not answered: the page already took the
   // waiting strip away, and a late paint would fight the next request.
-  const waiting = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
-  if (waiting && waiting.status === "cancelled") {
+  // A withdrawn request is skipped: with several asks on file, each one is
+  // independent and the oldest still waiting is the one answered.
+  const queue = await readPreviewRequests(root);
+  const waiting = queue.find((entry) => entry.status === "pending") || null;
+  if (!waiting && queue.some((entry) => entry.status === "cancelled")) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
   const id = newPreviewId();
@@ -237,10 +240,13 @@ export async function placePreview(placed, root = process.cwd()) {
   // The comment-box request it answered waits no more: it stays on file as
   // answered, so the agent never paints the same ask twice. A chat-initiated
   // preview with no request file simply has nothing to answer.
-  if (waiting && waiting.status === "pending") {
+  if (waiting) {
     waiting.status = "answered";
     waiting.previewId = id;
-    await store(root, PREVIEW_REQUEST_FILE, waiting);
+    const queue = await readPreviewRequests(root);
+    const at = queue.findIndex((entry) => entry.id === waiting.id);
+    if (at >= 0) queue[at] = waiting;
+    await store(root, PREVIEW_REQUEST_FILE, queue);
   }
   return preview;
 }
@@ -360,26 +366,66 @@ export function checkPreviewRequest(request) {
   return out;
 }
 
-/** The page writes a preview request; it waits for place_preview. */
+/** The page writes a preview request; it waits for place_preview. Several can wait at once. */
 export async function writePreviewRequest(request, root = process.cwd()) {
   const checked = checkPreviewRequest(request);
   checked.status = "pending";
-  await store(root, PREVIEW_REQUEST_FILE, checked);
+  const items = await readPreviewRequests(root);
+  const at = items.findIndex((entry) => entry.id === checked.id);
+  if (at >= 0) items[at] = checked;
+  else items.push(checked);
+  await store(root, PREVIEW_REQUEST_FILE, items);
   return checked;
+}
+
+/** Every preview request on file, oldest first. A legacy single object reads as one. */
+export async function readPreviewRequests(root = process.cwd()) {
+  const saved = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
+  if (!saved) return [];
+  const rows = Array.isArray(saved) ? saved : [saved];
+  const out = [];
+  for (const row of rows) {
+    try {
+      out.push(checkPreviewRequest(row));
+    } catch {
+      // a row that is not a request is not worth keeping
+    }
+  }
+  return out;
 }
 
 /** The request as the agent reads it, or null when there is none. */
 export async function readPreviewRequest(root = process.cwd()) {
-  const request = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
-  return request ? checkPreviewRequest(request) : null;
+  const items = await readPreviewRequests(root);
+  if (!items.length) return null;
+  // The agent reads the oldest one still waiting. When none waits, the
+  // newest one on file says whether the last ask was withdrawn or answered.
+  return items.find((entry) => entry.status === "pending") || items[items.length - 1];
 }
 
-/** The user withdrew a pending request, so no agent answers it late. */
-export async function clearPreviewRequest(root = process.cwd()) {
-  const request = await readJson(join(root, PREVIEW_REQUEST_FILE), null);
-  if (!request) return;
-  request.status = "cancelled";
-  await store(root, PREVIEW_REQUEST_FILE, request);
+/** The user withdrew a pending request, with one id or all of them, so no agent answers it late. */
+export async function clearPreviewRequest(root = process.cwd(), id = null) {
+  const items = await readPreviewRequests(root);
+  if (!items.length) return;
+  let touched = false;
+  items.forEach((entry) => {
+    if ((id === null && entry.status === "pending") || (id !== null && entry.id === id && entry.status !== "cancelled")) {
+      entry.status = "cancelled";
+      touched = true;
+    }
+  });
+  // With no id and nothing still waiting, the last ask on file is the one
+  // withdrawn: the agent can then tell a withdrawal from a request that
+  // was never made or was answered. Without that, a queue that only holds
+  // answered requests would look like no request at all.
+  if (id === null && !items.some((entry) => entry.status === "pending")) {
+    const last = items[items.length - 1];
+    if (last && last.status !== "cancelled") {
+      last.status = "cancelled";
+      touched = true;
+    }
+  }
+  if (touched) await store(root, PREVIEW_REQUEST_FILE, items);
 }
 
 /** One preview request as text for the agent: what to paint on the canvas. */
