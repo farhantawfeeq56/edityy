@@ -1085,6 +1085,39 @@ test("a comment is written on the element and reaches the agent's Markdown", () 
 });
 
 
+test("the comment box stands below its element", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const menu = app.root.nodes["element-menu"];
+  p.getBoundingClientRect = () => ({ left: 100, top: 700, right: 200, bottom: 740, width: 100, height: 40 });
+  app.scroll();
+  assert.equal(menu.hidden, false, "the box stays open");
+  assert.equal(menu.style.left, "100px", "the box aligns with the element left");
+  // The box stands below the element, never above it.
+  assert.equal(menu.style.top, "518px", "the box stands below, clamped above the dock");
+});
+
+test("the comment box scrolls away with its element", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const menu = app.root.nodes["element-menu"];
+  const inMenu = (label) => {
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
+  assert.equal(inMenu("Comment") !== undefined, true, "the box is open");
+  p.getBoundingClientRect = () => ({ left: 10, top: -180, right: 110, bottom: -140, width: 100, height: 40 });
+  app.scroll();
+  assert.equal(menu.hidden, true, "the box scrolls away with its element");
+  inMenu("Comment").value = "half written";
+  p.getBoundingClientRect = () => ({ left: 10, top: 100, right: 110, bottom: 140, width: 100, height: 40 });
+  app.scroll();
+  assert.equal(menu.hidden, false, "the box returns with its element");
+  assert.equal(inMenu("Comment").value, "half written", "the scroll keeps the words");
+});
+
 test("selecting something else stops the active text edit", () => {
   const { run } = fakeDom();
   const app = run();

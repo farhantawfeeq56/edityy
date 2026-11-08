@@ -1787,9 +1787,17 @@
     }
   }
 
-  /** The menu is placed at a viewport box: under it where the page has room,
-   * over it where it does not, and never past the viewport edge. */
+  // The comment card stands in one place: below its element, at the
+  // element's left, and never above it. A card whose element scrolled
+  // outside the viewport scrolls away: it is put away, and it returns
+  // when the element returns. Other cards stand above or below, as room
+  // allows, and never past the viewport edge.
   function placeAtRect(rect) {
+    var isCommentCard = elementMenu.querySelectorAll(".element-comment").length > 0;
+    if (isCommentCard && rect && (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth)) {
+      hideMenu();
+      return;
+    }
     var appearing = elementMenu.hidden;
     showMenu();
     // The layout box keeps its full size under a scale: place by the size
@@ -1806,8 +1814,15 @@
     if (dockBox && dockBox.width && left < dockBox.right && left + width > dockBox.left) {
       floor = Math.min(floor, dockBox.top - 8);
     }
-    var below = rect.bottom + 8 + height <= floor;
-    var top = below ? rect.bottom + 8 : rect.top - height - 8;
+    var below;
+    var top;
+    if (isCommentCard) {
+      below = true;
+      top = rect.bottom + 8;
+    } else {
+      below = rect.bottom + 8 + height <= floor;
+      top = below ? rect.bottom + 8 : rect.top - height - 8;
+    }
     elementMenu.style.left = left + "px";
     elementMenu.style.top = Math.max(12, Math.min(top, floor - height)) + "px";
     // It comes out of the element: down from it when it is below, up from it
@@ -7340,7 +7355,9 @@ function decorations() {
       regionBox.hidden = false;
     }
     paintMarks();
-    if (!elementMenu.hidden && !moving) syncElementMenu();
+    // A comment card put away by the scroll comes back when its element
+    // comes back, so a hidden card is synced too.
+    if ((!elementMenu.hidden || commentFor || regionFor || openComment) && !moving) syncElementMenu();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
