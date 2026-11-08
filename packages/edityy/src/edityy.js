@@ -340,7 +340,7 @@
     // edit is, never in its way. Five pixels is the check mark's radius.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
     ".marks .mark{position:absolute;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;",
-    "border-radius:5px;background:var(--accent-soft);color:var(--ink);font:600 12px/20px inherit;pointer-events:none;",
+    "border-radius:5px;background:var(--accent);color:var(--paper);font:600 12px/20px inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:inset 0 0 0 1px var(--rose),0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
