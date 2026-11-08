@@ -280,7 +280,10 @@
     "#dock:hover .grip,.grip:focus-visible{width:30px;opacity:1;pointer-events:auto}",
     ".grip:active{cursor:grabbing}",
     ".grip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
-    ".grip>svg{width:16px;height:16px;display:block;color:inherit}",
+    ".grip>svg{width:16px;height:16px;display:block;color:inherit;transition:transform var(--slide) var(--arrive)}",
+    // The grip's dots read across a horizontal bar; on a vertical bar they
+    // turn with the bar, so the handle still reads as a handle.
+    "#dock[data-orient=vertical] .grip>svg{transform:rotate(90deg)}",
     // A solid white surface. Depth comes from the shadow, not an edge: the
     // hairline it used to carry made it read as a card laid on the page.
     // A row wider than the viewport wraps onto a second line, so every control
@@ -846,16 +849,17 @@
     // sees where it will land before letting go. The nearest one fills as the
     // pointer comes close, and the dot itself docks on a click.
     "#docks{position:fixed;inset:0;z-index:2;pointer-events:none;transition:background-color var(--fade) var(--arrive)}",
-    // While the bar is dragged the page dims a little: dotted places read on
-    // a light page only once the page stands back, and the dim is the first
-    // thing to go on release.
-    "#docks.docks-drag{background:rgba(18,18,18,.16)}",
+    // While the bar is dragged the page dims: dotted places read on a light
+    // page only once the page stands back, and the dim is the first thing to
+    // go on release.
+    "#docks.docks-drag{background:rgba(18,18,18,.32)}",
     "#docks.docks-drag .dock-spot{border-color:var(--ink-40)}",
-    "#docks.docks-drag .dock-spot.hot{background:var(--ink-15)}",
-    ".dock-spot{position:absolute;width:18px;height:18px;border:1.5px dashed var(--ink-25);border-radius:999px;background:transparent;padding:0;margin:0;cursor:pointer;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.7);transition:opacity var(--tint) var(--standard),transform var(--slide) var(--arrive),background-color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
-    "#docks.docks-on .dock-spot{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}",
+    // The dotted places are the toolbar's own size where it would land: a
+    // dashed line in the bar's shape, so the reader sees the exact place.
+    ".dock-spot{position:absolute;border:1.5px dashed var(--ink-40);border-radius:10px;background:rgba(255,255,255,.05);padding:0;margin:0;cursor:pointer;opacity:0;pointer-events:none;transition:opacity var(--tint) var(--standard),background-color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    "#docks.docks-on .dock-spot{opacity:1;pointer-events:auto}",
     ".dock-spot:hover{border-color:var(--ink-40)}",
-    ".dock-spot.hot{background:var(--ink-12);border-color:var(--ink-40)}",
+    ".dock-spot.hot{background:rgba(255,255,255,.22);border-color:var(--ink-40)}",
     ".dock-spot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     // Docked at the middle edges the bar stands vertical, with the grip at
     // the bottom: the row runs top to bottom, the grip closes the bar, and
@@ -3165,8 +3169,10 @@ function faces() {
     for (i = 0; i < dockSpots.length; i++) {
       var el = dockSpots[i];
       var rect = spotRect(el.getAttribute("data-spot"));
-      el.style.left = rect.left + rect.width / 2 + "px";
-      el.style.top = rect.top + rect.height / 2 + "px";
+      el.style.left = rect.left + "px";
+      el.style.top = rect.top + "px";
+      el.style.width = rect.width + "px";
+      el.style.height = rect.height + "px";
       el.className = el.getAttribute("data-spot") === hot ? "dock-spot hot" : "dock-spot";
     }
   }
