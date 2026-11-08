@@ -341,8 +341,8 @@
     // own content: centred content gets a centred mark, content near one
     // edge gets a mark near that edge, a little in from the corner.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
-    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:15px;height:15px;padding:0 3px;",
-    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 9px/15px inherit;pointer-events:none;",
+    ".marks .mark{position:absolute;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;",
+    "border-radius:4px;background:#f6e8b0;color:#1a1915;border:1px solid var(--brand);font:600 7px/15px inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
@@ -7664,6 +7664,14 @@ function decorations() {
 
   /** Escape backs out one level: the open control first, then the mode. */
   function onKey(e) {
+    // Escape in the comment field cancels the box alone, the way Cancel
+    // does: this listener runs in the capture phase, before the field's
+    // own handler, so it must step aside here or the whole mode goes.
+    if (e.key === "Escape" && openComment && e.composedPath) {
+      var path = e.composedPath();
+      var at = path && path[0];
+      if (at && at.tagName === "TEXTAREA" && path.indexOf(openComment) !== -1) return;
+    }
     var field = e.target;
     var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
     if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
