@@ -16,8 +16,10 @@
  *    actions open where it stands.
  *
  * Selecting an element opens its actions in a card at the element — Edit text,
- * Move, Parent, Child and Delete — and the style dock, fixed at the bottom
- * centre. An open control comes out over the dock. Text becomes editable only
+ * Move, Parent, Child and Delete — and the style dock, which drags anywhere
+ * and settles in one of eight places: the three across the top and bottom
+ * hold it horizontal, the middle edges vertical. An open control comes out
+ * toward the open page, over the dock. Text becomes editable only
  * after the user chooses Edit text; the control row changes styles and starts
  * with Text and Container options. A selected element also has type controls
  * and a `+` to add controls — shadow, fill, border, padding or margin.
@@ -520,6 +522,14 @@
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
     "@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:none}}",
+    // The panel opens toward the room the dock has: below a top edge, above a
+    // bottom one, and off the side of a middle one. Side panels rise toward
+    // the dock instead of up, so their arrival is a fade, not a slide.
+    ".pop[data-side=below]{bottom:auto;top:calc(100% + 8px)}",
+    ".pop[data-side=right]{bottom:auto;top:0;left:calc(100% + 8px);max-block-size:calc(100vh - 24px)}",
+    ".pop[data-side=left]{bottom:auto;top:0;left:auto;right:calc(100% + 8px);max-block-size:calc(100vh - 24px)}",
+    ".pop[data-side=left],.pop[data-side=right]{animation-name:popInX}",
+    "@keyframes popInX{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}",
     // Two things in one panel stand a gap apart. A chip draws its own hairline,
     // so chips that touch read as one badly drawn box; the room between them is
     // the panel's, and it comes from the stack rather than from every control.
@@ -831,6 +841,25 @@
     // exactly what the bar takes, in the same beat, and the tools stand still.
     "#dock[data-placed]{transition:margin-left var(--slide) var(--arrive)}",
     "#dock[data-placed]:hover,#dock[data-placed]:has(.grip:focus-visible){margin-left:-24px}",
+    // The eight preferred places a dragged toolbar can settle: dotted markers
+    // at the edges, shown while the bar is dragged or hovered, so the reader
+    // sees where it will land before letting go. The nearest one fills as the
+    // pointer comes close, and the dot itself docks on a click.
+    "#docks{position:fixed;inset:0;z-index:2;pointer-events:none}",
+    ".dock-spot{position:absolute;width:18px;height:18px;border:1.5px dashed var(--ink-25);border-radius:999px;background:transparent;padding:0;margin:0;cursor:pointer;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.7);transition:opacity var(--tint) var(--standard),transform var(--slide) var(--arrive),background-color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    "#docks.docks-on .dock-spot{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}",
+    ".dock-spot:hover{border-color:var(--ink-40)}",
+    ".dock-spot.hot{background:var(--ink-12);border-color:var(--ink-40)}",
+    ".dock-spot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
+    // Docked at the middle edges the bar stands vertical: the row runs top to
+    // bottom, the grip sits on top, and the hover room moves with it.
+    "#dock[data-orient=vertical] .bar{flex-direction:column}",
+    "#dock[data-orient=vertical] .row{flex-direction:column;flex-wrap:nowrap}",
+    "#dock[data-orient=vertical] .grip{left:0;right:0;top:0;bottom:auto;width:auto;height:0;border-radius:10px 10px 0 0}",
+    "#dock[data-orient=vertical]:hover .grip,#dock[data-orient=vertical] .grip:focus-visible{width:auto;height:30px}",
+    "#dock[data-orient=vertical]:hover .bar,#dock[data-orient=vertical]:has(.grip:focus-visible) .bar{padding-left:0;padding-top:24px}",
+    "#dock[data-orient=vertical][data-placed]{transition:margin-top var(--slide) var(--arrive)}",
+    "#dock[data-orient=vertical][data-placed]:hover,#dock[data-orient=vertical][data-placed]:has(.grip:focus-visible){margin-left:0;margin-top:-24px}",
     // Every button carries its label for the keyboard; the row reads as icons,
     // so the text stays hidden and the drawn tooltip does the talking.
     ".lbl{display:none}",
@@ -927,6 +956,16 @@
     '<div class="insert" id="insert" aria-hidden="true">',
     svg("plus"),
     "</div>",
+    '<div id="docks">',
+    '<button type="button" class="dock-spot" data-spot="top-left" aria-label="Dock toolbar at the top left"></button>',
+    '<button type="button" class="dock-spot" data-spot="top-center" aria-label="Dock toolbar at the top centre"></button>',
+    '<button type="button" class="dock-spot" data-spot="top-right" aria-label="Dock toolbar at the top right"></button>',
+    '<button type="button" class="dock-spot" data-spot="middle-left" aria-label="Dock toolbar at the left edge"></button>',
+    '<button type="button" class="dock-spot" data-spot="middle-right" aria-label="Dock toolbar at the right edge"></button>',
+    '<button type="button" class="dock-spot" data-spot="bottom-left" aria-label="Dock toolbar at the bottom left"></button>',
+    '<button type="button" class="dock-spot" data-spot="bottom-center" aria-label="Dock toolbar at the bottom centre"></button>',
+    '<button type="button" class="dock-spot" data-spot="bottom-right" aria-label="Dock toolbar at the bottom right"></button>',
+    "</div>",
     "<div id=\"dock\" hidden>",
     '<button type="button" class="dock-close" id="dock-close" aria-label="Close editing">' +
     svg("x") +
@@ -974,6 +1013,8 @@
   // the controls stagger in on entry, and nowhere else.
   var entering = false;
   var pop = $("pop");
+  var docks = $("docks");
+  var dockSpots = docks ? docks.querySelectorAll(".dock-spot") : [];
   var review = $("review");
   var marksBox = $("marks");
   var regionBox = $("region");
@@ -991,6 +1032,17 @@
   var REPLACED_HOLD = 2400;
   // The control that is open, "" for none.
   var openKey = "";
+  // Where the toolbar settled: null while it stands free, one of the eight
+  // preferred places once it snaps. Kept while the dock is away, so the bar
+  // stands back up in its place on the way in.
+  var dockSnap = null;
+  var SPOTS = ["top-left", "top-center", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-center", "bottom-right"];
+  // How far the pointer can be from a place for that place to fill and take
+  // the bar on release.
+  var SPOT_NEAR = 140;
+  // The dock's own size in its horizontal posture, kept while it is away: a
+  // hidden dock measures nothing, and the way back in still needs its size.
+  var dockSize = { w: 0, h: 0 };
   // The panel's own fade, while it is on its way out.
   var popLeaving = null;
   // The dock's own fade, and the element card's.
@@ -2800,9 +2852,13 @@ function faces() {
    * changes under it.
    */
   function enterPop() {
+    // A side panel arrives toward the dock, not up from below.
+    var sideways = pop.dataset.side === "left" || pop.dataset.side === "right";
     animate(
       pop,
-      [{ opacity: 0, transform: "translateY(6px) scale(.95)" }, { opacity: 1, transform: "none" }],
+      sideways
+        ? [{ opacity: 0, transform: "scale(.95)" }, { opacity: 1, transform: "none" }]
+        : [{ opacity: 0, transform: "translateY(6px) scale(.95)" }, { opacity: 1, transform: "none" }],
       { duration: T.enter, easing: ARRIVE }
     );
   }
@@ -2814,6 +2870,22 @@ function faces() {
    * right corner. Any other control puts the centre of the dock on the centre
    * of the control. Measured, because the panel is as wide as its own content.
    */
+  /**
+   * The side the panel opens on. A settled bar opens toward the room it
+   * has: a top edge opens down, a bottom edge up, a middle edge out to the
+   * page. A free bar opens up, unless there is no room above and more below.
+   */
+  function popSide(dockBox, panelHeight) {
+    if (dockSnap === "top-left" || dockSnap === "top-center" || dockSnap === "top-right") return "below";
+    if (dockSnap === "bottom-left" || dockSnap === "bottom-center" || dockSnap === "bottom-right") return "above";
+    if (dockSnap === "middle-left") return "right";
+    if (dockSnap === "middle-right") return "left";
+    var above = dockBox.top;
+    var below = (window.innerHeight || 0) - dockBox.bottom;
+    if (above < panelHeight + 8 && below > above) return "below";
+    return "above";
+  }
+
   function placePop(key) {
     if (!pop.hidden) pop.style.left = "0px";
     if (pop.hidden || !key) return;
@@ -2822,6 +2894,9 @@ function faces() {
     var dockBox = dock.getBoundingClientRect();
     var box = target.getBoundingClientRect();
     var width = pop.offsetWidth || 0;
+    var height = pop.offsetHeight || 0;
+    var side = popSide(dockBox, height);
+    pop.dataset.side = side;
     var items = row.children;
     var left = box.left - dockBox.left + box.width / 2 - width / 2;
     if (target === items[0]) left = 0;
@@ -2829,9 +2904,33 @@ function faces() {
     // On a narrow viewport the dock fills the width, and a panel set from its
     // control could still run off an edge: it stays 12px inside the viewport.
     left = Math.max(12 - dockBox.left, Math.min(left, window.innerWidth - 12 - width - dockBox.left));
-    pop.style.left = left + "px";
-    // The panel grows out of its control, wherever the panel itself lands.
-    pop.style.transformOrigin = Math.round(box.left - dockBox.left + box.width / 2 - left) + "px 100%";
+    pop.style.left = "";
+    pop.style.right = "";
+    pop.style.top = "";
+    pop.style.bottom = "";
+    var originX = Math.round(box.left - dockBox.left + box.width / 2 - left);
+    if (side === "below") {
+      pop.style.left = left + "px";
+      pop.style.top = "calc(100% + 8px)";
+      pop.style.transformOrigin = originX + "px 0";
+    } else if (side === "right" || side === "left") {
+      // Level with the control, kept inside the viewport: handled per side
+      // below through the same fill the panel already wears.
+      var top = box.top - dockBox.top;
+      top = Math.max(0, Math.min(top, (window.innerHeight || 0) - 8 - height - dockBox.top));
+      pop.style.top = top + "px";
+      if (side === "right") {
+        pop.style.left = "calc(100% + 8px)";
+        pop.style.transformOrigin = "0 50%";
+      } else {
+        pop.style.right = "calc(100% + 8px)";
+        pop.style.transformOrigin = "100% 50%";
+      }
+    } else {
+      pop.style.left = left + "px";
+      // The panel grows out of its control, wherever the panel itself lands.
+      pop.style.transformOrigin = originX + "px 100%";
+    }
   }
 
   /**
@@ -2846,15 +2945,22 @@ function faces() {
    */
   function extendBar() {
     // How much of the bar is drawn out: the whole bar, grip and row, from
-    // its right edge, so the bar arrives as one line.
-    var grow = barEl.offsetWidth;
+    // its right edge, so the bar arrives as one line. A vertical bar grows
+    // out of its top edge instead.
+    var vertical = dock.getAttribute("data-orient") === "vertical";
+    var grow = vertical ? barEl.offsetHeight : barEl.offsetWidth;
     if (!grow) return;
     animate(
       barEl,
-      [
-        { clipPath: "inset(0 0 0 " + grow + "px)", transform: "translateX(" + -grow / 2 + "px)" },
-        { clipPath: "inset(0 0 0 0px)", transform: "none" },
-      ],
+      vertical
+        ? [
+            { clipPath: "inset(" + grow + "px 0 0 0)", transform: "translateY(" + -grow / 2 + "px)" },
+            { clipPath: "inset(0 0 0 0px)", transform: "none" },
+          ]
+        : [
+            { clipPath: "inset(0 0 0 " + grow + "px)", transform: "translateX(" + -grow / 2 + "px)" },
+            { clipPath: "inset(0 0 0 0px)", transform: "none" },
+          ],
       { duration: T.rise, easing: ARRIVE }
     );
   }
@@ -2968,6 +3074,135 @@ function faces() {
     dock.style.right = "";
     dock.style.bottom = "";
     dock.removeAttribute("data-placed");
+    dock.removeAttribute("data-orient");
+  }
+
+  /**
+   * The dock's size in its horizontal posture: measured while it is up, kept
+   * while it is away. A vertical dock measures swapped, so the kept size is
+   * always the horizontal one and the places can be told apart.
+   */
+  function dockHW() {
+    if (!dock.hidden) {
+      if (dock.getAttribute("data-orient") === "vertical") {
+        dockSize = { w: dock.offsetHeight || 0, h: dock.offsetWidth || 0 };
+      } else {
+        dockSize = { w: dock.offsetWidth || 0, h: dock.offsetHeight || 0 };
+      }
+    }
+    return dockSize;
+  }
+
+  /**
+   * The eight preferred places, as the rect the dock takes in each. The three
+   * across the top and bottom hold the row horizontal; the two middle ones
+   * hold it vertical, so their rect swaps the size.
+   */
+  function spotRect(spot) {
+    var size = dockHW();
+    var w = size.w;
+    var h = size.h;
+    if (spot === "middle-left" || spot === "middle-right") {
+      var swap = w;
+      w = h;
+      h = swap;
+    }
+    var vw = window.innerWidth || 0;
+    var vh = window.innerHeight || 0;
+    var left;
+    var top;
+    if (/left$/.test(spot)) left = 24;
+    else if (/center$/.test(spot)) left = (vw - w) / 2;
+    else left = vw - w - 24;
+    if (/^top/.test(spot)) top = 24;
+    else if (/^bottom/.test(spot)) top = vh - h - 24;
+    else top = (vh - h) / 2;
+    return { left: left, top: top, width: w, height: h };
+  }
+
+  /** The place nearest a point, or null beyond the fill distance. */
+  function nearestSpot(x, y) {
+    var best = null;
+    var near = SPOT_NEAR;
+    for (var i = 0; i < SPOTS.length; i++) {
+      var rect = spotRect(SPOTS[i]);
+      var dx = x - (rect.left + rect.width / 2);
+      var dy = y - (rect.top + rect.height / 2);
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d < near) {
+        near = d;
+        best = SPOTS[i];
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Show or hide the dotted places, each laid out where its toolbar would
+   * land. What is near fills: the reader sees the place take the bar before
+   * the bar goes there.
+   */
+  function paintSpots(on, hot) {
+    if (!docks) return;
+    docks.className = on ? "docks-on" : "";
+    var i;
+    if (!on) return;
+    for (i = 0; i < dockSpots.length; i++) {
+      var el = dockSpots[i];
+      var rect = spotRect(el.getAttribute("data-spot"));
+      el.style.left = rect.left + rect.width / 2 + "px";
+      el.style.top = rect.top + rect.height / 2 + "px";
+      el.className = el.getAttribute("data-spot") === hot ? "dock-spot hot" : "dock-spot";
+    }
+  }
+
+  /**
+   * Settle the dock in one preferred place. The posture follows the place:
+   * vertical at the middle edges, horizontal elsewhere. The bar flies from
+   * where it stood to where it lands, in the dock's own travel time.
+   */
+  function dockTo(spot) {
+    if (!spot) return;
+    var before = !dock.hidden && dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+    if (spot === "middle-left" || spot === "middle-right") dock.setAttribute("data-orient", "vertical");
+    else dock.removeAttribute("data-orient");
+    var rect = spotRect(spot);
+    dock.style.left = rect.left + "px";
+    dock.style.top = rect.top + "px";
+    dock.style.right = "auto";
+    dock.style.bottom = "auto";
+    dock.setAttribute("data-placed", "true");
+    dockSnap = spot;
+    paintSpots(false);
+    if (openKey) placePop(openKey);
+    if (before && moves(dock)) {
+      var now = dock.getBoundingClientRect();
+      var dx = before.left - now.left;
+      var dy = before.top - now.top;
+      if (dx || dy) {
+        dock.animate(
+          [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+          { duration: T.slide, easing: ARRIVE }
+        );
+      }
+    }
+  }
+
+  /**
+   * The way back in, after the pill carried its place: if the pill stands
+   * where a preferred place would put the bar, the place takes it back.
+   * Otherwise the bar stands free, horizontal, where the pill was dropped.
+   */
+  function resnapDock() {
+    if (!dockSnap || !dockSize.w) return;
+    var rect = spotRect(dockSnap);
+    if (Math.abs((parseFloat(dock.style.left) || 0) - rect.left) > 6 || Math.abs((parseFloat(dock.style.top) || 0) - rect.top) > 6) {
+      dockSnap = null;
+      dock.removeAttribute("data-orient");
+      return;
+    }
+    if (dockSnap === "middle-left" || dockSnap === "middle-right") dock.setAttribute("data-orient", "vertical");
+    else dock.removeAttribute("data-orient");
   }
   /** The pill stands where it is put, clamped to the page like the bar. */
   function placeLaunch(left, top) {
@@ -2984,20 +3219,86 @@ function faces() {
     var held = false;
     var offX = 0;
     var offY = 0;
+    var dragged = false;
+    var startLeft = 0;
+    var startTop = 0;
+    var startCx = 0;
+    var startCy = 0;
+    // The place the pointer is nearest, full and waiting for the release.
+    var hoverSpot = null;
     gripBtn.addEventListener("pointerdown", function (e) {
       if (e.preventDefault) e.preventDefault();
       if (gripBtn.setPointerCapture && e.pointerId !== undefined) gripBtn.setPointerCapture(e.pointerId);
       var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
       offX = box ? e.clientX - box.left : 0;
       offY = box ? e.clientY - box.top : 0;
+      startLeft = box ? box.left : 0;
+      startTop = box ? box.top : 0;
+      startCx = box ? box.left + box.width / 2 : 0;
+      startCy = box ? box.top + box.height / 2 : 0;
+      dragged = false;
+      hoverSpot = null;
       held = true;
+      paintSpots(true);
     });
     gripBtn.addEventListener("pointermove", function (e) {
-      if (held) placeDock(e.clientX - offX, e.clientY - offY);
+      if (!held) return;
+      if (Math.abs(e.clientX - (startLeft + offX)) > 5 || Math.abs(e.clientY - (startTop + offY)) > 5) dragged = true;
+      placeDock(e.clientX - offX, e.clientY - offY);
+      var spot = nearestSpot(e.clientX, e.clientY);
+      if (spot !== hoverSpot) {
+        hoverSpot = spot;
+        paintSpots(true, spot);
+      }
     });
-    function letGo() { held = false; }
+    function letGo() {
+      if (held && !dragged) {
+        // A press that never moved is a click: the bar takes the place
+        // nearest where it stands.
+        dockTo(nearestSpot(startCx, startCy) || "bottom-right");
+      } else if (held && hoverSpot) {
+        dockTo(hoverSpot);
+      } else if (held) {
+        // Dropped between places: the bar stands free, horizontal, where it
+        // was let go.
+        dockSnap = null;
+        dock.removeAttribute("data-orient");
+        paintSpots(false);
+        if (openKey) placePop(openKey);
+      }
+      held = false;
+      paintSpots(false);
+    }
     gripBtn.addEventListener("pointerup", letGo);
-    gripBtn.addEventListener("pointercancel", letGo);
+    gripBtn.addEventListener("pointercancel", function () {
+      held = false;
+      paintSpots(false);
+    });
+    // A dotted place docks on a click: the edge, not the bar, is the target.
+    if (docks) docks.addEventListener("click", function (e) {
+      var spot = e.target && e.target.getAttribute ? e.target.getAttribute("data-spot") : null;
+      if (spot) dockTo(spot);
+    });
+    // The places show while the bar or a place is hovered: they are what a
+    // drag docks to, and each one is itself a click target.
+    var dockHovered = false;
+    var docksHovered = false;
+    function hoverSpots() {
+      if ((dockHovered || docksHovered) && !dock.hidden) paintSpots(true);
+      else if (!held) paintSpots(false);
+    }
+    dock.addEventListener("mouseenter", function () { dockHovered = true; hoverSpots(); });
+    dock.addEventListener("mouseleave", function () { dockHovered = false; hoverSpots(); });
+    if (docks) {
+      docks.addEventListener("mouseenter", function () { docksHovered = true; hoverSpots(); });
+      docks.addEventListener("mouseleave", function () { docksHovered = false; hoverSpots(); });
+    }
+    gripBtn.addEventListener("focus", function () { paintSpots(true); });
+    gripBtn.addEventListener("blur", function (e) {
+      var next = e.relatedTarget;
+      if (next && next.getAttribute && next.getAttribute("data-spot")) return;
+      if (!held) paintSpots(false);
+    });
     // The keyboard moves the bar too: arrows walk it, so it is not pointer-only.
     gripBtn.addEventListener("keydown", function (e) {
       var step = e.shiftKey ? 1 : 24;
@@ -3013,6 +3314,17 @@ function faces() {
       if (e.preventDefault) e.preventDefault();
       if (e.stopPropagation) e.stopPropagation();
       placeDock(left, top);
+    });
+    // Keyboard docking: Enter on the grip settles the bar in its nearest place.
+    gripBtn.addEventListener("click", function (e) {
+      if (e.detail !== 0) return;
+      var box = dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
+      if (!box) return;
+      dockTo(nearestSpot(box.left + box.width / 2, box.top + box.height / 2) || "bottom-right");
+    });
+    // A resized page moves the places: a settled bar follows its place.
+    window.addEventListener("resize", function () {
+      if (dockSnap && active) dockTo(dockSnap);
     });
   })();
 
@@ -7134,6 +7446,8 @@ function decorations() {
     dock.style.right = "auto";
     dock.style.bottom = "auto";
     dock.setAttribute("data-placed", "true");
+    // A settled bar that had to move back inside still settles in its place.
+    if (dockSnap) dockTo(dockSnap);
   }
 
   /**
@@ -7142,12 +7456,17 @@ function decorations() {
    * where the pill is. Where neither was ever moved both keep the corner.
    */
   function dockFromLaunch() {
-    if (!launch.style.left) return;
+    if (!launch.style.left) {
+      dockSnap = null;
+      dock.removeAttribute("data-orient");
+      return;
+    }
     dock.style.left = launch.style.left;
     dock.style.top = launch.style.top;
     dock.style.right = "auto";
     dock.style.bottom = "auto";
     dock.setAttribute("data-placed", "true");
+    resnapDock();
   }
   /**
    * The pill takes the bar's visual place, not its inline one: a hovered
