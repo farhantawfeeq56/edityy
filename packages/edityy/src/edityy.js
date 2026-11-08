@@ -287,11 +287,13 @@
     ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:transparent;border:0;border-radius:10px;",
     "box-shadow:none}",
     // The close chip: half on the dock's top-right corner, half out, so it
-    // reads as the corner's own tab and not a fifth tool in the row. It is
-    // always on while the toolbar is open, so it takes a click without a
-    // hover first.
-    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:1;width:20px;height:20px;border-radius:999px;border:1px solid var(--ink-25);padding:0;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 18%,var(--paper));color:var(--ink);cursor:pointer;opacity:1;pointer-events:auto;transform:scale(1);transform-origin:center;box-shadow:0 1px 2px var(--ink-6)}",
-    ".dock-close:hover{background:var(--ink-6);color:var(--ink)}",
+    // reads as the corner's own tab and not a fifth tool in the row. Black
+    // fill, round. It shows only on a hover over the bar or the warm zone
+    // around it, so it never waits for a hover first and never drops while
+    // the pointer crosses to it.
+    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:2;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:#000;color:var(--ink);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
+    ".dock-close:hover{background:#000;color:#fff}",
+    "#dock:hover .dock-close,#dock.dock-warm .dock-close,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
     ".dock-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".dock-close>svg{width:11px;height:11px;display:block;color:inherit}",
     // One hover fill for the whole row, not one per icon: it travels from the
@@ -7727,7 +7729,26 @@ function decorations() {
     launch.addEventListener("pointercancel", letGo);
   })();
 
-  $("dock-close").addEventListener("click", function (e) {
+  // The close chip shows on a hover over the bar, and stays while the
+  // pointer is in a warm zone around the bar: the chip sits half outside
+  // the bar, so hover alone would drop it on the way to the X. The zone is
+  // the bar padded by WARM_PAD, no timer. A click outside the chrome cools
+  // it at once.
+  var WARM_PAD = 32;
+  function coolDock() { if (dock.classList) dock.classList.remove("dock-warm"); }
+  dock.addEventListener("mouseenter", function () { if (dock.classList) dock.classList.add("dock-warm"); });
+  if (document.addEventListener) document.addEventListener("pointermove", function (e) {
+    if (!dock.classList.contains("dock-warm")) return;
+    if (dock.hidden) { coolDock(); return; }
+    var r = dock.getBoundingClientRect();
+    if (e.clientX < r.left - WARM_PAD || e.clientX > r.right + WARM_PAD || e.clientY < r.top - WARM_PAD || e.clientY > r.bottom + WARM_PAD) coolDock();
+  }, { passive: true });
+  if (document.addEventListener) document.addEventListener("click", function (e) {
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    coolDock();
+  });
+  var closeBtn = $("dock-close");
+  closeBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     exit();
     syncRow();
