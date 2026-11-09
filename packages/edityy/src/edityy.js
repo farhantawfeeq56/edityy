@@ -522,7 +522,7 @@
     // ink shadow that makes it float above the layer below, and the 16px layer
     // radius. Depth comes from those, never from an edge — without them the panel
     // read flatter than the dock under it.
-    ".pop{position:absolute;bottom:calc(100% + 8px);left:0;max-inline-size:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
+    ".pop{position:fixed;left:0;top:0;max-inline-size:min(420px,calc(100vw - 24px));padding:8px;background:var(--paper);border:1px solid var(--ink-10);border-radius:12px;",
     // It grows out of the control that opened it: placePop() puts the
     // transform-origin on that control's centre, at the panel's bottom edge.
     "box-shadow:0 1px 1px var(--ink-8),0 10px 24px var(--ink-12);transform-origin:50% 100%;animation:popIn var(--enter) var(--arrive)}",
@@ -530,9 +530,8 @@
     // The panel opens toward the room the dock has: below a top edge, above a
     // bottom one, and off the side of a middle one. Side panels rise toward
     // the dock instead of up, so their arrival is a fade, not a slide.
-    ".pop[data-side=below]{bottom:auto;top:calc(100% + 8px)}",
-    ".pop[data-side=right]{bottom:auto;top:0;left:calc(100% + 8px);max-block-size:calc(100vh - 24px)}",
-    ".pop[data-side=left]{bottom:auto;top:0;left:auto;right:calc(100% + 8px);max-block-size:calc(100vh - 24px)}",
+    ".pop[data-side=right]{max-block-size:calc(100vh - 24px)}",
+    ".pop[data-side=left]{max-block-size:calc(100vh - 24px)}",
     ".pop[data-side=left],.pop[data-side=right]{animation-name:popInX}",
     "@keyframes popInX{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}",
     // Two things in one panel stand a gap apart. A chip draws its own hairline,
@@ -918,15 +917,15 @@
     // four states and one card per task. A card goes to its element on click.
     // Its text wears the comment box scale: 10px for labels and buttons,
     // 8px for secondary words, nothing larger.
-    ".pop.changes{width:min(390px,calc(100vw - 24px));overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
+    ".pop.changes{width:min(480px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:flex;flex-wrap:wrap;gap:6px;margin:0 14px 10px}",
+    ".changes-filters{display:flex;flex-wrap:nowrap;gap:6px;margin:0 14px 10px}",
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;height:28px;padding:0 12px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 4px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
@@ -3076,37 +3075,45 @@ function faces() {
     var height = pop.offsetHeight || 0;
     var side = popSide(dockBox, height);
     pop.dataset.side = side;
+    var dockLeft = dockBox.left || 0;
+    var dockTop = dockBox.top || 0;
+    var dockWidth = dockBox.width || 0;
+    var dockHeight = dockBox.height || 0;
+    var dockRight = dockBox.right || dockLeft + dockWidth;
+    var dockBottom = dockBox.bottom || dockTop + dockHeight;
     var items = row.children;
-    var left = box.left - dockBox.left + box.width / 2 - width / 2;
-    if (target === items[0]) left = 0;
-    else if (target === items[items.length - 1]) left = Math.max(0, dockBox.width - width);
+    // Pinned to the viewport, not the dock: the dock widens and shifts on
+    // hover for the grip, and a dock-held panel would travel with it. A
+    // viewport place stays put until the panel is placed again.
+    var left = box.left + box.width / 2 - width / 2;
+    if (target === items[0]) left = dockLeft;
+    else if (target === items[items.length - 1]) left = dockLeft + Math.max(0, dockWidth - width);
     // On a narrow viewport the dock fills the width, and a panel set from its
     // control could still run off an edge: it stays 12px inside the viewport.
-    left = Math.max(12 - dockBox.left, Math.min(left, window.innerWidth - 12 - width - dockBox.left));
+    left = Math.max(12, Math.min(left, window.innerWidth - 12 - width));
     pop.style.left = "";
     pop.style.right = "";
     pop.style.top = "";
     pop.style.bottom = "";
-    var originX = Math.round(box.left - dockBox.left + box.width / 2 - left);
+    var originX = Math.round(box.left + box.width / 2 - left);
     if (side === "below") {
       pop.style.left = left + "px";
-      pop.style.top = "calc(100% + 8px)";
+      pop.style.top = dockBottom + 8 + "px";
       pop.style.transformOrigin = originX + "px 0";
     } else if (side === "right" || side === "left") {
-      // Level with the control, kept inside the viewport: handled per side
-      // below through the same fill the panel already wears.
-      var top = box.top - dockBox.top;
-      top = Math.max(0, Math.min(top, (window.innerHeight || 0) - 8 - height - dockBox.top));
+      var top = box.top;
+      top = Math.max(8, Math.min(top, (window.innerHeight || 0) - 8 - height));
       pop.style.top = top + "px";
       if (side === "right") {
-        pop.style.left = "calc(100% + 8px)";
+        pop.style.left = dockRight + 8 + "px";
         pop.style.transformOrigin = "0 50%";
       } else {
-        pop.style.right = "calc(100% + 8px)";
+        pop.style.left = Math.max(12, dockLeft - width - 8) + "px";
         pop.style.transformOrigin = "100% 50%";
       }
     } else {
       pop.style.left = left + "px";
+      pop.style.top = Math.max(8, dockTop - height - 8) + "px";
       // The panel grows out of its control, wherever the panel itself lands.
       pop.style.transformOrigin = originX + "px 100%";
     }

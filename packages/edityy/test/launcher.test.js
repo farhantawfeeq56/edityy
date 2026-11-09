@@ -1719,6 +1719,28 @@ test("the edits filter is a radio grid with counts, and the arrows walk it", asy
   assert.equal(open.children[0].children.length, 2, "All shows both cards again");
 });
 
+test("the edits panel is pinned in viewport pixels, so hover cannot pull it", () => {
+  const { run } = fakeDom();
+  const app = run();
+  selectText(app);
+  const dock = app.root.nodes.dock;
+  dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  app.root.nodes.review.getBoundingClientRect = () => ({ left: 1100, top: 710, right: 1140, bottom: 742, width: 40, height: 32 });
+  const open = openEdits(app);
+  assert.match(open.style.left, /^\d+px$/, "the panel sits in viewport pixels");
+  assert.match(open.style.top, /^\d+px$/, "not in dock percentages");
+  assert.equal(open.style.top, "392px", "a fixed gap above the dock");
+  const left = open.style.left;
+  const top = open.style.top;
+  // Hover widens the dock for the grip. The panel place must not follow it.
+  for (const fn of dock.bubbles.mouseenter.bubble ?? []) fn({});
+  assert.equal(open.style.left, left, "hover does not move the panel sideways");
+  assert.equal(open.style.top, top, "hover does not move the panel up or down");
+  assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");
+  assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Requested, Exploring and Ready share one line");
+  assert.match(source, /\.pop\.changes\{width:min\(480px/, "the edits panel is wider than 390px");
+});
+
 test("an element is found again by a short selector", () => {
   const { run, el } = fakeDom();
   const app = run();
