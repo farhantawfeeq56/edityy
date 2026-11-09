@@ -926,11 +926,18 @@
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;flex:0 0 auto;height:28px;padding:0 12px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;height:28px;padding:0 12px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
-    ".changes-filter>span:not(.changes-thumb){position:relative;z-index:1}",
-    ".changes-filter[aria-checked=true]{color:var(--paper);border-color:transparent}",
+    // The label is two words in one slot, crossfading as the pick changes:
+    // the dark one for an unpicked chip, the light one for the picked one.
+    ".changes-lbl{position:relative;z-index:1;display:grid}",
+    ".changes-lbl>*{grid-column:1;grid-row:1;transition:opacity var(--tint) var(--standard)}",
+    ".lbl-off{opacity:1;color:var(--ink)}",
+    ".lbl-on{opacity:0;color:var(--paper)}",
+    ".changes-filter[aria-checked=true]{border-color:transparent}",
+    ".changes-filter[aria-checked=true] .lbl-off{opacity:0}",
+    ".changes-filter[aria-checked=true] .lbl-on{opacity:1}",
     ".changes-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
     ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 10px 10px;box-sizing:border-box}",
     ".changes-list .note{max-width:none;margin:10px 6px;font-size:10px}",
@@ -6889,12 +6896,12 @@ function decorations() {
         else return;
         if (e.preventDefault) e.preventDefault();
         next = (next + chips.length) % chips.length;
-        changesPanel.refocus = true;
         changesPanel.filtering = true;
         var key = CHANGES_FILTERS[next][0];
         captureCardPos();
         changesFilter = key;
         show("changes");
+        if (typeof chips[next].focus === "function") chips[next].focus();
       });
 
       changesPanel.actions = document.createElement("div");
@@ -6915,53 +6922,67 @@ function decorations() {
       changesPanel.copy = copy;
       changesPanel.actions.appendChild(copy);
     }
-    // The thumb starts where the last pick left it, so it can travel.
-    var thumbFrom = null;
-    var oldChips = changesPanel.filters.children;
-    for (var ci = 0; ci < oldChips.length; ci++) {
-      if (oldChips[ci].getAttribute && oldChips[ci].getAttribute("aria-checked") === "true") {
-        thumbFrom = { left: oldChips[ci].offsetLeft || 0, width: oldChips[ci].offsetWidth || 0 };
-      }
+    // The chips are built once and updated in place, so the thumb can
+    // travel and the two stacked labels can crossfade: the dark words for
+    // an unpicked chip, the light ones for the picked one, after interior.
+    if (!changesPanel.chips) {
+      changesPanel.chips = [];
+      CHANGES_FILTERS.forEach(function (entry) {
+        var key = entry[0];
+        var btn = button("changes-filter", "", entry[1], function () {
+          changesPanel.filtering = true;
+          captureCardPos();
+          changesFilter = key;
+          show("changes");
+        }, "changes-filter-" + key);
+        btn.setAttribute("role", "radio");
+        var lbl = document.createElement("span");
+        lbl.className = "changes-lbl";
+        var off = document.createElement("span");
+        off.className = "lbl-off";
+        var on2 = document.createElement("span");
+        on2.className = "lbl-on";
+        var sr = document.createElement("span");
+        sr.className = "changes-sr";
+        lbl.appendChild(off);
+        lbl.appendChild(on2);
+        lbl.appendChild(sr);
+        btn.appendChild(lbl);
+        changesPanel.filters.appendChild(btn);
+        changesPanel.chips.push({ btn: btn, off: off, on: on2, sr: sr });
+      });
     }
-    while (changesPanel.filters.firstChild) changesPanel.filters.removeChild(changesPanel.filters.firstChild);
-    CHANGES_FILTERS.forEach(function (entry) {
-      var key = entry[0];
+    var thumbFrom = null;
+    changesPanel.chips.forEach(function (chip, i) {
+      var key = CHANGES_FILTERS[i][0];
       var on = changesFilter === key;
-      var btn = button("changes-filter", "", entry[1] + ", " + counts[key] + " of " + counts.all, function () {
-        changesPanel.filtering = true;
-        captureCardPos();
-        changesFilter = key;
-        show("changes");
-      }, "changes-filter-" + key);
-      btn.setAttribute("role", "radio");
-      btn.setAttribute("aria-checked", on ? "true" : "false");
-      btn.tabIndex = on ? 0 : -1;
-      if (on) btn.appendChild(changesPanel.thumb);
-      var lbl = document.createElement("span");
-      lbl.appendChild(text(entry[1] + " (" + counts[key] + ")"));
-      var sr = document.createElement("span");
-      sr.className = "changes-sr";
-      sr.appendChild(text(entry[1] + ", " + counts[key] + " of " + counts.all));
-      lbl.appendChild(sr);
-      btn.appendChild(lbl);
-      changesPanel.filters.appendChild(btn);
-      // The thumb slides from the old chip to this one, then settles.
-      if (on && thumbFrom && moves(btn) && typeof btn.animate === "function") {
-        var to = { left: btn.offsetLeft || 0, width: btn.offsetWidth || 1 };
-        if (to.width && thumbFrom.left !== to.left) {
-          changesPanel.thumb.animate([
-            { transform: "translateX(" + (thumbFrom.left - to.left) + "px) scaleX(" + Math.max(0.1, thumbFrom.width / to.width) + ")" },
-            { transform: "none" },
-          ], { duration: T.move, easing: ARRIVE });
-        }
+      var words = CHANGES_FILTERS[i][1] + " (" + counts[key] + ")";
+      var spoken = CHANGES_FILTERS[i][1] + ", " + counts[key] + " of " + counts.all;
+      chip.btn.setAttribute("aria-checked", on ? "true" : "false");
+      chip.btn.setAttribute("aria-label", spoken);
+      chip.btn.title = spoken;
+      chip.btn.tabIndex = on ? 0 : -1;
+      while (chip.off.firstChild) chip.off.removeChild(chip.off.firstChild);
+      chip.off.appendChild(text(words));
+      while (chip.on.firstChild) chip.on.removeChild(chip.on.firstChild);
+      chip.on.appendChild(text(words));
+      while (chip.sr.firstChild) chip.sr.removeChild(chip.sr.firstChild);
+      chip.sr.appendChild(text(spoken));
+      if (on) {
+        if (thumbFrom === null) thumbFrom = changesPanel.thumbChip || null;
+        changesPanel.thumbChip = chip.btn;
+        chip.btn.appendChild(changesPanel.thumb);
       }
     });
-    // Focus that was on a chip lands on the new checked one after a redraw.
-    if (changesPanel.refocus) {
-      changesPanel.refocus = false;
-      var chipsNow = changesPanel.filters.children;
-      for (var fi = 0; fi < chipsNow.length; fi++) {
-        if (chipsNow[fi].getAttribute && chipsNow[fi].getAttribute("aria-checked") === "true" && typeof chipsNow[fi].focus === "function") chipsNow[fi].focus();
+    // The thumb slides from the chip it left to the one it wears now.
+    if (thumbFrom && thumbFrom !== changesPanel.thumbChip && moves(changesPanel.thumb) && typeof changesPanel.thumb.animate === "function") {
+      var from = { left: thumbFrom.offsetLeft || 0, width: thumbFrom.offsetWidth || 0 };
+      var to = { left: changesPanel.thumbChip.offsetLeft || 0, width: changesPanel.thumbChip.offsetWidth || 1 };
+      if (to.width && from.left !== to.left) {
+        changesPanel.thumb.animate([
+          { transform: "translateX(" + (from.left - to.left) + "px) scaleX(" + Math.max(0.1, from.width / to.width) + ")" },
+          { transform: "none" },
+        ], { duration: T.move, easing: ARRIVE });
       }
     }
     var activeLabel = "All";
@@ -7037,27 +7058,24 @@ function decorations() {
         });
       }
       // A card that was not there before slides in; one that was already
-      // there stays put, so a redraw never replays its arrival.
+      // there stays put, so a redraw never replays its arrival. A card a
+      // filter change brings in slides in the same way.
       var seen = task.previewId || task.requestId || task.label;
       shownKeys[seen] = true;
       card.setAttribute("data-task", seen);
-      if (!taskSeen[seen]) {
+      if (!taskSeen[seen] || (filtering && !oldCards[seen])) {
         taskSeen[seen] = true;
         card.className += " task-enter";
       }
       list.appendChild(card);
       // Filter grid travel: a card that was already there moves to its new
-      // slot with a spring-feel ease, instead of jumping.
-      if (typeof card.offsetTop === "number" && cardPos[seen] !== undefined && cardPos[seen] !== card.offsetTop) {
-        (function (el, dy) {
-          el.style.transform = "translateY(" + dy + "px)";
-          el.style.transition = "transform var(--tint) var(--standard)";
-          el.style.overflow = "visible";
-          setTimeout(function () {
-            el.style.transform = "";
-            el.style.transition = "";
-          }, 0);
-        })(card, cardPos[seen] - card.offsetTop);
+      // slot, instead of jumping. The move is animated from the old slot
+      // after the card is painted where it now stands.
+      if (typeof card.offsetTop === "number" && cardPos[seen] !== undefined && cardPos[seen] !== card.offsetTop && moves(card) && typeof card.animate === "function") {
+        card.animate(
+          [{ transform: "translateY(" + (cardPos[seen] - card.offsetTop) + "px)" }, { transform: "none" }],
+          { duration: T.move, easing: ARRIVE },
+        );
       }
     });
     if (filtering) {

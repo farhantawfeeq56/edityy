@@ -1693,6 +1693,8 @@ test("the edits filter is a radio grid with counts, and the arrows walk it", asy
   assert.match(shown(chips()[0]), /2/, "two edits in All");
   assert.match(shown(chips()[2]), /Exploring/, "the Exploring chip");
   assert.ok(chips()[0].children.some((c) => c.className === "changes-thumb"), "the thumb sits in the checked chip");
+  const lbl = chips()[0].children.find((c) => c.className === "changes-lbl");
+  assert.deepEqual(lbl.children.map((c) => c.className), ["lbl-off", "lbl-on", "changes-sr"], "two stacked labels crossfade");
   assert.match(shown(open.children[3]), /All: 2 of 2 shown/, "the live region says what is shown");
   // Pick Exploring: only the two cards stay, and the thumb travels.
   for (const fn of chips()[2].bubbles.click.bubble) fn({});
