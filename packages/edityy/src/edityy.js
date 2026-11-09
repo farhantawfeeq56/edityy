@@ -925,7 +925,7 @@
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 2px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 2px;overflow:hidden;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 9px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
