@@ -1656,7 +1656,7 @@ test("the edits list names each element, and discards one without the others", a
   assert.equal(lines.length, 2);
   assert.match(shown(lines[0]), /p “hello”/);
   assert.match(shown(lines[1]), /h2 “second”/);
-  assert.equal(lines[0].getAttribute("data-state"), "exploring", "a fresh edit is Exploring until ticked");
+  assert.equal(lines[0].getAttribute("data-state"), "exploring", "a fresh edit starts unconfirmed");
   assert.ok(lines[0].children.some((c) => c.className === "task-editrow"), "notes and tick on the card");
 
   // The X on the card discards the edit: it slides out, then it is gone.
@@ -1672,7 +1672,7 @@ test("the edits list names each element, and discards one without the others", a
 });
 
 
-test("the edits filter is a radio grid with counts, and the arrows walk it", async () => {
+test("the edits filter is a radio grid with names, and the arrows walk it", async () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
@@ -1684,24 +1684,24 @@ test("the edits filter is a radio grid with counts, and the arrows walk it", asy
   assert.equal(filters.getAttribute("role"), "radiogroup", "one radio group");
   assert.equal(filters.getAttribute("aria-label"), "Filter edits");
   const chips = () => filters.children;
-  assert.equal(chips().length, 4, "all, requested, exploring, ready");
+  assert.equal(chips().length, 4, "all, pending, select, ready");
   assert.deepEqual(chips().map((c) => c.getAttribute("role")), ["radio", "radio", "radio", "radio"]);
   assert.equal(chips()[0].getAttribute("aria-checked"), "true", "All starts checked");
   assert.equal(chips()[0].tabIndex, 0, "one tab stop");
   assert.equal(chips()[1].tabIndex, -1);
   assert.match(shown(chips()[0]), /All/, "the All chip");
   assert.match(shown(chips()[0]), /2/, "two edits in All");
-  assert.match(shown(chips()[2]), /Exploring/, "the Exploring chip");
+  assert.match(shown(chips()[2]), /Select/, "the Select chip");
   assert.ok(chips()[0].children.some((c) => c.className === "changes-thumb"), "the thumb sits in the checked chip");
   const lbl = chips()[0].children.find((c) => c.className === "changes-lbl");
   assert.deepEqual(lbl.children.map((c) => c.className), ["lbl-off", "lbl-on", "changes-sr"], "two stacked labels crossfade");
   assert.match(shown(open.children[3]), /All: 2 of 2 shown/, "the live region says what is shown");
-  // Pick Exploring: only the two cards stay, and the thumb travels.
+  // Pick Select: only the two cards stay, and the thumb travels.
   for (const fn of chips()[2].bubbles.click.bubble) fn({});
   assert.equal(chips()[2].getAttribute("aria-checked"), "true");
   assert.equal(chips()[2].tabIndex, 0);
   assert.ok(chips()[2].children.some((c) => c.className === "changes-thumb"), "the thumb moved");
-  assert.equal(open.children[0].children.length, 2, "both edits are Exploring");
+  assert.equal(open.children[0].children.length, 2, "both edits are Select");
   // The arrow walks to Ready, which is empty, and wraps from the end.
   const send = (k, target) => {
     for (const fn of filters.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
@@ -1737,25 +1737,26 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   assert.equal(open.style.left, left, "hover does not move the panel sideways");
   assert.equal(open.style.top, top, "hover does not move the panel up or down");
   assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");
-  assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Requested, Exploring and Ready share one line");
+  assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Pending, Select and Ready share one line");
   assert.match(source, /\.pop\.changes\{width:min\(300px/, "the edits panel is 300px");
 });
 
-test("the filter chips wear their counts, like Requested (5)", () => {
+test("the filter chips wear their names, with the count only spoken", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
   commentOn(app, p, "first note");
   const open = openEdits(app);
   const chips = open.children[1].children;
-  assert.match(shown(chips[0]), /All \(1\)/, "All (1)");
-  assert.match(shown(chips[1]), /Requested \(0\)/, "Requested (0)");
+  assert.doesNotMatch(shown(chips[0]), /\(1\)/, "no (1) on the All chip");
+  assert.match(shown(chips[1]), /Pending/, "the Pending chip");
+  assert.match(chips[1].getAttribute("aria-label"), /Pending, 0 of 1/, "the count stays spoken");
   assert.equal(app.root.nodes.vartest, undefined, "no variant strip");
   assert.equal(open.dataset.variant, undefined, "no variant pick");
   const css = app.root.innerHTML;
   assert.doesNotMatch(css, /data-variant/, "no variant layouts");
   assert.doesNotMatch(css, /\.vartest/, "no variant strip styles");
-  assert.match(css, /\.changes-count\{white-space:nowrap\}/, "counts stay on the chip");
+  assert.doesNotMatch(css, /\.changes-count/, "counts left the chips");
 });
 
 test("an element is found again by a short selector", () => {

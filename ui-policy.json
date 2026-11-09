@@ -1,0 +1,20 @@
+{
+  "fonts": ["Plus Jakarta Sans", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+  "fontSizes": [8, 10, 11],
+  "typeRules": [
+    { "selector": "button", "sizes": [8, 10] },
+    { "selector": "input", "sizes": [10] }
+  ],
+  "minControlSize": 15,
+  "controlSizeRules": [],
+  "minControlGap": 8,
+  "minControlInset": 8,
+  "controlContainers": ["[data-ui-container]"],
+  "contentInsetRules": [],
+  "iconSizeRules": [{ "selector": ".task-icon svg", "sizes": [13] }],
+  "minLayoutGap": 8,
+  "bannedCopy": ["unlock your potential", "seamlessly", "game-changing"],
+  "viewports": [{ "width": 390, "height": 844 }, { "width": 1440, "height": 900 }],
+  "colorSchemes": ["light"],
+  "exceptions": []
+}

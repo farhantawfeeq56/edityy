@@ -921,17 +921,17 @@
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:flex;flex-wrap:nowrap;gap:4px;margin:0 2px 10px}",
+    ".changes-filters{display:flex;flex-wrap:nowrap;gap:8px;margin:0 2px 10px}",
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;min-width:0;height:28px;padding:0 6px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 8px/1 inherit;letter-spacing:-.02em;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;min-width:0;height:28px;padding:0 8px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 8px/1 inherit;letter-spacing:-.02em;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
     // the dark one for an unpicked chip, the light one for the picked one.
     ".changes-lbl{position:relative;z-index:1;display:grid}",
-    ".changes-name,.changes-count{white-space:nowrap}",
+    ".changes-name{white-space:nowrap}",
     ".changes-lbl>*{grid-column:1;grid-row:1;transition:opacity var(--tint) var(--standard)}",
     ".lbl-off{opacity:1;color:var(--ink)}",
     ".lbl-on{opacity:0;color:var(--paper)}",
@@ -954,32 +954,32 @@
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
     ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}",
-    ".task-actions{display:none;flex-wrap:wrap;gap:4px;margin-top:2px}",
+    ".task-actions{display:none;flex-wrap:wrap;gap:8px;margin-top:2px}",
     ".task[data-open=true] .task-actions{display:flex}",
     ".task-more{font:600 8px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
     ".task[data-open=true] .task-more{transform:rotate(90deg)}",
     ".task-actions .mini[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
-    ".task-actions .mini{flex:0 0 auto;border:1px solid var(--ink-10);border-radius:7px;padding:6px 10px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink)}",
+    ".task-actions .mini{flex:0 0 auto;border:1px solid var(--ink-10);border-radius:7px;padding:8px 10px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink)}",
     ".task-actions .mini:hover{background:var(--fill-hover)}",
     ".task-actions .mini.danger{color:#9B1C1C}",
     ".task-actions .mini.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}",
     // The always-on controls of a card: round icons at the card's corner, a
     // notes field with X and tick, and the number chips for variants.
-    ".task-icons{display:flex;gap:4px;flex:none}",
+    ".task-icons{display:flex;gap:8px;flex:none}",
     ".task-detail{font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
     ".task-editrow .task-icon{border-radius:7px}",
-    ".task-icon{width:24px;height:24px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:50%;background:transparent;cursor:pointer;color:var(--ink);padding:0}",
+    ".task-icon{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:50%;background:transparent;cursor:pointer;color:var(--ink);padding:0}",
     ".task-icon svg{width:13px;height:13px}",
     ".task-icon:hover{background:var(--fill-hover)}",
     ".task-icon:active{background:var(--fill-open)}",
     ".task-icon:disabled{opacity:.35;cursor:default}",
-    ".task-editrow{display:flex;align-items:center;gap:5px;margin-top:3px}",
+    ".task-editrow{display:flex;align-items:center;gap:8px;margin-top:3px}",
     ".task-note{flex:1;min-width:0;height:28px;border:1px solid var(--ink-10);border-radius:7px;padding:0 9px;background:transparent;font:400 10px/1 inherit;color:var(--ink)}",
     ".task-note::placeholder{color:var(--muted)}",
     // The variant numbers wear the comment box preset chips: pills that
     // share the row's width, five to a line, the rest on the next.
-    ".task-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}",
-    ".task-chip{flex:1 1 calc(20% - 6px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".task-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}",
+    ".task-chip{flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 8px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.task-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".task-chip:active{transform:scale(.97)}",
     ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
@@ -6402,17 +6402,17 @@ function decorations() {
   /**
    * The edits panel: every task on the page, in the state it is in.
    *
-   * Requested is an ask with no visual change yet. Exploring is variants
+   * Pending is an ask with no visual change yet. Select is variants
    * ready, waiting for a pick. Previewing is a paint on the live page,
    * waiting for Keep or Discard. Kept is an ordinary Edityy edit.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, requested, exploring, ready
+  var changesFilter = "all"; // all, pending, select, ready
   // The filter grid, after interior.dev's Filter Grid: one chip per state
   // with its count, a thumb that travels to the picked chip, and the arrow
   // keys walking the chips. The cards below already travel the same way.
-  var CHANGES_FILTERS = [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["ready", "Ready"]];
+  var CHANGES_FILTERS = [["all", "All"], ["requested", "Pending"], ["exploring", "Select"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
@@ -6663,15 +6663,16 @@ function decorations() {
 
   /**
    * The controls that are always on a card, the way the wireframe draws
-   * them: pencil and eye on a Ready card, X on a requested one, notes and
-   * X and tick on an exploring one, number chips for the variants.
+   * them: pencil and eye on a Ready card, X on a pending one, notes and
+   * X and tick on a select one, number chips for the variants.
    */
   function addTaskBody(card, task, head) {
     var rec = task.item && task.item.rec;
     if (task.state === "ready" && rec) {
       var icons = document.createElement("div");
       icons.className = "task-icons";
-      var pencil = iconButton("pencil", "Back to exploring", function () {
+      icons.setAttribute("data-ui-actions", "");
+      var pencil = iconButton("pencil", "Back to select", function () {
         // The edit goes back to Exploring: off the element, kept as data,
         // and out of the project file until it is ticked again.
         stashRec(rec);
@@ -6702,6 +6703,7 @@ function decorations() {
     if (task.state === "requested") {
       var box = document.createElement("div");
       box.className = "task-icons";
+      box.setAttribute("data-ui-actions", "");
       box.appendChild(iconButton("x", "Delete this request", function () {
         slideOut(card, "right", function () {
           if (task.kind === "variation") cancelVariationId(task.requestId);
@@ -6714,6 +6716,7 @@ function decorations() {
     if (task.kind === "exploring-edit" && rec) {
       var row = document.createElement("div");
       row.className = "task-editrow";
+      row.setAttribute("data-ui-actions", "");
       var note = document.createElement("input");
       note.type = "text";
       note.className = "task-note";
@@ -6749,6 +6752,7 @@ function decorations() {
       var at = task.kind === "live-variants" ? variantAt : -1;
       var chips = document.createElement("div");
       chips.className = "task-chips";
+      chips.setAttribute("data-ui-stack", "");
       chips.setAttribute("role", "group");
       chips.setAttribute("aria-label", "Variants");
       (list || []).forEach(function (variation, i) {
@@ -6772,6 +6776,7 @@ function decorations() {
       card.appendChild(chips);
       var vrow = document.createElement("div");
       vrow.className = "task-editrow";
+      vrow.setAttribute("data-ui-actions", "");
       var vnote = document.createElement("input");
       vnote.type = "text";
       vnote.className = "task-note";
@@ -6811,6 +6816,7 @@ function decorations() {
     if (!expandedTasks[key]) return;
     var row = document.createElement("div");
     row.className = "task-actions";
+    row.setAttribute("data-ui-actions", "");
     if (task.el) {
       var go = button("mini primary", "", "Go to element", function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
@@ -6874,12 +6880,13 @@ function decorations() {
     // The edits panel: header, filter grid, cards, copy button under them.
     // They are kept between redraws, so a change that lands while the panel
     // is open does not throw away the scroll position. The server queues
-    // refresh in the background, so requested and exploring tasks survive
+    // refresh in the background, so pending and select tasks survive
     // a reload.
     if (!changesPanel) {
       changesPanel = {};
       changesPanel.filters = document.createElement("div");
       changesPanel.filters.className = "changes-filters";
+      changesPanel.filters.setAttribute("data-ui-actions", "");
       changesPanel.filters.setAttribute("role", "radiogroup");
       changesPanel.filters.setAttribute("aria-label", "Filter edits");
       changesPanel.thumb = document.createElement("span");
@@ -6917,6 +6924,7 @@ function decorations() {
 
       changesPanel.actions = document.createElement("div");
       changesPanel.actions.className = "changes-foot";
+      changesPanel.actions.setAttribute("data-ui-actions", "");
       // Copy gives a nudge only: the agent reads the saved edits over MCP,
       // never this text, so the text must not carry the edits themselves.
       var NUDGE = "Use the Edityy MCP tools. Read the saved visual changes with get_visual_changes, then apply them to the source.";
@@ -6968,24 +6976,17 @@ function decorations() {
       var key = CHANGES_FILTERS[i][0];
       var on = changesFilter === key;
       var name = CHANGES_FILTERS[i][1];
-      var count = " (" + counts[key] + ")";
       var spoken = CHANGES_FILTERS[i][1] + ", " + counts[key] + " of " + counts.all;
       chip.btn.setAttribute("aria-checked", on ? "true" : "false");
       chip.btn.setAttribute("aria-label", spoken);
-      chip.btn.title = spoken;
+      chip.btn.title = name;
       chip.btn.tabIndex = on ? 0 : -1;
-      // Name and count in their own spans, so the count reads as "(5)"
-      // and can be muted without touching the name.
       var fillWords = function (span) {
         while (span.firstChild) span.removeChild(span.firstChild);
         var n = document.createElement("span");
         n.className = "changes-name";
         n.appendChild(text(name));
-        var c = document.createElement("span");
-        c.className = "changes-count";
-        c.appendChild(text(count));
         span.appendChild(n);
-        span.appendChild(c);
       };
       fillWords(chip.off);
       fillWords(chip.on);
@@ -7037,12 +7038,13 @@ function decorations() {
       var empty = document.createElement("p");
       empty.className = "note";
       if (changesFilter === "all") empty.appendChild(text("No edits yet. Change something on the page and it is listed here."));
-      else empty.appendChild(text("No " + changesFilter + " tasks."));
+      else empty.appendChild(text("No " + activeLabel.toLowerCase() + " tasks."));
       list.appendChild(empty);
     }
     shown.forEach(function (task) {
       var card = document.createElement("div");
       card.className = task.el && task.el === selected ? "task selected" : "task";
+      card.setAttribute("data-ui-container", "");
       card.setAttribute("data-state", task.state);
       var head = document.createElement("div");
       head.className = "task-top";
@@ -7053,7 +7055,7 @@ function decorations() {
       card.setAttribute("data-open", expandedTasks[task.previewId || task.requestId || task.label] ? "true" : "false");
       card.appendChild(head);
       // A detail line only where the wireframe has one: the ready and
-      // requested cards, and the previews. Exploring cards show their
+      // pending cards, and the previews. Select cards show their
       // controls instead.
       var showDetail = task.state === "ready" || task.state === "requested" || task.kind.indexOf("preview") === 0;
       if (showDetail) {
