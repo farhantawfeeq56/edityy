@@ -193,7 +193,7 @@ export default function Home() {
             Open source, MIT licensed
           </span>
 
-          <h1 className="mx-auto mt-7 max-w-[44rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[4.25rem]">
+          <h1 className="mx-auto mt-7 max-w-[44rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[5.25rem] sm:leading-[86px]">
             Shape the page.
             <br />
             <span className="text-brand-ink">Keep the code.</span>
