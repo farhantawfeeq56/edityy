@@ -3,7 +3,7 @@
  *
  *   npx edityy mcp
  *
- * The page writes three things: the edits saved with "Save to project"
+ * The page writes three things: the edits saved to the project
  * (`.edityy/changes.json`, from index.js), a variation request — one
  * element, a number of variations and an optional comment
  * (`.edityy/variation-request.json`, from variations.js), and a comment-box
@@ -147,7 +147,7 @@ const TOOLS = [
     name: "get_preview",
     description:
       "Read one placed Edityy canvas preview, with its instruction, action and payload. " +
-      "Apply kept previews to the source code: the page saved them with Save to project, so read them with get_visual_changes. " +
+      "Apply kept previews to the source code: the page saved them to the project, so read them with get_visual_changes. " +
       "Each preview has an id such as e-123: the user keeps or discards it with the buttons on the page. Typing implement <id> or discard <id> in the chat works the same.",
     inputSchema: {
       type: "object",
@@ -238,7 +238,7 @@ async function readChanges(root) {
     saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
   } catch (error) {
     if (error.code === "ENOENT") {
-      return "No saved edits. In the browser, open Edityy's edits list and press \"Save to project\".";
+      return "No saved edits. In the browser, open Edityy's edits list and approve an edit with the tick.";
     }
     throw new Error(`Could not read ${CHANGES_FILE}: ${error.message}`);
   }

@@ -61,7 +61,7 @@ the Edityy MCP server.
   in the chat works the same. When a preview is kept, call \`get_preview\` with
   the id, and apply what it says to the source code. A preview that was painted
   on the canvas is also in the saved edits, so \`get_visual_changes\` reads it
-  after Save to project.
+  straight away, with no save step.
 - **Visual edits.** When the user asks for the edits they saved from the site,
   call \`get_visual_changes\`, apply them to the source code, then call
   \`clear_visual_changes\`. That also clears the canvas session.

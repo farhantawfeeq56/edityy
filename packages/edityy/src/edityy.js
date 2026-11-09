@@ -120,6 +120,8 @@
     "scroll-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></svg>',
     "square-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M7 8h10" /> <path d="M7 12h10" /> <path d="M7 16h6" /></svg>',
     "x": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg>',
+    "eye": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>',
+    "copy": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>',
     "wrap-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16-3 3 3 3" /> <path d="M3 12h14.5a1 1 0 0 1 0 7H13" /> <path d="M3 19h6" /> <path d="M3 5h18" /></svg>',
   };
 
@@ -918,12 +920,10 @@
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 13px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 11px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 14px 10px}",
-    ".changes-filter{display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid var(--ink-10);border-radius:8px;padding:7px 2px 6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--muted)}",
-    ".changes-filter b{font:600 13px/1 inherit;color:var(--ink)}",
+    ".changes-filters{display:flex;gap:2px;border:1px solid var(--ink-10);border-radius:20px;padding:3px;margin:0 14px 10px}",
+    ".changes-filter{flex:1;border:0;border-radius:16px;padding:8px 4px;background:transparent;font:500 11px/1 inherit;cursor:pointer;color:var(--muted);white-space:nowrap}",
     ".changes-filter:hover{background:var(--fill-hover)}",
-    ".changes-filter[aria-pressed=true]{border-color:var(--ink);color:var(--ink);background:var(--fill-open)}",
-    ".changes-filter[aria-pressed=true] b{color:var(--ink)}",
+    ".changes-filter[aria-pressed=true]{background:var(--ink);color:var(--paper)}",
     ".changes-list{flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 10px 10px;box-sizing:border-box}",
     ".changes-list .note{max-width:none;margin:10px 6px}",
     ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer}",
@@ -935,8 +935,7 @@
     ".task-badge{flex:none;font:600 10px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
     ".task-badge[data-state=requested]{background:#FFF3D6;color:#7A5A00}",
     ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
-    ".task-badge[data-state=previewing]{background:#E5F6E8;color:#14532D}",
-    ".task-badge[data-state=kept]{background:var(--ink);color:var(--paper)}",
+    ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 11px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
     ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}",
@@ -949,6 +948,29 @@
     ".task-actions .mini:hover{background:var(--fill-hover)}",
     ".task-actions .mini.danger{color:#9B1C1C}",
     ".task-actions .mini.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}",
+    // The always-on controls of a card: round icons at the card's corner, a
+    // notes field with X and tick, and the number chips for variants.
+    ".task-icons{display:flex;gap:4px;flex:none}",
+    ".task-detail{font:400 11px/1.35 inherit;color:var(--muted);margin:0}",
+    ".task-editrow .task-icon{border-radius:7px}",
+    ".task-icon{width:24px;height:24px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:50%;background:transparent;cursor:pointer;color:var(--ink);padding:0}",
+    ".task-icon svg{width:13px;height:13px}",
+    ".task-icon:hover{background:var(--fill-hover)}",
+    ".task-icon:active{background:var(--fill-open)}",
+    ".task-icon:disabled{opacity:.35;cursor:default}",
+    ".task-editrow{display:flex;align-items:center;gap:5px;margin-top:3px}",
+    ".task-note{flex:1;min-width:0;height:28px;border:1px solid var(--ink-10);border-radius:7px;padding:0 9px;background:transparent;font:400 12px/1 inherit;color:var(--ink)}",
+    ".task-note::placeholder{color:var(--muted)}",
+    ".task-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}",
+    ".task-chip{min-width:24px;height:24px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:7px;background:transparent;font:500 11px/1 inherit;cursor:pointer;color:var(--ink)}",
+    ".task-chip:hover{background:var(--fill-hover)}",
+    ".task-chip[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
+    // A card that is going away slides out in its direction; a new one slides
+    // in. Both are quick: the state change is never waited on for long.
+    ".task-enter{animation:task-in var(--tint) var(--standard)}",
+    "@keyframes task-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
+    ".task-leaving-right{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateX(26px);opacity:0}",
+    ".task-leaving-up{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateY(-14px);opacity:0}",
     ".changes-foot{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--ink-10)}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     // A note in the element card sits in its own gap, not on a margin of its own.
@@ -961,6 +983,8 @@
     // The button is as wide as its longest wording, so the words change inside
     // a box that stays where it was.
     ".say{display:inline-block}",
+    ".cta i{display:inline-flex;margin-right:8px;vertical-align:-3px}",
+    ".cta i svg{width:16px;height:16px}",
     ".cta:disabled{opacity:.4;cursor:default;background:var(--ink)}",
     ".cta.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-20)}",
     ".cta.ghost:hover{background:var(--ink-6)}",
@@ -1334,7 +1358,7 @@
     for (var i = 0; i < changes.length; i++) {
       if (changes[i].el === el) return changes[i];
     }
-    var rec = { el: el, props: {}, set: {}, was: {}, rules: {}, text: null, layoutMode: null, created: false };
+    var rec = { el: el, props: {}, set: {}, was: {}, rules: {}, text: null, layoutMode: null, created: false, confirmed: false, commentAsk: false, stash: null };
     changes.push(rec);
     return rec;
   }
@@ -1584,6 +1608,17 @@
       rec.fade = null;
       rec.el.style.opacity = "";
     }
+    // A stashed edit already sits at the original values: only the record
+    // goes, and there is nothing left to put back.
+    if (rec.stash) {
+      rec.stash = null;
+      changes = changes.filter(function (other) {
+        return other !== rec;
+      });
+      forget(rec);
+      tally();
+      return;
+    }
     if (rec.location && rec.location.parent) {
       rec.location.parent.insertBefore(rec.el, rec.location.before && rec.location.before.parentElement === rec.location.parent ? rec.location.before : null);
     } else if (rec.removed && rec.removed.parent) {
@@ -1611,6 +1646,43 @@
     });
     forget(rec);
     tally();
+  }
+
+  /**
+   * Take an edit off the element but keep its record: the pencil and the eye
+   * both need the original on screen while the edit survives as data. The
+   * after values are stashed, the before values written back, and diff()
+   * reads through the stash, so the edit still reports. An added or removed
+   * element cannot be half-taken-off, so those never stash.
+   */
+  function stashRec(rec) {
+    if (!rec || rec.stash || rec.created || rec.removed) return false;
+    var after = {};
+    Object.keys(rec.props).forEach(function (key) {
+      if (!OWN[key]) after[key] = readProp(rec, key);
+    });
+    rec.stash = { after: after, text: rec.el.textContent };
+    Object.keys(rec.props).forEach(function (prop) {
+      restore(rec, prop);
+    });
+    if (rec.text !== null && rec.el.textContent !== rec.text) {
+      if (rec.html !== undefined) rec.el.innerHTML = rec.html;
+      else rec.el.textContent = rec.text;
+    }
+    return true;
+  }
+
+  /** Write a stashed edit back onto the element. */
+  function unstashRec(rec) {
+    if (!rec || !rec.stash) return;
+    var stash = rec.stash;
+    rec.stash = null;
+    Object.keys(stash.after).forEach(function (prop) {
+      writeProp(rec, prop, stash.after[prop]);
+    });
+    if (rec.text !== null && rec.el.textContent !== stash.text) {
+      rec.el.textContent = stash.text;
+    }
   }
 
   // The agreed line weight. Half of it stands off the element, so the line
@@ -2136,6 +2208,10 @@
       syncElementMenu();
       tally();
       if (n === 1 && canvasTick.checked) {
+        // The words are the ask, not an edit yet: the requested card in the
+        // panel carries the wait, and this record only shows once the agent
+        // has answered (or never does).
+        rec.commentAsk = true;
         requestPreview(el, null, words, function (problem) {
           previewWords = problem;
         });
@@ -6037,7 +6113,8 @@ function decorations() {
       // A rule has no value before it: the page's own rule for this element is
       // not read, so the edit is the rule and nothing else.
       var before = rule ? "" : rec.set[key] ? rec.props[key] : "";
-      var after = readProp(rec, key);
+      // A stashed edit is off the element: its after values live in the stash.
+      var after = rec.stash ? (rec.stash.after[key] || "") : readProp(rec, key);
       if (after === before) return;
       var entry = { prop: rule ? rule.property : key, before: rec.was[key] || before, after: after };
       if (rule && rule.on) entry.on = rule.on;
@@ -6049,8 +6126,8 @@ function decorations() {
       }
       props.push(entry);
     });
-    var text = rec.text !== null && rec.el.textContent !== rec.text
-      ? { before: rec.text, after: rec.el.textContent }
+    var text = rec.text !== null && (rec.stash ? rec.stash.text : rec.el.textContent) !== rec.text
+      ? { before: rec.text, after: rec.stash ? rec.stash.text : rec.el.textContent }
       : null;
     // An element added and then deleted in this session leaves nothing to report.
     if (rec.created && rec.removed) return null;
@@ -6302,7 +6379,9 @@ function decorations() {
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, requested, exploring, previewing, kept
+  var changesFilter = "all"; // all, requested, exploring, ready
+  var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
+  var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
   var srvVariationRequests = []; // server queue: asks waiting for variants
   var srvVariationResponses = []; // server queue: variants ready to try
@@ -6409,7 +6488,7 @@ function decorations() {
       seenVariation[variationId] = true;
       tasks.push({
         state: "requested", el: variationFor || null, label: variationFor ? nameOf(variationFor) : "Element",
-        origin: "Comment", detail: variationPrompt || "Variants requested", kind: "variation", requestId: variationId,
+        origin: "Comment", detail: "Waiting for your agent...", kind: "variation", requestId: variationId,
       });
     }
     (srvVariationRequests || []).forEach(function (request) {
@@ -6418,7 +6497,7 @@ function decorations() {
       var el = previewQuery(request.selector);
       tasks.push({
         state: "requested", el: el || null, label: el ? nameOf(el) : request.selector || "Element",
-        origin: "Comment", detail: request.prompt || "Variants requested", kind: "variation", requestId: request.id,
+        origin: "Comment", detail: "Waiting for your agent...", kind: "variation", requestId: request.id,
       });
     });
     // Requested: a preview ask with no paint.
@@ -6426,7 +6505,7 @@ function decorations() {
       seenPreview[previewReqId] = true;
       tasks.push({
         state: "requested", el: previewReqFor || null, label: previewReqFor ? nameOf(previewReqFor) : "Element",
-        origin: "Comment", detail: previewReqInstruction || "Preview requested", kind: "preview", requestId: previewReqId,
+        origin: "Comment", detail: "Waiting for your agent...", kind: "preview", requestId: previewReqId,
       });
     }
     (srvPreviewRequests || []).forEach(function (request) {
@@ -6435,7 +6514,7 @@ function decorations() {
       var el = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
       tasks.push({
         state: "requested", el: el || null, label: el ? nameOf(el) : (request.element && request.element.selector) || "Element",
-        origin: "Comment", detail: request.instruction || "Preview requested", kind: "preview", requestId: request.id,
+        origin: "Comment", detail: "Waiting for your agent...", kind: "preview", requestId: request.id,
       });
     });
     // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
@@ -6459,11 +6538,12 @@ function decorations() {
         });
       });
     }
-    // Previewing: what is painted now, or waiting in a list.
+    // Exploring: what is painted now, or waiting in a list. Previewing is
+    // the same state: the agent answered, the user has not ticked yet.
     if (previewCurrent) {
       var el = previewTarget || previewQuery(previewCurrent.selector);
       tasks.push({
-        state: "previewing", el: el || null, label: el ? nameOf(el) : previewWhere(previewCurrent),
+        state: "exploring", el: el || null, label: el ? nameOf(el) : previewWhere(previewCurrent),
         origin: previewOrigin === "comment" ? "Comment" : "Agent", detail: previewCurrent.instruction || "Preview",
         kind: "preview-current", previewId: previewCurrent.id,
       });
@@ -6473,13 +6553,15 @@ function decorations() {
         var target = previewTargets(item)[0];
         var el = target && target.selector ? previewQuery(target.selector) : target && target.anchor ? previewQuery(target.anchor) : null;
         tasks.push({
-          state: "previewing", el: el || null, label: item.instruction || "Preview", origin: "Agent",
+          state: "exploring", el: el || null, label: item.instruction || "Preview", origin: "Agent",
           detail: previewWhere(item), kind: "preview-listed", previewId: item.id,
         });
       });
     }
-    // Kept: ordinary edits, minus what is still only previewing or exploring.
+    // Edits: ticked ones are Ready, the rest are Exploring. A comment ask
+    // still waiting for the agent is only the requested card, not an edit.
     var kept = report().filter(function (item) {
+      if (item.rec && item.rec.commentAsk) return false;
       if (item.rec && previewRecords.indexOf(item.rec) !== -1) return false;
       if (item.rec && variantList && variantList.length && item.rec.el === variationFor) return false;
       return true;
@@ -6490,17 +6572,20 @@ function decorations() {
       else if (item.rec && item.rec.origin) origin = item.rec.origin;
       else if (item.comment) origin = "Comment";
       var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0) + (item.region ? 1 : 0);
+      var ready = !item.rec || !!item.rec.confirmed;
       tasks.push({
-        state: "kept", el: item.rec ? item.rec.el : null, label: item.label, origin: origin,
-        detail: (n === 1 ? "1 edit" : n + " edits") + (item.comment ? " · " + item.comment : ""),
-        kind: "kept", item: item,
+        state: ready ? "ready" : "exploring", el: item.rec ? item.rec.el : null, label: item.label, origin: origin,
+        detail: ready
+          ? "Your edit is approved & sent to agent" + (item.comment ? " with notes" : "")
+          : (n === 1 ? "1 edit" : n + " edits"),
+        kind: ready ? "ready" : "exploring-edit", item: item,
       });
     });
     return tasks;
   }
 
   function taskCounts(tasks) {
-    var counts = { all: tasks.length, requested: 0, exploring: 0, previewing: 0, kept: 0 };
+    var counts = { all: tasks.length, requested: 0, exploring: 0, ready: 0 };
     tasks.forEach(function (task) {
       if (counts[task.state] !== undefined) counts[task.state] += 1;
     });
@@ -6510,6 +6595,182 @@ function decorations() {
   function matchingTasks(tasks) {
     if (changesFilter === "all") return tasks;
     return tasks.filter(function (task) { return task.state === changesFilter; });
+  }
+
+  /** A card that was not measured cannot travel: the stub DOM has no layout. */
+  function captureCardPos() {
+    cardPos = {};
+    if (!changesPanel || !changesPanel.list) return;
+    var kids = changesPanel.list.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      var key = kids[i].getAttribute && kids[i].getAttribute("data-task");
+      if (key && typeof kids[i].offsetTop === "number") cardPos[key] = kids[i].offsetTop;
+    }
+  }
+
+  /** A card that is going away slides out in its direction, then the action runs. */
+  var LEAVE_MS = 160;
+  function slideOut(card, dir, done) {
+    if (!card || !moves(card)) return done();
+    card.className += dir === "up" ? " task-leaving-up" : " task-leaving-right";
+    card.style.overflow = "hidden";
+    setTimeout(done, LEAVE_MS);
+  }
+
+  /** One round icon button on a task card. */
+  function iconButton(icon, label, action, name) {
+    var btn = button("task-icon", "", label, function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      action();
+    }, name);
+    btn.appendChild(document.createElement("i"));
+    btn.firstChild.innerHTML = svg(icon);
+    return btn;
+  }
+
+  /**
+   * The controls that are always on a card, the way the wireframe draws
+   * them: pencil and eye on a Ready card, X on a requested one, notes and
+   * X and tick on an exploring one, number chips for the variants.
+   */
+  function addTaskBody(card, task, head) {
+    var rec = task.item && task.item.rec;
+    if (task.state === "ready" && rec) {
+      var icons = document.createElement("div");
+      icons.className = "task-icons";
+      var pencil = iconButton("pencil", "Back to exploring", function () {
+        // The edit goes back to Exploring: off the element, kept as data,
+        // and out of the project file until it is ticked again.
+        stashRec(rec);
+        rec.confirmed = false;
+        autosave();
+        tally();
+      }, "task-pencil-" + task.item.mark);
+      icons.appendChild(pencil);
+      var eye = iconButton("eye", "Hold to see the original", function () {}, "task-eye-" + task.item.mark);
+      var hold = function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        stashRec(rec);
+        refit();
+      };
+      var letGo = function () {
+        unstashRec(rec);
+        refit();
+      };
+      eye.addEventListener("pointerdown", hold);
+      eye.addEventListener("pointerup", letGo);
+      eye.addEventListener("pointerleave", letGo);
+      eye.addEventListener("pointercancel", letGo);
+      eye.addEventListener("click", function (e) { if (e) e.stopPropagation(); });
+      icons.appendChild(eye);
+      head.appendChild(icons);
+      return;
+    }
+    if (task.state === "requested") {
+      var box = document.createElement("div");
+      box.className = "task-icons";
+      box.appendChild(iconButton("x", "Delete this request", function () {
+        slideOut(card, "right", function () {
+          if (task.kind === "variation") cancelVariationId(task.requestId);
+          else if (task.kind === "preview") cancelPreviewId(task.requestId);
+        });
+      }, "task-x-" + (task.requestId || task.label)));
+      head.appendChild(box);
+      return;
+    }
+    if (task.kind === "exploring-edit" && rec) {
+      var row = document.createElement("div");
+      row.className = "task-editrow";
+      var note = document.createElement("input");
+      note.type = "text";
+      note.className = "task-note";
+      note.placeholder = "Notes";
+      note.value = rec.comment || "";
+      note.setAttribute("aria-label", "Note for the agent");
+      note.addEventListener("input", function () {
+        rec.comment = note.value;
+      });
+      row.appendChild(note);
+      row.appendChild(iconButton("x", "Discard this edit", function () {
+        slideOut(card, "right", function () {
+          if (rec.el === editing) stopEditing();
+          revert(rec);
+          if (rec.el === selected) {
+            select(null);
+            refit();
+          }
+          show("changes");
+        });
+      }, "task-x-" + task.item.mark));
+      row.appendChild(iconButton("check", "Approve and send to the agent", function () {
+        rec.comment = note.value;
+        slideOut(card, "up", function () {
+          confirmRec(rec);
+        });
+      }, "task-tick-" + task.item.mark));
+      card.appendChild(row);
+      return;
+    }
+    if (task.kind === "live-variants" || task.kind === "server-variants") {
+      var list = task.kind === "live-variants" ? (task.list || variantList) : task.list;
+      var at = task.kind === "live-variants" ? variantAt : -1;
+      var chips = document.createElement("div");
+      chips.className = "task-chips";
+      chips.setAttribute("role", "group");
+      chips.setAttribute("aria-label", "Variants");
+      (list || []).forEach(function (variation, i) {
+        var chip = button("task-chip", "", variation.label, function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (task.kind === "live-variants") {
+            pickVariant(i);
+          } else {
+            if (!task.el) return;
+            variationFor = task.el;
+            variationId = "";
+            showVariants(task.list);
+            pickVariant(i);
+          }
+        }, "variant-" + (i + 1));
+        chip.setAttribute("title", variation.label);
+        chip.setAttribute("aria-pressed", i === at ? "true" : "false");
+        chip.appendChild(text(String(i + 1)));
+        chips.appendChild(chip);
+      });
+      card.appendChild(chips);
+      var vrow = document.createElement("div");
+      vrow.className = "task-editrow";
+      var vnote = document.createElement("input");
+      vnote.type = "text";
+      vnote.className = "task-note";
+      vnote.placeholder = "Notes";
+      vnote.value = (task.el && record(task.el).comment) || "";
+      vnote.setAttribute("aria-label", "Note for the agent");
+      vnote.addEventListener("input", function () {
+        if (task.el) record(task.el).comment = vnote.value;
+      });
+      vrow.appendChild(vnote);
+      vrow.appendChild(iconButton("x", "Discard the variants", function () {
+        slideOut(card, "right", function () {
+          if (task.kind === "live-variants") discardVariants();
+          else if (task.requestId && typeof window.fetch === "function") {
+            window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(task.requestId), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+            show("changes");
+          }
+        });
+      }, "task-x-" + (task.requestId || task.label)));
+      var tick = iconButton("check", "Approve and send to the agent", function () {
+        if (task.el) record(task.el).comment = vnote.value;
+        slideOut(card, "up", function () {
+          closeVariants();
+        });
+      }, "task-tick-" + (task.requestId || task.label));
+      // A server card is not live yet: picking a chip makes it live, and
+      // only then can the tick approve it.
+      tick.disabled = task.kind === "live-variants" ? variantAt < 0 : true;
+      vrow.appendChild(tick);
+      card.appendChild(vrow);
+      return;
+    }
   }
 
   function addTaskActions(card, task) {
@@ -6524,72 +6785,6 @@ function decorations() {
       }, "task-go-" + (task.previewId || task.requestId || task.label));
       go.appendChild(text("Go to element"));
       row.appendChild(go);
-    }
-    if (task.kind === "kept") {
-      var undo = button("mini", "", "Revert this edit", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        var item = task.item;
-        if (!item) return;
-        if (!item.rec) {
-          for (var r = regions.length - 1; r >= 0; r--) {
-            if (regions[r].mark === item.mark) regions.splice(r, 1);
-          }
-          show("changes");
-          return;
-        }
-        if (item.rec.el === editing) stopEditing();
-        revert(item.rec);
-        if (item.rec.el === selected) {
-          select(null);
-          refit();
-        }
-        show("changes");
-      }, "task-undo-" + (task.item && task.item.mark));
-      undo.appendChild(text("Revert"));
-      row.appendChild(undo);
-    }
-    if (task.state === "requested") {
-      var cancel = button("mini danger", "", "Take back this request", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        if (task.kind === "variation") cancelVariationId(task.requestId);
-        else if (task.kind === "preview") cancelPreviewId(task.requestId);
-      }, "task-cancel-" + (task.requestId || task.label));
-      cancel.appendChild(text("Cancel"));
-      row.appendChild(cancel);
-    }
-    if (task.kind === "live-variants") {
-      var list = task.list || variantList;
-      var at = variantAt;
-      (list || []).forEach(function (variation, i) {
-        var pick = button("mini", "", "Use " + variation.label, function (e) {
-          if (e && e.stopPropagation) e.stopPropagation();
-          pickVariant(i);
-        }, "variant-" + (i + 1));
-        pick.setAttribute("aria-pressed", i === at ? "true" : "false");
-        pick.appendChild(text(variation.label));
-        row.appendChild(pick);
-      });
-      var keepIt = button("mini primary", "", "Keep the variation on the element", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        closeVariants();
-      }, "keep-variation");
-      keepIt.disabled = at < 0;
-      keepIt.appendChild(text("Keep"));
-      row.appendChild(keepIt);
-    }
-    if (task.kind === "server-variants" && task.list) {
-      task.list.forEach(function (variation, i) {
-        var pick = button("mini", "", "Use " + variation.label, function (e) {
-          if (e && e.stopPropagation) e.stopPropagation();
-          if (!task.el) return;
-          variationFor = task.el;
-          variationId = "";
-          showVariants(task.list);
-          pickVariant(i);
-        }, "variant-" + (i + 1));
-        pick.appendChild(text(variation.label));
-        row.appendChild(pick);
-      });
     }
     if (task.kind === "preview-current") {
       var current = previewCurrent;
@@ -6642,60 +6837,46 @@ function decorations() {
     var tasks = editsTasks();
     var counts = taskCounts(tasks);
     var shown = matchingTasks(tasks);
-    // The edits panel: header, filter grid, cards, two buttons under them.
+    captureCardPos();
+    // The edits panel: header, filter grid, cards, copy button under them.
     // They are kept between redraws, so a change that lands while the panel
     // is open does not throw away the scroll position. The server queues
     // refresh in the background, so requested and exploring tasks survive
     // a reload.
     if (!changesPanel) {
       changesPanel = {};
-      changesPanel.head = document.createElement("div");
-      changesPanel.head.className = "changes-head";
-      var title = document.createElement("p");
-      title.className = "changes-title";
-      title.appendChild(text("Edits"));
-      changesPanel.head.appendChild(title);
-      changesPanel.total = document.createElement("span");
-      changesPanel.total.className = "changes-total";
-      changesPanel.head.appendChild(changesPanel.total);
       changesPanel.filters = document.createElement("div");
       changesPanel.filters.className = "changes-filters";
       changesPanel.list = document.createElement("div");
       changesPanel.list.className = "changes-list";
       changesPanel.actions = document.createElement("div");
       changesPanel.actions.className = "changes-foot";
-      var copy = button("cta", "", "Copy the edits as a prompt for a coding agent", function () {
-        copyText(markdown(report()), function (ok) {
+      // Copy gives a nudge only: the agent reads the saved edits over MCP,
+      // never this text, so the text must not carry the edits themselves.
+      var NUDGE = "Use the Edityy MCP tools. Read the saved visual changes with get_visual_changes, then apply them to the source.";
+      var copy = button("cta", "", "Copy a short prompt that nudges a coding agent to read the saved edits over MCP", function () {
+        copyText(NUDGE, function (ok) {
           relabel(changesPanel.copy, ok ? "Copied" : "Copy failed");
-          setTimeout(function () { relabel(changesPanel.copy, "Copy for an agent"); }, 1600);
+          setTimeout(function () { relabel(changesPanel.copy, "Copy prompt to get started"); }, 1600);
         });
       }, "copy");
-      copy.appendChild(say("Copy for an agent"));
+      var copyGlyph = document.createElement("i");
+      copyGlyph.innerHTML = svg("copy");
+      copy.appendChild(copyGlyph);
+      copy.appendChild(say("Copy prompt to get started"));
       changesPanel.copy = copy;
-      var save = button("cta ghost", "", "Save the edits to " + CHANGES_FILE + " in the project", function () {
-        saveEdits(function (message) {
-          relabel(changesPanel.save, message);
-          setTimeout(function () { relabel(changesPanel.save, "Save to project"); }, 2400);
-        });
-      }, "save");
-      save.appendChild(say("Save to project"));
-      changesPanel.save = save;
       changesPanel.actions.appendChild(copy);
-      changesPanel.actions.appendChild(save);
     }
-    changesPanel.total.textContent = counts.all ? (counts.all === 1 ? "1 task" : counts.all + " tasks") : "";
     while (changesPanel.filters.firstChild) changesPanel.filters.removeChild(changesPanel.filters.firstChild);
-    [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["previewing", "Previewing"], ["kept", "Kept"]].forEach(function (entry) {
+    [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["ready", "Ready"]].forEach(function (entry) {
       var key = entry[0];
-      var btn = button("changes-filter", "", entry[1] + ", " + counts[key] + " tasks", function () {
+      var btn = button("changes-filter", "", entry[1] + " (" + counts[key] + ")", function () {
+        captureCardPos();
         changesFilter = key;
         show("changes");
       }, "changes-filter-" + key);
       btn.setAttribute("aria-pressed", changesFilter === key ? "true" : "false");
-      var num = document.createElement("b");
-      num.appendChild(text(String(counts[key])));
-      btn.appendChild(num);
-      btn.appendChild(text(entry[1]));
+      btn.appendChild(text(entry[1] + " (" + counts[key] + ")"));
       changesPanel.filters.appendChild(btn);
     });
     var list = changesPanel.list;
@@ -6711,40 +6892,30 @@ function decorations() {
     shown.forEach(function (task) {
       var card = document.createElement("div");
       card.className = task.el && task.el === selected ? "task selected" : "task";
+      card.setAttribute("data-state", task.state);
       var head = document.createElement("div");
       head.className = "task-top";
       var name = document.createElement("span");
       name.className = "task-name";
       name.appendChild(text(task.label));
       head.appendChild(name);
-      var badge = document.createElement("span");
-      badge.className = "task-badge";
-      badge.setAttribute("data-state", task.state);
-      var words = { requested: "Requested", exploring: "Exploring", previewing: "Previewing", kept: "Kept" };
-      badge.appendChild(text(words[task.state] || task.state));
-      head.appendChild(badge);
-      var chevron = document.createElement("span");
-      chevron.className = "task-more";
-      chevron.setAttribute("aria-hidden", "true");
-      chevron.appendChild(text("›"));
-      head.appendChild(chevron);
       card.setAttribute("data-open", expandedTasks[task.previewId || task.requestId || task.label] ? "true" : "false");
       card.appendChild(head);
-      var meta = document.createElement("div");
-      meta.className = "task-meta";
-      var origin = document.createElement("span");
-      origin.className = "task-origin";
-      origin.appendChild(text(task.origin));
-      meta.appendChild(origin);
-      var detail = document.createElement("span");
-      detail.className = "task-detail";
-      detail.appendChild(text(task.detail));
-      meta.appendChild(detail);
-      card.appendChild(meta);
+      // A detail line only where the wireframe has one: the ready and
+      // requested cards, and the previews. Exploring cards show their
+      // controls instead.
+      var showDetail = task.state === "ready" || task.state === "requested" || task.kind.indexOf("preview") === 0;
+      if (showDetail) {
+        var detail = document.createElement("p");
+        detail.className = "task-detail";
+        detail.appendChild(text(task.detail));
+        card.appendChild(detail);
+      }
+      addTaskBody(card, task, head);
       addTaskActions(card, task);
       if (task.el) {
         card.addEventListener("click", function (e) {
-          if (e && e.target && e.target.closest && e.target.closest("button")) return;
+          if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
           var key = task.previewId || task.requestId || task.label;
           expandedTasks[key] = !expandedTasks[key];
           show("changes");
@@ -6752,20 +6923,41 @@ function decorations() {
         });
       } else {
         card.addEventListener("click", function (e) {
-          if (e && e.target && e.target.closest && e.target.closest("button")) return;
+          if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
           var key = task.previewId || task.requestId || task.label;
           expandedTasks[key] = !expandedTasks[key];
           show("changes");
         });
       }
+      // A card that was not there before slides in; one that was already
+      // there stays put, so a redraw never replays its arrival.
+      var seen = task.previewId || task.requestId || task.label;
+      card.setAttribute("data-task", seen);
+      if (!taskSeen[seen]) {
+        taskSeen[seen] = true;
+        card.className += " task-enter";
+      }
       list.appendChild(card);
+      // Filter grid travel: a card that was already there moves to its new
+      // slot with a spring-feel ease, instead of jumping.
+      if (typeof card.offsetTop === "number" && cardPos[seen] !== undefined && cardPos[seen] !== card.offsetTop) {
+        (function (el, dy) {
+          el.style.transform = "translateY(" + dy + "px)";
+          el.style.transition = "transform var(--tint) var(--standard)";
+          el.style.overflow = "visible";
+          setTimeout(function () {
+            el.style.transform = "";
+            el.style.transition = "";
+          }, 0);
+        })(card, cardPos[seen] - card.offsetTop);
+      }
     });
+    cardPos = {};
     list.scrollTop = top;
     changesPanel.copy.disabled = !report().length;
-    changesPanel.save.disabled = !report().length;
-    pop.appendChild(changesPanel.head);
-    pop.appendChild(changesPanel.filters);
+    // The wireframe order: cards, then the pill tabs, then the copy button.
     pop.appendChild(list);
+    pop.appendChild(changesPanel.filters);
     pop.appendChild(changesPanel.actions);
     refreshEditsServer();
   }
@@ -6784,12 +6976,16 @@ function decorations() {
   }
 
   /**
-   * Send the edits to the dev server, which writes them into the project for a
-   * coding agent to read. A server without the endpoint — Next.js until its
-   * route is added — answers 404, and the button says so instead of failing.
+   * Send the confirmed edits to the dev server, which writes them into the
+   * project for a coding agent to read. Only Ready edits are written: an
+   * Exploring edit has not been ticked yet, so the agent must not act on it.
+   * A server without the endpoint — Next.js until its route is added —
+   * answers 404, and the button says so instead of failing.
    */
   function saveEdits(done) {
-    var items = report();
+    var items = report().filter(function (item) {
+      return !item.rec || item.rec.confirmed;
+    });
     if (typeof window.fetch !== "function") return done("Cannot save here");
     var body = JSON.stringify({
       page: window.location ? window.location.href : null,
@@ -6809,6 +7005,21 @@ function decorations() {
     }).catch(function () {
       done("Save failed");
     });
+  }
+
+  /** Write the project file now, without a button to press: every tick and
+   * every keep saves at once, and the words are only ever feedback. */
+  function autosave() {
+    saveEdits(function () {});
+  }
+
+  /** Tick an Exploring edit: write it back on, mark it Ready, save it. */
+  function confirmRec(rec) {
+    if (!rec) return;
+    unstashRec(rec);
+    rec.confirmed = true;
+    autosave();
+    tally();
   }
 
   /* ---------------------------------------------------------- variations */
@@ -6931,6 +7142,9 @@ function decorations() {
     variationTimer = 0;
     variationId = "";
     variationPolls = 0;
+    // The ask's words become the Exploring card's note, so the agent reads
+    // them with the saved edit when the code change is made.
+    if (variationFor && variationPrompt) record(variationFor).comment = variationPrompt;
     variationWords = "";
     variationPrompt = "";
     commentFor = null;
@@ -7020,7 +7234,11 @@ function decorations() {
 
   /** Ask the dev server for a canvas preview of one comment. `failed` is told why it never went out. */
   function requestPreview(el, region, instruction, failed) {
-    if (typeof window.fetch !== "function") return failed("Cannot ask here");
+    if (typeof window.fetch !== "function") {
+      // The ask never went out: the words are an Exploring note, not a wait.
+      if (el) record(el).commentAsk = false;
+      return failed("Cannot ask here");
+    }
     var id = newId();
     window.fetch(PREVIEW_REQUEST_URL, {
       method: "POST",
@@ -7042,6 +7260,8 @@ function decorations() {
       previewSeen = "";
       pollPreviews(); // at once: a paint already waiting is not waited for
     }).catch(function (error) {
+      // The ask never went out: the words are an Exploring note, not a wait.
+      if (el) record(el).commentAsk = false;
       failed(error.message || "Could not ask the dev server");
     });
   }
@@ -7050,6 +7270,7 @@ function decorations() {
   function cancelPreviewRequest() {
     var id = previewReqId;
     previewReqId = "";
+    if (previewReqFor) record(previewReqFor).commentAsk = false;
     previewReqFor = null;
     previewReqRegion = null;
     previewReqInstruction = "";
@@ -7074,6 +7295,8 @@ function decorations() {
         var el = previewReqFor;
         var region = previewReqRegion;
         previewReqId = "";
+        // The wait is over: the words are an Exploring note now.
+        if (el) record(el).commentAsk = false;
         previewReqFor = null;
         previewReqRegion = null;
         previewReqInstruction = "";
@@ -7346,6 +7569,8 @@ function decorations() {
       return;
     }
     var fromComment = !!previewReqId;
+    // The agent answered: the ask's words are an Exploring note now.
+    if (previewReqFor) record(previewReqFor).commentAsk = false;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
@@ -7438,6 +7663,9 @@ function decorations() {
     // say Agent or Comment on it later.
     var origin = previewOrigin || "agent";
     previewRecords.forEach(function (rec) { rec.origin = origin === "comment" ? "Comment" : "Agent"; });
+    // A kept preview is a Ready edit: it is written to the project at once.
+    previewRecords.forEach(function (rec) { rec.confirmed = true; });
+    autosave();
     previewCurrent = null;
     previewRows = [];
     previewKeep = null;
@@ -7482,6 +7710,11 @@ function decorations() {
   function closeVariants() {
     // A kept variation came from the comment box.
     if (variationFor && variantAt >= 0) record(variationFor).origin = "Comment";
+    // A kept variation is a Ready edit: it is written to the project at once.
+    if (variationFor && variantAt >= 0) {
+      record(variationFor).confirmed = true;
+      autosave();
+    }
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
     if (variationId && typeof window.fetch === "function") {
@@ -7511,6 +7744,42 @@ function decorations() {
     }
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
     if (review.getAttribute("aria-expanded") === "true") show("changes");
+  }
+
+  /** Drop the variations without keeping one: the page goes back, nothing is saved. */
+  function discardVariants() {
+    if (variationFor) {
+      var rec = record(variationFor);
+      variantProps.forEach(function (prop) { restore(rec, prop); });
+      if (rec.text !== null && rec.el.textContent !== rec.text) {
+        if (rec.html !== undefined) rec.el.innerHTML = rec.html;
+        else rec.el.textContent = rec.text;
+      }
+      if (!diff(rec)) {
+        changes = changes.filter(function (other) { return other !== rec; });
+        forget(rec);
+      }
+    }
+    if (variationTimer) clearTimeout(variationTimer);
+    variationTimer = 0;
+    if (variationId && typeof window.fetch === "function") {
+      window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(variationId), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    variationId = "";
+    variationPolls = 0;
+    variationWords = "";
+    variationPrompt = "";
+    commentFor = null;
+    openComment = null;
+    variantList = [];
+    variantAt = -1;
+    variantProps = [];
+    variantRows = [];
+    variationFor = null;
+    variantsBox.hidden = true;
+    while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
+    refit();
+    tally();
   }
 
   /** The menu while an element's words are being typed: the one way out. */
@@ -7633,7 +7902,7 @@ function decorations() {
       var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
       if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark });
+      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
     });
     var savedRegions = regions.map(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
@@ -7678,6 +7947,8 @@ function decorations() {
         }
         if (edit.added && edit.added.length) rec.added = edit.added.slice();
         if (typeof edit.comment === "string") rec.comment = edit.comment;
+        // An edit saved by an older version had no flag: it was already saved.
+        rec.confirmed = edit.confirmed !== false;
         if (edit.origin) rec.origin = edit.origin;
         if (edit.mark != null) {
           rec.mark = edit.mark;

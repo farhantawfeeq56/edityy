@@ -1642,7 +1642,7 @@ test("the edits button counts the elements that really changed", () => {
 });
 
 
-test("the edits list names each element, and reverts one without the others", () => {
+test("the edits list names each element, and discards one without the others", async () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app);
@@ -1652,22 +1652,22 @@ test("the edits list names each element, and reverts one without the others", ()
 
   const open = openEdits(app);
   assert.equal(app.root.nodes.review.getAttribute("aria-expanded"), "true");
-  const lines = open.children[2].children;
+  const lines = open.children[0].children;
   assert.equal(lines.length, 2);
   assert.match(shown(lines[0]), /p “hello”/);
   assert.match(shown(lines[1]), /h2 “second”/);
-  assert.match(shown(lines[0]), /Kept/);
-  assert.match(shown(lines[0]), /1 edit/);
+  assert.equal(lines[0].getAttribute("data-state"), "exploring", "a fresh edit is Exploring until ticked");
+  assert.ok(lines[0].children.some((c) => c.className === "task-editrow"), "notes and tick on the card");
 
-  // Clicking a card opens its controls: the Revert lives there.
-  quiet(() => { for (const fn of lines[0].bubbles.click.bubble) fn({}); });
-  const opened = open.children[2].children[0];
-  const actions = opened.children.find((c) => c.className === "task-actions");
-  const undo = actions.children.find((b) => shown(b).includes("Revert"));
-  quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
+  // The X on the card discards the edit: it slides out, then it is gone.
+  const row = lines[0].children.find((c) => c.className === "task-editrow");
+  const discard = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Discard this edit");
+  assert.ok(discard, "a discard button on the card");
+  for (const fn of discard.bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
   assert.doesNotMatch(app.win.__edityy_changes(), /first note/, "the first comment is gone");
   assert.match(app.win.__edityy_changes(), /second note/, "the second is untouched");
-  assert.equal(app.root.nodes.pop.children[2].children.length, 1, "and the list redrew");
+  assert.equal(app.root.nodes.pop.children[0].children.length, 1, "and the list redrew");
   assert.equal(app.root.nodes.count.textContent, "1");
 });
 
@@ -1694,8 +1694,8 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   const app = run();
   selectText(app);
   const open = openEdits(app);
-  assert.match(shown(open.children[2]), /No edits yet/);
-  assert.equal(open.children[3].children[0].disabled, true);
+  assert.match(shown(open.children[0]), /No edits yet/);
+  assert.equal(open.children[2].children[0].disabled, true);
 });
 
 /** Press a key with modifiers; returns whether the payload took it. */
@@ -2023,7 +2023,7 @@ test("reduced motion stops every animation and every transition", () => {
   );
 });
 
-test("Save to project posts the edits as JSON to the dev server", async () => {
+test("ticking an Exploring edit posts it to the dev server, with no save button", async () => {
   const { run } = fakeDom();
   const app = run();
   const sent = [];
@@ -2039,22 +2039,41 @@ test("Save to project posts the edits as JSON to the dev server", async () => {
   commentOn(app, p, "make it warmer");
   await tick();
   const open = openEdits(app);
-  const save = open.children[3].children[1];
-  assert.equal(save.dataset.key, "save");
-  for (const fn of save.bubbles.click.bubble) fn({});
-  await tick();
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].url, "/__edityy/changes");
-  assert.equal(sent[0].init.method, "POST");
-  assert.equal(sent[0].init.headers["content-type"], "application/json");
-  const body = JSON.parse(sent[0].init.body);
+  // The foot holds one button only: the copy nudge. There is no save step.
+  assert.equal(open.children[2].children.length, 1, "one button in the foot");
+  const copyBtn = open.children[2].children[0];
+  assert.match(copyBtn.getAttribute("aria-label"), /Copy a short prompt/, "the copy nudge");
+  // The comment ask is still waiting for the agent, so nothing is posted yet.
+  assert.equal(sent.length, 0, "a waiting ask saves nothing");
+  // Deleting the request ends the wait: the words become an Exploring note.
+  const waiting = open.children[0].children.find((c) => shown(c).includes("Waiting for your agent"));
+  assert.ok(waiting, "the waiting card");
+  const del = waiting.children[0].children.find((c) => c.className === "task-icons").children[0];
+  assert.equal(del.getAttribute("aria-label"), "Delete this request");
+  for (const fn of del.bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  const card = open.children[0].children.find((c) => c.getAttribute("data-state") === "exploring");
+  assert.ok(card, "the note card now that the wait is over");
+  const row = card.children.find((c) => c.className === "task-editrow");
+  const tickBtn = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Approve and send to the agent");
+  assert.ok(tickBtn, "a tick on the card");
+  for (const fn of tickBtn.bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  // The cancel above also hit the stub: count only the save posts.
+  const saves = sent.filter((s) => s.url === "/__edityy/changes");
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].init.method, "POST");
+  assert.equal(saves[0].init.headers["content-type"], "application/json");
+  const body = JSON.parse(saves[0].init.body);
   assert.equal(body.changes.length, 1);
   assert.equal(body.changes[0].comment, "make it warmer");
   assert.equal(body.changes[0].removed, false);
   assert.equal(body.changes[0].rec, undefined, "no live element on the wire");
   assert.match(body.markdown, /# Visual edits from Edityy/);
   assert.match(body.markdown, /- Comment: "make it warmer"/);
-  assert.equal(save.textContent, "Saved to .edityy/changes.json");
+  const ready = open.children[0].children.find((c) => c.getAttribute("data-state") === "ready");
+  assert.ok(ready, "the ticked card is Ready");
+  assert.match(shown(ready), /approved & sent to agent/);
 });
 
 test("saving a comment also asks the agent for a canvas preview", async () => {
@@ -2148,29 +2167,27 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(inMenu("Save comment"), undefined, "the prompt box is done");
   // Open Edits and the Exploring card for this element.
   const open = openEdits(app);
-  const cards = () => open.children[2].children;
+  const cards = () => open.children[0].children;
   // The panel redraws on every pick, so the card is looked up fresh each time.
-  const exploringCard = () => cards().find((card) => shown(card.children[0]).includes("Exploring"));
-  const cardActions = () => exploringCard().children.find((c) => c.className === "task-actions");
-  const cardRows = () => cardActions().children.filter((b) => b.getAttribute && /^Use /.test(b.getAttribute("aria-label") || ""));
-  const cardKeep = () => cardActions().children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element");
+  const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  const cardChips = () => exploringCard().children.find((c) => c.className === "task-chips").children;
+  const cardTick = () => exploringCard().children.find((c) => c.className === "task-editrow").children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Approve and send to the agent");
   const card = exploringCard();
   assert.ok(card, "an Exploring card for the element");
-  assert.match(shown(card), /Exploring/);
-  assert.match(shown(card), /2 variants ready/);
   quiet(() => { for (const fn of card.bubbles.click.bubble) fn({}); });
-  const rows = cardRows();
-  assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);
-  assert.deepEqual(rows.map((r) => r.dataset.key), ["variant-1", "variant-2"], "each button says its key");
+  const rows = cardChips();
+  assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["thin grey", "rose pill"]);
+  assert.deepEqual(rows.map((r) => r.children[0].nodeValue), ["1", "2"], "numbers only: the label is the tooltip");
+  assert.deepEqual(rows.map((r) => r.dataset.key), ["variant-1", "variant-2"], "each chip says its key");
   assert.equal(rows[0].getAttribute("aria-pressed"), "false", "nothing is on the element yet");
-  assert.equal(cardKeep().disabled, true, "there is nothing to keep yet");
+  assert.equal(cardTick().disabled, true, "there is nothing to keep yet");
 
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
-  assert.equal(cardRows()[0].getAttribute("aria-pressed"), "true", "the tick moves on the card");
-  assert.equal(cardRows()[1].getAttribute("aria-pressed"), "false");
-  assert.equal(cardKeep().disabled, false, "a variation is on the element, so it can be kept");
+  assert.equal(cardChips()[0].getAttribute("aria-pressed"), "true", "the tick moves on the card");
+  assert.equal(cardChips()[1].getAttribute("aria-pressed"), "false");
+  assert.equal(cardTick().disabled, false, "a variation is on the element, so it can be kept");
   assert.match(app.win.__edityy_changes(), /- `scrollbar-width`: `unset` → `thin`/);
 
   // The next variation is the whole variation: the width goes back, it is not left over.
@@ -2248,13 +2265,13 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   preview = { id: "e-abc123", instruction: "make it thin", action: "styles", selector: "p", variations: [{ label: "thin", props: [{ property: "color", value: "red" }] }] };
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  // The Previewing card in Edits: expand it, pick the variant, then Keep.
+  // The Exploring card in Edits: expand it, pick the variant, then Keep.
   const open = openEdits(app);
-  const cards = () => open.children[2].children;
-  const previewingCard = () => cards().find((card) => shown(card.children[0]).includes("Previewing"));
-  const cardActions = () => previewingCard().children.find((c) => c.className === "task-actions");
-  assert.ok(previewingCard(), "a Previewing card for the preview");
-  quiet(() => { for (const fn of previewingCard().bubbles.click.bubble) fn({}); });
+  const cards = () => open.children[0].children;
+  const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  const cardActions = () => exploringCard().children.find((c) => c.className === "task-actions");
+  assert.ok(exploringCard(), "a Exploring card for the preview");
+  quiet(() => { for (const fn of exploringCard().bubbles.click.bubble) fn({}); });
   const thin = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Use thin");
   assert.ok(thin, "the variant button");
   for (const fn of thin.bubbles.click.bubble) fn({});
@@ -2297,7 +2314,7 @@ test("a variant that sets words paints them like a preview", async () => {
   assert.match(app.win.__edityy_changes(), /Start free/);
 });
 
-test("several previews at once get one Previewing card each", async () => {
+test("several previews at once get one Exploring card each", async () => {
   const { run } = fakeDom();
   const app = run();
   const posts = [];
@@ -2326,24 +2343,24 @@ test("several previews at once get one Previewing card each", async () => {
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
-  // Edits shows one Previewing card per instruction, each with its own
+  // Edits shows one Exploring card per instruction, each with its own
   // Keep and Discard.
   const open = openEdits(app);
-  const cards = () => open.children[2].children;
-  const previewing = () => cards().filter((card) => shown(card.children[0]).includes("Previewing"));
-  assert.equal(previewing().length, 3, "a card per instruction");
+  const cards = () => open.children[0].children;
+  const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  assert.equal(exploring().length, 3, "a card per instruction");
   assert.equal(el.style.getPropertyValue("font-weight"), "", "nothing painted on the canvas while several wait");
   // Keep one card: its decision goes over, the others stay.
-  const first = previewing()[0];
+  const first = exploring()[0];
   quiet(() => { for (const fn of first.bubbles.click.bubble) fn({}); });
-  const firstActions = previewing()[0].children.find((c) => c.className === "task-actions");
+  const firstActions = exploring()[0].children.find((c) => c.className === "task-actions");
   const keepOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview");
   assert.equal(keepOne.dataset.key, "task-keep-e-two1", "its own keep button");
   for (const fn of keepOne.bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { id: "e-two1", keep: true });
   await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
-  assert.equal(previewing().length, 2, "the kept card leaves the list");
+  assert.equal(exploring().length, 2, "the kept card leaves the list");
 });
 
 test("discarding a waiting preview takes it out of the list", async () => {
@@ -2374,16 +2391,16 @@ test("discarding a waiting preview takes it out of the list", async () => {
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   const open = openEdits(app);
-  const cards = () => open.children[2].children;
-  const previewing = () => cards().filter((card) => shown(card.children[0]).includes("Previewing"));
-  assert.equal(previewing().length, 2, "both waiting");
+  const cards = () => open.children[0].children;
+  const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  assert.equal(exploring().length, 2, "both waiting");
   // Discard the first card; the second stays.
-  quiet(() => { for (const fn of previewing()[0].bubbles.click.bubble) fn({}); });
-  const firstActions = previewing()[0].children.find((c) => c.className === "task-actions");
+  quiet(() => { for (const fn of exploring()[0].bubbles.click.bubble) fn({}); });
+  const firstActions = exploring()[0].children.find((c) => c.className === "task-actions");
   const dropOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Discard this preview");
   for (const fn of dropOne.bubbles.click.bubble) fn({});
   assert.deepEqual(posts[0], { id: "e-drop1", keep: false });
   await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
-  assert.equal(previewing().length, 1, "the discarded card leaves the list");
+  assert.equal(exploring().length, 1, "the discarded card leaves the list");
   assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
 });
