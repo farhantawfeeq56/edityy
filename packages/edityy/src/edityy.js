@@ -940,7 +940,11 @@
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 11px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
     ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}",
-    ".task-actions{display:flex;gap:6px;margin-top:2px}",
+    ".task-actions{display:none;flex-wrap:wrap;gap:4px;margin-top:2px}",
+    ".task[data-open=true] .task-actions{display:flex}",
+    ".task-more{font:600 11px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
+    ".task[data-open=true] .task-more{transform:rotate(90deg)}",
+    ".task-actions .mini[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
     ".task-actions .mini{flex:0 0 auto;border:1px solid var(--ink-10);border-radius:7px;padding:6px 10px;background:transparent;font:500 11px/1 inherit;cursor:pointer;color:var(--ink)}",
     ".task-actions .mini:hover{background:var(--fill-hover)}",
     ".task-actions .mini.danger{color:#9B1C1C}",
@@ -1812,8 +1816,8 @@
       return;
     }
     // One box at a time. The click that selected the element opens its box.
-    // While the strip shows the answer, the prompt stays put away.
-    if (activeTool === "comment" && !commentFor && variantsBox.hidden) commentFor = selected;
+    // While variants are on the canvas, the prompt stays put away.
+    if (activeTool === "comment" && !commentFor && !variantList.length) commentFor = selected;
     if (activeTool === "comment" && commentFor) {
       if (!openComment) drawMenu(commentBox({ el: commentFor }));
       placeElementMenu();
@@ -6299,6 +6303,7 @@ function decorations() {
   // The edits panel, kept between redraws.
   var changesPanel = null;
   var changesFilter = "all"; // all, requested, exploring, previewing, kept
+  var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
   var srvVariationRequests = []; // server queue: asks waiting for variants
   var srvVariationResponses = []; // server queue: variants ready to try
   var srvPreviewRequests = []; // server queue: asks waiting for a paint
@@ -6508,6 +6513,8 @@ function decorations() {
   }
 
   function addTaskActions(card, task) {
+    var key = task.previewId || task.requestId || task.label;
+    if (!expandedTasks[key]) return;
     var row = document.createElement("div");
     row.className = "task-actions";
     if (task.el) {
@@ -6551,30 +6558,56 @@ function decorations() {
       row.appendChild(cancel);
     }
     if (task.kind === "live-variants") {
-      var pick = button("mini", "", "The strip is on the canvas: keys 1 to 9 pick a variant.", function (e) {
+      var list = task.list || variantList;
+      var at = variantAt;
+      (list || []).forEach(function (variation, i) {
+        var pick = button("mini", "", "Use " + variation.label, function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          pickVariant(i);
+        }, "variant-" + (i + 1));
+        pick.setAttribute("aria-pressed", i === at ? "true" : "false");
+        pick.appendChild(text(variation.label));
+        row.appendChild(pick);
+      });
+      var keepIt = button("mini primary", "", "Keep the variation on the element", function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
-        if (task.el) gotoTask(task);
-      }, "task-pick-" + task.label);
-      pick.appendChild(text("On canvas"));
-      row.appendChild(pick);
+        closeVariants();
+      }, "keep-variation");
+      keepIt.disabled = at < 0;
+      keepIt.appendChild(text("Keep"));
+      row.appendChild(keepIt);
     }
     if (task.kind === "server-variants" && task.list) {
-      var open = button("mini", "", "Open these variants on the element", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        if (!task.el) return;
-        variationFor = task.el;
-        variationId = "";
-        showVariants(task.list);
-        gotoTask(task);
-      }, "task-open-" + (task.requestId || task.label));
-      open.appendChild(text("Open variants"));
-      row.appendChild(open);
+      task.list.forEach(function (variation, i) {
+        var pick = button("mini", "", "Use " + variation.label, function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (!task.el) return;
+          variationFor = task.el;
+          variationId = "";
+          showVariants(task.list);
+          pickVariant(i);
+        }, "variant-" + (i + 1));
+        pick.appendChild(text(variation.label));
+        row.appendChild(pick);
+      });
     }
     if (task.kind === "preview-current") {
+      var current = previewCurrent;
+      var choices = current ? previewRowVariations(current) : [];
+      choices.forEach(function (variation, i) {
+        var pick = button("mini", "", "Use " + variation.label, function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          pickPreviewVariant(i);
+        }, "preview-" + (i + 1));
+        pick.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
+        pick.appendChild(text(variation.label));
+        row.appendChild(pick);
+      });
       var keepIt = button("mini primary", "", "Keep this preview as an edit", function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
         keepPreview();
       }, "task-keep-" + task.previewId);
+      keepIt.disabled = choices.length > 0 && previewVariantAt < 0;
       keepIt.appendChild(text("Keep"));
       row.appendChild(keepIt);
       var dropIt = button("mini danger", "", "Discard this preview", function (e) {
@@ -6690,6 +6723,12 @@ function decorations() {
       var words = { requested: "Requested", exploring: "Exploring", previewing: "Previewing", kept: "Kept" };
       badge.appendChild(text(words[task.state] || task.state));
       head.appendChild(badge);
+      var chevron = document.createElement("span");
+      chevron.className = "task-more";
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.appendChild(text("›"));
+      head.appendChild(chevron);
+      card.setAttribute("data-open", expandedTasks[task.previewId || task.requestId || task.label] ? "true" : "false");
       card.appendChild(head);
       var meta = document.createElement("div");
       meta.className = "task-meta";
@@ -6706,7 +6745,17 @@ function decorations() {
       if (task.el) {
         card.addEventListener("click", function (e) {
           if (e && e.target && e.target.closest && e.target.closest("button")) return;
+          var key = task.previewId || task.requestId || task.label;
+          expandedTasks[key] = !expandedTasks[key];
+          show("changes");
           gotoTask(task);
+        });
+      } else {
+        card.addEventListener("click", function (e) {
+          if (e && e.target && e.target.closest && e.target.closest("button")) return;
+          var key = task.previewId || task.requestId || task.label;
+          expandedTasks[key] = !expandedTasks[key];
+          show("changes");
         });
       }
       list.appendChild(card);
@@ -6785,10 +6834,9 @@ function decorations() {
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
   var variantProps = []; // the properties the last variation wrote
-  // The rows of the strip, and its Keep button. They are kept between picks,
-  // so a pick moves the tick instead of building the strip again.
+  // The variant state lives on the card now: the tick and the Keep button
+  // follow the pick when the panel re-renders.
   var variantRows = [];
-  var variantKeep = null;
 
   /** A request id: random enough that two tabs never share one. */
   function newId() {
@@ -6877,7 +6925,7 @@ function decorations() {
       });
   }
 
-  /** The answer arrived: the prompt goes away, the strip at the bottom right stays. */
+  /** The answer arrived: variants up, the comment box away. The panel redraws, so the card shows them. */
   function showVariants(list) {
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
@@ -6893,7 +6941,6 @@ function decorations() {
     while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
     menuAway();
     paintVariants();
-    variantsBox.hidden = false;
     syncElementMenu();
   }
 
@@ -6925,65 +6972,9 @@ function decorations() {
     tally();
   }
 
-  /**
-   * The strip: one row per variation, with the key that picks it.
-   *
-   * The rows are built once, when the strip is drawn, and kept. A redraw on
-   * every pick would throw away the row the pointer is on and the words that
-   * are still fading in, and the answer to a pick is a tick that moves, not a
-   * strip that is built again.
-   */
+  /** The variants live on their card in the Edits panel now: a pick just redraws it when it is open. */
   function paintVariants() {
-    if (variantRows.length) {
-      // The rows are there: the tick moves and the Keep button says whether
-      // there is anything to keep.
-      variantRows.forEach(function (row, i) {
-        row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
-      });
-      if (variantKeep) variantKeep.disabled = variantAt < 0;
-      return;
-    }
-    var head = document.createElement("div");
-    head.className = "variants-head";
-    var title = document.createElement("p");
-    title.className = "variants-title";
-    title.appendChild(text("Variations"));
-    head.appendChild(title);
-    // The strip floats away from the element, so it says which element it
-    // varies: a caption, in the muted tone.
-    if (variationFor) {
-      var of = document.createElement("span");
-      of.className = "variants-of";
-      of.appendChild(text(variationFor.tagName.toLowerCase()));
-      head.appendChild(of);
-    }
-    var keep = button("variants-keep", "", "Keep the variation on the element", function () {
-      closeVariants();
-    }, "keep-variation");
-    keep.appendChild(say("Keep"));
-    // Keep ends the strip, and it can only end it with something on the element.
-    keep.disabled = variantAt < 0;
-    variantKeep = keep;
-    head.appendChild(keep);
-    variantsBox.appendChild(head);
-    var list = document.createElement("div");
-    list.className = "variants-list";
-    variantList.forEach(function (variation, i) {
-      var row = button("variant", "", "Use " + variation.label, function () { pickVariant(i); }, "variant-" + (i + 1));
-      row.setAttribute("aria-pressed", i === variantAt ? "true" : "false");
-      var key = document.createElement("span");
-      key.className = "key";
-      // The tenth row wears 0: there is no key for 10 on a keyboard.
-      key.appendChild(text(i === 9 ? "0" : String(i + 1)));
-      row.appendChild(key);
-      var words = document.createElement("span");
-      words.className = "words";
-      words.appendChild(text(variation.label));
-      row.appendChild(words);
-      list.appendChild(row);
-      variantRows.push(row);
-    });
-    variantsBox.appendChild(list);
+    if (review.getAttribute("aria-expanded") === "true") show("changes");
   }
 
   /* ------------------------------------------------------------ previews */
@@ -7006,16 +6997,12 @@ function decorations() {
   var previewFresh = []; // the inserted elements, for an insert preview
   // More than one up at once: a list with a tick each, no paint on the canvas
   // (several paints could fight over one element), and one batch button.
-  var previewList = []; // the previews the checkbox list shows
-  var previewChecked = Object.create(null); // id -> ticked
-  var previewBoxRows = []; // the tick rows, kept so a toggle does not rebuild
-  var previewBatch = null; // the batch button, kept so the words change in place
+  var previewList = []; // the previews the panel cards show
   var previewStyled = []; // every styles element in the preview: { el, props }
   var previewReqId = ""; // the comment-box ask waiting for its paint
   var previewReqFor = null; // the element the ask is about
   var previewReqRegion = null; // the drawn box the ask is about
   var previewReqInstruction = ""; // the words the ask sent
-  var previewWaiting = false; // the box shows the waiting strip
   var previewOrigin = "agent"; // where the paint on the canvas came from: comment or agent
 
   /** Every element one preview paints: the many-target form, or the old single one. */
@@ -7059,40 +7046,13 @@ function decorations() {
     });
   }
 
-  /** The waiting strip: the ask is on its way, and Cancel takes it back. */
-  function drawPreviewWaiting() {
-    if (previewWaiting) return;
-    previewWaiting = true;
-    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
-    previewBox.hidden = false;
-    var head = document.createElement("div");
-    head.className = "variants-head";
-    var title = document.createElement("p");
-    title.className = "variants-title";
-    title.appendChild(text("Preview"));
-    head.appendChild(title);
-    previewBox.appendChild(head);
-    var line = document.createElement("p");
-    line.className = "preview-say";
-    line.appendChild(text(previewReqInstruction));
-    previewBox.appendChild(line);
-    var foot = document.createElement("div");
-    foot.className = "preview-foot";
-    var cancel = button("variants-keep", "", "Take back the preview request", function () { cancelPreviewRequest(); }, "preview-cancel");
-    cancel.appendChild(say("Cancel"));
-    foot.appendChild(cancel);
-    previewBox.appendChild(foot);
-    refit();
-  }
-
-  /** Cancel a waiting ask, on the strip or leaving the mode: no agent answers it late. */
+  /** Cancel a waiting ask, on the panel or leaving the mode: no agent answers it late. */
   function cancelPreviewRequest() {
     var id = previewReqId;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
     previewReqInstruction = "";
-    previewWaiting = false;
     if (id && typeof window.fetch === "function") {
       window.fetch(PREVIEW_REQUEST_URL + "?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
     }
@@ -7348,76 +7308,20 @@ function decorations() {
     previewBox.hidden = true;
   }
 
-  /** Put the checkbox list away, with its ticks and its batch button. */
+  /** Put the list away. */
   function clearPreviewList() {
     previewList = [];
-    previewChecked = Object.create(null);
-    previewBoxRows = [];
-    previewBatch = null;
     while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
     previewBox.hidden = true;
   }
 
   /** Take whatever the box was showing away: a painted one reverts, a list just leaves. */
   function resetPreviewBox() {
-    previewWaiting = false;
     if (previewCurrent) unpaintPreview();
     else clearPreviewList();
   }
 
-  /** The preview box: the instruction, the rows or the note, and Keep and Discard. */
-  function drawPreview(preview) {
-    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
-    previewBox.hidden = false;
-    var head = document.createElement("div");
-    head.className = "variants-head";
-    var title = document.createElement("p");
-    title.className = "variants-title";
-    title.appendChild(text("Preview"));
-    head.appendChild(title);
-    var id = document.createElement("span");
-    id.className = "variants-of";
-    id.appendChild(text(preview.id));
-    head.appendChild(id);
-    previewBox.appendChild(head);
-    var line = document.createElement("p");
-    line.className = "preview-say";
-    line.appendChild(text(preview.instruction));
-    previewBox.appendChild(line);
-    if (previewRowVariations(preview).length && previewTarget) {
-      var list = document.createElement("div");
-      list.className = "variants-list";
-      previewRowVariations(preview).forEach(function (variation, i) {
-        var row = button("variant", "", "Use " + variation.label, function () { pickPreviewVariant(i); }, "preview-" + (i + 1));
-        row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
-        var key = document.createElement("span");
-        key.className = "key";
-        key.appendChild(text(i === 9 ? "0" : String(i + 1)));
-        row.appendChild(key);
-        var words = document.createElement("span");
-        words.className = "words";
-        words.appendChild(text(variation.label));
-        row.appendChild(words);
-        list.appendChild(row);
-        previewRows.push(row);
-      });
-      previewBox.appendChild(list);
-    }
-    var foot = document.createElement("div");
-    foot.className = "preview-foot";
-    var keep = button("variants-keep", "", "Keep the preview as an edit", function () { keepPreview(); }, "preview-keep");
-    keep.appendChild(say("Keep"));
-    keep.disabled = previewStyleTargets(preview).length > 0 && previewVariantAt < 0;
-    previewKeep = keep;
-    foot.appendChild(keep);
-    var discard = button("variants-keep", "", "Discard the preview", function () { discardPreview(); }, "preview-discard");
-    discard.appendChild(say("Discard"));
-    foot.appendChild(discard);
-    previewBox.appendChild(foot);
-    refit();
-  }
-
-  /** The answer arrived: paint it, then show the box with Keep and Discard. */
+  /** The answer arrived: paint it. The panel shows its card with Keep and Discard. */
   function showPreview(preview) {
     resetPreviewBox();
     previewRows = [];
@@ -7431,18 +7335,13 @@ function decorations() {
       }
       return;
     }
-    drawPreview(preview);
     tally();
   }
 
-  /** The pending previews arrived: one paints as before; several get the checkbox list. */
+  /** The pending previews arrived: one paints; several wait as Previewing cards. */
   function showPreviews(pending) {
     if (variantRows.length) closeVariants();
     if (!pending.length) {
-      if (previewReqId) {
-        drawPreviewWaiting();
-        return;
-      }
       resetPreviewBox();
       return;
     }
@@ -7457,15 +7356,9 @@ function decorations() {
       return;
     }
     // Several at once: nothing paints, so several writes can never fight over
-    // one element. The user ticks what to keep and presses the batch button.
+    // one element. Each waits as its own Previewing card in the Edits panel.
     resetPreviewBox();
     previewList = pending;
-    var live = Object.create(null);
-    pending.forEach(function (one) {
-      live[one.id] = one.id in previewChecked ? previewChecked[one.id] : true;
-    });
-    previewChecked = live;
-    drawPreviewList();
     refit();
     tally();
   }
@@ -7510,107 +7403,6 @@ function decorations() {
       if (target.action === "remove") return "Takes away /" + target.selector;
       return "/" + target.selector;
     }).join("; ");
-  }
-
-  /** The checkbox list: one row per instruction, and one batch button under it. */
-  function drawPreviewList() {
-    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
-    previewBox.hidden = false;
-    var head = document.createElement("div");
-    head.className = "variants-head";
-    var title = document.createElement("p");
-    title.className = "variants-title";
-    title.appendChild(text("Previews"));
-    head.appendChild(title);
-    var of = document.createElement("span");
-    of.className = "variants-of";
-    of.appendChild(text(String(previewList.length)));
-    head.appendChild(of);
-    previewBox.appendChild(head);
-    var list = document.createElement("div");
-    list.className = "variants-list";
-    previewBoxRows = [];
-    previewList.forEach(function (one, i) {
-      var item = document.createElement("div");
-      item.className = "preview-item";
-      var row = document.createElement("label");
-      row.className = "preview-row";
-      var tick = document.createElement("input");
-      tick.type = "checkbox";
-      tick.className = "tick";
-      tick.checked = !!previewChecked[one.id];
-      tick.setAttribute("aria-label", "Keep this preview");
-      tick.dataset.key = "preview-row-" + (i + 1);
-      tick.addEventListener("change", function () {
-        previewChecked[one.id] = tick.checked;
-        syncBatch();
-      });
-      row.appendChild(tick);
-      var mark = document.createElement("span");
-      mark.className = "mark";
-      mark.setAttribute("aria-hidden", "true");
-      mark.innerHTML = svg("check");
-      row.appendChild(mark);
-      var words = document.createElement("span");
-      words.className = "words";
-      words.appendChild(text(one.instruction));
-      row.appendChild(words);
-      // The chevron opens the row's place: where on the page this one lands.
-      var detail = document.createElement("p");
-      detail.className = "preview-detail";
-      detail.hidden = true;
-      detail.appendChild(text(previewWhere(one)));
-      var more = button("more", svg("chevron-up"), "Show where this change lands", function () {
-        var open = row.getAttribute("data-open") === "true";
-        row.setAttribute("data-open", open ? "false" : "true");
-        detail.hidden = open;
-      }, "preview-where-" + (i + 1));
-      row.appendChild(more);
-      item.appendChild(row);
-      item.appendChild(detail);
-      list.appendChild(item);
-      previewBoxRows.push(tick);
-    });
-    previewBox.appendChild(list);
-    var foot = document.createElement("div");
-    foot.className = "preview-foot";
-    previewBatch = button("variants-keep", "", "Keep the ticked previews as edits", function () { decideList(); }, "preview-batch");
-    previewBatch.appendChild(say("Keep all"));
-    foot.appendChild(previewBatch);
-    previewBox.appendChild(foot);
-    syncBatch();
-  }
-
-  /** The batch button in step with the ticks: keep them, or take the lot back. */
-  function syncBatch() {
-    if (!previewBatch) return;
-    var ticked = 0;
-    Object.keys(previewChecked).forEach(function (id) {
-      if (previewChecked[id]) ticked += 1;
-    });
-    var keep = ticked > 0;
-    previewBatch.disabled = !previewList.length;
-    relabel(previewBatch, keep ? "Keep all" : "Discard all changes");
-    previewBatch.title = keep ? "Keep the ticked previews, and take the rest back" : "Discard every preview still waiting";
-    previewBatch.setAttribute("aria-label", previewBatch.title);
-  }
-
-  /** Key 1 to 0 flips the tick on a row of the list, like a variant key does. */
-  function toggleRow(index) {
-    var tick = previewBoxRows[index];
-    if (!tick) return;
-    tick.checked = !tick.checked;
-    previewChecked[previewList[index].id] = tick.checked;
-    syncBatch();
-  }
-
-  /** The batch button: keep every ticked one, take the unticked ones back. */
-  function decideList() {
-    if (!previewList.length) return;
-    var decided = previewList.map(function (one) { return { id: one.id, keep: !!previewChecked[one.id] }; });
-    // Nothing painted on the canvas, so nothing to put back: the page only
-    // hears the decision. The kept ones the agent reads with get_preview.
-    decideOnServer(decided);
   }
 
   /** Escape or leaving the mode: every preview up for a decision goes back. */
@@ -7707,7 +7499,6 @@ function decorations() {
     variantAt = -1;
     variantProps = [];
     variantRows = [];
-    variantKeep = null;
     variationFor = null;
     // The strip leaves the way it came: a copy of it fades out where it
     // stood, and the strip itself is put away at once.
@@ -7719,6 +7510,7 @@ function decorations() {
       variantsBox.hidden = true;
     }
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
+    if (review.getAttribute("aria-expanded") === "true") show("changes");
   }
 
   /** The menu while an element's words are being typed: the one way out. */
@@ -8566,10 +8358,9 @@ function decorations() {
     var field = e.target;
     var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
     if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
-    // 1 to 9 pick a variation while the strip is up, and 0 picks the tenth,
-    // which is what the strip says on each row. A digit in a field belongs to the
-    // field.
-    if (!variantsBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    // 1 to 9 pick a variation while variants are on canvas, and 0 picks the
+    // tenth. A digit in a field belongs to the field.
+    if (variantList.length && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var typing = editing || pageField;
       var index = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!typing && index < variantList.length) {
@@ -8579,17 +8370,10 @@ function decorations() {
       }
       return;
     }
-    if (previewBox && !previewBox.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (previewCurrent && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
-      if (!previewTyping && previewList.length) {
-        // The checkbox list: a digit flips the tick on that row.
-        if (previewIndex < previewBoxRows.length) {
-          if (e.preventDefault) e.preventDefault();
-          if (e.stopPropagation) e.stopPropagation();
-          toggleRow(previewIndex);
-        }
-      } else if (!previewTyping && previewCurrent && previewIndex < previewRowVariations(previewCurrent).length) {
+      if (!previewTyping && previewIndex < previewRowVariations(previewCurrent).length) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
         pickPreviewVariant(previewIndex);

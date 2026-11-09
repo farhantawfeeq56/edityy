@@ -1659,7 +1659,10 @@ test("the edits list names each element, and reverts one without the others", ()
   assert.match(shown(lines[0]), /Kept/);
   assert.match(shown(lines[0]), /1 edit/);
 
-  const actions = lines[0].children.find((c) => c.className === "task-actions");
+  // Clicking a card opens its controls: the Revert lives there.
+  quiet(() => { for (const fn of lines[0].bubbles.click.bubble) fn({}); });
+  const opened = open.children[2].children[0];
+  const actions = opened.children.find((c) => c.className === "task-actions");
   const undo = actions.children.find((b) => shown(b).includes("Revert"));
   quiet(() => { for (const fn of undo.bubbles.click.bubble) fn({}); });
   assert.doesNotMatch(app.win.__edityy_changes(), /first note/, "the first comment is gone");
@@ -2141,32 +2144,33 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
 
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
   assert.equal(polls, 2);
-  assert.equal(strip.hidden, false, "the strip is up");
+  assert.equal(strip.hidden, true, "no separate strip: the variants live in the Edits panel");
   assert.equal(inMenu("Save comment"), undefined, "the prompt box is done");
-  const rows = strip.children[1].children;
-  assert.equal(strip.children[1].className, "variants-list", "the rows sit in a list of their own");
+  // Open Edits and the Exploring card for this element.
+  const open = openEdits(app);
+  const cards = () => open.children[2].children;
+  // The panel redraws on every pick, so the card is looked up fresh each time.
+  const exploringCard = () => cards().find((card) => shown(card.children[0]).includes("Exploring"));
+  const cardActions = () => exploringCard().children.find((c) => c.className === "task-actions");
+  const cardRows = () => cardActions().children.filter((b) => b.getAttribute && /^Use /.test(b.getAttribute("aria-label") || ""));
+  const cardKeep = () => cardActions().children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element");
+  const card = exploringCard();
+  assert.ok(card, "an Exploring card for the element");
+  assert.match(shown(card), /Exploring/);
+  assert.match(shown(card), /2 variants ready/);
+  quiet(() => { for (const fn of card.bubbles.click.bubble) fn({}); });
+  const rows = cardRows();
   assert.deepEqual(rows.map((r) => r.getAttribute("aria-label")), ["Use thin grey", "Use rose pill"]);
-  assert.deepEqual(rows.map((r) => r.children[0].children[0].nodeValue), ["1", "2"], "each row says its key");
-  assert.deepEqual(rows.map((r) => r.children[1].children[0].nodeValue), ["thin grey", "rose pill"]);
+  assert.deepEqual(rows.map((r) => r.dataset.key), ["variant-1", "variant-2"], "each button says its key");
   assert.equal(rows[0].getAttribute("aria-pressed"), "false", "nothing is on the element yet");
-  // Keep ends the strip, and it waits for a variation to be on the element.
-  const keep = strip.children[0].children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element");
-  assert.equal(keep.disabled, true, "there is nothing to keep yet");
-  assert.equal(strip.children[0].children[0].children[0].nodeValue, "Variations");
-  assert.equal(strip.children[0].children[1].children[0].nodeValue, "p", "the strip says which element it varies");
+  assert.equal(cardKeep().disabled, true, "there is nothing to keep yet");
 
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.style.getPropertyValue("scrollbar-width"), "thin");
   assert.equal(el.style.getPropertyValue("scrollbar-color"), "#8a8a8a transparent");
-  // The rows are kept: the tick moves, and the strip is not built again.
-  assert.deepEqual([...strip.children[1].children], rows, "the same rows are on the strip");
-  assert.equal(strip.children[1].children[0].getAttribute("aria-pressed"), "true");
-  assert.equal(strip.children[1].children[1].getAttribute("aria-pressed"), "false");
-  assert.equal(
-    strip.children[0].children.find((node) => node.getAttribute("aria-label") === "Keep the variation on the element").disabled,
-    false,
-    "a variation is on the element, so it can be kept",
-  );
+  assert.equal(cardRows()[0].getAttribute("aria-pressed"), "true", "the tick moves on the card");
+  assert.equal(cardRows()[1].getAttribute("aria-pressed"), "false");
+  assert.equal(cardKeep().disabled, false, "a variation is on the element, so it can be kept");
   assert.match(app.win.__edityy_changes(), /- `scrollbar-width`: `unset` → `thin`/);
 
   // The next variation is the whole variation: the width goes back, it is not left over.
@@ -2241,22 +2245,28 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   await tick();
   assert.equal(app.root.nodes.preview.hidden, true, "no preview until the agent places one");
   const el = selectText(app);
-  const box = app.root.nodes.preview;
   preview = { id: "e-abc123", instruction: "make it thin", action: "styles", selector: "p", variations: [{ label: "thin", props: [{ property: "color", value: "red" }] }] };
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  assert.equal(box.hidden, false, "the preview box shows");
-  assert.equal(box.children[1].children[0].nodeValue, "make it thin");
-  quiet(() => app.fire("keydown", { key: "1" }));
+  // The Previewing card in Edits: expand it, pick the variant, then Keep.
+  const open = openEdits(app);
+  const cards = () => open.children[2].children;
+  const previewingCard = () => cards().find((card) => shown(card.children[0]).includes("Previewing"));
+  const cardActions = () => previewingCard().children.find((c) => c.className === "task-actions");
+  assert.ok(previewingCard(), "a Previewing card for the preview");
+  quiet(() => { for (const fn of previewingCard().bubbles.click.bubble) fn({}); });
+  const thin = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Use thin");
+  assert.ok(thin, "the variant button");
+  for (const fn of thin.bubbles.click.bubble) fn({});
   assert.equal(el.style.getPropertyValue("color"), "red");
-  const keep = box.children[box.children.length - 1].children[0];
-  assert.equal(keep.disabled, false);
+  const keep = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview as an edit");
+  assert.equal(keep.disabled, false, "a variant is picked, so Keep is enabled");
   for (const fn of keep.bubbles.click.bubble) fn({});
-  assert.equal(box.hidden, true, "keep puts the box away");
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { id: "e-abc123", keep: true });
   assert.equal(el.style.getPropertyValue("color"), "red", "kept paint stays: it is an ordinary edit");
   assert.match(app.win.__edityy_changes(), /color.*red/);
+  assert.equal(app.root.nodes.preview.hidden, true, "no separate preview box");
 });
 
 test("a variant that sets words paints them like a preview", async () => {
@@ -2270,7 +2280,6 @@ test("a variant that sets words paints them like a preview", async () => {
   quiet(() => app.click());
   await tick();
   const el = selectText(app);
-  const box = app.root.nodes.preview;
   app.doc.querySelector = () => el;
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") {
@@ -2282,26 +2291,31 @@ test("a variant that sets words paints them like a preview", async () => {
     return { status: 200, json: async () => ({ ok: true }) };
   };
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  assert.equal(box.hidden, false, "the preview box shows");
+  assert.equal(app.root.nodes.preview.hidden, true, "no separate preview box: its card in Edits");
   quiet(() => app.fire("keydown", { key: "1" }));
   assert.equal(el.textContent, "Start free", "variant text paints on the leaf element");
   assert.match(app.win.__edityy_changes(), /Start free/);
 });
 
-test("several previews at once get a checkbox list and one batch button", async () => {
+test("several previews at once get one Previewing card each", async () => {
   const { run } = fakeDom();
   const app = run();
   const posts = [];
+  let live = [
+    { id: "e-two1", instruction: "say it short", action: "insert", position: "inside-end", html: '<div class="edityy-note"><p>Start free</p></div>' },
+    { id: "e-two2", instruction: "add a shadow", action: "update", selector: "p", props: [{ property: "box-shadow", value: "0 2px 4px black" }] },
+    { id: "e-two3", instruction: "thicken the words", action: "insert", anchor: "main h2", position: "after", html: '<p class="edityy-note">Heavier</p>' },
+  ];
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") {
       if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, previews: [
-          { id: "e-two1", instruction: "say it short", action: "insert", position: "inside-end", html: '<div class="edityy-note"><p>Start free</p></div>' },
-          { id: "e-two2", instruction: "add a shadow", action: "update", selector: "p", props: [{ property: "box-shadow", value: "0 2px 4px black" }] },
-          { id: "e-two3", instruction: "thicken the words", action: "insert", anchor: "main h2", position: "after", html: '<p class="edityy-note">Heavier</p>' },
-        ] }) };
+        return { status: 200, json: async () => ({ ok: true, previews: live }) };
       }
-      if (init.method === "POST") posts.push(JSON.parse(init.body));
+      if (init.method === "POST") {
+        const body = JSON.parse(init.body);
+        posts.push(body);
+        live = live.filter((one) => one.id !== body.id);
+      }
       return { status: 200, json: async () => ({ ok: true }) };
     }
     return { status: 200, json: async () => ({ ok: true }) };
@@ -2309,63 +2323,47 @@ test("several previews at once get a checkbox list and one batch button", async 
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
   const el = selectText(app);
-  const box = app.root.nodes.preview;
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  assert.equal(box.hidden, false, "the list shows instead of a painted preview");
-  assert.match(shown(box), /Previews/);
-  const items = box.children[1].children;
-  assert.equal(items.length, 3, "a row per instruction");
-  assert.match(shown(items[0]), /say it short/);
-  const rows = items.map((item) => item.children[0]);
-  const batchBtn = box.children[2].children[0];
-  assert.equal(batchBtn.dataset.key, "preview-batch");
-  assert.equal(box.hidden, false, "nothing painted on the canvas while several wait");
-  assert.equal(el.style.getPropertyValue("font-weight"), "", "the list paints nothing until a keep decides");
-  // A chevron on a row opens the place it lands, so the reader knows where.
-  assert.match(shown(items[0]), /say it short/, "the fold leaves the words in place");
-  const moreOne = rows[0].children[3];
-  assert.equal(moreOne.dataset.key, "preview-where-1", "a chevron per row");
-  const foldOne = items[0].children[1];
-  assert.equal(foldOne.hidden, true, "the place starts folded");
-  for (const fn of moreOne.bubbles.click.bubble) fn({});
-  assert.equal(foldOne.hidden, false, "the chevron unfolds the place");
-  assert.match(shown(foldOne), /End of main/, "the insert without an anchor names the end of main");
-  const moreThree = rows[2].children[3];
-  const foldThree = items[2].children[1];
-  for (const fn of moreThree.bubbles.click.bubble) fn({});
-  assert.match(shown(foldThree), /After \/main h2/, "the insert with an anchor names its place");
-  // All ticked to start: the button says keep. Untick one, and it still keeps
-  // the ticked ones and takes the unticked one back in the same round.
-  const tickOne = rows[1].children[0];
-  assert.equal(tickOne.checked, true, "every row reads ticked to start");
-  tickOne.checked = false;
-  for (const fn of tickOne.bubbles.change.bubble) fn({});
-  assert.equal(batchBtn.textContent, "Keep all", "something is still ticked, so the button keeps");
-  for (const fn of moreOne.bubbles.click.bubble) fn({});
-  assert.equal(foldOne.hidden, true, "and folds again");  for (const fn of batchBtn.bubbles.click.bubble) fn({});
-  assert.equal(box.hidden, true, "the batch button puts the list away");
+  assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
+  // Edits shows one Previewing card per instruction, each with its own
+  // Keep and Discard.
+  const open = openEdits(app);
+  const cards = () => open.children[2].children;
+  const previewing = () => cards().filter((card) => shown(card.children[0]).includes("Previewing"));
+  assert.equal(previewing().length, 3, "a card per instruction");
+  assert.equal(el.style.getPropertyValue("font-weight"), "", "nothing painted on the canvas while several wait");
+  // Keep one card: its decision goes over, the others stay.
+  const first = previewing()[0];
+  quiet(() => { for (const fn of first.bubbles.click.bubble) fn({}); });
+  const firstActions = previewing()[0].children.find((c) => c.className === "task-actions");
+  const keepOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview");
+  assert.equal(keepOne.dataset.key, "task-keep-e-two1", "its own keep button");
+  for (const fn of keepOne.bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
-  assert.deepEqual(posts[0], { decisions: [
-    { id: "e-two1", keep: true },
-    { id: "e-two2", keep: false },
-    { id: "e-two3", keep: true },
-  ] });
+  assert.deepEqual(posts[0], { id: "e-two1", keep: true });
+  await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
+  assert.equal(previewing().length, 2, "the kept card leaves the list");
 });
 
-test("the batch button flips to discard-all when no row is ticked", async () => {
+test("discarding a waiting preview takes it out of the list", async () => {
   const { run } = fakeDom();
   const app = run();
   const posts = [];
+  let live = [
+    { id: "e-drop1", instruction: "make it thin", action: "update", selector: "p", props: [{ property: "letter-spacing", value: "2px" }] },
+    { id: "e-drop2", instruction: "darker again", action: "update", selector: "p", props: [] },
+  ];
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") {
       if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, previews: [
-          { id: "e-drop1", instruction: "make it thin", action: "update", selector: "p", props: [{ property: "letter-spacing", value: "2px" }] },
-          { id: "e-drop2", instruction: "darker again", action: "update", selector: "p", props: [] },
-        ] }) };
+        return { status: 200, json: async () => ({ ok: true, previews: live }) };
       }
-      if (init.method === "POST") posts.push(JSON.parse(init.body));
+      if (init.method === "POST") {
+        const body = JSON.parse(init.body);
+        posts.push(body);
+        live = live.filter((one) => one.id !== body.id);
+      }
       return { status: 200, json: async () => ({ ok: true }) };
     }
     return { status: 200, json: async () => ({ ok: true }) };
@@ -2373,25 +2371,19 @@ test("the batch button flips to discard-all when no row is ticked", async () => 
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
   const el = selectText(app);
-  const box = app.root.nodes.preview;
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
-  const rows = box.children[1].children.map((item) => item.children[0]);
-  rows[0].children[0].checked = false;
-  for (const fn of rows[0].children[0].bubbles.change.bubble) fn({});
-  rows[1].children[0].checked = false;
-  for (const fn of rows[1].children[0].bubbles.change.bubble) fn({});
-  const batchBtn = box.children[2].children[0];
-  assert.equal(batchBtn.textContent, "Discard all changes", "nothing ticked: the button takes the lot back");
-  quiet(() => app.fire("keydown", { key: "1" }));
-  assert.equal(rows[0].children[0].checked, true, "key 1 flips the tick on the first row");
-  assert.equal(batchBtn.textContent, "Keep all", "and the button flips back with it");
-  quiet(() => app.fire("keydown", { key: "1" }));
-  assert.equal(batchBtn.textContent, "Discard all changes", "and flips again");
-  for (const fn of batchBtn.bubbles.click.bubble) fn({});
-  assert.equal(box.hidden, true);
-  assert.deepEqual(posts[0], { decisions: [
-    { id: "e-drop1", keep: false },
-    { id: "e-drop2", keep: false },
-  ] });
+  const open = openEdits(app);
+  const cards = () => open.children[2].children;
+  const previewing = () => cards().filter((card) => shown(card.children[0]).includes("Previewing"));
+  assert.equal(previewing().length, 2, "both waiting");
+  // Discard the first card; the second stays.
+  quiet(() => { for (const fn of previewing()[0].bubbles.click.bubble) fn({}); });
+  const firstActions = previewing()[0].children.find((c) => c.className === "task-actions");
+  const dropOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Discard this preview");
+  for (const fn of dropOne.bubbles.click.bubble) fn({});
+  assert.deepEqual(posts[0], { id: "e-drop1", keep: false });
+  await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
+  assert.equal(previewing().length, 1, "the discarded card leaves the list");
+  assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
 });
