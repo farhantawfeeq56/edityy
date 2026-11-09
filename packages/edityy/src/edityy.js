@@ -925,12 +925,13 @@
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;min-width:0;height:28px;padding:0 8px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 9px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;min-width:0;height:28px;padding:0 6px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 8px/1 inherit;letter-spacing:-.02em;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
     // the dark one for an unpicked chip, the light one for the picked one.
     ".changes-lbl{position:relative;z-index:1;display:grid}",
+    ".changes-name,.changes-count{white-space:nowrap}",
     ".changes-lbl>*{grid-column:1;grid-row:1;transition:opacity var(--tint) var(--standard)}",
     ".lbl-off{opacity:1;color:var(--ink)}",
     ".lbl-on{opacity:0;color:var(--paper)}",
@@ -6966,16 +6967,28 @@ function decorations() {
     changesPanel.chips.forEach(function (chip, i) {
       var key = CHANGES_FILTERS[i][0];
       var on = changesFilter === key;
-      var words = CHANGES_FILTERS[i][1] + " (" + counts[key] + ")";
+      var name = CHANGES_FILTERS[i][1];
+      var count = " (" + counts[key] + ")";
       var spoken = CHANGES_FILTERS[i][1] + ", " + counts[key] + " of " + counts.all;
       chip.btn.setAttribute("aria-checked", on ? "true" : "false");
       chip.btn.setAttribute("aria-label", spoken);
       chip.btn.title = spoken;
       chip.btn.tabIndex = on ? 0 : -1;
-      while (chip.off.firstChild) chip.off.removeChild(chip.off.firstChild);
-      chip.off.appendChild(text(words));
-      while (chip.on.firstChild) chip.on.removeChild(chip.on.firstChild);
-      chip.on.appendChild(text(words));
+      // Name and count in their own spans, so the count reads as "(5)"
+      // and can be muted without touching the name.
+      var fillWords = function (span) {
+        while (span.firstChild) span.removeChild(span.firstChild);
+        var n = document.createElement("span");
+        n.className = "changes-name";
+        n.appendChild(text(name));
+        var c = document.createElement("span");
+        c.className = "changes-count";
+        c.appendChild(text(count));
+        span.appendChild(n);
+        span.appendChild(c);
+      };
+      fillWords(chip.off);
+      fillWords(chip.on);
       while (chip.sr.firstChild) chip.sr.removeChild(chip.sr.firstChild);
       chip.sr.appendChild(text(spoken));
       if (on) {

@@ -1741,6 +1741,23 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   assert.match(source, /\.pop\.changes\{width:min\(300px/, "the edits panel is 300px");
 });
 
+test("the filter chips wear their counts, like Requested (5)", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  commentOn(app, p, "first note");
+  const open = openEdits(app);
+  const chips = open.children[1].children;
+  assert.match(shown(chips[0]), /All \(1\)/, "All (1)");
+  assert.match(shown(chips[1]), /Requested \(0\)/, "Requested (0)");
+  assert.equal(app.root.nodes.vartest, undefined, "no variant strip");
+  assert.equal(open.dataset.variant, undefined, "no variant pick");
+  const css = app.root.innerHTML;
+  assert.doesNotMatch(css, /data-variant/, "no variant layouts");
+  assert.doesNotMatch(css, /\.vartest/, "no variant strip styles");
+  assert.match(css, /\.changes-count\{white-space:nowrap\}/, "counts stay on the chip");
+});
+
 test("an element is found again by a short selector", () => {
   const { run, el } = fakeDom();
   const app = run();
