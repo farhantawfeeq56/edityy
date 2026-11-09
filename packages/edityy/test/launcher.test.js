@@ -1738,7 +1738,7 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   assert.equal(open.style.top, top, "hover does not move the panel up or down");
   assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");
   assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Requested, Exploring and Ready share one line");
-  assert.match(source, /\.pop\.changes\{width:min\(480px/, "the edits panel is wider than 390px");
+  assert.match(source, /\.pop\.changes\{width:min\(300px/, "the edits panel is 300px");
 });
 
 test("an element is found again by a short selector", () => {

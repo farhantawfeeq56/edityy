@@ -917,15 +917,15 @@
     // four states and one card per task. A card goes to its element on click.
     // Its text wears the comment box scale: 10px for labels and buttons,
     // 8px for secondary words, nothing larger.
-    ".pop.changes{width:min(480px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
+    ".pop.changes{width:min(300px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:flex;flex-wrap:nowrap;gap:6px;margin:0 14px 10px}",
+    ".changes-filters{display:flex;flex-wrap:nowrap;gap:4px;margin:0 10px 10px}",
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 4px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 2px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
