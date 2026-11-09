@@ -976,10 +976,13 @@
     ".task-editrow{display:flex;align-items:center;gap:5px;margin-top:3px}",
     ".task-note{flex:1;min-width:0;height:28px;border:1px solid var(--ink-10);border-radius:7px;padding:0 9px;background:transparent;font:400 10px/1 inherit;color:var(--ink)}",
     ".task-note::placeholder{color:var(--muted)}",
-    ".task-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}",
-    ".task-chip{min-width:24px;height:24px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:7px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink)}",
-    ".task-chip:hover{background:var(--fill-hover)}",
-    ".task-chip[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
+    // The variant numbers wear the comment box preset chips: pills that
+    // share the row's width, five to a line, the rest on the next.
+    ".task-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}",
+    ".task-chip{flex:1 1 calc(20% - 6px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    "@media (hover:hover){.task-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
+    ".task-chip:active{transform:scale(.97)}",
+    ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
     // A card that is going away slides out in its direction; a new one slides
     // in. Both are quick: the state change is never waited on for long.
     ".task-enter{animation:task-in var(--tint) var(--standard)}",
