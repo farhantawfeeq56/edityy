@@ -1672,6 +1672,51 @@ test("the edits list names each element, and discards one without the others", a
 });
 
 
+test("the edits filter is a radio grid with counts, and the arrows walk it", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  commentOn(app, p, "first note");
+  const q = app.el("h2", { text: "second" });
+  commentOn(app, q, "second note");
+  const open = openEdits(app);
+  const filters = open.children[1];
+  assert.equal(filters.getAttribute("role"), "radiogroup", "one radio group");
+  assert.equal(filters.getAttribute("aria-label"), "Filter edits");
+  const chips = () => filters.children;
+  assert.equal(chips().length, 4, "all, requested, exploring, ready");
+  assert.deepEqual(chips().map((c) => c.getAttribute("role")), ["radio", "radio", "radio", "radio"]);
+  assert.equal(chips()[0].getAttribute("aria-checked"), "true", "All starts checked");
+  assert.equal(chips()[0].tabIndex, 0, "one tab stop");
+  assert.equal(chips()[1].tabIndex, -1);
+  assert.match(shown(chips()[0]), /All/, "the All chip");
+  assert.match(shown(chips()[0]), /2/, "two edits in All");
+  assert.match(shown(chips()[2]), /Exploring/, "the Exploring chip");
+  assert.ok(chips()[0].children.some((c) => c.className === "changes-thumb"), "the thumb sits in the checked chip");
+  assert.match(shown(open.children[3]), /All: 2 of 2 shown/, "the live region says what is shown");
+  // Pick Exploring: only the two cards stay, and the thumb travels.
+  for (const fn of chips()[2].bubbles.click.bubble) fn({});
+  assert.equal(chips()[2].getAttribute("aria-checked"), "true");
+  assert.equal(chips()[2].tabIndex, 0);
+  assert.ok(chips()[2].children.some((c) => c.className === "changes-thumb"), "the thumb moved");
+  assert.equal(open.children[0].children.length, 2, "both edits are Exploring");
+  // The arrow walks to Ready, which is empty, and wraps from the end.
+  const send = (k, target) => {
+    for (const fn of filters.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
+  };
+  send("ArrowRight", chips()[2]);
+  assert.equal(chips()[3].getAttribute("aria-checked"), "true", "the arrow picked Ready");
+  assert.match(shown(open.children[0]), /No ready tasks/, "Ready is empty");
+  const exits = open.children[0].children.filter((c) => c.className.includes("task-exit"));
+  assert.equal(exits.length, 2, "the two cards leave where they stood");
+  assert.equal(exits[0].getAttribute("aria-hidden"), "true");
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(open.children[0].children.filter((c) => c.className.includes("task-exit")).length, 0, "the exits are gone");
+  send("ArrowRight", chips()[3]);
+  assert.equal(chips()[0].getAttribute("aria-checked"), "true", "the arrow wraps to All");
+  assert.equal(open.children[0].children.length, 2, "All shows both cards again");
+});
+
 test("an element is found again by a short selector", () => {
   const { run, el } = fakeDom();
   const app = run();

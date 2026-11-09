@@ -922,13 +922,19 @@
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:flex;gap:2px;border:1px solid var(--ink-10);border-radius:20px;padding:3px;margin:0 14px 10px}",
-    ".changes-filter{flex:1;border:0;border-radius:16px;padding:8px 4px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--muted);white-space:nowrap}",
+    ".changes-filters{display:flex;flex-wrap:wrap;gap:6px;margin:0 14px 10px}",
+    // One chip per state, with its count after interior's Filter Grid: each
+    // chip wears its own border, and one thumb lives in the checked chip and
+    // travels to the next one when the pick changes.
+    ".changes-filter{position:relative;flex:0 0 auto;height:28px;padding:0 12px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink);white-space:nowrap;transition:color var(--tint) var(--standard),border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
-    ".changes-filter[aria-pressed=true]{background:var(--ink);color:var(--paper)}",
-    ".changes-list{flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 10px 10px;box-sizing:border-box}",
+    ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
+    ".changes-filter>span:not(.changes-thumb){position:relative;z-index:1}",
+    ".changes-filter[aria-checked=true]{color:var(--paper);border-color:transparent}",
+    ".changes-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
+    ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 10px 10px;box-sizing:border-box}",
     ".changes-list .note{max-width:none;margin:10px 6px;font-size:10px}",
-    ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer}",
+    ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer;box-shadow:0 1px 2px var(--ink-6)}",
     ".task:hover{background:var(--fill-hover)}",
     ".task.selected{border-color:var(--ink)}",
     ".task-top{display:flex;align-items:center;gap:7px}",
@@ -970,7 +976,10 @@
     // A card that is going away slides out in its direction; a new one slides
     // in. Both are quick: the state change is never waited on for long.
     ".task-enter{animation:task-in var(--tint) var(--standard)}",
-    "@keyframes task-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
+    "@keyframes task-in{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}",
+    // A card the filter leaves behind: out of flow, fading and shrinking
+    // where it stood, while the survivors travel to their new slots.
+    ".task-exit{position:absolute;left:10px;right:10px;z-index:2;pointer-events:none}",
     ".task-leaving-right{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateX(26px);opacity:0}",
     ".task-leaving-up{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateY(-14px);opacity:0}",
     ".changes-foot{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--ink-10)}",
@@ -6382,6 +6391,10 @@ function decorations() {
   // The edits panel, kept between redraws.
   var changesPanel = null;
   var changesFilter = "all"; // all, requested, exploring, ready
+  // The filter grid, after interior.dev's Filter Grid: one chip per state
+  // with its count, a thumb that travels to the picked chip, and the arrow
+  // keys walking the chips. The cards below already travel the same way.
+  var CHANGES_FILTERS = [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
@@ -6849,8 +6862,41 @@ function decorations() {
       changesPanel = {};
       changesPanel.filters = document.createElement("div");
       changesPanel.filters.className = "changes-filters";
+      changesPanel.filters.setAttribute("role", "radiogroup");
+      changesPanel.filters.setAttribute("aria-label", "Filter edits");
+      changesPanel.thumb = document.createElement("span");
+      changesPanel.thumb.className = "changes-thumb";
+      changesPanel.thumb.setAttribute("aria-hidden", "true");
+      changesPanel.live = document.createElement("p");
+      changesPanel.live.className = "changes-sr";
+      changesPanel.live.setAttribute("aria-live", "polite");
       changesPanel.list = document.createElement("div");
       changesPanel.list.className = "changes-list";
+      changesPanel.list.setAttribute("id", "edityy-edits-list");
+      changesPanel.filters.setAttribute("aria-controls", "edityy-edits-list");
+      // The arrows walk the chips and pick as they land, like the toolbar.
+      changesPanel.filters.addEventListener("keydown", function (e) {
+        if (!e || !e.key) return;
+        var chips = changesPanel.filters.children;
+        var at = -1;
+        for (var i = 0; i < chips.length; i++) if (chips[i] === e.target) at = i;
+        if (at < 0) return;
+        var next = -1;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") next = at + 1;
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = at - 1;
+        else if (e.key === "Home") next = 0;
+        else if (e.key === "End") next = chips.length - 1;
+        else return;
+        if (e.preventDefault) e.preventDefault();
+        next = (next + chips.length) % chips.length;
+        changesPanel.refocus = true;
+        changesPanel.filtering = true;
+        var key = CHANGES_FILTERS[next][0];
+        captureCardPos();
+        changesFilter = key;
+        show("changes");
+      });
+
       changesPanel.actions = document.createElement("div");
       changesPanel.actions.className = "changes-foot";
       // Copy gives a nudge only: the agent reads the saved edits over MCP,
@@ -6869,20 +6915,79 @@ function decorations() {
       changesPanel.copy = copy;
       changesPanel.actions.appendChild(copy);
     }
+    // The thumb starts where the last pick left it, so it can travel.
+    var thumbFrom = null;
+    var oldChips = changesPanel.filters.children;
+    for (var ci = 0; ci < oldChips.length; ci++) {
+      if (oldChips[ci].getAttribute && oldChips[ci].getAttribute("aria-checked") === "true") {
+        thumbFrom = { left: oldChips[ci].offsetLeft || 0, width: oldChips[ci].offsetWidth || 0 };
+      }
+    }
     while (changesPanel.filters.firstChild) changesPanel.filters.removeChild(changesPanel.filters.firstChild);
-    [["all", "All"], ["requested", "Requested"], ["exploring", "Exploring"], ["ready", "Ready"]].forEach(function (entry) {
+    CHANGES_FILTERS.forEach(function (entry) {
       var key = entry[0];
-      var btn = button("changes-filter", "", entry[1] + " (" + counts[key] + ")", function () {
+      var on = changesFilter === key;
+      var btn = button("changes-filter", "", entry[1] + ", " + counts[key] + " of " + counts.all, function () {
+        changesPanel.filtering = true;
         captureCardPos();
         changesFilter = key;
         show("changes");
       }, "changes-filter-" + key);
-      btn.setAttribute("aria-pressed", changesFilter === key ? "true" : "false");
-      btn.appendChild(text(entry[1] + " (" + counts[key] + ")"));
+      btn.setAttribute("role", "radio");
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+      btn.tabIndex = on ? 0 : -1;
+      if (on) btn.appendChild(changesPanel.thumb);
+      var lbl = document.createElement("span");
+      lbl.appendChild(text(entry[1] + " (" + counts[key] + ")"));
+      var sr = document.createElement("span");
+      sr.className = "changes-sr";
+      sr.appendChild(text(entry[1] + ", " + counts[key] + " of " + counts.all));
+      lbl.appendChild(sr);
+      btn.appendChild(lbl);
       changesPanel.filters.appendChild(btn);
+      // The thumb slides from the old chip to this one, then settles.
+      if (on && thumbFrom && moves(btn) && typeof btn.animate === "function") {
+        var to = { left: btn.offsetLeft || 0, width: btn.offsetWidth || 1 };
+        if (to.width && thumbFrom.left !== to.left) {
+          changesPanel.thumb.animate([
+            { transform: "translateX(" + (thumbFrom.left - to.left) + "px) scaleX(" + Math.max(0.1, thumbFrom.width / to.width) + ")" },
+            { transform: "none" },
+          ], { duration: T.move, easing: ARRIVE });
+        }
+      }
     });
+    // Focus that was on a chip lands on the new checked one after a redraw.
+    if (changesPanel.refocus) {
+      changesPanel.refocus = false;
+      var chipsNow = changesPanel.filters.children;
+      for (var fi = 0; fi < chipsNow.length; fi++) {
+        if (chipsNow[fi].getAttribute && chipsNow[fi].getAttribute("aria-checked") === "true" && typeof chipsNow[fi].focus === "function") chipsNow[fi].focus();
+      }
+    }
+    var activeLabel = "All";
+    CHANGES_FILTERS.forEach(function (entry) { if (entry[0] === changesFilter) activeLabel = entry[1]; });
+    var liveText = activeLabel + ": " + shown.length + " of " + tasks.length + " shown";
+    if (changesPanel.liveText !== liveText) {
+      changesPanel.liveText = liveText;
+      while (changesPanel.live.firstChild) changesPanel.live.removeChild(changesPanel.live.firstChild);
+      changesPanel.live.appendChild(text(liveText));
+    }
     var list = changesPanel.list;
     var top = list.scrollTop;
+    // On a filter change the old cards stay in hand: the ones the new
+    // filter leaves behind go out where they stood (popLayout, after
+    // interior's Filter Grid), and the survivors travel to their slots.
+    var filtering = !!changesPanel.filtering;
+    changesPanel.filtering = false;
+    var oldCards = {};
+    if (filtering) {
+      var oldKids = list.children || [];
+      for (var oi = 0; oi < oldKids.length; oi++) {
+        var okey = oldKids[oi].getAttribute && oldKids[oi].getAttribute("data-task");
+        if (okey) oldCards[okey] = { el: oldKids[oi], top: oldKids[oi].offsetTop || 0 };
+      }
+    }
+    var shownKeys = {};
     while (list.firstChild) list.removeChild(list.firstChild);
     if (!shown.length) {
       var empty = document.createElement("p");
@@ -6934,6 +7039,7 @@ function decorations() {
       // A card that was not there before slides in; one that was already
       // there stays put, so a redraw never replays its arrival.
       var seen = task.previewId || task.requestId || task.label;
+      shownKeys[seen] = true;
       card.setAttribute("data-task", seen);
       if (!taskSeen[seen]) {
         taskSeen[seen] = true;
@@ -6954,13 +7060,42 @@ function decorations() {
         })(card, cardPos[seen] - card.offsetTop);
       }
     });
+    if (filtering) {
+      for (var ek in oldCards) {
+        if (shownKeys[ek]) continue;
+        var exit = oldCards[ek].el;
+        exit.className += " task-exit";
+        exit.style.top = oldCards[ek].top + "px";
+        exit.setAttribute("aria-hidden", "true");
+        list.appendChild(exit);
+        (function (el, host) {
+          var gone = false;
+          var done = function () {
+            if (gone) return;
+            gone = true;
+            try { host.removeChild(el); } catch {}
+          };
+          if (moves(el) && typeof el.animate === "function") {
+            var flight = el.animate(
+              [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.98)" }],
+              { duration: LEAVE_MS, easing: "cubic-bezier(.55,.06,.68,.19)" },
+            );
+            if (flight && flight.finished) flight.finished.then(done, done);
+          }
+          setTimeout(done, LEAVE_MS + 60);
+        })(exit, list);
+      }
+    }
     cardPos = {};
     list.scrollTop = top;
+    // The empty words fade in where the grid would be, like the component's.
+    if (!shown.length && list.firstChild) list.firstChild.className += " task-enter";
     changesPanel.copy.disabled = !report().length;
     // The wireframe order: cards, then the pill tabs, then the copy button.
     pop.appendChild(list);
     pop.appendChild(changesPanel.filters);
     pop.appendChild(changesPanel.actions);
+    pop.appendChild(changesPanel.live);
     refreshEditsServer();
   }
 
