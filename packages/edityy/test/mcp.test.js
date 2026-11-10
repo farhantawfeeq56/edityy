@@ -200,7 +200,9 @@ test("get_preview_request lists every pending ask, and get_preview lists every w
   assert.match(asks.result.content[0].text, /Location: region at \(1006, 144\), 111x306px\./);
 
   const paint = (instruction) => call(root, "tools/call", { name: "place_preview", arguments: { instruction, action: "insert", position: "inside-end", html: "<p>new</p>" } });
-  await paint("add some flair here");
+  const first = await paint("add some flair here");
+  assert.match(first.result.content[0].text, /Still waiting/, "the place answer names what is left, with no re-read");
+  assert.match(first.result.content[0].text, /make the heading bigger/);
   const still = await call(root, "tools/call", { name: "get_preview_request", arguments: {} });
   assert.match(still.result.content[0].text, /add some flair here/, "a count ask waits for its second paint");
   await paint("add some flair here");

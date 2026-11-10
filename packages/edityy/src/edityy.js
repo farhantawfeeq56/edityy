@@ -6973,7 +6973,7 @@ function decorations() {
       changesPanel.actions.setAttribute("data-ui-actions", "");
       // Copy gives a nudge only: the agent reads the saved edits over MCP,
       // never this text, so the text must not carry the edits themselves.
-      var NUDGE = "Use the Edityy MCP tools. Read saved visual changes with get_visual_changes, pending canvas asks with get_preview_request, placed previews with get_preview, and style options with get_variation_request. Apply kept previews and saved changes to the source.";
+      var NUDGE = "Read Edityy over MCP: canvas asks with get_preview_request, placed previews with get_preview, saved edits with get_visual_changes, style options with get_variation_request.";
       var copy = button("cta", "", "Copy a short prompt that nudges a coding agent to read the saved edits over MCP", function () {
         copyText(NUDGE, function (ok) {
           relabel(changesPanel.copy, ok ? "Copied" : "Copy failed");

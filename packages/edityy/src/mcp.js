@@ -110,7 +110,7 @@ const TOOLS = [
     description:
       "Read every preview the users asked for in the Edityy comment boxes with \"Apply on temporary canvas\" ticked, oldest first. " +
       "Read it at the start of every message, without waiting for the user to type edityy:: in the chat. " +
-      "Returns each instruction with the element's selector, tag and current values, or with the dragged-box location when the user drew a box. Answer each by painting it with place_preview, or many at once with targets.",
+      "One call lists every waiting ask, so no re-read is needed. Answer each ask with its own place_preview call.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -341,8 +341,10 @@ export async function handle(message, root) {
         }
         if (params?.name === "place_preview") {
           const preview = await placePreview(params?.arguments, root);
+          const left = await readPendingPreviewRequests(root);
+          const more = left.length ? ` Still waiting: ${left.map((entry) => entry.instruction).join(" | ")}.` : "";
           return reply({
-            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_preview). The user decides with implement ${preview.id} or discard ${preview.id}.` }],
+            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_preview). The user decides with implement ${preview.id} or discard ${preview.id}.${more}` }],
           });
         }
         if (params?.name === "get_preview") {
