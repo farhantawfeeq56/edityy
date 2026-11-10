@@ -2142,7 +2142,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   const card = open.children[0].children.find((c) => c.getAttribute("data-state") === "exploring");
   assert.ok(card, "the note card now that the wait is over");
   const row = card.children.find((c) => c.className === "task-editrow");
-  const tickBtn = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Approve and send to the agent");
+  const tickBtn = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
   assert.ok(tickBtn, "a tick on the card");
   for (const fn of tickBtn.bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 200));
@@ -2258,7 +2258,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   // The panel redraws on every pick, so the card is looked up fresh each time.
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   const cardChips = () => exploringCard().children.find((c) => c.className === "task-chips").children;
-  const cardTick = () => exploringCard().children.find((c) => c.className === "task-editrow").children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Approve and send to the agent");
+  const cardTick = () => exploringCard().children.find((c) => c.className === "task-editrow").children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
   const card = exploringCard();
   assert.ok(card, "an Exploring card for the element");
   quiet(() => { for (const fn of card.bubbles.click.bubble) fn({}); });
@@ -2303,6 +2303,57 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(app.countDoc("click"), 0, "the page is released");
   assert.equal(app.win.__edityy_changes(), "", "unsaved picks are abandoned");
   assert.equal(sheets().length, 0, "and the sheet goes with its edit");
+});
+
+test("keeping a variant forgets its server answer, so no Select card lingers", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const sent = [];
+  let polls = 0;
+  const variations = [
+    { label: "thin grey", props: [{ property: "scrollbar-width", value: "thin" }] },
+    { label: "rose pill", props: [{ property: "scrollbar-color", value: "#f43a5e #f4f4f5" }] },
+  ];
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    sent.push({ url, init });
+    if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "v1" }) };
+    if (init.method === "DELETE") return { status: 200, json: async () => ({ ok: true }) };
+    polls += 1;
+    return { status: 200, json: async () => (polls === 1 ? { ok: true, pending: true } : { ok: true, requestId: "v1", variations }) };
+  };
+  selectText(app);
+  const menu = app.root.nodes["element-menu"];
+  const inMenu = (label) => {
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
+  const area = inMenu("Comment");
+  area.value = "thinner and darker";
+  for (const fn of inMenu("2 variations").bubbles.click.bubble) fn({});
+  for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 1100));
+  const open = openEdits(app);
+  const cards = () => open.children[0].children;
+  const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  // Pick the first variant, then Keep: the Select card must turn into one Ready card.
+  quiet(() => app.fire("keydown", { key: "1" }));
+  const cardTick = () => exploringCard().children.find((c) => c.className === "task-editrow").children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
+  assert.equal(cardTick().disabled, false, "a picked variant can be kept");
+  // Notes start empty: the comment-box words live on the record already.
+  const field = exploringCard().children.find((c) => c.className === "task-editrow").children.find((c) => c.className === "task-note");
+  assert.equal(field.value, "", "notes do not repeat the comment-box words");
+  field.value = "a touch darker";
+  for (const fn of field.bubbles.input.bubble) fn({});
+  for (const fn of cardTick().bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  const gone = sent.filter((s) => s.init.method === "DELETE");
+  assert.equal(gone.length, 1, "the answered request is cancelled");
+  assert.match(gone[0].url, /v1/, "the right request");
+  const states = cards().map((card) => card.getAttribute && card.getAttribute("data-state"));
+  assert.deepEqual(states, ["ready"], "one Ready card, no lingering Select card");
+  assert.match(app.win.__edityy_changes(), /thinner and darker\\na touch darker/, "notes add to the comment-box words");
 });
 
 test("a panel that already left takes no ghost down with the mode", () => {
@@ -2363,7 +2414,7 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   assert.ok(thin, "the variant button");
   for (const fn of thin.bubbles.click.bubble) fn({});
   assert.equal(el.style.getPropertyValue("color"), "red");
-  const keep = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview as an edit");
+  const keep = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview");
   assert.equal(keep.disabled, false, "a variant is picked, so Keep is enabled");
   for (const fn of keep.bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);

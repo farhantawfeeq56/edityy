@@ -6487,11 +6487,7 @@ function decorations() {
       closeVariants();
       return;
     }
-    if (typeof window.fetch === "function") {
-      window.fetch("/__edityy/variations?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-    }
-    editsRefreshedAt = 0;
-    refreshEditsServer();
+    forgetVariationServer(id);
     tally();
   }
 
@@ -6506,6 +6502,22 @@ function decorations() {
     editsRefreshedAt = 0;
     refreshEditsServer();
     tally();
+  }
+
+  /**
+   * The server must forget a decided variation request, or its answer
+   * lingers as a Select card next to the new Ready one. The local queues
+   * are purged at once, so the card leaves without waiting for a poll.
+   */
+  function forgetVariationServer(id) {
+    if (!id) return;
+    if (typeof window.fetch === "function") {
+      window.fetch("/__edityy/variations?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    srvVariationRequests = (srvVariationRequests || []).filter(function (request) { return !request || request.id !== id; });
+    srvVariationResponses = (srvVariationResponses || []).filter(function (response) { return !response || response.requestId !== id; });
+    editsRefreshedAt = 0;
+    refreshEditsServer();
   }
 
   function gotoTask(task) {
@@ -6682,9 +6694,53 @@ function decorations() {
   }
 
   /**
+   * The notes a card's field holds, by card key. The field starts empty:
+   * the comment-box words already live on the record, and notes add to
+   * them on Keep instead of showing them again.
+   */
+  var taskNotes = {};
+
+  /**
+   * One decision row for every card that waits for a choice: the notes
+   * field, Discard and Keep. Single edits and variants share it; only the
+   * number chips above it tell them apart.
+   */
+  function decisionRow(card, task, opts) {
+    var row = document.createElement("div");
+    row.className = "task-editrow";
+    row.setAttribute("data-ui-actions", "");
+    var key = String(opts.key);
+    var note = document.createElement("input");
+    note.type = "text";
+    note.className = "task-note";
+    note.placeholder = "Notes";
+    note.value = taskNotes[key] || "";
+    note.setAttribute("aria-label", "Notes for the agent");
+    note.addEventListener("input", function () {
+      taskNotes[key] = note.value;
+    });
+    row.appendChild(note);
+    row.appendChild(iconButton("x", "Discard this edit", function () {
+      delete taskNotes[key];
+      slideOut(card, "right", opts.onDiscard);
+    }, "task-x-" + key));
+    var keep = iconButton("check", "Keep this edit", function () {
+      // Notes add to the comment-box words, never replace them.
+      var extra = (taskNotes[key] || "").trim();
+      delete taskNotes[key];
+      if (extra && opts.rec) opts.rec.comment = opts.rec.comment ? opts.rec.comment + "\n" + extra : extra;
+      slideOut(card, "up", opts.onKeep);
+    }, "task-tick-" + key);
+    keep.disabled = !!opts.keepDisabled;
+    row.appendChild(keep);
+    card.appendChild(row);
+    return keep;
+  }
+
+  /**
    * The controls that are always on a card, the way the wireframe draws
-   * them: pencil and eye on a Ready card, X on a pending one, notes and
-   * X and tick on a select one, number chips for the variants.
+   * them: pencil and eye on a Ready card, X on a pending one, notes with
+   * Discard and Keep on a select one, number chips for the variants.
    */
   function addTaskBody(card, task, head) {
     var rec = task.item && task.item.rec;
@@ -6734,21 +6790,10 @@ function decorations() {
       return;
     }
     if (task.kind === "exploring-edit" && rec) {
-      var row = document.createElement("div");
-      row.className = "task-editrow";
-      row.setAttribute("data-ui-actions", "");
-      var note = document.createElement("input");
-      note.type = "text";
-      note.className = "task-note";
-      note.placeholder = "Notes";
-      note.value = rec.comment || "";
-      note.setAttribute("aria-label", "Note for the agent");
-      note.addEventListener("input", function () {
-        rec.comment = note.value;
-      });
-      row.appendChild(note);
-      row.appendChild(iconButton("x", "Discard this edit", function () {
-        slideOut(card, "right", function () {
+      decisionRow(card, task, {
+        key: task.item.mark,
+        rec: rec,
+        onDiscard: function () {
           if (rec.el === editing) stopEditing();
           revert(rec);
           if (rec.el === selected) {
@@ -6756,15 +6801,11 @@ function decorations() {
             refit();
           }
           show("changes");
-        });
-      }, "task-x-" + task.item.mark));
-      row.appendChild(iconButton("check", "Approve and send to the agent", function () {
-        rec.comment = note.value;
-        slideOut(card, "up", function () {
+        },
+        onKeep: function () {
           confirmRec(rec);
-        });
-      }, "task-tick-" + task.item.mark));
-      card.appendChild(row);
+        },
+      });
       return;
     }
     if (task.kind === "live-variants" || task.kind === "server-variants") {
@@ -6785,6 +6826,7 @@ function decorations() {
             if (!task.el) return;
             variationFor = task.el;
             variationId = "";
+            variationServerId = task.requestId;
             showVariants(task.list);
             pickVariant(i);
           }
@@ -6801,39 +6843,20 @@ function decorations() {
         chips.appendChild(chip);
       });
       card.appendChild(chips);
-      var vrow = document.createElement("div");
-      vrow.className = "task-editrow";
-      vrow.setAttribute("data-ui-actions", "");
-      var vnote = document.createElement("input");
-      vnote.type = "text";
-      vnote.className = "task-note";
-      vnote.placeholder = "Notes";
-      vnote.value = (task.el && record(task.el).comment) || "";
-      vnote.setAttribute("aria-label", "Note for the agent");
-      vnote.addEventListener("input", function () {
-        if (task.el) record(task.el).comment = vnote.value;
-      });
-      vrow.appendChild(vnote);
-      vrow.appendChild(iconButton("x", "Discard the variants", function () {
-        slideOut(card, "right", function () {
+      decisionRow(card, task, {
+        key: task.requestId || task.label,
+        rec: task.el ? record(task.el) : null,
+        // A server card is not live yet: picking a chip makes it live, and
+        // only then can Keep approve it.
+        keepDisabled: task.kind === "live-variants" ? variantAt < 0 : true,
+        onDiscard: function () {
           if (task.kind === "live-variants") discardVariants();
-          else if (task.requestId && typeof window.fetch === "function") {
-            window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(task.requestId), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-            show("changes");
-          }
-        });
-      }, "task-x-" + (task.requestId || task.label)));
-      var tick = iconButton("check", "Approve and send to the agent", function () {
-        if (task.el) record(task.el).comment = vnote.value;
-        slideOut(card, "up", function () {
+          else forgetVariationServer(task.requestId);
+        },
+        onKeep: function () {
           closeVariants();
-        });
-      }, "task-tick-" + (task.requestId || task.label));
-      // A server card is not live yet: picking a chip makes it live, and
-      // only then can the tick approve it.
-      tick.disabled = task.kind === "live-variants" ? variantAt < 0 : true;
-      vrow.appendChild(tick);
-      card.appendChild(vrow);
+        },
+      });
       return;
     }
   }
@@ -6856,7 +6879,7 @@ function decorations() {
         pick.appendChild(text(variation.label));
         row.appendChild(pick);
       });
-      var keepIt = button("mini primary", "", "Keep this preview as an edit", function (e) {
+      var keepIt = button("mini primary", "", "Keep this preview", function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
         keepPreview();
       }, "task-keep-" + task.previewId);
@@ -7218,7 +7241,17 @@ function decorations() {
     unstashRec(rec);
     rec.confirmed = true;
     autosave();
+    // The Ready card arrives: the Select card just slid out, so the
+    // arrival replays for the same element instead of appearing flat.
+    if (rec.el) replayArrival(nameOf(rec.el));
     tally();
+  }
+
+  /** A card that turns into another state replays its arrival, so the new state reads as a change. */
+  function replayArrival(label) {
+    if (!label) return;
+    delete taskSeen[label];
+    delete taskSeen[label.trim()];
   }
 
   /* ---------------------------------------------------------- variations */
@@ -7235,6 +7268,7 @@ function decorations() {
 
   var variationFor = null; // the element the request is about
   var variationId = ""; // the pending request, "" when there is none
+  var variationServerId = ""; // the request behind the shown variants, kept after the answer so Keep and Discard can cancel it
   var variationTimer = 0;
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
@@ -7290,6 +7324,7 @@ function decorations() {
       if (!j || !j.ok) throw new Error((j && j.error) || "The request was refused");
       variationFor = el;
       variationId = j.requestId || id;
+      variationServerId = variationId;
       variationPolls = 0;
       pollVariations(); // at once: an answer already waiting is not waited for
     }).catch(function (error) {
@@ -7922,20 +7957,21 @@ function decorations() {
 
   /** Put the strip away. A pending request is dropped, so no agent answers it late. */
   function closeVariants() {
+    var kept = !!(variationFor && variantAt >= 0);
     // A kept variation came from the comment box.
-    if (variationFor && variantAt >= 0) record(variationFor).origin = "Comment";
+    if (kept) record(variationFor).origin = "Comment";
     // A kept variation is a Ready edit: it is written to the project at once.
-    if (variationFor && variantAt >= 0) {
+    if (kept) {
       record(variationFor).confirmed = true;
       autosave();
     }
+    // Decided either way, the answer must not linger as a Select card next
+    // to the Ready one: the server forgets it, and the local queues drop it.
+    forgetVariationServer(variationServerId || variationId);
+    variationServerId = "";
+    if (kept) replayArrival(nameOf(variationFor));
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
-    if (variationId && typeof window.fetch === "function") {
-      window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(variationId), { method: "DELETE", credentials: "same-origin" }).catch(function () {
-        // The request outlives the page, and the next one replaces it anyway.
-      });
-    }
     variationId = "";
     variationPolls = 0;
     variationWords = "";
@@ -7976,9 +8012,8 @@ function decorations() {
     }
     if (variationTimer) clearTimeout(variationTimer);
     variationTimer = 0;
-    if (variationId && typeof window.fetch === "function") {
-      window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(variationId), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-    }
+    forgetVariationServer(variationServerId || variationId);
+    variationServerId = "";
     variationId = "";
     variationPolls = 0;
     variationWords = "";
