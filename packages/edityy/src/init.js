@@ -73,6 +73,9 @@ the Edityy MCP server.
   is in the code, call \`clear_visual_changes\` so the page stops showing it.
 - **The server.** If these tools are missing, the Edityy MCP server is not
   connected. Tell the user to run \`npx edityy mcp\`.
+- **Missing setup.** If Edityy is not in this project (no \`edityy\` package,
+  no \`/__edityy\` endpoints), install it with \`npx edityy init\`. Then use
+  these tools.
 ${END}
 `;
 

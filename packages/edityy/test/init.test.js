@@ -108,6 +108,7 @@ test("the rules join the agent file and keep the text already in it", async () =
   assert.match(after, /^# House rules\n\nUse tabs\.\n/);
   assert.match(after, /BEGIN edityy/);
   assert.match(after, /vartest/);
+  assert.match(after, /Missing setup/);
   assert.equal(after.match(/BEGIN edityy/g).length, 1, "one block, even after a second run");
   rmSync(root, { recursive: true, force: true });
 });
