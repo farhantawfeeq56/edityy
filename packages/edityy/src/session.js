@@ -96,6 +96,8 @@ function checkRegion(region, i) {
     height: count(region.height, `regions[${i}].height`, 1000000),
     comment: str(region.comment, `regions[${i}].comment`, MAX_VALUE) || null,
     mark: Math.max(0, count(region.mark ?? 0, `regions[${i}].mark`, 100000)),
+    addN: region.addN == null ? null : count(region.addN, `regions[${i}].addN`, 100000),
+    confirmed: region.confirmed === true,
   };
 }
 

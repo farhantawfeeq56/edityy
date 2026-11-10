@@ -1625,6 +1625,91 @@ test("Add is freeform: nothing is selected, and a drag saves a numbered box", ()
   assert.equal(app.root.nodes.marks.children.length, 1, "the box keeps its number on the page");
 });
 
+test("a drawn box waits, keeps and discards like an element edit", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const sent = [];
+  app.win.fetch = async (url, init = {}) => {
+    sent.push({ url: url, body: init && init.body });
+    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, previews: [] }) };
+    if (url === "/__edityy/preview-request") {
+      if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
+      return { status: 200, json: async () => ({ ok: true, requests: [] }) };
+    }
+    if (String(url).startsWith("/__edityy/variations")) return { status: 200, json: async () => ({ ok: true, requests: [], responses: [] }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
+  };
+  selectText(app);
+  quiet(() => press(app, "add"));
+  const path = () => [];
+  const inMenu = (label) => {
+    const menu = app.root.nodes["element-menu"];
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
+  const draw = (x0, y0, x1, y1, words) => {
+    quiet(() => app.fire("mousedown", { clientX: x0, clientY: y0, button: 0, composedPath: path, preventDefault() {}, stopPropagation() {} }));
+    app.move(x1, y1);
+    quiet(() => app.fire("mouseup", { clientX: x1, clientY: y1, composedPath: path, preventDefault() {}, stopPropagation() {} }));
+    inMenu("Comment").value = words;
+    for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
+  };
+  const onCard = (label) => {
+    const list = app.root.nodes.pop.children[0].children;
+    const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+    return list.flatMap((c) => [c, ...walk(c)]).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  };
+  draw(10, 2000, 60, 2050, "a hero here");
+  await tick();
+  await tick();
+  // The ask is out: only the Requested card shows, and the box waits off the project file.
+  assert.match(app.win.__edityy_changes(), /a hero here/, "the words still save as before");
+  const posted = () => sent.filter((s) => s.url === "/__edityy/changes").map((s) => s.body || "").join("\n");
+  assert.doesNotMatch(posted(), /Added element/, "a waiting box is held off the project file");
+  let open = openEdits(app);
+  let lines = open.children[0].children;
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].getAttribute("data-state"), "requested");
+  assert.match(shown(lines[0]), /Added element 1/);
+  // A click on the card scrolls to the box and marks the card selected.
+  quiet(() => { for (const fn of lines[0].bubbles.click.bubble) fn({}); });
+  lines = app.root.nodes.pop.children[0].children;
+  assert.match(lines[0].className, /selected/, "the scrolled-to card reads selected");
+  assert.equal(app.root.nodes.region.hidden, false, "the box flashes where it is");
+  // Withdrawing the ask frees the box as an Exploring edit with a decision row.
+  for (const fn of onCard("Delete this request").bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  lines = app.root.nodes.pop.children[0].children;
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].getAttribute("data-state"), "exploring");
+  assert.match(shown(lines[0]), /Added element 1/);
+  assert.ok(lines[0].children.some((c) => c.className === "task-editrow"), "notes with Discard and Keep");
+  // Keep approves it: Ready, with the same pencil an element edit wears.
+  for (const fn of onCard("Keep this edit").bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  lines = app.root.nodes.pop.children[0].children;
+  assert.equal(lines[0].getAttribute("data-state"), "ready");
+  assert.ok(onCard("Back to select"), "a pencil to un-approve");
+  assert.match(app.win.__edityy_changes(), /Added element 1/, "a kept box reaches the agent's Markdown");
+  await tick();
+  await tick();
+  assert.match(posted(), /Added element 1/, "keeping it writes the project file");
+  // A second box numbers on, and Discard drops it without touching the first.
+  quiet(() => press(app, "add"));
+  draw(10, 2200, 60, 2250, "a second hero");
+  await tick();
+  await tick();
+  // The list redraws on reopen.
+  openEdits(app);
+  for (const fn of onCard("Delete this request").bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  for (const fn of onCard("Discard this edit").bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
+  assert.doesNotMatch(app.win.__edityy_changes(), /second hero/, "the dropped box is gone");
+  assert.match(app.win.__edityy_changes(), /Added element 1/, "the kept box is untouched");
+});
+
 /** Open the edits list. */
 const openEdits = (app) => {
   for (const fn of app.root.nodes.review.bubbles.click.bubble) fn({});

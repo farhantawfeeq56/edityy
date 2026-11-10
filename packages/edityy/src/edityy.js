@@ -1186,6 +1186,10 @@
   var markTop = 1;
   // Boxes the Add tool drew. Page distances, so a scroll does not move them.
   var regions = [];
+  // The next number a drawn box takes in the panel: Added element 1, 2, ...
+  var addTop = 1;
+  // The drawn box a panel card scrolled to, so its card reads selected.
+  var selectedRegion = null;
   var drawing = null; // the box on the pointer now, or null
   var regionFor = null; // the drawn box whose comment box is open
   // A drag smaller than this is a click, not a box.
@@ -1804,6 +1808,11 @@
   /** Draw the selection frame and reveal whatever the new selection can edit. */
   function select(el, hit) {
     stopEditing();
+    // A flash from a panel card ends where a real selection begins.
+    if (selectedRegion) {
+      selectedRegion = null;
+      regionBox.hidden = true;
+    }
     if (el) cardDoneFor = null;
     if (el !== selected) release();
     selected = el;
@@ -2172,6 +2181,7 @@
       if (region) {
         region.comment = words;
         if (region.mark == null) region.mark = markTop++;
+        if (region.addN == null) region.addN = addTop++;
         if (regions.indexOf(region) === -1) regions.push(region);
         regionFor = null;
         openComment = null;
@@ -2184,7 +2194,10 @@
         // user keeps one, tick or no tick.
         if (canvasTick.checked || count > 1) {
           previewWords = "";
+          // The box waits for the answer: only the Requested card shows.
+          region.waiting = true;
           requestPreview(null, region, words, function (problem) {
+            region.waiting = false;
             previewWords = problem;
           }, count);
         }
@@ -6284,11 +6297,14 @@ function decorations() {
       });
     });
     // Drawn boxes travel with the edits: each one is a change of its own.
+    // A box whose ask is still out stays on this list: the Requested card
+    // hides until the answer, the way a comment ask hides its edit.
     regions.forEach(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
+      if (rg.addN == null) rg.addN = addTop++;
       out.push({
         mark: rg.mark,
-        label: "Added region",
+        label: "Added element " + rg.addN,
         selector: "",
         source: null,
         sourceIsOwn: false,
@@ -6302,6 +6318,7 @@ function decorations() {
         movedTo: null,
         region: { left: rg.left, top: rg.top, width: rg.width, height: rg.height },
         rec: null,
+        rg: rg,
       });
     });
     return out;
@@ -6405,6 +6422,7 @@ function decorations() {
     var y = window.pageYOffset || window.scrollY || 0;
     items.forEach(function (item) {
       if (item.mark == null) return;
+      if (item.rg && item.rg.hideMark) return;
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
         var box = item.rec.el.getBoundingClientRect();
@@ -6500,6 +6518,13 @@ function decorations() {
       cancelPreviewRequest();
       return;
     }
+    // A withdrawn ask frees its box: it shows as an edit again.
+    (srvPreviewRequests || []).forEach(function (request) {
+      if (request && request.id === id && request.region) {
+        var live = matchRegion(request.region);
+        if (live && live.waiting) live.waiting = false;
+      }
+    });
     if (typeof window.fetch === "function") {
       window.fetch("/__edityy/preview-request?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
     }
@@ -6524,8 +6549,83 @@ function decorations() {
     refreshEditsServer();
   }
 
+  /** Two drawn boxes are the same when their page rects match. */
+  function sameRegion(a, b) {
+    return !!a && !!b && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
+  }
+
+  /** The live drawn box behind a region, matched by its mark when the ask only kept that. */
+  function matchRegion(rg) {
+    if (!rg) return null;
+    if (rg.addN != null) return rg;
+    for (var i = 0; i < regions.length; i++) {
+      if (regions[i].mark != null && regions[i].mark === rg.mark && regions[i].addN != null) return regions[i];
+    }
+    return rg;
+  }
+
+  /** What the panel calls a drawn box: Added element 1, 2, ... */
+  function addedLabel(rg) {
+    var live = matchRegion(rg);
+    var n = live && live.addN != null ? live.addN : null;
+    return "Added element" + (n != null ? " " + n : "");
+  }
+
+  /** Where an anchor-less insert would land: the end of main, in page distances. */
+  function mainEndRegion() {
+    try {
+      var hostEl = document.querySelector("main") || document.body;
+      if (!hostEl || !hostEl.getBoundingClientRect) return null;
+      var box = (hostEl.lastElementChild || hostEl).getBoundingClientRect();
+      var x = window.pageXOffset || window.scrollX || 0;
+      var y = window.pageYOffset || window.scrollY || 0;
+      return { left: Math.round(box.left + x), top: Math.round(box.bottom + y) - 2, width: Math.max(2, Math.round(box.width)), height: 2 };
+    } catch { return null; }
+  }
+
+  /** Drop a drawn box: out of the list, off the page, its ask with it. */
+  function removeRegion(rg) {
+    var at = regions.indexOf(rg);
+    if (at !== -1) regions.splice(at, 1);
+    if (regionFor === rg) {
+      regionFor = null;
+      openComment = null;
+      regionBox.hidden = true;
+      hideMenu();
+    }
+    if (sameRegion(selectedRegion, rg)) {
+      selectedRegion = null;
+      regionBox.hidden = true;
+    }
+    if (previewReqRegion === rg) cancelPreviewRequest();
+    paintMarks();
+    tally();
+    show("changes");
+  }
+
   function gotoTask(task) {
     var el = task.el;
+    if (!el && task.region) {
+      // A drawn box has no element to select: the page scrolls to the box
+      // and the dashed box flashes where it is, the way the frame does.
+      try {
+        var view = regionView(task.region);
+        var offBox = (view.top < 0 || view.bottom > window.innerHeight || view.left < 0 || view.right > window.innerWidth) && typeof window.scrollTo === "function";
+        if (offBox) window.scrollTo(Math.round(task.region.left + task.region.width / 2 - window.innerWidth / 2), Math.round(task.region.top + task.region.height / 2 - window.innerHeight / 2));
+      } catch {}
+      selectedRegion = task.region;
+      try {
+        var held = regionView(task.region);
+        regionBox.style.left = held.left + "px";
+        regionBox.style.top = held.top + "px";
+        regionBox.style.width = (held.right - held.left) + "px";
+        regionBox.style.height = (held.bottom - held.top) + "px";
+        regionBox.hidden = false;
+        if (moves(regionBox)) animate(regionBox, [{ opacity: 0.3 }, { opacity: 1 }], { duration: T.enter, easing: ARRIVE });
+      } catch {}
+      show("changes");
+      return;
+    }
     if (!el) return;
     try {
       var box = el.getBoundingClientRect();
@@ -6573,7 +6673,7 @@ function decorations() {
     if (previewReqId) {
       seenPreview[previewReqId] = true;
       tasks.push({
-        state: "requested", el: previewReqFor || null, label: previewReqFor ? nameOf(previewReqFor) : "Element",
+        state: "requested", el: previewReqFor || null, region: previewReqRegion || null, label: previewReqFor ? nameOf(previewReqFor) : previewReqRegion ? addedLabel(previewReqRegion) : "Element",
         origin: "Comment", detail: previewReqCount > 1 ? "Waiting for " + previewReqCount + " previews..." : "Waiting for your agent...", kind: "preview", requestId: previewReqId,
       });
     }
@@ -6581,8 +6681,9 @@ function decorations() {
       if (!request || request.status !== "pending" || seenPreview[request.id]) return;
       seenPreview[request.id] = true;
       var el = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
+      var rg = request.region ? matchRegion(request.region) : null;
       tasks.push({
-        state: "requested", el: el || null, label: el ? nameOf(el) : (request.element && request.element.selector) || "Element",
+        state: "requested", el: el || null, region: rg, label: el ? nameOf(el) : (request.element && request.element.selector) || (rg ? addedLabel(rg) : "Element"),
         origin: "Comment", detail: request.count > 1 ? "Waiting for " + request.count + " previews..." : "Waiting for your agent...", kind: "preview", requestId: request.id,
       });
     });
@@ -6610,9 +6711,9 @@ function decorations() {
     // Exploring: what is painted now, or waiting in a list. Previewing is
     // the same state: the agent answered, the user has not ticked yet.
     if (previewCurrent) {
-      var el = previewTarget || previewQuery(previewCurrent.selector);
+      var el = previewTarget || previewQuery(previewCurrent.selector) || (previewFresh.length ? previewFresh[0] : null);
       tasks.push({
-        state: "exploring", el: el || null, label: el ? nameOf(el) : previewWhere(previewCurrent),
+        state: "exploring", el: el || null, region: el ? null : answeredRegion, label: el ? nameOf(el) : previewWhere(previewCurrent),
         origin: previewOrigin === "comment" ? "Comment" : "Agent", detail: previewCurrent.instruction || "Preview",
         kind: "preview-current", previewId: previewCurrent.id,
       });
@@ -6621,29 +6722,35 @@ function decorations() {
         if (!item) return;
         var target = previewTargets(item)[0];
         var el = target && target.selector ? previewQuery(target.selector) : target && target.anchor ? previewQuery(target.anchor) : null;
+        // An insert with nowhere to point still has somewhere to land: the
+        // answered box, or the end of main for an anchor-less agent paint.
+        var region = null;
+        if (!el && target && target.action === "insert") region = answeredRegion || mainEndRegion();
         tasks.push({
-          state: "exploring", el: el || null, label: item.instruction || "Preview", origin: "Agent",
+          state: "exploring", el: el || null, region: region, label: item.instruction || "Preview", origin: "Agent",
           detail: previewWhere(item), kind: "preview-listed", previewId: item.id,
         });
       });
     }
     // Edits: ticked ones are Ready, the rest are Exploring. A comment ask
     // still waiting for the agent is only the requested card, not an edit.
+    // A drawn box with its ask out is the same: Requested only.
     var kept = report().filter(function (item) {
       if (item.rec && item.rec.commentAsk) return false;
+      if (item.rg && item.rg.waiting) return false;
       if (item.rec && previewRecords.indexOf(item.rec) !== -1) return false;
       if (item.rec && variantList && variantList.length && item.rec.el === variationFor) return false;
       return true;
     });
     kept.forEach(function (item) {
       var origin = "Canvas session";
-      if (item.region) origin = "Canvas session";
+      if (item.region) origin = item.comment ? "Comment" : "Canvas session";
       else if (item.rec && item.rec.origin) origin = item.rec.origin;
       else if (item.comment) origin = "Comment";
       var n = item.props.length + (item.text ? 1 : 0) + (item.comment ? 1 : 0) + (item.created ? 1 : 0) + (item.removed ? 1 : 0) + (item.moved ? 1 : 0) + (item.region ? 1 : 0);
-      var ready = !item.rec || !!item.rec.confirmed;
+      var ready = item.rg ? !!item.rg.confirmed : (!item.rec || !!item.rec.confirmed);
       tasks.push({
-        state: ready ? "ready" : "exploring", el: item.rec ? item.rec.el : null, label: item.label, origin: origin,
+        state: ready ? "ready" : "exploring", el: item.rec ? item.rec.el : null, region: item.rg || null, label: item.label, origin: origin,
         detail: ready
           ? "Your edit is approved & sent to agent" + (item.comment ? " with notes" : "")
           : (n === 1 ? "1 edit" : n + " edits"),
@@ -6733,6 +6840,7 @@ function decorations() {
       var extra = (taskNotes[key] || "").trim();
       delete taskNotes[key];
       if (extra && opts.rec) opts.rec.comment = opts.rec.comment ? opts.rec.comment + "\n" + extra : extra;
+      else if (extra && opts.region) opts.region.comment = opts.region.comment ? opts.region.comment + "\n" + extra : extra;
       slideOut(card, "up", opts.onKeep);
     }, "task-tick-" + key);
     keep.disabled = !!opts.keepDisabled;
@@ -6808,6 +6916,53 @@ function decorations() {
         },
         onKeep: function () {
           confirmRec(rec);
+        },
+      });
+      return;
+    }
+    if (task.item && task.item.rg) {
+      // A drawn box waits and keeps the way an element edit does.
+      var rg = task.item.rg;
+      if (task.state === "ready") {
+        var regionIcons = document.createElement("div");
+        regionIcons.className = "task-icons";
+        regionIcons.setAttribute("data-ui-actions", "");
+        var regionPencil = iconButton("pencil", "Back to select", function () {
+          rg.confirmed = false;
+          autosave();
+          tally();
+        }, "task-pencil-" + task.item.mark);
+        regionIcons.appendChild(regionPencil);
+        var regionEye = iconButton("eye", "Hold to see the original", function () {}, "task-eye-" + task.item.mark);
+        var regionHold = function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          rg.hideMark = true;
+          paintMarks();
+        };
+        var regionLetGo = function () {
+          rg.hideMark = false;
+          paintMarks();
+        };
+        regionEye.addEventListener("pointerdown", regionHold);
+        regionEye.addEventListener("pointerup", regionLetGo);
+        regionEye.addEventListener("pointerleave", regionLetGo);
+        regionEye.addEventListener("pointercancel", regionLetGo);
+        regionEye.addEventListener("click", function (e) { if (e) e.stopPropagation(); });
+        regionIcons.appendChild(regionEye);
+        head.appendChild(regionIcons);
+        return;
+      }
+      decisionRow(card, task, {
+        key: task.item.mark,
+        region: rg,
+        onDiscard: function () {
+          removeRegion(rg);
+        },
+        onKeep: function () {
+          rg.confirmed = true;
+          autosave();
+          replayArrival(task.item.label);
+          tally();
         },
       });
       return;
@@ -7089,7 +7244,8 @@ function decorations() {
     }
     shown.forEach(function (task) {
       var card = document.createElement("div");
-      card.className = task.el && task.el === selected ? "task selected" : "task";
+      var isSel = (task.el && task.el === selected) || (task.region && sameRegion(task.region, selectedRegion));
+      card.className = isSel ? "task selected" : "task";
       card.setAttribute("data-ui-container", "");
       card.setAttribute("data-state", task.state);
       var head = document.createElement("div");
@@ -7112,7 +7268,7 @@ function decorations() {
       }
       addTaskBody(card, task, head);
       addTaskActions(card, task);
-      if (task.el) {
+      if (task.el || task.region) {
         card.addEventListener("click", function (e) {
           if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
           var key = task.previewId || task.requestId || task.label;
@@ -7190,7 +7346,6 @@ function decorations() {
 
   // The dev server's save endpoint (index.js) and the file it writes.
   var CHANGES_URL = "/__edityy/changes";
-  var CHANGES_FILE = ".edityy/changes.json";
 
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
@@ -7210,6 +7365,8 @@ function decorations() {
    */
   function saveEdits(done) {
     var items = report().filter(function (item) {
+      // A drawn box is Ready only once ticked, like any other edit.
+      if (item.rg) return !!item.rg.confirmed;
       return !item.rec || item.rec.confirmed;
     });
     if (typeof window.fetch !== "function") return done("Cannot save here");
@@ -7469,7 +7626,8 @@ function decorations() {
   var previewReqId = ""; // the comment-box ask waiting for its paint
   var previewReqFor = null; // the element the ask is about
   var previewReqRegion = null; // the drawn box the ask is about
-  var previewReqInstruction = ""; // the words the ask sent
+  // The drawn box an answered ask was about: cards without an element scroll to it.
+  var answeredRegion = null;
   var previewReqCount = 1; // how many previews the ask wants, 1 when untold
   var previewOrigin = "agent"; // where the paint on the canvas came from: comment or agent
 
@@ -7533,7 +7691,6 @@ function decorations() {
       previewReqId = j.requestId || id;
       previewReqFor = el || null;
       previewReqRegion = region || null;
-      previewReqInstruction = instruction;
       previewReqCount = count > 1 ? count : 1;
       previewOrigin = "comment";
       previewWords = "";
@@ -7552,10 +7709,11 @@ function decorations() {
     var id = previewReqId;
     previewReqId = "";
     if (previewReqFor) record(previewReqFor).commentAsk = false;
+    if (previewReqRegion) previewReqRegion.waiting = false;
     previewReqFor = null;
     previewReqRegion = null;
-    previewReqInstruction = "";
     previewReqCount = 1;
+    answeredRegion = null;
     if (id && typeof window.fetch === "function") {
       window.fetch(PREVIEW_REQUEST_URL + "?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
     }
@@ -7579,9 +7737,9 @@ function decorations() {
         previewReqId = "";
         // The wait is over: the words are an Exploring note now.
         if (el) record(el).commentAsk = false;
+        if (region) region.waiting = false;
         previewReqFor = null;
         previewReqRegion = null;
-        previewReqInstruction = "";
         previewReqCount = 1;
         resetPreviewBox();
         previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
@@ -7753,6 +7911,13 @@ function decorations() {
         previewFresh.push(node);
       });
       select(previewFresh[0] || null, previewFresh[0] ? { el: previewFresh[0], kind: "container" } : null);
+      // A paint off the screen scrolls it in, the way a card click does.
+      if (previewFresh[0] && typeof previewFresh[0].scrollIntoView === "function") {
+        try {
+          var freshBox = previewFresh[0].getBoundingClientRect();
+          if (freshBox.top < 0 || freshBox.bottom > window.innerHeight) previewFresh[0].scrollIntoView({ block: "center", inline: "nearest" });
+        } catch {}
+      }
       return !!previewFresh.length;
     }
     if (preview.action === "update") {
@@ -7854,10 +8019,12 @@ function decorations() {
     var fromComment = !!previewReqId;
     // The agent answered: the ask's words are an Exploring note now.
     if (previewReqFor) record(previewReqFor).commentAsk = false;
+    if (previewReqRegion) previewReqRegion.waiting = false;
+    // Cards without an element scroll to the box the ask drew.
+    answeredRegion = previewReqRegion;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
-    previewReqInstruction = "";
     previewOrigin = fromComment ? "comment" : previewOrigin || "agent";
     if (pending.length === 1) {
       showPreview(pending[0]);
@@ -7934,6 +8101,7 @@ function decorations() {
     }
     resetPreviewBox();
     previewSeen = "";
+    answeredRegion = null;
     refit();
     tally();
   }
@@ -7968,6 +8136,7 @@ function decorations() {
     previewTarget = null;
     previewStyled = [];
     previewFresh = [];
+    answeredRegion = null;
     refit();
     tally();
   }
@@ -7977,6 +8146,7 @@ function decorations() {
     var id = previewCurrent && previewCurrent.id;
     unpaintPreview();
     previewSeen = "";
+    answeredRegion = null;
     if (id && typeof window.fetch === "function") {
       window.fetch(PREVIEWS_URL, {
         method: "POST",
@@ -8189,7 +8359,7 @@ function decorations() {
     });
     var savedRegions = regions.map(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
-      return { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark };
+      return { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : null, confirmed: !!rg.confirmed };
     });
     var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: savedRegions });
     try {
@@ -8241,8 +8411,9 @@ function decorations() {
       });
       (Array.isArray(saved.regions) ? saved.regions : []).forEach(function (rg) {
         if (!rg || typeof rg !== "object") return;
-        var kept = { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark };
+        var kept = { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : addTop++, confirmed: !!rg.confirmed, waiting: false };
         if (kept.mark != null && kept.mark >= markTop) markTop = kept.mark + 1;
+        if (kept.addN != null && kept.addN >= addTop) addTop = kept.addN + 1;
         regions.push(kept);
       });
       enter();
