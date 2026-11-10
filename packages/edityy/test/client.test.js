@@ -23,6 +23,7 @@ const stubNode = () => ({
   textContent: "",
   children: [],
   appendChild() {},
+  querySelectorAll: () => [],
   setAttribute() {},
   addEventListener() {},
   attachShadow() {
@@ -46,7 +47,10 @@ const dom = {
     body: { appendChild: (node) => appended.push(node) },
     documentElement: { appendChild: (node) => appended.push(node) },
   },
-  window: {},
+  window: {
+    addEventListener() {},
+    removeEventListener() {},
+  },
   CustomEvent: class {},
 };
 

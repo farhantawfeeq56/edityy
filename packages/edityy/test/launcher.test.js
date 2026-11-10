@@ -1831,7 +1831,7 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   assert.equal(open.style.top, top, "hover does not move the panel up or down");
   assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");
   assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Pending, Select and Ready share one line");
-  assert.match(source, /\.pop\.changes\{width:min\(300px/, "the edits panel is 300px");
+  assert.match(source, /\.pop\.changes\{width:min\(284px/, "the edits panel is 284px");
 });
 
 test("the filter chips wear their names, with the count only spoken", () => {
@@ -2543,7 +2543,7 @@ test("a variant that sets words paints them like a preview", async () => {
   await tick();
   const el = selectText(app);
   app.doc.querySelector = () => el;
-  app.win.fetch = async (url, init = {}) => {
+  app.win.fetch = async (url) => {
     if (url === "/__edityy/asks") {
       return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [{ id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] }] }) };
     }
