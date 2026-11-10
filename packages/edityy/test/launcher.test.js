@@ -1725,15 +1725,22 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   selectText(app);
   const dock = app.root.nodes.dock;
   dock.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
+  // The stub has no layout: the bar stands where the dock does, without the panel it holds.
+  app.root.nodes.bar.getBoundingClientRect = () => ({ left: 900, top: 700, right: 1170, bottom: 740, width: 270, height: 40 });
   app.root.nodes.review.getBoundingClientRect = () => ({ left: 1100, top: 710, right: 1140, bottom: 742, width: 40, height: 32 });
+  // Hovering the grip previews the dock places; opening the list puts them away.
+  for (const fn of app.root.nodes.grip.bubbles.mouseenter.bubble ?? []) fn({});
+  assert.equal(app.root.nodes.docks.className, "docks-on", "the grip previews the places");
   const open = openEdits(app);
+  assert.equal(app.root.nodes.docks.className, "", "the open list puts the places away");
   assert.match(open.style.left, /^\d+px$/, "the panel sits in viewport pixels");
   assert.match(open.style.top, /^\d+px$/, "not in dock percentages");
+  assert.equal(open.style.left, "900px", "flush with the toolbar end");
   assert.equal(open.style.top, "392px", "a fixed gap above the dock");
   const left = open.style.left;
   const top = open.style.top;
   // Hover widens the dock for the grip. The panel place must not follow it.
-  for (const fn of dock.bubbles.mouseenter.bubble ?? []) fn({});
+  for (const fn of app.root.nodes.grip.bubbles.mouseenter.bubble ?? []) fn({});
   assert.equal(open.style.left, left, "hover does not move the panel sideways");
   assert.equal(open.style.top, top, "hover does not move the panel up or down");
   assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");

@@ -2944,6 +2944,10 @@ function faces() {
     // One thing open at a time: a list drawn in the row closes with the control
     // that opens, because the two would stand in the same place.
     closeList();
+    // A panel and the dotted places never stand together: opening or closing
+    // a panel puts the places away, unless a drag is holding them or the
+    // grip keeps keyboard focus.
+    if (!dock.getAttribute("data-drag") && root.activeElement !== gripBtn) paintSpots(false);
     // A panel that is on its way out is brought back: the fade that was
     // leaving is put away, or it would hold the new words at nothing.
     if (popLeaving) {
@@ -3059,13 +3063,13 @@ function faces() {
   // or below its right edge at the corners, and this far above its bottom
   // end beside a middle bar.
   var EDITS_MIDDLE_LIFT = 40;
-  function popSide(dockBox, panelHeight) {
+  function popSide(barBox, panelHeight) {
     if (dockSnap === "top-left" || dockSnap === "top-center" || dockSnap === "top-right") return "below";
     if (dockSnap === "bottom-left" || dockSnap === "bottom-center" || dockSnap === "bottom-right") return "above";
     if (dockSnap === "middle-left") return "right";
     if (dockSnap === "middle-right") return "left";
-    var above = dockBox.top;
-    var below = (window.innerHeight || 0) - dockBox.bottom;
+    var above = barBox.top;
+    var below = (window.innerHeight || 0) - barBox.bottom;
     if (above < panelHeight + 8 && below > above) return "below";
     return "above";
   }
@@ -3075,36 +3079,40 @@ function faces() {
     if (pop.hidden || !key) return;
     var target = key === "changes" ? review : slot(key);
     if (!target || !target.getBoundingClientRect) return;
-    var dockBox = dock.getBoundingClientRect();
+    // Measured on the bar, not the dock: the dock holds the panel, so the
+    // dock's own box already includes it and would place it against itself.
+    // The bar's right edge also stands still while the grip widens on hover,
+    // so the panel keeps the place it was given.
+    var barBox = barEl.getBoundingClientRect();
     var box = target.getBoundingClientRect();
     var width = pop.offsetWidth || 0;
     var height = pop.offsetHeight || 0;
-    var side = popSide(dockBox, height);
+    var side = popSide(barBox, height);
     pop.dataset.side = side;
-    var dockLeft = dockBox.left || 0;
-    var dockTop = dockBox.top || 0;
-    var dockWidth = dockBox.width || 0;
-    var dockHeight = dockBox.height || 0;
-    var dockRight = dockBox.right || dockLeft + dockWidth;
-    var dockBottom = dockBox.bottom || dockTop + dockHeight;
+    var barLeft = barBox.left || 0;
+    var barTop = barBox.top || 0;
+    var barWidth = barBox.width || 0;
+    var barHeight = barBox.height || 0;
+    var barRight = barBox.right || barLeft + barWidth;
+    var barBottom = barBox.bottom || barTop + barHeight;
     var items = row.children;
     // Pinned to the viewport, not the dock: the dock widens and shifts on
     // hover for the grip, and a dock-held panel would travel with it. A
     // viewport place stays put until the panel is placed again.
     // The edits panel starts at the end of the toolbar, wherever the bar
-    // is settled: its right edge runs with the bar's right edge, on the
+    // stands: its right edge runs with the bar's right edge, on the
     // same line as Edits. Other panels stay centred on their control.
-    var anchored = key === "changes" && !!dockSnap;
+    var anchored = key === "changes";
     var left;
     if (anchored && (side === "above" || side === "below")) {
-      // A centred bar holds a centred panel; a corner bar holds the panel
+      // A centred bar holds a centred panel; any other bar holds the panel
       // flush with its right edge, on the same line as Edits.
       if (dockSnap === "top-center" || dockSnap === "bottom-center") left = (window.innerWidth - width) / 2;
-      else left = dockRight - width;
+      else left = barRight - width;
     } else {
       left = box.left + box.width / 2 - width / 2;
-      if (target === items[0]) left = dockLeft;
-      else if (target === items[items.length - 1]) left = dockLeft + Math.max(0, dockWidth - width);
+      if (target === items[0]) left = barLeft;
+      else if (target === items[items.length - 1]) left = barLeft + Math.max(0, barWidth - width);
     }
     // On a narrow viewport the dock fills the width, and a panel set from its
     // control could still run off an edge: it stays 12px inside the viewport.
@@ -3116,25 +3124,25 @@ function faces() {
     var originX = Math.round(box.left + box.width / 2 - left);
     if (side === "below") {
       pop.style.left = left + "px";
-      pop.style.top = dockBottom + 8 + "px";
+      pop.style.top = barBottom + 8 + "px";
       pop.style.transformOrigin = originX + "px 0";
     } else if (side === "right" || side === "left") {
       var top = box.top;
       // Beside a middle bar the edits panel stands a bit above the bar's
       // end, not next to it.
-      if (anchored) top = dockBottom - EDITS_MIDDLE_LIFT - height;
+      if (anchored) top = barBottom - EDITS_MIDDLE_LIFT - height;
       top = Math.max(8, Math.min(top, (window.innerHeight || 0) - 8 - height));
       pop.style.top = top + "px";
       if (side === "right") {
-        pop.style.left = dockRight + 8 + "px";
+        pop.style.left = barRight + 8 + "px";
         pop.style.transformOrigin = "0 50%";
       } else {
-        pop.style.left = Math.max(12, dockLeft - width - 8) + "px";
+        pop.style.left = Math.max(12, barLeft - width - 8) + "px";
         pop.style.transformOrigin = "100% 50%";
       }
     } else {
       pop.style.left = left + "px";
-      pop.style.top = Math.max(8, dockTop - height - 8) + "px";
+      pop.style.top = Math.max(8, barTop - height - 8) + "px";
       // The panel grows out of its control, wherever the panel itself lands.
       pop.style.transformOrigin = originX + "px 100%";
     }
@@ -3553,16 +3561,18 @@ function faces() {
       var spot = e.target && e.target.getAttribute ? e.target.getAttribute("data-spot") : null;
       if (spot) dockTo(spot);
     });
-    // The places show while the bar or a place is hovered: they are what a
-    // drag docks to, and each one is itself a click target.
-    var dockHovered = false;
+    // The places show while the grip or a place is hovered: they are what a
+    // drag docks to, and each one is itself a click target. Hovering the bar
+    // itself never shows them, so reaching for the edits list with the pointer
+    // keeps the page free of dotted places.
+    var gripHovered = false;
     var docksHovered = false;
     function hoverSpots() {
-      if ((dockHovered || docksHovered) && !dock.hidden) paintSpots(true, null, held);
+      if ((gripHovered || docksHovered) && !dock.hidden) paintSpots(true, null, held);
       else if (!held) paintSpots(false);
     }
-    dock.addEventListener("mouseenter", function () { dockHovered = true; hoverSpots(); });
-    dock.addEventListener("mouseleave", function () { dockHovered = false; hoverSpots(); });
+    gripBtn.addEventListener("mouseenter", function () { gripHovered = true; hoverSpots(); });
+    gripBtn.addEventListener("mouseleave", function () { gripHovered = false; hoverSpots(); });
     if (docks) {
       docks.addEventListener("mouseenter", function () { docksHovered = true; hoverSpots(); });
       docks.addEventListener("mouseleave", function () { docksHovered = false; hoverSpots(); });
