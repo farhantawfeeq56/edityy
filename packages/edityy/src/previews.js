@@ -356,9 +356,11 @@ export function checkPreviewRequest(request) {
     if (size > MAX_CONTEXT) invalid("element context is too large");
     element = { tag: source.tag, selector: source.selector, values };
   }
+  const count = request.count === undefined ? 1 : request.count;
+  if (!Number.isInteger(count) || count < 1 || count > 10) invalid("count must be a whole number from 1 to 10");
   const status = request.status === undefined ? "pending" : request.status;
   if (!REQUEST_STATUS.includes(status)) invalid("status is invalid");
-  const out = { id: request.id, instruction, element, status };
+  const out = { id: request.id, instruction, element, count, status };
   if (request.previewId !== undefined) {
     if (typeof request.previewId !== "string" || !ID.test(request.previewId)) invalid("previewId is invalid");
     out.previewId = request.previewId;
@@ -431,6 +433,8 @@ export async function clearPreviewRequest(root = process.cwd(), id = null) {
 /** One preview request as text for the agent: what to paint on the canvas. */
 export function previewRequestText(request) {
   const lines = [`# Preview request from Edityy`, "", `Request: ${request.id}`, `Instruction: ${JSON.stringify(request.instruction)}`];
+  const count = request.count > 1 ? request.count : 1;
+  if (count > 1) lines.push(`Variants the user asked for: ${count}`);
   if (request.element) {
     lines.push("", `Element: <${request.element.tag}> at ${request.element.selector}`, "", "Current values:");
     for (const entry of request.element.values) lines.push(`- ${entry.property}: ${entry.value}`);
@@ -440,5 +444,8 @@ export function previewRequestText(request) {
     "Paint this on the live canvas only with place_preview, or many at once with targets. Do not edit files.",
     "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If the place is unclear and the user named none, ask first."
   );
+  if (count > 1) {
+    lines.push("", `Place ${count} previews, one for each variant, with one place_preview call each. The user keeps the one they want.`);
+  }
   return lines.join("\n");
 }

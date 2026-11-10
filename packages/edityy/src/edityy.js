@@ -941,7 +941,7 @@
     ".changes-filter[aria-checked=true] .lbl-on{opacity:1}",
     ".changes-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
     ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 6px 10px;box-sizing:border-box}",
-    ".changes-list .note{max-width:none;margin:10px 6px;font-size:10px}",
+    ".changes-list .changes-empty{display:grid;place-items:center;min-height:170px;margin:10px 6px;padding:8px 16px;box-sizing:border-box;text-align:center;font-size:13px}",
     ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer;box-shadow:0 1px 2px var(--ink-6)}",
     ".task:hover{background:var(--fill-hover)}",
     ".task.selected{border-color:var(--ink)}",
@@ -2071,8 +2071,10 @@
    * The one comment box: for one element or one drawn box. A field,
    * the temporary-canvas tick, preset chips, Cancel and Save.
    *
-   * A drawn box has no element to vary, so its box has no chips: Save
-   * saves the words on the box itself. An element's box carries the
+   * A drawn box holds no element, so Save keeps the words on the box
+   * itself and, with the tick on, asks the agent for a canvas preview.
+   * Above 1, the ask carries the count, so the agent paints that many
+   * previews and the user keeps one. An element's box carries the same
    * chips: 1 makes a single edit, so Save writes the words onto the
    * element's record and the comment travels with the edits to the
    * agent's Markdown and to the saved file. Above 1, Save asks the
@@ -2115,9 +2117,8 @@
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
     // The chips decide what Save does. 1 makes a single edit; above 1,
-    // Save asks the agent to explore that many variations. The Add box is
-    // the same card: a drawn box has no element to vary, so its chips
-    // above 1 stay off and Save keeps the words on the box itself.
+    // Save asks the agent to explore that many variations: of the element
+    // itself, or, for a drawn box, that many canvas previews to keep one of.
     var count = 1;
     var modes = document.createElement("div");
     modes.className = "element-comment-modes";
@@ -2134,27 +2135,18 @@
       chip.setAttribute("role", "radio");
       chip.setAttribute("aria-checked", String(n === count));
       chip.tabIndex = n === count ? 0 : -1;
-      // A drawn box has no element to vary: only the single edit stays on.
-      if (!el && n !== 1) {
-        chip.disabled = true;
-        chip.title = "A drawn box has no element to vary";
-      }
       chip.appendChild(text(String(n)));
       chips.appendChild(chip);
       return chip;
     });
     // The arrow keys move between the chips, like a radio group does.
-    // Off chips are skipped: a drawn box keeps the single edit.
     chips.addEventListener("keydown", function (e) {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
       var at = chipButtons.indexOf(document.activeElement);
       if (at < 0) return;
       var dir = e.key === "ArrowRight" ? 1 : chipButtons.length - 1;
       var idx = (at + dir) % chipButtons.length;
-      var guard = 0;
-      while (chipButtons[idx].disabled && guard++ < chipButtons.length) idx = (idx + dir) % chipButtons.length;
       var next = chipButtons[idx];
-      if (next.disabled) return;
       setCount(counts[idx]);
       if (next.focus) next.focus();
     });
@@ -2162,7 +2154,7 @@
     box.insertBefore(modes, area);
     function setCount(next) {
       var idx = counts.indexOf(next);
-      if (idx === -1 || chipButtons[idx].disabled) return;
+      if (idx === -1) return;
       count = next;
       chipButtons.forEach(function (chip, i) {
         var on = counts[i] === next;
@@ -2187,12 +2179,14 @@
         regionBox.hidden = true;
         tally();
         // The tick also asks for a canvas preview of the words. The words
-        // are already on the box, so a failed ask only leaves a note.
-        if (canvasTick.checked) {
+        // are already on the box, so a failed ask only leaves a note. Above 1
+        // the chips are the ask: the agent paints that many previews and the
+        // user keeps one, tick or no tick.
+        if (canvasTick.checked || count > 1) {
           previewWords = "";
           requestPreview(null, region, words, function (problem) {
             previewWords = problem;
-          });
+          }, count);
         }
         return;
       }
@@ -6580,7 +6574,7 @@ function decorations() {
       seenPreview[previewReqId] = true;
       tasks.push({
         state: "requested", el: previewReqFor || null, label: previewReqFor ? nameOf(previewReqFor) : "Element",
-        origin: "Comment", detail: "Waiting for your agent...", kind: "preview", requestId: previewReqId,
+        origin: "Comment", detail: previewReqCount > 1 ? "Waiting for " + previewReqCount + " previews..." : "Waiting for your agent...", kind: "preview", requestId: previewReqId,
       });
     }
     (srvPreviewRequests || []).forEach(function (request) {
@@ -6589,7 +6583,7 @@ function decorations() {
       var el = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
       tasks.push({
         state: "requested", el: el || null, label: el ? nameOf(el) : (request.element && request.element.selector) || "Element",
-        origin: "Comment", detail: "Waiting for your agent...", kind: "preview", requestId: request.id,
+        origin: "Comment", detail: request.count > 1 ? "Waiting for " + request.count + " previews..." : "Waiting for your agent...", kind: "preview", requestId: request.id,
       });
     });
     // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
@@ -7088,7 +7082,7 @@ function decorations() {
     while (list.firstChild) list.removeChild(list.firstChild);
     if (!shown.length) {
       var empty = document.createElement("p");
-      empty.className = "note";
+      empty.className = "note changes-empty";
       if (changesFilter === "all") empty.appendChild(text("No edits yet. Change something on the page and it is listed here."));
       else empty.appendChild(text("No " + activeLabel.toLowerCase() + " tasks."));
       list.appendChild(empty);
@@ -7476,6 +7470,7 @@ function decorations() {
   var previewReqFor = null; // the element the ask is about
   var previewReqRegion = null; // the drawn box the ask is about
   var previewReqInstruction = ""; // the words the ask sent
+  var previewReqCount = 1; // how many previews the ask wants, 1 when untold
   var previewOrigin = "agent"; // where the paint on the canvas came from: comment or agent
 
   /** Every element one preview paints: the many-target form, or the old single one. */
@@ -7492,7 +7487,7 @@ function decorations() {
   }
 
   /** Ask the dev server for a canvas preview of one comment. `failed` is told why it never went out. */
-  function requestPreview(el, region, instruction, failed) {
+  function requestPreview(el, region, instruction, failed, count) {
     if (typeof window.fetch !== "function") {
       // The ask never went out: the words are an Exploring note, not a wait.
       if (el) record(el).commentAsk = false;
@@ -7503,7 +7498,7 @@ function decorations() {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ id: id, instruction: instruction, element: el ? contextFor(el) : null }),
+      body: JSON.stringify({ id: id, instruction: instruction, element: el ? contextFor(el) : null, count: count > 1 ? count : 1 }),
     }).then(function (r) {
       if (r.status === 404) throw new Error("No preview request endpoint");
       return r.json();
@@ -7513,6 +7508,7 @@ function decorations() {
       previewReqFor = el || null;
       previewReqRegion = region || null;
       previewReqInstruction = instruction;
+      previewReqCount = count > 1 ? count : 1;
       previewOrigin = "comment";
       previewWords = "";
       previewPolls = 0;
@@ -7533,6 +7529,7 @@ function decorations() {
     previewReqFor = null;
     previewReqRegion = null;
     previewReqInstruction = "";
+    previewReqCount = 1;
     if (id && typeof window.fetch === "function") {
       window.fetch(PREVIEW_REQUEST_URL + "?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
     }
@@ -7559,6 +7556,7 @@ function decorations() {
         previewReqFor = null;
         previewReqRegion = null;
         previewReqInstruction = "";
+        previewReqCount = 1;
         resetPreviewBox();
         previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
         if (region) {

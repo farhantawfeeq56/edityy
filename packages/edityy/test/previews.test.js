@@ -7,6 +7,7 @@ import { test } from "node:test";
 import {
   checkPreview,
   checkPreviewHtml,
+  checkPreviewRequest,
   clearPreviews,
   clearPreviewRequest,
   decidePreview,
@@ -173,7 +174,19 @@ test("a comment-box preview request is answered once place_preview paints", asyn
     root
   );
   assert.equal(written.status, "pending");
+  assert.equal(written.count, 1, "no count rides as one");
   assert.match(previewRequestText(await readPreviewRequest(root)), /make the heading bigger/);
+  assert.doesNotMatch(previewRequestText(await readPreviewRequest(root)), /Variants/, "one preview says nothing of variants");
+  const variedRoot = tmp();
+  const varied = await writePreviewRequest(
+    { id: "p-2", instruction: "add a hero", count: 5 },
+    variedRoot
+  );
+  assert.equal(varied.count, 5);
+  assert.match(previewRequestText(varied), /Variants the user asked for: 5/);
+  assert.match(previewRequestText(varied), /Place 5 previews/);
+  assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 0 }), { status: 400 });
+  assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 11 }), { status: 400 });
   const preview = await placePreview(insert, root);
   const answered = await readPreviewRequest(root);
   assert.equal(answered.status, "answered");

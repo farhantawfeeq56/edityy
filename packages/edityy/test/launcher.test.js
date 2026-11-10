@@ -1789,6 +1789,10 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   selectText(app);
   const open = openEdits(app);
   assert.match(shown(open.children[0]), /No edits yet/);
+  const flat = (el) => [el, ...(el.children ?? []).flatMap(flat)];
+  assert.ok(flat(open).some((n) => (n.className ?? "").includes("changes-empty")), "the empty words carry the centered style");
+  assert.match(source, /\.changes-list \.changes-empty\{[^}]*text-align:center/, "the empty words sit centered");
+  assert.match(source, /\.changes-list \.changes-empty\{[^}]*font-size:13px/, "the empty words read bigger");
   assert.equal(open.children[2].children[0].disabled, true);
 });
 
