@@ -16,9 +16,11 @@ import {
   previewRequestText,
   previewText,
   readActivePreview,
+  readPendingPreviewRequests,
   readPendingPreviews,
   readPreview,
   readPreviewRequest,
+  readPreviewRequests,
   readPreviews,
   writePreviewRequest,
 } from "../src/previews.js";
@@ -193,4 +195,47 @@ test("a comment-box preview request is answered once place_preview paints", asyn
   assert.equal(answered.previewId, preview.id);
   await clearPreviewRequest(root);
   await assert.rejects(placePreview(insert, root), /withdrew/);
+});
+
+test("a dragged-box request carries its location, and every pending ask lists", async () => {
+  const root = tmp();
+  await writePreviewRequest(
+    {
+      id: "p-box",
+      instruction: "add some flair here",
+      count: 5,
+      region: { left: 1006, top: 144, width: 111, height: 306, mark: 2, viewportW: 1280, viewportH: 800, pctLeft: 90.2, viewTop: 450, center: "main > section", parent: "main" },
+    },
+    root
+  );
+  await writePreviewRequest({ id: "p-el", instruction: "make the heading bigger" }, root);
+  const pending = await readPendingPreviewRequests(root);
+  assert.deepEqual(pending.map((one) => one.id), ["p-box", "p-el"], "oldest first");
+  const text = previewRequestText(pending[0]);
+  assert.match(text, /Location: region mark 2 at \(1006, 144\), 111x306px\./);
+  assert.match(text, /Annotation at: 90\.2% from left, 450px from top \(viewport 1280x800\)\./);
+  assert.match(text, /Center: `main > section`\./);
+  assert.match(text, /Insert parent: `main`\./);
+  assert.throws(() => checkPreviewRequest({ id: "p-bad", instruction: "x", region: { left: -1, top: 0, width: 1, height: 1 } }), { status: 400 });
+  assert.throws(() => checkPreviewRequest({ id: "p-bad", instruction: "x", region: "hero" }), { status: 400 });
+});
+
+test("several paints for one count ask answer that ask, not another waiting ask", async () => {
+  const root = tmp();
+  await writePreviewRequest({ id: "p-flair", instruction: "add some flair here", count: 3 }, root);
+  await writePreviewRequest({ id: "p-big", instruction: "make the heading bigger" }, root);
+  const paint = { ...insert, instruction: "add some flair here" };
+  const first = await placePreview(paint, root);
+  const second = await placePreview(paint, root);
+  let waiting = await readPendingPreviewRequests(root);
+  assert.deepEqual(waiting.map((one) => one.id), ["p-flair", "p-big"], "a count ask waits for every paint");
+  const third = await placePreview(paint, root);
+  waiting = await readPendingPreviewRequests(root);
+  assert.deepEqual(waiting.map((one) => one.id), ["p-big"], "only the answered ask leaves");
+  const done = (await readPreviewRequests(root)).find((one) => one.id === "p-flair");
+  assert.equal(done.status, "answered");
+  assert.deepEqual(done.previewIds, [first.id, second.id, third.id]);
+  const other = await placePreview({ ...insert, instruction: "make the heading bigger" }, root);
+  assert.deepEqual((await readPendingPreviewRequests(root)).length, 0);
+  assert.equal((await readPreviewRequests(root)).find((one) => one.id === "p-big").previewId, other.id);
 });

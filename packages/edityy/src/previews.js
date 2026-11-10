@@ -226,7 +226,8 @@ export async function placePreview(placed, root = process.cwd()) {
   // A withdrawn request is skipped: with several asks on file, each one is
   // independent and the oldest still waiting is the one answered.
   const queue = await readPreviewRequests(root);
-  const waiting = queue.find((entry) => entry.status === "pending") || null;
+  const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === checked.instruction)
+    || queue.find((entry) => entry.status === "pending") || null;
   if (!waiting && queue.some((entry) => entry.status === "cancelled")) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
@@ -238,11 +239,15 @@ export async function placePreview(placed, root = process.cwd()) {
   // with its own status, so more than one can be up for a decision at once.
   await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items: items.slice(0, MAX_HISTORY + 1) });
   // The comment-box request it answered waits no more: it stays on file as
-  // answered, so the agent never paints the same ask twice. A chat-initiated
-  // preview with no request file simply has nothing to answer.
+  // answered, so the agent never paints the same ask twice. A paint whose
+  // words match a waiting ask answers that ask, so several paints for one
+  // count ask all land on it and no other waiting ask is consumed. A
+  // chat-initiated preview with no request file simply has nothing to answer.
   if (waiting) {
-    waiting.status = "answered";
-    waiting.previewId = id;
+    const ids = [...(waiting.previewIds || []), id];
+    waiting.previewIds = ids;
+    waiting.previewId = ids[0];
+    if (ids.length >= (waiting.count || 1)) waiting.status = "answered";
     const queue = await readPreviewRequests(root);
     const at = queue.findIndex((entry) => entry.id === waiting.id);
     if (at >= 0) queue[at] = waiting;
@@ -323,6 +328,39 @@ export function previewText(preview) {
 
 // One comment-box ask: a request is pending, withdrawn or answered.
 const REQUEST_STATUS = ["pending", "cancelled", "answered"];
+/** A dragged box lives in document pixels, at most a long page. */
+const MAX_COORD = 100000;
+function coord(value, name) {
+  if (!Number.isInteger(value) || value < 0 || value > MAX_COORD) invalid(`${name} must be a whole number from 0 to ${MAX_COORD}`);
+  return value;
+}
+/** A drawn Add-box: where it is, and what sits under it, so the agent can place there. */
+function checkRegion(source) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) invalid("region must be an object");
+  const out = {
+    left: coord(source.left, "region left"),
+    top: coord(source.top, "region top"),
+    width: coord(source.width, "region width"),
+    height: coord(source.height, "region height"),
+  };
+  if (source.mark !== undefined && source.mark !== null) out.mark = coord(source.mark, "region mark");
+  for (const key of ["viewportW", "viewportH", "viewTop"]) {
+    if (source[key] !== undefined && source[key] !== null) out[key] = coord(source[key], `region ${key}`);
+  }
+  if (source.pctLeft !== undefined && source.pctLeft !== null) {
+    if (typeof source.pctLeft !== "number" || !(source.pctLeft >= 0) || source.pctLeft > 100) invalid("region pctLeft must be 0 to 100");
+    out.pctLeft = Math.round(source.pctLeft * 10) / 10;
+  }
+  for (const key of ["center", "parent"]) {
+    if (source[key] !== undefined && source[key] !== null) {
+      if (typeof source[key] !== "string" || !source[key].trim() || source[key].length > MAX_SELECTOR) {
+        invalid(`region ${key} must be 1 to ${MAX_SELECTOR} characters`);
+      }
+      out[key] = source[key].trim();
+    }
+  }
+  return out;
+}
 const STRICT_PROPERTY = /^-?[a-z][a-z0-9-]{0,99}$/;
 const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/\*/i;
 const MAX_VALUES = 16;
@@ -361,9 +399,19 @@ export function checkPreviewRequest(request) {
   const status = request.status === undefined ? "pending" : request.status;
   if (!REQUEST_STATUS.includes(status)) invalid("status is invalid");
   const out = { id: request.id, instruction, element, count, status };
+  if (request.region !== undefined && request.region !== null) out.region = checkRegion(request.region);
+  else out.region = null;
   if (request.previewId !== undefined) {
     if (typeof request.previewId !== "string" || !ID.test(request.previewId)) invalid("previewId is invalid");
     out.previewId = request.previewId;
+  }
+  if (request.previewIds !== undefined) {
+    if (!Array.isArray(request.previewIds)) invalid("previewIds is invalid");
+    out.previewIds = [];
+    for (const pid of request.previewIds) {
+      if (typeof pid !== "string" || !ID.test(pid)) invalid("previewId is invalid");
+      if (!out.previewIds.includes(pid)) out.previewIds.push(pid);
+    }
   }
   return out;
 }
@@ -405,6 +453,11 @@ export async function readPreviewRequest(root = process.cwd()) {
   return items.find((entry) => entry.status === "pending") || items[items.length - 1];
 }
 
+/** Every preview request still waiting, oldest first. */
+export async function readPendingPreviewRequests(root = process.cwd()) {
+  return (await readPreviewRequests(root)).filter((entry) => entry?.status === "pending");
+}
+
 /** The user withdrew a pending request, with one id or all of them, so no agent answers it late. */
 export async function clearPreviewRequest(root = process.cwd(), id = null) {
   const items = await readPreviewRequests(root);
@@ -438,6 +491,17 @@ export function previewRequestText(request) {
   if (request.element) {
     lines.push("", `Element: <${request.element.tag}> at ${request.element.selector}`, "", "Current values:");
     for (const entry of request.element.values) lines.push(`- ${entry.property}: ${entry.value}`);
+  }
+  if (request.region) {
+    const box = request.region;
+    lines.push("", `Location: region${box.mark ? ` mark ${box.mark}` : ""} at (${box.left}, ${box.top}), ${box.width}x${box.height}px.`);
+    if (box.pctLeft !== undefined || box.viewTop !== undefined) {
+      const view = box.viewportW ? ` (viewport ${box.viewportW}x${box.viewportH ?? "?"})` : "";
+      lines.push(`Annotation at: ${box.pctLeft !== undefined ? `${box.pctLeft}% from left` : "unknown from left"}, ${box.viewTop !== undefined ? `${box.viewTop}px from top` : "unknown from top"}${view}.`);
+    }
+    if (box.center) lines.push(`Center: \`${box.center}\`.${box.parent ? ` Insert parent: \`${box.parent}\`.` : ""}`);
+    else if (box.parent) lines.push(`Insert parent: \`${box.parent}\`.`);
+    lines.push("Insert the new markup at the insert parent, or ask where when none is named.");
   }
   lines.push(
     "",

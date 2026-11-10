@@ -6973,7 +6973,7 @@ function decorations() {
       changesPanel.actions.setAttribute("data-ui-actions", "");
       // Copy gives a nudge only: the agent reads the saved edits over MCP,
       // never this text, so the text must not carry the edits themselves.
-      var NUDGE = "Use the Edityy MCP tools. Read the saved visual changes with get_visual_changes, then apply them to the source.";
+      var NUDGE = "Use the Edityy MCP tools. Read saved visual changes with get_visual_changes, pending canvas asks with get_preview_request, placed previews with get_preview, and style options with get_variation_request. Apply kept previews and saved changes to the source.";
       var copy = button("cta", "", "Copy a short prompt that nudges a coding agent to read the saved edits over MCP", function () {
         copyText(NUDGE, function (ok) {
           relabel(changesPanel.copy, ok ? "Copied" : "Copy failed");
@@ -7486,6 +7486,32 @@ function decorations() {
     return styles.length ? styles[0].variations || [] : [];
   }
 
+  /** What the agent is told about a drawn box: its location and what sits under it. */
+  function regionContext(box) {
+    var x = window.pageXOffset || window.scrollX || 0;
+    var y = window.pageYOffset || window.scrollY || 0;
+    var vw = window.innerWidth || 0;
+    var vh = window.innerHeight || 0;
+    var out = { left: box.left, top: box.top, width: box.width, height: box.height };
+    if (box.mark != null) out.mark = box.mark;
+    if (vw > 0 && vh > 0) {
+      out.viewportW = vw;
+      out.viewportH = vh;
+      var viewLeft = Math.round(box.left - x);
+      var viewTop = Math.round(box.top - y);
+      out.pctLeft = Math.round((viewLeft / vw) * 1000) / 10;
+      out.viewTop = viewTop;
+      try {
+        var under = document.elementFromPoint(Math.min(Math.max(viewLeft + box.width / 2, 0), vw - 1), Math.min(Math.max(viewTop + box.height / 2, 0), vh - 1));
+        if (under && under !== document.documentElement) {
+          out.center = selectorFor(under);
+          if (under.parentElement) out.parent = selectorFor(under.parentElement);
+        }
+      } catch { /* a page that cannot be measured still sends the box */ }
+    }
+    return out;
+  }
+
   /** Ask the dev server for a canvas preview of one comment. `failed` is told why it never went out. */
   function requestPreview(el, region, instruction, failed, count) {
     if (typeof window.fetch !== "function") {
@@ -7498,7 +7524,7 @@ function decorations() {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ id: id, instruction: instruction, element: el ? contextFor(el) : null, count: count > 1 ? count : 1 }),
+      body: JSON.stringify({ id: id, instruction: instruction, element: el ? contextFor(el) : null, region: region ? regionContext(region) : null, count: count > 1 ? count : 1 }),
     }).then(function (r) {
       if (r.status === 404) throw new Error("No preview request endpoint");
       return r.json();

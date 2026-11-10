@@ -188,3 +188,28 @@ test("more variations than the user asked for use the first ones, and say so", a
   assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2);
   assert.equal((await readVariationResponse("v123abc", root)).variations[1].label, "two");
 });
+
+test("get_preview_request lists every pending ask, and get_preview lists every waiting paint", async () => {
+  const root = tmp();
+  const { writePreviewRequest } = await import("../src/previews.js");
+  await writePreviewRequest({ id: "q-box", instruction: "add some flair here", count: 2, region: { left: 1006, top: 144, width: 111, height: 306 } }, root);
+  await writePreviewRequest({ id: "q-big", instruction: "make the heading bigger" }, root);
+  const asks = await call(root, "tools/call", { name: "get_preview_request", arguments: {} });
+  assert.match(asks.result.content[0].text, /add some flair here/);
+  assert.match(asks.result.content[0].text, /make the heading bigger/);
+  assert.match(asks.result.content[0].text, /Location: region at \(1006, 144\), 111x306px\./);
+
+  const paint = (instruction) => call(root, "tools/call", { name: "place_preview", arguments: { instruction, action: "insert", position: "inside-end", html: "<p>new</p>" } });
+  await paint("add some flair here");
+  const still = await call(root, "tools/call", { name: "get_preview_request", arguments: {} });
+  assert.match(still.result.content[0].text, /add some flair here/, "a count ask waits for its second paint");
+  await paint("add some flair here");
+  const left = await call(root, "tools/call", { name: "get_preview_request", arguments: {} });
+  assert.doesNotMatch(left.result.content[0].text, /add some flair here/);
+  assert.match(left.result.content[0].text, /make the heading bigger/);
+
+  const paints = await call(root, "tools/call", { name: "get_preview", arguments: {} });
+  assert.match(paints.result.content[0].text, /add some flair here/);
+  const once = await call(root, "tools/call", { name: "get_preview", arguments: { id: "nope" } });
+  assert.match(once.result.content[0].text, /No preview nope\./);
+});

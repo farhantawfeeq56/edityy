@@ -7,7 +7,7 @@
  * (`.edityy/changes.json`, from index.js), a variation request — one
  * element, a number of variations and an optional comment
  * (`.edityy/variation-request.json`, from variations.js), and a comment-box
- * preview request — an instruction and an optional element
+ * preview request — an instruction with an optional element or a dragged-box region
  * (`.edityy/preview-request.json`, from previews.js).
  * This serves all of them to an agent through eight tools: read the edits, clear them
  * once they are in the code, read the variation request, place the
@@ -24,7 +24,7 @@ import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE } from "./index.js";
 import { SESSION_FILE } from "./session.js";
-import { decidePreview, placePreview, previewRequestText, previewText, readActivePreview, readPreview, readPreviewRequest, readPreviews } from "./previews.js";
+import { decidePreview, placePreview, previewRequestText, previewText, readPendingPreviewRequests, readPendingPreviews, readPreview, readPreviewRequest, readPreviews } from "./previews.js";
 import { placeVariations, readVariationRequest, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -108,9 +108,9 @@ const TOOLS = [
   {
     name: "get_preview_request",
     description:
-      "Read the preview the user asked for in the Edityy comment box with \"Apply on temporary canvas\" ticked: a comment and an optional element. " +
+      "Read every preview the users asked for in the Edityy comment boxes with \"Apply on temporary canvas\" ticked, oldest first. " +
       "Read it at the start of every message, without waiting for the user to type edityy:: in the chat. " +
-      "Returns the instruction and the element's selector, tag and current values. Answer by painting it with place_preview, or many at once with targets.",
+      "Returns each instruction with the element's selector, tag and current values, or with the dragged-box location when the user drew a box. Answer each by painting it with place_preview, or many at once with targets.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -146,9 +146,10 @@ const TOOLS = [
   {
     name: "get_preview",
     description:
-      "Read one placed Edityy canvas preview, with its instruction, action and payload. " +
+      "Read placed Edityy canvas previews, with instruction, action and payload. " +
       "Apply kept previews to the source code: the page saved them to the project, so read them with get_visual_changes. " +
-      "Each preview has an id such as e-123: the user keeps or discards it with the buttons on the page. Typing implement <id> or discard <id> in the chat works the same.",
+      "Each preview has an id such as e-123: the user keeps or discards it with the buttons on the page. Typing implement <id> or discard <id> in the chat works the same. " +
+      "Without an id, every preview still waiting is read, newest first.",
     inputSchema: {
       type: "object",
       properties: {
@@ -316,6 +317,10 @@ export async function handle(message, root) {
           return reply({ content: [{ type: "text", text: requestText(request) }] });
         }
         if (params?.name === "get_preview_request") {
+          const pending = await readPendingPreviewRequests(root);
+          if (pending.length) {
+            return reply({ content: [{ type: "text", text: pending.map(previewRequestText).join("\n\n---\n\n") }] });
+          }
           const request = await readPreviewRequest(root);
           if (!request) {
             return reply({
@@ -329,7 +334,7 @@ export async function handle(message, root) {
           }
           if (request.status === "answered") {
             return reply({
-              content: [{ type: "text", text: `Preview request ${request.id} was already answered with ${request.previewId || "a preview"}. Read it with get_preview.` }],
+              content: [{ type: "text", text: `Preview request ${request.id} was already answered with ${(request.previewIds || []).join(", ") || request.previewId || "a preview"}. Read it with get_preview.` }],
             });
           }
           return reply({ content: [{ type: "text", text: previewRequestText(request) }] });
@@ -342,17 +347,21 @@ export async function handle(message, root) {
         }
         if (params?.name === "get_preview") {
           const id = params?.arguments?.id;
-          const shown = typeof id === "string" && id ? await readPreview(id, root) : await readActivePreview(root);
-          if (!shown) {
-            if (typeof id === "string" && id) return reply({ content: [{ type: "text", text: `No preview ${id}.` }] });
-            const list = await readPreviews(root);
+          if (typeof id === "string" && id) {
+            const shown = await readPreview(id, root);
+            if (!shown) return reply({ content: [{ type: "text", text: `No preview ${id}.` }] });
+            return reply({ content: [{ type: "text", text: previewText(shown) }] });
+          }
+          const waiting = await readPendingPreviews(root);
+          if (waiting.length) {
+            return reply({ content: [{ type: "text", text: waiting.map(previewText).join("\n\n---\n\n") }] });
+          }
+          const list = await readPreviews(root);
             if (!list.history.length) {
               return reply({ content: [{ type: "text", text: "No preview. The user writes a comment with Apply on temporary canvas ticked, and you place it with place_preview." }] });
             }
             const rows = list.history.map((item) => `- ${item.id} (${item.status}): ${item.instruction}`).join("\n");
             return reply({ content: [{ type: "text", text: `Previews, newest first:\n\n${rows}` }] });
-          }
-          return reply({ content: [{ type: "text", text: previewText(shown) }] });
         }
         if (params?.name === "decide_preview") {
           const decided = await decidePreview(params?.arguments?.id, params?.arguments?.decision, root);

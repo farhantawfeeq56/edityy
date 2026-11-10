@@ -49,6 +49,9 @@ the Edityy MCP server.
   box with "Apply on temporary canvas" ticked and presses Save, call
   \`get_preview_request\`.
   Read it every message: a preview request needs no \`edityy::\` typed in the chat.
+  It lists every waiting ask, oldest first. A drawn-box ask carries its
+  location: document pixels, viewport percent and pixels, and center and
+  parent selectors. Paint one preview per asked variant with \`place_preview\`.
   Then paint the change on the live canvas only. Do not edit files. Call
   \`place_preview\` with the instruction, an action and its payload:
   \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
