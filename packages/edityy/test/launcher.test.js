@@ -553,8 +553,8 @@ test("the chrome wears its own face, not the host page's", () => {
   // The chrome names the Edityy face, and takes the page's copy of it through
   // --edityy-font when the page keeps it behind a hashed name. The machine's own
   // UI face is the floor, and no webfont is fetched.
-  assert.match(css, /font-family:var\(--edityy-font,"Plus Jakarta Sans"\),system-ui,-apple-system,/,
-    "Jakarta through the chrome's hook, with the machine's UI face as the floor");
+  assert.match(css, /font-family:var\(--edityy-font,"Figtree"\),system-ui,-apple-system,/,
+    "Figtree through the chrome's hook, with the machine's UI face as the floor");
   assert.doesNotMatch(css, /fonts\.googleapis\.com|@font-face/, "and no font is fetched");
   assert.doesNotMatch(css, /--font-sans/, "and no token only this codebase sets");
   assert.match(css, /#launch img\{width:18px/, "the mark's own size");

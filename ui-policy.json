@@ -1,5 +1,5 @@
 {
-  "fonts": ["Plus Jakarta Sans", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+  "fonts": ["Figtree", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
   "fontSizes": [8, 10, 11],
   "typeRules": [
     { "selector": "button", "sizes": [8, 10] },

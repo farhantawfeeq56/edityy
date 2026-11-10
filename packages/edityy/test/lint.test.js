@@ -47,7 +47,7 @@ function bodies(name) {
 
 test("the policy is a lintapple policy at the app scale", () => {
   assert.deepEqual([...new Set(policy.fontSizes)].sort((a, b) => a - b), [8, 10, 11]);
-  assert.ok(policy.fonts.includes("Plus Jakarta Sans"), "the chrome font is approved");
+  assert.ok(policy.fonts.includes("Figtree"), "the chrome font is approved");
   assert.equal(policy.minControlSize, 15);
   assert.equal(policy.minControlGap, 8);
   assert.equal(policy.minControlInset, 8);

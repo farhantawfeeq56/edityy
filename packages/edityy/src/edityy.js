@@ -251,7 +251,7 @@
     // towards ink, so the step holds whatever the paper is.
     "--fill-open:color-mix(in srgb,var(--ink) 3%,var(--paper));--fill-hover:color-mix(in srgb,var(--ink) 1%,var(--paper))}",
     // `all:initial` severs inheritance, so the payload names a font itself. The
-    // chrome wears Plus Jakarta Sans, the Edityy face. A page that keeps its
+    // chrome wears Figtree, the Edityy face. A page that keeps its
     // copy behind a hashed name (next/font does) names it once on --edityy-font,
     // and the chrome picks it up: custom properties cross the shadow boundary.
     // The machine own UI face is the floor, and no webfont loads here.
@@ -262,7 +262,7 @@
     // every button. An open control paints itself var(--ink), so its icon was the
     // same colour as its own background: invisible. On :host it is inherited
     // down to the button and stops there.
-    "*{box-sizing:border-box;font-family:var(--edityy-font,\"Plus Jakarta Sans\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
+    "*{box-sizing:border-box;font-family:var(--edityy-font,\"Figtree\"),system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     "[hidden]{display:none!important}", // also for #dock, whose display:flex would beat it
     // The dock is one surface in one place: fixed at the bottom right, where
     // the brand pill stood, whatever the element and the page do. A column,
