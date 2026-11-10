@@ -6758,6 +6758,7 @@ function decorations() {
       (list || []).forEach(function (variation, i) {
         var chip = button("task-chip", "", variation.label, function (e) {
           if (e && e.stopPropagation) e.stopPropagation();
+          if (e && e.preventDefault) e.preventDefault();
           if (task.kind === "live-variants") {
             pickVariant(i);
           } else {
@@ -6767,7 +6768,13 @@ function decorations() {
             showVariants(task.list);
             pickVariant(i);
           }
+          refocusVariant(i);
         }, "variant-" + (i + 1));
+        // The click must not move focus onto the chip: the pick rebuilds
+        // this list, and a focus the rebuild drops lets the browser scroll.
+        chip.addEventListener("mousedown", function (e) {
+          if (e && e.preventDefault) e.preventDefault();
+        });
         chip.setAttribute("title", variation.label);
         chip.setAttribute("aria-pressed", i === at ? "true" : "false");
         chip.appendChild(text(String(i + 1)));
@@ -6817,14 +6824,6 @@ function decorations() {
     var row = document.createElement("div");
     row.className = "task-actions";
     row.setAttribute("data-ui-actions", "");
-    if (task.el) {
-      var go = button("mini primary", "", "Go to element", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        gotoTask(task);
-      }, "task-go-" + (task.previewId || task.requestId || task.label));
-      go.appendChild(text("Go to element"));
-      row.appendChild(go);
-    }
     if (task.kind === "preview-current") {
       var current = previewCurrent;
       var choices = current ? previewRowVariations(current) : [];
@@ -7361,14 +7360,29 @@ function decorations() {
     // A variation may also set the element's words: leaf text only, so markup is
     // never flattened by a textContent write.
     if (variation.text !== undefined && !variationFor.children.length) previewText(variationFor, variation.text);
-    paintVariants();
     refit();
+    // One redraw: tally() repaints the open panel itself, so a paint here
+    // would rebuild the chips twice and drop the pointer's focus twice.
+    if (editing) paintVariants();
     tally();
   }
 
   /** The variants live on their card in the Edits panel now: a pick just redraws it when it is open. */
   function paintVariants() {
     if (review.getAttribute("aria-expanded") === "true") show("changes");
+  }
+
+  /**
+   * Keep focus on the picked chip: the redraw rebuilds the chips, and a
+   * focus the rebuild drops lets the browser scroll the page.
+   */
+  function refocusVariant(index) {
+    try {
+      var again = changesPanel && changesPanel.list && typeof changesPanel.list.querySelector === "function"
+        ? changesPanel.list.querySelector('[data-key="variant-' + (index + 1) + '"]')
+        : null;
+      if (again && typeof again.focus === "function") again.focus({ preventScroll: true });
+    } catch {}
   }
 
   /* ------------------------------------------------------------ previews */
