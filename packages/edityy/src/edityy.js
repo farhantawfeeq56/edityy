@@ -3096,8 +3096,12 @@ function faces() {
     // same line as Edits. Other panels stay centred on their control.
     var anchored = key === "changes" && !!dockSnap;
     var left;
-    if (anchored && (side === "above" || side === "below")) left = dockRight - width;
-    else {
+    if (anchored && (side === "above" || side === "below")) {
+      // A centred bar holds a centred panel; a corner bar holds the panel
+      // flush with its right edge, on the same line as Edits.
+      if (dockSnap === "top-center" || dockSnap === "bottom-center") left = (window.innerWidth - width) / 2;
+      else left = dockRight - width;
+    } else {
       left = box.left + box.width / 2 - width / 2;
       if (target === items[0]) left = dockLeft;
       else if (target === items[items.length - 1]) left = dockLeft + Math.max(0, dockWidth - width);
