@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CHANGES_FILE, CHANGES_PATH, changesRoute, edityy, variationsRoute, writeChanges } from "../src/index.js";
+import { ASKS_PATH, CHANGES_FILE, CHANGES_PATH, asksRoute, changesRoute, edityy, readAsks, variationsRoute, writeChanges } from "../src/index.js";
 import { VARIATIONS_PATH, VARIATION_REQUEST_FILE, placeVariations } from "../src/variations.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-save-"));
@@ -340,4 +340,39 @@ test("the variation route handler does the same for Next.js, in development only
     })
   );
   assert.equal(evil.status, 403);
+});
+
+test("the asks queue holds every wait in one place, for the page and the agent", async (t) => {
+  const root = tmp();
+  const { writePreviewRequest } = await import("../src/previews.js");
+  const { writeVariationRequest } = await import("../src/variations.js");
+  await writeVariationRequest(variation, root);
+  await writePreviewRequest({ id: "q-1", instruction: "make it warmer" }, root);
+  const asks = await readAsks(root);
+  assert.equal(asks.ok, true);
+  assert.equal(asks.variations.requests[0].id, variation.id);
+  assert.equal(asks.previewRequests[0].instruction, "make it warmer");
+  assert.deepEqual(asks.previews, []);
+
+  // The same queue answers the middleware and the Next.js route.
+  const get = () =>
+    edityy({ root })(
+      Object.assign(new EventEmitter(), { url: ASKS_PATH, method: "GET", headers: { host: "localhost:3000" } }),
+      {
+        writeHead(status) {
+          this.status = status;
+        },
+        end: (body) => assert.deepEqual(JSON.parse(body).variations.requests[0].id, variation.id),
+      },
+      () => assert.fail("the asks path never reaches next()"),
+    );
+  await get();
+  const was = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+  t.after(() => (process.env.NODE_ENV = was));
+  const GET = asksRoute({ root });
+  const answered = await (
+    await GET(new Request("http://localhost:3000/__edityy/asks", { headers: { host: "localhost:3000" } }))
+  ).json();
+  assert.equal(answered.previewRequests[0].id, "q-1");
 });

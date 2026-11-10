@@ -1632,6 +1632,7 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
   app.win.fetch = async (url, init = {}) => {
     sent.push({ url: url, body: init && init.body });
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, previews: [] }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
     if (url === "/__edityy/preview-request") {
       if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
       return { status: 200, json: async () => ({ ok: true, requests: [] }) };
@@ -2212,6 +2213,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   const sent = [];
   app.win.fetch = async (url, init) => {
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
     if (url === "/__edityy/preview-request") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
     if (String(url).startsWith("/__edityy/variations")) return { status: 200, json: async () => ({ ok: true, requests: [], responses: [] }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
@@ -2269,6 +2271,7 @@ test("saving a comment also asks the agent for a canvas preview", async () => {
       return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
     }
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, previews: [] }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
     return { status: 200, json: async () => ({ ok: true }) };
   };
@@ -2300,12 +2303,16 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    if (url === "/__edityy/asks") {
+      polls += 1;
+      // One poll with no answer, which is the wait the user sees, then the answer.
+      const responses = polls === 1 ? [] : [{ requestId: "v1", variations }];
+      return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses }, previewRequests: [], previews: [] }) };
+    }
     sent.push({ url, init });
     if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "v1" }) };
     if (init.method === "DELETE") return { status: 200, json: async () => ({ ok: true }) };
-    polls += 1;
-    // One poll with no answer, which is the wait the user sees, then the answer.
-    return { status: 200, json: async () => (polls === 1 ? { ok: true, pending: true } : { ok: true, requestId: "v1", variations }) };
+    return { status: 200, json: async () => ({ ok: true, pending: true }) };
   };
   const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -2345,7 +2352,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.ok(JSON.stringify(request.element).length < 800, "the agent gets a short context");
 
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
-  assert.equal(polls, 2);
+  assert.equal(polls, 3, "mode start, the ask, and one wait poll: one timer behind every ask");
   assert.equal(strip.hidden, true, "no separate strip: the variants live in the Edits panel");
   assert.equal(inMenu("Save comment"), undefined, "the prompt box is done");
   // Open Edits and the Exploring card for this element.
@@ -2413,11 +2420,15 @@ test("keeping a variant forgets its server answer, so no Select card lingers", a
   app.win.fetch = async (url, init = {}) => {
     if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, pending: true }) };
     if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    if (url === "/__edityy/asks") {
+      polls += 1;
+      const responses = polls === 1 ? [] : [{ requestId: "v1", variations }];
+      return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses }, previewRequests: [], previews: [] }) };
+    }
     sent.push({ url, init });
     if (init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "v1" }) };
     if (init.method === "DELETE") return { status: 200, json: async () => ({ ok: true }) };
-    polls += 1;
-    return { status: 200, json: async () => (polls === 1 ? { ok: true, pending: true } : { ok: true, requestId: "v1", variations }) };
+    return { status: 200, json: async () => ({ ok: true, pending: true }) };
   };
   selectText(app);
   const menu = app.root.nodes["element-menu"];
@@ -2485,8 +2496,8 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   const posts = [];
   let preview = null;
   app.win.fetch = async (url, init = {}) => {
-    if (url === "/__edityy/previews" && (!init.method || init.method === "GET")) {
-      return { status: 200, json: async () => ({ ok: true, previews: preview ? [preview] : [] }) };
+    if (url === "/__edityy/asks") {
+      return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: preview ? [preview] : [] }) };
     }
     if (url === "/__edityy/previews" && init.method === "POST") posts.push(JSON.parse(init.body));
     return { status: 200, json: async () => ({ ok: true }) };
@@ -2533,11 +2544,8 @@ test("a variant that sets words paints them like a preview", async () => {
   const el = selectText(app);
   app.doc.querySelector = () => el;
   app.win.fetch = async (url, init = {}) => {
-    if (url === "/__edityy/previews") {
-      if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, previews: [{ id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] }] }) };
-      }
-      return { status: 200, json: async () => ({ ok: true }) };
+    if (url === "/__edityy/asks") {
+      return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [{ id: "e-words1", instruction: "say it short", action: "styles", selector: "p", variations: [{ label: "short", props: [], text: "Start free" }] }] }) };
     }
     return { status: 200, json: async () => ({ ok: true }) };
   };
@@ -2557,17 +2565,13 @@ test("several previews at once get one Exploring card each", async () => {
     { id: "e-two2", instruction: "add a shadow", action: "update", selector: "p", props: [{ property: "box-shadow", value: "0 2px 4px black" }] },
     { id: "e-two3", instruction: "thicken the words", action: "insert", anchor: "main h2", position: "after", html: '<p class="edityy-note">Heavier</p>' },
   ];
+  const asks = () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: live });
   app.win.fetch = async (url, init = {}) => {
-    if (url === "/__edityy/previews") {
-      if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, previews: live }) };
-      }
-      if (init.method === "POST") {
-        const body = JSON.parse(init.body);
-        posts.push(body);
-        live = live.filter((one) => one.id !== body.id);
-      }
-      return { status: 200, json: async () => ({ ok: true }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => asks() };
+    if (url === "/__edityy/previews" && init.method === "POST") {
+      const body = JSON.parse(init.body);
+      posts.push(body);
+      live = live.filter((one) => one.id !== body.id);
     }
     return { status: 200, json: async () => ({ ok: true }) };
   };
@@ -2605,17 +2609,13 @@ test("discarding a waiting preview takes it out of the list", async () => {
     { id: "e-drop1", instruction: "make it thin", action: "update", selector: "p", props: [{ property: "letter-spacing", value: "2px" }] },
     { id: "e-drop2", instruction: "darker again", action: "update", selector: "p", props: [] },
   ];
+  const asks = () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: live });
   app.win.fetch = async (url, init = {}) => {
-    if (url === "/__edityy/previews") {
-      if (!init.method || init.method === "GET") {
-        return { status: 200, json: async () => ({ ok: true, previews: live }) };
-      }
-      if (init.method === "POST") {
-        const body = JSON.parse(init.body);
-        posts.push(body);
-        live = live.filter((one) => one.id !== body.id);
-      }
-      return { status: 200, json: async () => ({ ok: true }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => asks() };
+    if (url === "/__edityy/previews" && init.method === "POST") {
+      const body = JSON.parse(init.body);
+      posts.push(body);
+      live = live.filter((one) => one.id !== body.id);
     }
     return { status: 200, json: async () => ({ ok: true }) };
   };

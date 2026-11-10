@@ -34,18 +34,17 @@ export default function DocsVariations() {
       <P>Your agent has one job, in two tool calls.</P>
       <UL>
         <LI>
-          <Code>get_variation_request</Code> returns the number of variations, the comment, the element’s tag, its
+          <Code>get_work</Code> returns the ask: the number of variations, the comment, the element’s tag, its
           selector and a few current values. Read it at the start of every <Code>vartest</Code>: you may have asked
           again since the last one, and an answer for an old request is refused.
         </LI>
         <LI>
-          <Code>place_variations</Code> takes the answer. It takes that many variations, each a short label and a list
-          of declarations.
+          <Code>place_variants</Code> takes the answer. It takes exactly that many variations, each a short label and
+          a list of declarations.
         </LI>
       </UL>
       <P>
-        Fewer variations than you asked for is refused, and the message says so. More is not a refusal: the first ones
-        are the ones you see.
+        Any other count than the asked one is refused, and the message says so.
       </P>
       <Pre>{`thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
 rose pill | scrollbar-color: #f43f5e #f4f4f5
@@ -66,7 +65,7 @@ narrow | when: (max-width: 640px), padding: 8px`}</Pre>
       </P>
       <P>
         What is left on the element is an ordinary edit. <strong>Save to project</strong> and{" "}
-        <Code>get_visual_changes</Code> carry it like any other. <Code>Escape</Code> or leaving the mode reverts it.
+        <Code>get_work</Code> carry it like any other. <Code>Escape</Code> or leaving the mode reverts it.
       </P>
 
       <H2 id="states">States, pseudo-elements and breakpoints</H2>

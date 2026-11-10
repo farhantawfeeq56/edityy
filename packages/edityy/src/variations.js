@@ -8,9 +8,10 @@
  * only plain standard properties with plain values pass, so nothing that comes
  * back can carry a rule, a selector or a script.
  */
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { MEDIA, STATE, SaveError } from "./changes.js";
+import { readJson, store } from "./store.js";
 
 export const VARIATIONS_PATH = "/__edityy/variations";
 export const VARIATION_REQUEST_FILE = ".edityy/variation-request.json";
@@ -114,17 +115,16 @@ export function checkVariations(response, expectedId, count) {
     );
   }
   // The user chose the number before asking, so an answer of another size is
-  // not the answer they asked for. More is not a failure: the first ones are
-  // the ones they see. Fewer is a failure, and the message says so.
+  // not the answer they asked for. The count is exact: fewer leaves a slot
+  // empty on the strip, and more has nowhere to go.
   const asked = count || MIN_VARIATIONS;
-  const most = count || MAX_VARIATIONS;
   if (!Array.isArray(response.variations)) invalid(`variations must be a list of ${asked} entries`);
   if (count) {
-    if (response.variations.length < asked) invalid(`the user asked for ${asked} variations; you sent ${response.variations.length}`);
+    if (response.variations.length !== asked) invalid(`the user asked for ${asked} variations; you sent ${response.variations.length}`);
   } else if (response.variations.length < MIN_VARIATIONS || response.variations.length > MAX_VARIATIONS) {
     invalid(`variations must contain ${MIN_VARIATIONS} to ${MAX_VARIATIONS} entries`);
   }
-  const variations = (count ? response.variations.slice(0, most) : response.variations).map((variation) => {
+  const variations = response.variations.map((variation) => {
     if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
     if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each label must be 1 to 50 characters");
     const props = checkDeclarations(variation.props);
@@ -135,25 +135,6 @@ export function checkVariations(response, expectedId, count) {
     return out;
   });
   return { requestId: expectedId, variations };
-}
-
-async function readJson(path, missing) {
-  try {
-    return JSON.parse(await readFile(path, "utf8"));
-  } catch (error) {
-    if (error.code === "ENOENT") return missing;
-    throw error;
-  }
-}
-
-async function store(root, file, value) {
-  const dir = join(root, ".edityy");
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, ".gitignore"), "*\n");
-  const path = join(root, file);
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, JSON.stringify(value, null, 2) + "\n");
-  await rename(temp, path);
 }
 
 export async function writeVariationRequest(request, root = process.cwd()) {
@@ -195,9 +176,15 @@ export async function readVariationRequest(root = process.cwd()) {
 export async function placeVariations(response, root = process.cwd()) {
   const requestId = response?.requestId;
   const items = await readVariationRequests(root);
-  const request = items.find((entry) => entry.id === requestId) || (items.length === 1 ? items[0] : null);
-  if (!request) throw new Error("There is no pending variation request.");
-  if (request.status === "cancelled") throw new Error("The user withdrew the request. Do not answer it.");
+  // The oldest ask still waiting is the one to answer. An id for any other
+  // ask is stale: the user asked again while the agent was working.
+  const request = items.find((entry) => entry.status === "pending") || null;
+  if (!request) {
+    const known = items.find((entry) => entry.id === requestId);
+    if (known?.status === "cancelled") throw new Error("The user withdrew the request. Do not answer it.");
+    throw new Error("There is no pending variation request.");
+  }
+  // A stale id falls out here: checkVariations names the ask that waits now.
   const checked = checkVariations(response, request.id, request.count);
   const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
   const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
@@ -294,9 +281,9 @@ export function requestText(request) {
     `- Current values: ${values ? "`" + values + "`" : "none read"}`,
     `- Variations the user asked for: ${request.count}`,
     "",
-    "Answer with the declarations only, then call place_variations:",
+    "Answer with the declarations only, then call place_variants:",
     "",
-    `1. Make exactly ${request.count} variations, each with a short label of two or three words. If you send more, the first ones are the ones the user sees.`,
+    `1. Make exactly ${request.count} variations, each with a short label of two or three words.`,
     "2. The user may have told you in their own message what they want. Follow",
     "   that when they did: the comment above is only part of what they asked for.",
     "3. Use plain standard CSS properties and plain values, or set the words with `text`.",
@@ -306,7 +293,7 @@ export function requestText(request) {
     "5. `::before` and `::after` need a `content` value to show at all.",
     "6. No custom properties, at-rules other than a media condition in `when`,",
     "   `!important`, or `url()`.",
-    "7. Call place_variations with the requestId below and the variations.",
+    "7. Call place_variants with the requestId below and the variations.",
     "",
     `requestId: \`${request.id}\``,
     "",

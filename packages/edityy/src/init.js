@@ -27,6 +27,7 @@ const MARK = "// edityy: written by `npx edityy init`. Run `npx edityy init --re
 const BEGIN = "<!-- BEGIN edityy (written by `npx edityy init`) -->";
 const END = "<!-- END edityy -->";
 
+const ASKS = "/__edityy/asks";
 const CHANGES = "/__edityy/changes";
 const VARIATIONS = "/__edityy/variations";
 const PREVIEWS = "/__edityy/previews";
@@ -40,37 +41,39 @@ The user edits the running site with Edityy, not the code. These tools come from
 the Edityy MCP server.
 
 - **vartest.** When the user sets more than one variation in the Edityy comment box and presses
-  an element, call \`get_variation_request\`.
+  an element, its ask waits in \`get_work\`.
   Read it every time: an answer for an older request is refused. Then answer
-  with the number of variations it asks for, and call \`place_variations\`.
+  with exactly the number of variations it asks for, and call \`place_variants\`.
   Each variation is plain CSS declarations and may also set the element's words
   with \`text\`. Do not edit files for this.
 - **Temporary canvas.** When the user writes a comment in the Edityy comment
-  box with "Apply on temporary canvas" ticked and presses Save, call
-  \`get_preview_request\`.
-  Read it every message: a preview request needs no \`edityy::\` typed in the chat.
-  It lists every waiting ask, oldest first. A drawn-box ask carries its
+  box with "Apply on temporary canvas" ticked and presses Save, its ask waits
+  in \`get_work\`.
+  Read it every message: a preview ask needs no \`edityy::\` typed in the chat.
+  A drawn-box ask carries its
   location: document pixels, viewport percent and pixels, and center and
   parent selectors. Paint one preview per asked variant with \`place_preview\`.
   Then paint the change on the live canvas only. Do not edit files. Call
-  \`place_preview\` with the instruction, an action and its payload:
+  \`place_preview\` with the instruction quoted, an action and its payload:
   \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
   element, and \`remove\` takes one away.
   If the user names no place and the place is unclear, ask them first.
   One preview shows with Keep and Discard. Several waiting at once show a
   checkbox list, and the user keeps the ticked ones with "Keep all" or takes
   back the rest with "Discard all changes".
-  Keep and Discard on the page decide it. Typing \`implement <id>\` or \`discard <id>\`
-  in the chat works the same. When a preview is kept, call \`get_preview\` with
-  the id, and apply what it says to the source code. A preview that was painted
-  on the canvas is also in the saved edits, so \`get_visual_changes\` reads it
+  Keep and Discard on the page decide it. When a preview is kept, it arrives as
+  a saved edit, so \`get_work\` reads it
   straight away, with no save step.
-- **Visual edits.** When the user asks for the edits they saved from the site,
-  call \`get_visual_changes\`, apply them to the source code, then call
-  \`clear_visual_changes\`. That also clears the canvas session.
+- **Work.** Call \`get_work\` once per turn, before any other Edityy tool.
+  It returns every saved edit and every ask in one read, oldest first. Each
+  edit has an id such as \`c-0\`: apply it to the source code, then call
+  \`mark_applied\` with the ids that are in the code.
+- **Visual edits.** The saved edits wait in \`get_work\`.
+  Apply them to the source code, then call
+  \`mark_applied\`. That also clears the canvas session.
 - **The canvas.** The page keeps its temporary edits, comments and regions in
   \`.edityy/session.json\`, across a reload and a dev-server restart. When a change
-  is in the code, call \`clear_visual_changes\` so the page stops showing it.
+  is in the code, call \`mark_applied\` so the page stops showing it.
 - **The server.** If these tools are missing, the Edityy MCP server is not
   connected. Tell the user to run \`npx edityy mcp\`.
 - **Missing setup.** If Edityy is not in this project (no \`edityy\` package,
@@ -130,7 +133,7 @@ if (process.env.NODE_ENV === "development") import("edityy/client");
 `;
 
 const proxy = () => `${MARK}
-import { changesRoute, previewRequestRoute, previewsRoute, sessionRoute, variationsRoute } from "edityy";
+import { asksRoute, changesRoute, previewRequestRoute, previewsRoute, sessionRoute, variationsRoute } from "edityy";
 
 type Handler = (request: Request) => Response | Promise<Response>;
 
@@ -139,6 +142,7 @@ const variations = variationsRoute() as unknown as Record<string, Handler | unde
 const previews = previewsRoute() as unknown as Record<string, Handler | undefined>;
 const previewRequest = previewRequestRoute() as unknown as Record<string, Handler | undefined>;
 const session = sessionRoute() as unknown as Record<string, Handler | undefined>;
+const asks = asksRoute();
 
 /**
  * The Edityy endpoints answer here, so next.config.ts needs no rewrite. Other
@@ -147,6 +151,7 @@ const session = sessionRoute() as unknown as Record<string, Handler | undefined>
 export function proxy(request: Request) {
   const path = new URL(request.url).pathname;
   if (path === "${CHANGES}") return request.method === "POST" ? changes(request) : undefined;
+  if (path === "${ASKS}") return request.method === "GET" ? asks(request) : undefined;
   const handler = path === "${VARIATIONS}" ? variations[request.method] : path === "${PREVIEWS}" ? previews[request.method] : path === "${PREVIEW_REQUEST}" ? previewRequest[request.method] : path === "${SESSION}" ? session[request.method] : null;
   return handler ? handler(request) : undefined;
 }

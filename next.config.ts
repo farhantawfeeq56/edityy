@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       { source: "/__edityy/variations", destination: "/edityy/variations" },
       { source: "/__edityy/previews", destination: "/edityy/previews" },
       { source: "/__edityy/preview-request", destination: "/edityy/preview-request" },
+      { source: "/__edityy/asks", destination: "/edityy/asks" },
       { source: "/__edityy/session", destination: "/edityy/session" },
       { source: "/__edityy/logo.png", destination: "/edityy/logo" },
     ];

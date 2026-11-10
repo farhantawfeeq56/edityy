@@ -2,7 +2,7 @@ import { H1, Lead, P, H2, H3, UL, LI, Code, Pre, Note } from "../ui";
 
 export const metadata = {
   title: "The MCP server — Edityy Docs",
-  description: "Give a coding agent the saved edits and the variation requests.",
+  description: "Give a coding agent the saved edits and every ask in one read.",
 };
 
 export default function DocsMcp() {
@@ -10,7 +10,7 @@ export default function DocsMcp() {
     <>
       <H1>The MCP server</H1>
       <Lead>
-        <Code>npx edityy mcp</Code> is a stdio MCP server. It hands the saved edits and the variation requests to a
+        <Code>npx edityy mcp</Code> is a stdio MCP server. It hands the saved edits and every ask to a
         coding agent.
       </Lead>
 
@@ -29,36 +29,37 @@ export default function DocsMcp() {
       </P>
 
       <H2 id="tools">The tools</H2>
-      <P>There are seven.</P>
+      <P>There are four: one read, two placers, one marker.</P>
 
-      <H3 id="get-visual-changes">get_visual_changes</H3>
+      <H3 id="get-work">get_work</H3>
       <P>
-        Returns the edits in <Code>.edityy/changes.json</Code>, as the same Markdown that <strong>Copy for an agent</strong>{" "}
-        copies. Each edited element comes with a CSS selector, its source location when it is known, every property
-        and text change as before and after, and any comment you wrote about it.
+        Returns every saved edit and every ask in one call, oldest first. Each edit carries an id such as{" "}
+        <Code>c-0</Code>: apply it to the source code, then call <Code>mark_applied</Code>. Each ask carries a kind,
+        an id and a status: answer a <Code>variants</Code> ask with <Code>place_variants</Code> and a{" "}
+        <Code>preview-request</Code> ask with <Code>place_preview</Code>.
       </P>
-      <P>Apply them to the source code, then call <Code>clear_visual_changes</Code>.</P>
-
-      <H3 id="clear-visual-changes">clear_visual_changes</H3>
       <P>
-        Deletes the saved visual edits, so they are not applied twice. Call it only after the code holds the change.
+        The agent calls it once per turn. A kept preview arrives here as an edit of its own, with no save step.
       </P>
 
-      <H3 id="get-variation-request">get_variation_request</H3>
+      <H3 id="mark-applied">mark_applied</H3>
+      <P>
+        Marks saved edits applied, so they are not applied twice. Pass the edit ids that are in the code now. With
+        no ids, every saved edit is marked. That also clears the canvas session.
+      </P>
+
+      <H3 id="place-variants">place_variants</H3>
       <P>
         Returns what you asked for on one element: the number of variations, their optional comment, the element’s
         tag, its selector and its current values. The agent never sees your code for this.
       </P>
       <P>
-        Read it at the start of every <Code>vartest</Code>. You may have asked again since the last one, and an answer
-        for an old request is refused.
+        Takes the answer: exactly that many variations of plain CSS declarations, for you to try on the live
+        element. An answer for an old request is refused.
       </P>
-
-      <H3 id="place-variations">place_variations</H3>
-      <P>Takes the answer: that many variations of plain CSS declarations, for you to try on the live element.</P>
       <P>Each variation is a label and a list of declarations.</P>
       <Pre>{`{
-  "requestId": "the id get_variation_request returned",
+  "requestId": "the id get_work returned",
   "variations": [
     {
       "label": "thin grey",
@@ -93,7 +94,7 @@ export default function DocsMcp() {
         </LI>
       </UL>
       <Note title="Place exactly what was asked for">
-        Fewer variations than the request is refused. More is not a refusal, but the first ones are the ones you see.
+        Any other count than the asked one is refused: fewer leaves a slot empty, and more has nowhere to go.
       </Note>
 
       <H3 id="place-preview">place_preview</H3>
@@ -138,25 +139,15 @@ export default function DocsMcp() {
         attribute.
       </Note>
 
-      <H3 id="get-preview">get_preview</H3>
-      <P>
-        Returns one preview by its id, or the active one, with its instruction, action and payload. Apply a kept preview
-        by reading its saved edit with <Code>get_visual_changes</Code>.
-      </P>
-
-      <H3 id="decide-preview">decide_preview</H3>
-      <P>
-        Marks one preview <Code>keep</Code> or <Code>discard</Code>, once the user says <Code>implement &lt;id&gt;</Code>{" "}
-        or <Code>discard &lt;id&gt;</Code>.
-      </P>
-
       <H2 id="the-files">The files</H2>
-      <P>The server and the page share four files in your project.</P>
+      <P>The server and the page share six files in your project.</P>
       <Pre>{`.edityy/
   changes.json             the saved edits
   variation-request.json   what you asked for
   variation-response.json  what the agent answered
-  previews.json            the canvas previews and their history`}</Pre>
+  preview-request.json     the comment-box preview asks
+  previews.json            the canvas previews and their history
+  session.json             the canvas across a reload`}</Pre>
       <P>
         The folder gets its own <Code>.gitignore</Code>, so pending edits never end up in a commit. Your agent reads
         the same files the page writes.

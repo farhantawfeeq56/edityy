@@ -47,7 +47,7 @@ edityy:: remove the grey banner above the footer`}</Pre>
       <H2 id="deciding">Keeping or discarding</H2>
       <P>
         <strong>Keep</strong> leaves the change on the page as an ordinary Edityy edit. It counts in the edits list,
-        it travels to <strong>Save to project</strong> and <Code>get_visual_changes</Code>, and <Code>Escape</Code>{" "}
+        it travels to <strong>Save to project</strong> and <Code>get_work</Code>, and <Code>Escape</Code>{" "}
         still puts it back.
       </P>
       <P>
@@ -79,13 +79,11 @@ edityy:: remove the grey banner above the footer`}</Pre>
       <Pre>{`implement e-abc123
 discard e-abc123`}</Pre>
       <P>
-        <Code>implement</Code> tells the agent to read the kept preview with <Code>get_preview</Code> and write it
-        into your source; one kept from the canvas is also in the saved edits for <Code>get_visual_changes</Code>.{" "}
-        <Code>discard</Code> calls <Code>decide_preview</Code> to mark it dropped.
+        A kept preview arrives as a saved edit, so the agent reads it with <Code>get_work</Code> and writes it
+        into your source. <Code>discard</Code> takes it off the page.
       </P>
       <Note title="History after the list">
-        A decided preview leaves the screen, but it stays in <Code>.edityy/previews.json</Code>, kept or discarded,
-        and <Code>get_preview</Code> lists the past ones and returns one by id.
+        A decided preview leaves the screen, but it stays in <Code>.edityy/previews.json</Code>, kept or discarded.
       </Note>
 
       <H2 id="asking-first">When the place is unclear</H2>

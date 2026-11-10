@@ -114,6 +114,8 @@ export declare function logoRoute(): (request: Request) => Promise<Response>;
 export declare const PREVIEWS_PATH: "/__edityy/previews";
 /** The path the page writes a comment-box preview request to: `/__edityy/preview-request`. */
 export declare const PREVIEW_REQUEST_PATH: "/__edityy/preview-request";
+/** Where the page polls every ask at once, and what the MCP getter reads. */
+export declare const ASKS_PATH: "/__edityy/asks";
 
 export declare function variationsRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
@@ -152,6 +154,22 @@ export declare function previewsRoute(options?: Pick<EdityyOptions, "root" | "al
  * `/__edityy/preview-request` onto it. It answers 404 unless `NODE_ENV` is
  * `development`.
  */
+/**
+ * Every ask in one place: the variation queue with its answers, the
+ * comment-box preview requests, and the previews still up for a decision.
+ * The page polls this once, and the MCP getter reads the same files.
+ */
+export declare function readAsks(root?: string): Promise<{
+  ok: boolean;
+  variations: { requests: unknown[]; responses: unknown[] };
+  previewRequests: unknown[];
+  previews: unknown[];
+}>;
+
+export declare function asksRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
+  GET: (request: Request) => Promise<Response>;
+};
+
 export declare function previewRequestRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
   POST: (request: Request) => Promise<Response>;

@@ -6,9 +6,10 @@
  * and paints it. Nothing here touches source files: a kept preview becomes an
  * ordinary Edityy edit, and the agent applies that edit to the code later.
  */
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { SaveError } from "./changes.js";
+import { newId, readJson, store } from "./store.js";
 import { checkDeclarations, checkPreviewText } from "./variations.js";
 
 export const PREVIEWS_PATH = "/__edityy/previews";
@@ -78,9 +79,9 @@ export function checkPreviewHtml(html) {
   return html;
 }
 
-/** A random preview id: `e-` plus time and chance, so two agents never share one. */
+/** A random preview id, so two agents never share one. */
 export function newPreviewId() {
-  return `e-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return newId("e");
 }
 
 /**
@@ -156,25 +157,6 @@ export function checkPreview(placed) {
 function latestNonDiscarded(items) {
   for (const item of items) if (item && item.status !== "discarded") return item.id;
   return null;
-}
-
-async function readJson(path, missing) {
-  try {
-    return JSON.parse(await readFile(path, "utf8"));
-  } catch (error) {
-    if (error.code === "ENOENT") return missing;
-    throw error;
-  }
-}
-
-async function store(root, file, value) {
-  const dir = join(root, ".edityy");
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, ".gitignore"), "*\n");
-  const path = join(root, file);
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, JSON.stringify(value, null, 2) + "\n");
-  await rename(temp, path);
 }
 
 /** The file as the page reads it: the active preview and the past ones. */

@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 import { PREVIEWS_PATH, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
 import { SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
+import { runNode, runRoute, sameSite, store } from "./store.js";
 import { VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
@@ -15,6 +15,9 @@ export { PREVIEW_REQUEST_PATH };
 export { SESSION_PATH };
 /** The file the canvas session is kept in, beside the saved edit list. */
 export { SESSION_FILE } from "./session.js";
+
+/** Where the page polls every ask at once, and what the MCP getter reads. */
+export const ASKS_PATH = "/__edityy/asks";
 
 /**
  * The launcher payload, read once at import.
@@ -137,6 +140,13 @@ export function edityy(options = {}) {
 
       if (pathname === SESSION_PATH && options.save !== false) {
         sessionFromNode(req, res, root, hosts).catch(() => {
+          // Already answered, or the socket is gone: nothing left to tell anyone.
+        });
+        return;
+      }
+
+      if (pathname === ASKS_PATH && options.save !== false) {
+        asksFromNode(req, res, root, hosts).catch(() => {
           // Already answered, or the socket is gone: nothing left to tell anyone.
         });
         return;
@@ -396,15 +406,7 @@ export async function writeChanges(payload, root = process.cwd()) {
     markdown: markdownFor(changes, page),
     changes,
   };
-  const dir = join(root, ".edityy");
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, ".gitignore"), "*\n");
-  // Written beside the file, then renamed over it: a reader (the MCP server)
-  // sees the old edits or the new ones, never half of a file.
-  const file = join(root, CHANGES_FILE);
-  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, JSON.stringify(record, null, 2) + "\n");
-  await rename(temp, file);
+  await store(root, CHANGES_FILE, record);
   return CHANGES_FILE;
 }
 
@@ -427,63 +429,13 @@ function allowed(method, type, origin, fetchSite, host, allowedHosts) {
   sameSite(origin, fetchSite, host, allowedHosts, "save edits");
 }
 
-/**
- * The page itself, on a host this dev server names. Both endpoints ask this:
- * the request's own site, by `Sec-Fetch-Site` and `Origin`, and a host that is
- * local, an address, or named by the app.
- */
-function sameSite(origin, fetchSite, host, allowedHosts, what) {
-  if (!hostAllowed(host, allowedHosts)) throw new SaveError(403, `Only a local host can ${what}. Add this one to allowedHosts.`);
-  if (fetchSite && fetchSite !== "same-origin") throw new SaveError(403, `Only the page itself can ${what}.`);
-  if (origin) {
-    let from = null;
-    try {
-      from = new URL(origin).host;
-    } catch {
-      // An origin that is not a URL ("null", for one) is not this page.
-    }
-    if (from !== host) throw new SaveError(403, `Only the page itself can ${what}.`);
-  }
-}
-
-/**
- * Is `host` (a Host header, port and all) one this endpoint answers?
- *
- * `localhost` and its subdomains, and any IP address, always: an address is not
- * a name, so no other site can point it here. Then each name in `allowedHosts`,
- * where a leading dot also takes its subdomains (as Vite's `allowedHosts`
- * does), or every host for `true`.
- */
-function hostAllowed(host, allowedHosts) {
-  if (allowedHosts === true) return true;
-  if (typeof host !== "string" || !host || /[@/\\\s]/.test(host)) return false;
-  let name;
-  try {
-    name = new URL(`http://${host}`).hostname;
-  } catch {
-    return false;
-  }
-  if (name === "localhost" || name.endsWith(".localhost")) return true;
-  if (name.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true;
-  return (Array.isArray(allowedHosts) ? allowedHosts : []).some((allow) => {
-    const want = String(allow).toLowerCase();
-    return want.startsWith(".") ? name === want.slice(1) || name.endsWith(want) : name === want;
-  });
-}
-
 /** The save endpoint on a Node dev server: read, check, write, answer. */
 async function saveFromNode(req, res, root, allowedHosts) {
-  const answer = (status, body) => {
-    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    res.end?.(JSON.stringify(body));
-  };
-  try {
-    const h = req.headers ?? {};
-    allowed(req.method, h["content-type"], h.origin, h["sec-fetch-site"], h.host, allowedHosts);
-    answer(200, { ok: true, path: await writeChanges(jsonBody(await readBody(req)), root) });
-  } catch (error) {
-    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-  }
+  const headers = req.headers ?? {};
+  await runNode(req, res, root, allowedHosts, "save edits", async () => {
+    allowed(req.method, headers["content-type"], headers.origin, headers["sec-fetch-site"], headers.host, allowedHosts);
+    return { ok: true, path: await writeChanges(jsonBody(await readBody(req)), root) };
+  });
 }
 
 /** A variation request is a number and an optional comment: 16 KB is plenty. */
@@ -498,17 +450,10 @@ const SESSION_LIMIT = 512 * 1024;
  * once they are there (202 while they are not), and DELETE forgets the request.
  */
 async function variationsFromNode(req, res, root, allowedHosts) {
-  const answer = (status, body) => {
-    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    res.end?.(JSON.stringify(body));
-  };
-  try {
-    const h = req.headers ?? {};
-    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "request variations");
+  await runNode(req, res, root, allowedHosts, "request variations", async () => {
     if (req.method === "POST") {
       const request = await writeVariationRequest(jsonBody(await readBody(req, VARIATION_LIMIT)), root);
-      answer(200, { ok: true, requestId: request.id });
-      return;
+      return { ok: true, requestId: request.id };
     }
     if (req.method === "GET") {
       const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? "";
@@ -517,27 +462,22 @@ async function variationsFromNode(req, res, root, allowedHosts) {
       if (!id) {
         const requests = await readVariationRequests(root);
         const responses = await readVariationResponses(root);
-        answer(200, {
+        return {
           ok: true,
           requests: requests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
           responses: responses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
-        });
-        return;
+        };
       }
       const response = await readVariationResponse(id, root);
-      answer(200, response ? { ok: true, requestId: response.requestId, variations: response.variations } : { ok: true, pending: true });
-      return;
+      return response ? { ok: true, requestId: response.requestId, variations: response.variations } : { ok: true, pending: true };
     }
     if (req.method === "DELETE") {
       const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? null;
       await clearVariations(root, id);
-      answer(200, { ok: true });
-      return;
+      return { ok: true };
     }
     throw new SaveError(405, "GET, POST or DELETE the variation request.");
-  } catch (error) {
-    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-  }
+  });
 }
 
 /**
@@ -548,36 +488,24 @@ async function variationsFromNode(req, res, root, allowedHosts) {
  * decision from the page.
  */
 async function previewsFromNode(req, res, root, allowedHosts) {
-  const answer = (status, body) => {
-    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    res.end?.(JSON.stringify(body));
-  };
-  try {
-    const h = req.headers ?? {};
-    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "show previews");
+  await runNode(req, res, root, allowedHosts, "show previews", async () => {
     if (req.method === "GET") {
-      answer(200, { ok: true, previews: await readPendingPreviews(root) });
-      return;
+      return { ok: true, previews: await readPendingPreviews(root) };
     }
     if (req.method === "POST") {
       const body = jsonBody(await readBody(req, VARIATION_LIMIT));
       if (Array.isArray(body?.decisions)) {
-        answer(200, { ok: true, decisions: await decidePreviews(body.decisions, root) });
-      } else {
-        const decided = await decidePreview(body.id, body.keep ? "keep" : "discard", root);
-        answer(200, { ok: true, id: decided.id });
+        return { ok: true, decisions: await decidePreviews(body.decisions, root) };
       }
-      return;
+      const decided = await decidePreview(body.id, body.keep ? "keep" : "discard", root);
+      return { ok: true, id: decided.id };
     }
     if (req.method === "DELETE") {
       await clearPreviews(root);
-      answer(200, { ok: true });
-      return;
+      return { ok: true };
     }
     throw new SaveError(405, "GET, POST or DELETE the preview.");
-  } catch (error) {
-    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-  }
+  });
 }
 
 /**
@@ -587,32 +515,21 @@ async function previewsFromNode(req, res, root, allowedHosts) {
  * stands, and DELETE withdraws it when the user takes the waiting strip back.
  */
 async function previewRequestFromNode(req, res, root, allowedHosts) {
-  const answer = (status, body) => {
-    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    res.end?.(JSON.stringify(body));
-  };
-  try {
-    const h = req.headers ?? {};
-    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "request a preview");
+  await runNode(req, res, root, allowedHosts, "request a preview", async () => {
     if (req.method === "POST") {
       const written = await writePreviewRequest(jsonBody(await readBody(req, VARIATION_LIMIT)), root);
-      answer(200, { ok: true, requestId: written.id });
-      return;
+      return { ok: true, requestId: written.id };
     }
     if (req.method === "GET") {
-      answer(200, { ok: true, requests: await readPreviewRequests(root) });
-      return;
+      return { ok: true, requests: await readPreviewRequests(root) };
     }
     if (req.method === "DELETE") {
       const id = new URL(req.url ?? "/", "http://localhost").searchParams.get("id") ?? null;
       await clearPreviewRequest(root, id);
-      answer(200, { ok: true });
-      return;
+      return { ok: true };
     }
     throw new SaveError(405, "GET, POST or DELETE the preview request.");
-  } catch (error) {
-    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-  }
+  });
 }
 
 /**
@@ -622,32 +539,52 @@ async function previewRequestFromNode(req, res, root, allowedHosts) {
  * page sends, and DELETE forgets it once the edits are in the code.
  */
 async function sessionFromNode(req, res, root, allowedHosts) {
-  const answer = (status, body) => {
-    res.writeHead?.(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-    res.end?.(JSON.stringify(body));
-  };
-  try {
-    const h = req.headers ?? {};
-    sameSite(h.origin, h["sec-fetch-site"], h.host, allowedHosts, "keep the canvas session");
+  await runNode(req, res, root, allowedHosts, "keep the canvas session", async () => {
     if (req.method === "GET") {
       const path = new URL(req.url ?? "/", "http://localhost").searchParams.get("path") ?? "/";
-      answer(200, { ok: true, session: await readSession(path, root) });
-      return;
+      return { ok: true, session: await readSession(path, root) };
     }
     if (req.method === "POST") {
       const written = await writeSession(jsonBody(await readBody(req, SESSION_LIMIT)), root);
-      answer(200, { ok: true, path: written });
-      return;
+      return { ok: true, path: written };
     }
     if (req.method === "DELETE") {
       await clearSession(root);
-      answer(200, { ok: true });
-      return;
+      return { ok: true };
     }
     throw new SaveError(405, "GET, POST or DELETE the canvas session.");
-  } catch (error) {
-    answer(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-  }
+  });
+}
+
+/**
+ * Every ask in one place: the variation queue with its answers, the
+ * comment-box preview requests, and the previews still up for a decision.
+ * The page polls this once, and the MCP getter reads the same files.
+ */
+export async function readAsks(root = process.cwd()) {
+  const [variationRequests, variationResponses, previewRequests, previews] = await Promise.all([
+    readVariationRequests(root),
+    readVariationResponses(root),
+    readPreviewRequests(root),
+    readPendingPreviews(root),
+  ]);
+  return {
+    ok: true,
+    variations: {
+      requests: variationRequests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
+      responses: variationResponses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
+    },
+    previewRequests,
+    previews,
+  };
+}
+
+/** The asks queue on a Node dev server: one GET the page polls. */
+async function asksFromNode(req, res, root, allowedHosts) {
+  await runNode(req, res, root, allowedHosts, "read the asks", async () => {
+    if (req.method !== "GET") throw new SaveError(405, "GET the asks.");
+    return readAsks(root);
+  });
 }
 
 /** A body as JSON, or a 400 that says the body is not JSON. */
@@ -699,22 +636,14 @@ function readBody(req, limit = SAVE_LIMIT) {
 export function changesRoute(options = {}) {
   const root = options.root ?? process.cwd();
   return async function POST(request) {
-    const json = (status, body) =>
-      new Response(JSON.stringify(body), {
-        status,
-        headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-      });
-    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
-    try {
+    const body = await request.text();
+    return runRoute(request, options, "save edits", async () => {
       const h = request.headers;
       const host = h.get("host") ?? new URL(request.url).host;
       allowed(request.method, h.get("content-type"), h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts);
-      const body = await request.text();
       if (Buffer.byteLength(body) > SAVE_LIMIT) throw new SaveError(413, "Too many edits to save at once.");
-      return json(200, { ok: true, path: await writeChanges(jsonBody(body), root) });
-    } catch (error) {
-      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-    }
+      return { ok: true, path: await writeChanges(jsonBody(body), root) };
+    });
   };
 }
 
@@ -744,22 +673,7 @@ export function logoRoute() {
  */
 export function variationsRoute(options = {}) {
   const root = options.root ?? process.cwd();
-  const json = (status, body) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-    });
-  const run = async (request, act) => {
-    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
-    try {
-      const h = request.headers;
-      const host = h.get("host") ?? new URL(request.url).host;
-      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "request variations");
-      return await act();
-    } catch (error) {
-      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-    }
-  };
+  const run = (request, act) => runRoute(request, options, "request variations", act);
   return {
     GET: (request) =>
       run(request, async () => {
@@ -767,28 +681,28 @@ export function variationsRoute(options = {}) {
         if (!id) {
           const requests = await readVariationRequests(root);
           const responses = await readVariationResponses(root);
-          return json(200, {
+          return {
             ok: true,
             requests: requests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
             responses: responses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
-          });
+          };
         }
         const response = await readVariationResponse(id, root);
         return response
-          ? json(200, { ok: true, requestId: response.requestId, variations: response.variations })
-          : json(200, { ok: true, pending: true });
+          ? { ok: true, requestId: response.requestId, variations: response.variations }
+          : { ok: true, pending: true };
       }),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
         if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to request variations with.");
         const written = await writeVariationRequest(jsonBody(body), root);
-        return json(200, { ok: true, requestId: written.id });
+        return { ok: true, requestId: written.id };
       }),
     DELETE: (request) =>
       run(request, async () => {
         await clearVariations(root);
-        return json(200, { ok: true });
+        return { ok: true };
       }),
   };
 }
@@ -804,40 +718,25 @@ export function variationsRoute(options = {}) {
  */
 export function previewsRoute(options = {}) {
   const root = options.root ?? process.cwd();
-  const json = (status, body) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-    });
-  const run = async (request, act) => {
-    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
-    try {
-      const h = request.headers;
-      const host = h.get("host") ?? new URL(request.url).host;
-      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "show previews");
-      return await act();
-    } catch (error) {
-      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-    }
-  };
+  const run = (request, act) => runRoute(request, options, "show previews", act);
   return {
     GET: (request) =>
-      run(request, async () => json(200, { ok: true, previews: await readPendingPreviews(root) })),
+      run(request, async () => ({ ok: true, previews: await readPendingPreviews(root) })),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
         if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to decide a preview with.");
         const decided = jsonBody(body);
         if (Array.isArray(decided?.decisions)) {
-          return json(200, { ok: true, decisions: await decidePreviews(decided.decisions, root) });
+          return { ok: true, decisions: await decidePreviews(decided.decisions, root) };
         }
         const done = await decidePreview(decided.id, decided.keep ? "keep" : "discard", root);
-        return json(200, { ok: true, id: done.id });
+        return { ok: true, id: done.id };
       }),
     DELETE: (request) =>
       run(request, async () => {
         await clearPreviews(root);
-        return json(200, { ok: true });
+        return { ok: true };
       }),
   };
 }
@@ -853,36 +752,21 @@ export function previewsRoute(options = {}) {
  */
 export function previewRequestRoute(options = {}) {
   const root = options.root ?? process.cwd();
-  const json = (status, body) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-    });
-  const run = async (request, act) => {
-    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
-    try {
-      const h = request.headers;
-      const host = h.get("host") ?? new URL(request.url).host;
-      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "request a preview");
-      return await act();
-    } catch (error) {
-      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-    }
-  };
+  const run = (request, act) => runRoute(request, options, "request a preview", act);
   return {
-    GET: (request) => run(request, async () => json(200, { ok: true, requests: await readPreviewRequests(root) })),
+    GET: (request) => run(request, async () => ({ ok: true, requests: await readPreviewRequests(root) })),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
         if (Buffer.byteLength(body) > VARIATION_LIMIT) throw new SaveError(413, "Too much to request a preview with.");
         const written = await writePreviewRequest(jsonBody(body), root);
-        return json(200, { ok: true, requestId: written.id });
+        return { ok: true, requestId: written.id };
       }),
     DELETE: (request) =>
       run(request, async () => {
         const id = new URL(request.url).searchParams.get("id") ?? null;
         await clearPreviewRequest(root, id);
-        return json(200, { ok: true });
+        return { ok: true };
       }),
   };
 }
@@ -898,39 +782,40 @@ export function previewRequestRoute(options = {}) {
  */
 export function sessionRoute(options = {}) {
   const root = options.root ?? process.cwd();
-  const json = (status, body) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-    });
-  const run = async (request, act) => {
-    if (process.env.NODE_ENV !== "development") return json(404, { ok: false, error: "Not found." });
-    try {
-      const h = request.headers;
-      const host = h.get("host") ?? new URL(request.url).host;
-      sameSite(h.get("origin"), h.get("sec-fetch-site"), host, options.allowedHosts, "keep the canvas session");
-      return await act();
-    } catch (error) {
-      return json(error instanceof SaveError ? error.status : 500, { ok: false, error: error.message });
-    }
-  };
+  const run = (request, act) => runRoute(request, options, "keep the canvas session", act);
   return {
     GET: (request) =>
       run(request, async () => {
         const path = new URL(request.url).searchParams.get("path") ?? "/";
-        return json(200, { ok: true, session: await readSession(path, root) });
+        return { ok: true, session: await readSession(path, root) };
       }),
     POST: (request) =>
       run(request, async () => {
         const body = await request.text();
         if (Buffer.byteLength(body) > SESSION_LIMIT) throw new SaveError(413, "Too much to keep the canvas with.");
-        return json(200, { ok: true, path: await writeSession(jsonBody(body), root) });
+        return { ok: true, path: await writeSession(jsonBody(body), root) };
       }),
     DELETE: (request) =>
       run(request, async () => {
         await clearSession(root);
-        return json(200, { ok: true });
+        return { ok: true };
       }),
+  };
+}
+
+/**
+ * The asks queue as a fetch-style route handler, for Next.js:
+ *
+ *   // app/edityy/asks/route.ts  (the app rewrites /__edityy/asks onto it)
+ *   import { asksRoute } from "edityy";
+ *   export const GET = asksRoute();
+ *
+ * Like changesRoute(), it answers 404 unless NODE_ENV is "development".
+ */
+export function asksRoute(options = {}) {
+  const root = options.root ?? process.cwd();
+  return async function GET(request) {
+    return runRoute(request, options, "read the asks", async () => readAsks(root));
   };
 }
 

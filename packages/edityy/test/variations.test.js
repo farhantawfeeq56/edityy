@@ -255,13 +255,10 @@ test("an answer is the number of variations the user asked for", () => {
     { label: "three", props: [{ property: "color", value: "green" }] },
   ]);
   assert.equal(checkVariations(three, "v123abc", 3).variations.length, 3);
-  // Fewer than the user asked for is a failure, and the message says so.
+  // Any other count is a failure, and the message says so.
   assert.throws(() => checkVariations(three, "v123abc", 4), { status: 400 }, "four asked, three placed");
   assert.throws(() => checkVariations(three, "v123abc", 4), /the user asked for 4 variations; you sent 3/);
-  // More is not a failure: the first ones are the ones the user sees.
-  const two = checkVariations(three, "v123abc", 2);
-  assert.equal(two.variations.length, 2);
-  assert.deepEqual(two.variations.map((v) => v.label), ["one", "two"]);
+  assert.throws(() => checkVariations(three, "v123abc", 2), /the user asked for 2 variations; you sent 3/, "more has nowhere to go");
 });
 
 test("an answer for a request that changed says what to answer instead", () => {

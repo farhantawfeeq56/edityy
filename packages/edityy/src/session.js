@@ -10,9 +10,10 @@
  * Nothing here is trusted: every field is checked and cut down, because the
  * file is read back into a page and written by a browser.
  */
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { SaveError } from "./changes.js";
+import { store } from "./store.js";
 
 export const SESSION_PATH = "/__edityy/session";
 export const SESSION_FILE = ".edityy/session.json";
@@ -123,15 +124,7 @@ export function checkSession(payload) {
 }
 
 async function write(record, root) {
-  const dir = join(root, ".edityy");
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, ".gitignore"), "*\n");
-  const file = join(root, SESSION_FILE);
-  // Written beside the file, then renamed over it: a reader sees the old
-  // canvas or the new one, never half of a file.
-  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, JSON.stringify(record, null, 2) + "\n");
-  await rename(temp, file);
+  await store(root, SESSION_FILE, record);
   return SESSION_FILE;
 }
 

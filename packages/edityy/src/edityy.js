@@ -6474,20 +6474,18 @@ function decorations() {
     if (now - editsRefreshedAt < 800) return;
     editsRefreshedAt = now;
     editsRefreshing = true;
-    window.fetch("/__edityy/variations", { credentials: "same-origin" })
+    window.fetch(ASKS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j && j.ok) {
-          if (Array.isArray(j.requests)) srvVariationRequests = j.requests;
-          if (Array.isArray(j.responses)) srvVariationResponses = j.responses;
+          if (j.variations) {
+            if (Array.isArray(j.variations.requests)) srvVariationRequests = j.variations.requests;
+            if (Array.isArray(j.variations.responses)) srvVariationResponses = j.variations.responses;
+          }
+          if (Array.isArray(j.previewRequests)) srvPreviewRequests = j.previewRequests;
         }
       })
       .catch(function () {})
-      .then(function () {
-        return window.fetch("/__edityy/preview-request", { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (j) {
-          if (j && j.ok && Array.isArray(j.requests)) srvPreviewRequests = j.requests;
-        }).catch(function () {});
-      })
       .then(function () {
         editsRefreshing = false;
         if (review.getAttribute("aria-expanded") === "true") show("changes");
@@ -7420,6 +7418,8 @@ function decorations() {
   // The dev server's variation endpoint (index.js). The page writes what the
   // user asked for, polls until the agent answers, and shows the answer here.
   var VARIATIONS_URL = "/__edityy/variations";
+  // Every ask at once: the queue the MCP getter reads, polled by one timer.
+  var ASKS_URL = "/__edityy/asks";
   // The values the agent gets: a short list of computed values, so a typical
   // request stays under about 800 characters and the agent never sees the code.
   var CONTEXT_PROPS = ["display", "color", "background-color", "border-color", "border-width", "border-style", "border-radius", "font-family", "font-size", "font-weight", "line-height", "padding", "margin", "width", "height"];
@@ -7430,7 +7430,7 @@ function decorations() {
   var variationFor = null; // the element the request is about
   var variationId = ""; // the pending request, "" when there is none
   var variationServerId = ""; // the request behind the shown variants, kept after the answer so Keep and Discard can cancel it
-  var variationTimer = 0;
+  var askTimer = 0; // the one timer behind every ask poll
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var previewWords = ""; // what a failed preview ask says on the card
@@ -7487,54 +7487,100 @@ function decorations() {
       variationId = j.requestId || id;
       variationServerId = variationId;
       variationPolls = 0;
-      pollVariations(); // at once: an answer already waiting is not waited for
+      pollAsks(); // at once: an answer already waiting is not waited for
     }).catch(function (error) {
       failed(error.message || "Could not ask the dev server");
     });
   }
 
-  /** Ask once for the answer, and again in a moment while there is none. */
-  function pollVariations() {
-    if (!variationId) return;
-    var id = variationId;
-    variationPolls += 1;
-    if (variationPolls > MAX_POLLS) {
-      // Two minutes of asking: the agent is not coming, so the box says so.
-      variationId = "";
-      variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
-      cardDoneFor = null;
-      commentFor = variationFor;
-      openComment = null;
-      syncElementMenu();
-      return;
-    }
-    window.fetch(VARIATIONS_URL + "?id=" + encodeURIComponent(id), { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (id !== variationId) return; // the user moved on
-        if (!j || !j.ok) throw new Error((j && j.error) || "The answer could not be read");
-        if (j.pending || !j.variations) {
-          if (variationTimer) clearTimeout(variationTimer);
-          variationTimer = setTimeout(pollVariations, POLL_DELAY);
-          return;
-        }
-        showVariants(j.variations);
-      })
-      .catch(function (error) {
-        if (id !== variationId) return;
+  /** Ask once for every answer, and again in a moment while any ask waits. */
+  function pollAsks() {
+    if (!active || typeof window.fetch !== "function") return;
+    if (askTimer) clearTimeout(askTimer);
+    askTimer = 0;
+    var variationWait = variationId;
+    var previewWait = previewReqId;
+    if (variationWait) {
+      variationPolls += 1;
+      if (variationPolls > MAX_POLLS) {
+        // Two minutes of asking: the agent is not coming, so the box says so.
         variationId = "";
-        variationWords = error.message || "Could not reach the dev server";
+        variationWait = "";
+        variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
         cardDoneFor = null;
         commentFor = variationFor;
         openComment = null;
         syncElementMenu();
+      }
+    }
+    if (previewWait) {
+      previewPolls += 1;
+      if (previewPolls > MAX_POLLS) {
+        // Two minutes of asking: the agent is not coming. A waiting ask reopens
+        // its card with why, the way a variation ask does.
+        var waitEl = previewReqFor;
+        var waitRegion = previewReqRegion;
+        previewReqId = "";
+        previewWait = "";
+        // The wait is over: the words are an Exploring note now.
+        if (waitEl) record(waitEl).commentAsk = false;
+        if (waitRegion) waitRegion.waiting = false;
+        previewReqFor = null;
+        previewReqRegion = null;
+        previewReqCount = 1;
+        resetPreviewBox();
+        previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        if (waitRegion) {
+          regionFor = waitRegion;
+          regionBox.hidden = false;
+          openComment = null;
+          syncElementMenu();
+        } else {
+          cardDoneFor = null;
+          commentFor = waitEl;
+          openComment = null;
+          syncElementMenu();
+        }
+      }
+    }
+    window.fetch(ASKS_URL, { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error((j && j.error) || "The answers could not be read");
+        // The one queue behind the panel: what waits and what is ready.
+        if (j.variations) {
+          if (Array.isArray(j.variations.requests)) srvVariationRequests = j.variations.requests;
+          if (Array.isArray(j.variations.responses)) srvVariationResponses = j.variations.responses;
+        }
+        if (Array.isArray(j.previewRequests)) srvPreviewRequests = j.previewRequests;
+        if (review.getAttribute("aria-expanded") === "true") show("changes");
+        // A variation answer: the one the waiting ask holds.
+        if (variationWait && variationWait === variationId && j.variations) {
+          var answers = j.variations.responses || [];
+          for (var i = 0; i < answers.length; i++) {
+            if (answers[i] && answers[i].requestId === variationId && answers[i].variations) showVariants(answers[i].variations);
+          }
+        }
+        // The previews on the canvas now: a repaint only on a change.
+        var pending = Array.isArray(j.previews) ? j.previews : [];
+        var now = pending.map(function (one) { return one.id; }).sort().join(",") + "|" + pending.length;
+        if (now !== previewSeen) {
+          previewSeen = now;
+          showPreviews(pending);
+        }
+        if (askTimer) clearTimeout(askTimer);
+        askTimer = setTimeout(pollAsks, POLL_DELAY);
+      })
+      .catch(function () {
+        if (askTimer) clearTimeout(askTimer);
+        askTimer = setTimeout(pollAsks, POLL_DELAY);
       });
   }
 
   /** The answer arrived: variants up, the comment box away. The panel redraws, so the card shows them. */
   function showVariants(list) {
-    if (variationTimer) clearTimeout(variationTimer);
-    variationTimer = 0;
+    if (askTimer) clearTimeout(askTimer);
+    askTimer = 0;
     variationId = "";
     variationPolls = 0;
     // The ask's words become the Exploring card's note, so the agent reads
@@ -7608,7 +7654,6 @@ function decorations() {
   // makes it an ordinary Edityy edit. Discard puts the page back.
   var PREVIEWS_URL = "/__edityy/previews";
   var PREVIEW_REQUEST_URL = "/__edityy/preview-request";
-  var previewTimer = 0;
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
   var previewCurrent = null; // the preview on the canvas now
@@ -7696,7 +7741,7 @@ function decorations() {
       previewWords = "";
       previewPolls = 0;
       previewSeen = "";
-      pollPreviews(); // at once: a paint already waiting is not waited for
+      pollAsks(); // at once: a paint already waiting is not waited for
     }).catch(function (error) {
       // The ask never went out: the words are an Exploring note, not a wait.
       if (el) record(el).commentAsk = false;
@@ -7720,63 +7765,6 @@ function decorations() {
     resetPreviewBox();
     refit();
     tally();
-  }
-
-  /** Ask once for the agent's previews, and again in a moment while there are none. */
-  function pollPreviews() {
-    if (!active || typeof window.fetch !== "function") return;
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = 0;
-    previewPolls += 1;
-    if (previewPolls > MAX_POLLS) {
-      // Two minutes of asking: the agent is not coming. A waiting ask reopens
-      // its card with why, the way a variation ask does.
-      if (previewReqId) {
-        var el = previewReqFor;
-        var region = previewReqRegion;
-        previewReqId = "";
-        // The wait is over: the words are an Exploring note now.
-        if (el) record(el).commentAsk = false;
-        if (region) region.waiting = false;
-        previewReqFor = null;
-        previewReqRegion = null;
-        previewReqCount = 1;
-        resetPreviewBox();
-        previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
-        if (region) {
-          regionFor = region;
-          regionBox.hidden = false;
-          openComment = null;
-          syncElementMenu();
-        } else {
-          cardDoneFor = null;
-          commentFor = el;
-          openComment = null;
-          syncElementMenu();
-        }
-      }
-      return;
-    }
-    window.fetch(PREVIEWS_URL, { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j || !j.ok) throw new Error((j && j.error) || "The preview could not be read");
-        var pending = Array.isArray(j.previews) ? j.previews : [];
-        // Only a change in what is up repaints: a poll that reads the same list
-        // again would throw away a tick the user just made and the words still
-        // fading in.
-        var now = pending.map(function (one) { return one.id; }).sort().join(",") + "|" + pending.length;
-        if (now === previewSeen) {
-          previewTimer = setTimeout(pollPreviews, POLL_DELAY);
-          return;
-        }
-        previewSeen = now;
-        showPreviews(pending);
-        previewTimer = setTimeout(pollPreviews, POLL_DELAY);
-      })
-      .catch(function () {
-        previewTimer = setTimeout(pollPreviews, POLL_DELAY);
-      });
   }
 
   function previewQuery(selector) {
@@ -8174,8 +8162,8 @@ function decorations() {
     forgetVariationServer(variationServerId || variationId);
     variationServerId = "";
     if (kept) replayArrival(nameOf(variationFor));
-    if (variationTimer) clearTimeout(variationTimer);
-    variationTimer = 0;
+    if (askTimer) clearTimeout(askTimer);
+    askTimer = 0;
     variationId = "";
     variationPolls = 0;
     variationWords = "";
@@ -8214,8 +8202,8 @@ function decorations() {
         forget(rec);
       }
     }
-    if (variationTimer) clearTimeout(variationTimer);
-    variationTimer = 0;
+    if (askTimer) clearTimeout(askTimer);
+    askTimer = 0;
     forgetVariationServer(variationServerId || variationId);
     variationServerId = "";
     variationId = "";
@@ -8522,7 +8510,7 @@ function decorations() {
     document.addEventListener("load", onLoad, true);
     previewPolls = 0;
     previewSeen = "";
-    pollPreviews(); // an agent may have placed a preview while the page was idle
+    pollAsks(); // an agent may have placed a preview while the page was idle
     // The page pointer: the toolbar's paper, while the mode is on.
     syncPointer();
     shrinkLogo(function () {
@@ -8636,8 +8624,8 @@ function decorations() {
     paintPointer("");
     if (previewCurrent) discardPreview();
     else if (previewList.length) discardList();
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = 0;
+    if (askTimer) clearTimeout(askTimer);
+    askTimer = 0;
     previewPolls = 0;
     previewSeen = "";
     if (moving) {
