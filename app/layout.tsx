@@ -5,16 +5,13 @@ import localFont from "next/font/local";
 import "edityy/motion.css";
 import "./globals.css";
 
-// Plus Jakarta Sans, self-hosted from app/fonts so the build never reaches for
-// fonts.gstatic.com. Only the three weights the ramp uses are shipped: 400 for
-// body and meta copy, 500 for labels and actions, 600 for headings.
-const jakarta = localFont({
-  src: [
-    { path: "./fonts/PlusJakartaSans-400-latin.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/PlusJakartaSans-500-latin.woff2", weight: "500", style: "normal" },
-    { path: "./fonts/PlusJakartaSans-600-latin.woff2", weight: "600", style: "normal" },
-  ],
-  variable: "--font-jakarta",
+// Figtree, self-hosted from app/fonts so the build never reaches for
+// fonts.gstatic.com. One variable file covers the ramp: 400 for body and
+// meta copy, 500 for labels and actions, 600 for headings.
+const figtree = localFont({
+  src: "./fonts/Figtree-latin.woff2",
+  weight: "300 900",
+  variable: "--font-figtree",
   display: "swap",
   fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
@@ -26,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`h-full antialiased ${jakarta.variable}`}>
+    <html lang="en" className={`h-full antialiased ${figtree.variable}`}>
       <body className="flex min-h-full flex-col bg-neutral-50 text-neutral-900">{children}</body>
     </html>
   );

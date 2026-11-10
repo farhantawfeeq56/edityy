@@ -89,13 +89,13 @@
   --color-rose: #e9d28b;
   --color-plum: #25241f;
 
-  /* --font-jakarta is set by next/font/local on <html>; the rest is the
+  /* --font-figtree is set by next/font/local on <html>; the rest is the
      pre-swap fallback so the first paint never reflows into a different face.
-     One face for now: display, label and code all resolve to Jakarta. A second
+     One face for now: display, label and code all resolve to Figtree. A second
      face is a later decision, not a token waiting to be pointed somewhere. */
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-figtree), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-figtree), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* The one shadow of a floating surface. `layer` draws it, and an element that
    already carries its own fill asks for it by name rather than writing the
@@ -104,7 +104,7 @@
 }
 
 /* The Edityy editor chrome is a shadow root and names the Edityy face itself.
-   next/font keeps Jakarta behind a hashed family name, so hand the chrome the
+   next/font keeps Figtree behind a hashed family name, so hand the chrome the
    real one through its hook. Custom properties cross the shadow boundary — and
    the chrome reads its five colours from the same tokens, so the dock, the
    menus and the hover box wear this palette and not their own. */
@@ -123,7 +123,7 @@
   --color-error: #c9362b;
   --color-error-subtle: #fcebe9;
 
-  --edityy-font: var(--font-jakarta);
+  --edityy-font: var(--font-figtree);
   /* The package palette stands on its own hex, never on the page ramp, so a
      landing theme cannot repaint the chrome. The package is dark: paper
      and ink are swapped from the page's, and raised surfaces go lighter
