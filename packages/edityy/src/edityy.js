@@ -3054,6 +3054,10 @@ function faces() {
    * has: a top edge opens down, a bottom edge up, a middle edge out to the
    * page. A free bar opens up, unless there is no room above and more below.
    */
+  // The edits panel stands off the end of the toolbar, not near it: above
+  // or below its right edge at the corners, and this far above its bottom
+  // end beside a middle bar.
+  var EDITS_MIDDLE_LIFT = 40;
   function popSide(dockBox, panelHeight) {
     if (dockSnap === "top-left" || dockSnap === "top-center" || dockSnap === "top-right") return "below";
     if (dockSnap === "bottom-left" || dockSnap === "bottom-center" || dockSnap === "bottom-right") return "above";
@@ -3086,9 +3090,17 @@ function faces() {
     // Pinned to the viewport, not the dock: the dock widens and shifts on
     // hover for the grip, and a dock-held panel would travel with it. A
     // viewport place stays put until the panel is placed again.
-    var left = box.left + box.width / 2 - width / 2;
-    if (target === items[0]) left = dockLeft;
-    else if (target === items[items.length - 1]) left = dockLeft + Math.max(0, dockWidth - width);
+    // The edits panel starts at the end of the toolbar, wherever the bar
+    // is settled: its right edge runs with the bar's right edge, on the
+    // same line as Edits. Other panels stay centred on their control.
+    var anchored = key === "changes" && !!dockSnap;
+    var left;
+    if (anchored && (side === "above" || side === "below")) left = dockRight - width;
+    else {
+      left = box.left + box.width / 2 - width / 2;
+      if (target === items[0]) left = dockLeft;
+      else if (target === items[items.length - 1]) left = dockLeft + Math.max(0, dockWidth - width);
+    }
     // On a narrow viewport the dock fills the width, and a panel set from its
     // control could still run off an edge: it stays 12px inside the viewport.
     left = Math.max(12, Math.min(left, window.innerWidth - 12 - width));
@@ -3103,6 +3115,9 @@ function faces() {
       pop.style.transformOrigin = originX + "px 0";
     } else if (side === "right" || side === "left") {
       var top = box.top;
+      // Beside a middle bar the edits panel stands a bit above the bar's
+      // end, not next to it.
+      if (anchored) top = dockBottom - EDITS_MIDDLE_LIFT - height;
       top = Math.max(8, Math.min(top, (window.innerHeight || 0) - 8 - height));
       pop.style.top = top + "px";
       if (side === "right") {
