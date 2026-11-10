@@ -917,11 +917,11 @@
     // four states and one card per task. A card goes to its element on click.
     // Its text wears the comment box scale: 10px for labels and buttons,
     // 8px for secondary words, nothing larger.
-    ".pop.changes{width:min(300px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
+    ".pop.changes{width:min(284px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
-    ".changes-filters{display:flex;flex-wrap:nowrap;gap:8px;margin:0 14px 8px}",
+    ".changes-filters{display:flex;flex-wrap:nowrap;gap:8px;margin:0 6px 8px}",
     ".pop.changes>*+*{margin-top:0}",
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
@@ -940,7 +940,7 @@
     ".changes-filter[aria-checked=true] .lbl-off{opacity:0}",
     ".changes-filter[aria-checked=true] .lbl-on{opacity:1}",
     ".changes-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
-    ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 14px 10px;box-sizing:border-box}",
+    ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 6px 10px;box-sizing:border-box}",
     ".changes-list .note{max-width:none;margin:10px 6px;font-size:10px}",
     ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer;box-shadow:0 1px 2px var(--ink-6)}",
     ".task:hover{background:var(--fill-hover)}",
@@ -990,10 +990,10 @@
     "@keyframes task-in{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}",
     // A card the filter leaves behind: out of flow, fading and shrinking
     // where it stood, while the survivors travel to their new slots.
-    ".task-exit{position:absolute;left:14px;right:14px;z-index:2;pointer-events:none}",
+    ".task-exit{position:absolute;left:6px;right:6px;z-index:2;pointer-events:none}",
     ".task-leaving-right{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateX(26px);opacity:0}",
     ".task-leaving-up{transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);transform:translateY(-14px);opacity:0}",
-    ".changes-foot{display:flex;gap:8px;padding:8px 14px 12px;border:0}",
+    ".changes-foot{display:flex;gap:8px;padding:8px 6px 12px;border:0}",
     ".note{margin:6px 10px;max-width:240px;font:400 11px/1.4 inherit;color:var(--muted)}",
     // A note in the element card sits in its own gap, not on a margin of its own.
     ".element-comment .note{margin:0;font-size:10px}",
