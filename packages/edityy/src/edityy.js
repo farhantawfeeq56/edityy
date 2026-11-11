@@ -6463,6 +6463,17 @@ function decorations() {
   var editsRefreshing = false;
   var editsRefreshedAt = 0;
 
+  /** A signature of the server queues behind the panel, so polls redraw it only on a change. */
+  function asksSig() {
+    try {
+      return JSON.stringify([
+        (srvVariationRequests || []).map(function (r) { return r && [r.id, r.status]; }),
+        (srvVariationResponses || []).map(function (r) { return r && [r.requestId, (r.variations || []).length]; }),
+        (srvPreviewRequests || []).map(function (r) { return r && [r.id, r.status]; }),
+      ]);
+    } catch { return ""; }
+  }
+
   /**
    * Read the server queues once for the panel, so tasks survive a reload.
    * The pollers still own the live strips; this only refreshes the list.
@@ -6473,6 +6484,9 @@ function decorations() {
     if (now - editsRefreshedAt < 800) return;
     editsRefreshedAt = now;
     editsRefreshing = true;
+    // The panel redraws only when the queues changed: rebuilding it on
+    // every refresh drops the focus of the Notes field mid-word.
+    var editsBefore = asksSig();
     window.fetch(ASKS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -6487,7 +6501,7 @@ function decorations() {
       .catch(function () {})
       .then(function () {
         editsRefreshing = false;
-        if (review.getAttribute("aria-expanded") === "true") show("changes");
+        if (asksSig() !== editsBefore && review.getAttribute("aria-expanded") === "true") show("changes");
       });
   }
 
@@ -7270,6 +7284,21 @@ function decorations() {
       }
     }
     var shownKeys = {};
+    // A rebuild throws the focused field away with its card: keep which
+    // Notes field is focused and where the caret is, so typing survives
+    // a redraw that lands mid-word. The words themselves survive in taskNotes.
+    var focusTask = null;
+    var focusStart = 0;
+    var focusEnd = 0;
+    try {
+      var ae = document.activeElement;
+      if (ae && ae.className === "task-note" && list.contains(ae)) {
+        var fc = ae.closest ? ae.closest("[data-task]") : null;
+        focusTask = fc ? fc.getAttribute("data-task") : null;
+        focusStart = ae.selectionStart || 0;
+        focusEnd = ae.selectionEnd || 0;
+      }
+    } catch {}
     while (list.firstChild) list.removeChild(list.firstChild);
     if (!shown.length) {
       var empty = document.createElement("p");
@@ -7293,10 +7322,9 @@ function decorations() {
       card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);
       // A meta row on every card: where the edit came from, with the
-      // detail line beside it where the wireframe has one (the ready and
-      // pending cards, and the previews). Select cards show their
-      // controls instead of a detail line.
-      var showDetail = task.state === "ready" || task.state === "requested" || task.kind.indexOf("preview") === 0;
+      // detail line beside it. Select cards show it above their controls,
+      // so "1 edit" and "N variants ready" are never hidden.
+      var showDetail = !!task.detail;
       if (showDetail || task.origin) {
         var meta = document.createElement("div");
         meta.className = "task-meta";
@@ -7381,6 +7409,21 @@ function decorations() {
     }
     cardPos = {};
     list.scrollTop = top;
+    if (focusTask) {
+      try {
+        var kids = list.children || [];
+        for (var fi = 0; fi < kids.length; fi++) {
+          if (kids[fi].getAttribute && kids[fi].getAttribute("data-task") === focusTask) {
+            var note = kids[fi].querySelector ? kids[fi].querySelector(".task-note") : null;
+            if (note && typeof note.focus === "function") {
+              note.focus({ preventScroll: true });
+              try { note.setSelectionRange(focusStart, focusEnd); } catch {}
+            }
+            break;
+          }
+        }
+      } catch {}
+    }
     // The empty words fade in where the grid would be, like the component's.
     if (!shown.length && list.firstChild) list.firstChild.className += " task-enter";
     changesPanel.copy.disabled = !report().length;
@@ -7593,6 +7636,10 @@ function decorations() {
         }
       }
     }
+    // The panel redraws only when the queues changed: rebuilding it on
+    // every poll drops the focus of the Notes field mid-word. An answer
+    // or a new paint repaints through its own path, so it is not shown twice.
+    var asksBefore = asksSig();
     window.fetch(ASKS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -7603,21 +7650,27 @@ function decorations() {
           if (Array.isArray(j.variations.responses)) srvVariationResponses = j.variations.responses;
         }
         if (Array.isArray(j.previewRequests)) srvPreviewRequests = j.previewRequests;
-        if (review.getAttribute("aria-expanded") === "true") show("changes");
+        var queuesChanged = asksSig() !== asksBefore;
         // A variation answer: the one the waiting ask holds.
+        var answered = false;
         if (variationWait && variationWait === variationId && j.variations) {
           var answers = j.variations.responses || [];
           for (var i = 0; i < answers.length; i++) {
-            if (answers[i] && answers[i].requestId === variationId && answers[i].variations) showVariants(answers[i].variations);
+            if (answers[i] && answers[i].requestId === variationId && answers[i].variations) {
+              showVariants(answers[i].variations);
+              answered = true;
+            }
           }
         }
         // The previews on the canvas now: a repaint only on a change.
         var pending = Array.isArray(j.previews) ? j.previews : [];
         var now = pending.map(function (one) { return one.id; }).sort().join(",") + "|" + pending.length;
-        if (now !== previewSeen) {
+        var previewsChanged = now !== previewSeen;
+        if (previewsChanged) {
           previewSeen = now;
           showPreviews(pending);
         }
+        if (queuesChanged && !answered && !previewsChanged && review.getAttribute("aria-expanded") === "true") show("changes");
         if (askTimer) clearTimeout(askTimer);
         askTimer = setTimeout(pollAsks, POLL_DELAY);
       })
