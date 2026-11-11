@@ -248,7 +248,7 @@ test("one ask is one edit: a bundled insert answers a count ask in one paint", a
       instruction: "add some flair here",
       action: "insert",
       position: "inside-end",
-      variants: [
+      variations: [
         { label: "Glow strip", html: "<p>one</p>" },
         { label: "Mini cards", html: "<p>two</p>" },
         { label: "Step pills", html: "<p>three</p>" },
@@ -268,10 +268,10 @@ test("one ask is one edit: a bundled insert answers a count ask in one paint", a
 });
 
 test("insert variants are checked: bad options and mixed forms fail", async () => {
-  assert.throws(() => checkPreview({ ...insert, variants: [{ label: "Only", html: "<p>x</p>" }] }), { status: 400 });
-  assert.throws(() => checkPreview({ ...insert, variants: [{ label: "", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }), { status: 400 });
+  assert.throws(() => checkPreview({ ...insert, variations: [{ label: "Only", html: "<p>x</p>" }] }), { status: 400 });
+  assert.throws(() => checkPreview({ ...insert, variations: [{ label: "", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }), { status: 400 });
   assert.throws(
-    () => checkPreview({ ...insert, variants: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }),
+    () => checkPreview({ ...insert, variations: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }),
     { status: 400 },
     "html and variants together fail"
   );
@@ -280,7 +280,7 @@ test("insert variants are checked: bad options and mixed forms fail", async () =
     instruction: "same paint twice",
     action: "insert",
     position: "inside-end",
-    variants: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }],
+    variations: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }],
   };
   await writePreviewRequest({ id: "p-retry", instruction: "same paint twice", count: 3 }, root);
   const first = await placePreview(retry, root);

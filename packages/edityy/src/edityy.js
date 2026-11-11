@@ -7797,7 +7797,7 @@ function decorations() {
     if (styles.length && styles[0].variations && styles[0].variations.length) return styles[0].variations;
     var targets = previewTargets(preview);
     for (var i = 0; i < targets.length; i++) {
-      if (targets[i].variants && targets[i].variants.length) return targets[i].variants;
+      if (targets[i].variations && targets[i].variations.length) return targets[i].variations;
     }
     return [];
   }
@@ -8083,7 +8083,7 @@ function decorations() {
     }
     if (preview.action === "insert") {
       // A pick waits: nothing lands until the user chooses an option.
-      if (preview.variants && preview.variants.length) {
+      if (preview.variations && preview.variations.length) {
         previewVariantInserts.push(preview);
         return true;
       }
@@ -8093,7 +8093,7 @@ function decorations() {
       var target = previewQuery(preview.selector);
       if (!target) return false;
       // A pick waits: the markup lands when the user chooses an option.
-      if (preview.variants && preview.variants.length) {
+      if (preview.variations && preview.variations.length) {
         previewTarget = target;
         previewVariantUpdates.push({ target: preview, el: target, rec: null, applied: false });
         return true;
@@ -8236,7 +8236,7 @@ function decorations() {
     });
     // Html options: one insert or update target offers a pick of markups.
     previewTargets(preview).forEach(function (target) {
-      var options = target.variants || [];
+      var options = target.variations || [];
       var choice = options[index];
       if (!choice) return;
       if (target.action === "insert") {

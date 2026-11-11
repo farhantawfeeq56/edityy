@@ -28,8 +28,8 @@ const MAX_INSTRUCTION = 500;
 /** Inserted markup. */
 const MAX_HTML = 50000;
 /** One paint can offer a pick: 2 to 10 labeled html options, one edit. */
-const MIN_HTML_VARIANTS = 2;
-const MAX_HTML_VARIANTS = 10;
+const MIN_HTML_VARIATIONS = 2;
+const MAX_HTML_VARIATIONS = 10;
 /** How many past previews the file keeps. */
 const MAX_HISTORY = 20;
 /** How many elements one preview can paint, and how many looks one styles element can hold. */
@@ -115,13 +115,13 @@ function checkTarget(placed) {
       return checked;
     });
   }
-function checkHtmlVariants(variants) {
-  if (!Array.isArray(variants) || variants.length < MIN_HTML_VARIANTS || variants.length > MAX_HTML_VARIANTS) {
-    invalid(`variants must be a list of ${MIN_HTML_VARIANTS} to ${MAX_HTML_VARIANTS} html options`);
+function checkHtmlVariations(variations) {
+  if (!Array.isArray(variations) || variations.length < MIN_HTML_VARIATIONS || variations.length > MAX_HTML_VARIATIONS) {
+    invalid(`variations must be a list of ${MIN_HTML_VARIATIONS} to ${MAX_HTML_VARIATIONS} html options`);
   }
-  return variants.map((variation) => {
-    if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variant must be an object");
-    if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each variant label must be 1 to 50 characters");
+  return variations.map((variation) => {
+    if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
+    if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each variation label must be 1 to 50 characters");
     return { label: variation.label.trim(), html: checkPreviewHtml(variation.html) };
   });
 }
@@ -129,9 +129,9 @@ function checkHtmlVariants(variants) {
     out.anchor = placed.anchor === undefined || placed.anchor === null ? null : selector(placed.anchor, "anchor");
     if (!POSITIONS.includes(placed.position)) invalid("position must be after, before, inside-start or inside-end");
     out.position = placed.position;
-    if (placed.variants !== undefined) {
-      if (placed.html !== undefined) invalid("insert takes html or variants, not both");
-      out.variants = checkHtmlVariants(placed.variants);
+    if (placed.variations !== undefined) {
+      if (placed.html !== undefined) invalid("insert takes html or variations, not both");
+      out.variations = checkHtmlVariations(placed.variations);
     } else {
       out.html = checkPreviewHtml(placed.html);
     }
@@ -141,13 +141,13 @@ function checkHtmlVariants(variants) {
     const props = checkDeclarations(placed.props);
     const text = placed.text === undefined ? undefined : checkPreviewText(placed.text);
     const html = placed.html === undefined ? undefined : checkPreviewHtml(placed.html);
-    const variants = placed.variants === undefined ? undefined : checkHtmlVariants(placed.variants);
-    if (variants !== undefined && html !== undefined) invalid("update takes html or variants, not both");
-    if (!props.length && text === undefined && html === undefined && variants === undefined) invalid("update must set a style, the text or the markup");
+    const variations = placed.variations === undefined ? undefined : checkHtmlVariations(placed.variations);
+    if (variations !== undefined && html !== undefined) invalid("update takes html or variations, not both");
+    if (!props.length && text === undefined && html === undefined && variations === undefined) invalid("update must set a style, the text or the markup");
     out.props = props;
     if (text !== undefined) out.text = text;
     if (html !== undefined) out.html = html;
-    if (variants !== undefined) out.variants = variants;
+    if (variations !== undefined) out.variations = variations;
   }
   if (action === "remove") {
     out.selector = selector(placed.selector, "selector");
@@ -230,7 +230,7 @@ function fingerprint(checked) {
   const variations = (checked.variations ?? [])
     .map((variation) => `${variation.label}:${props(variation.props)}:${variation.text ?? ""}`)
     .join("|");
-  const htmlVariants = (checked.variants ?? [])
+  const htmlVariations = (checked.variations ?? [])
     .map((variation) => `${variation.label}:${variation.html}`)
     .join("|");
   return JSON.stringify({
@@ -243,14 +243,14 @@ function fingerprint(checked) {
     props: props(checked.props),
     text: checked.text ?? null,
     variations,
-    htmlVariants,
+    htmlVariations,
   });
 }
 
 /** How many options one paint offers: bundled variants count, a single paint counts one. */
 function paintOptions(preview) {
   const targets = Array.isArray(preview.targets) ? preview.targets : [preview];
-  return targets.reduce((n, target) => n + (Array.isArray(target.variants) && target.variants.length ? target.variants.length : 1), 0);
+  return targets.reduce((n, target) => n + (Array.isArray(target.variations) && target.variations.length ? target.variations.length : 1), 0);
 }
 
 function linkedOptions(ids, items) {
@@ -399,8 +399,8 @@ export function previewText(preview) {
     }
     if (target.action === "insert") {
       lines.push(`Anchor: ${target.anchor ? `\`${target.anchor}\`` : "end of main"}`, `Position: ${target.position}`);
-      if (Array.isArray(target.variants) && target.variants.length) {
-        target.variants.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
+      if (Array.isArray(target.variations) && target.variations.length) {
+        target.variations.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
       } else {
         lines.push("", target.html);
       }
@@ -409,8 +409,8 @@ export function previewText(preview) {
       for (const prop of target.props) lines.push(`- \`${prop.property}\`: \`${prop.value}\``);
       if (target.text !== undefined) lines.push(`- Text: ${JSON.stringify(target.text)}`);
       if (target.html !== undefined) lines.push("", target.html);
-      if (Array.isArray(target.variants) && target.variants.length) {
-        target.variants.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
+      if (Array.isArray(target.variations) && target.variations.length) {
+        target.variations.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
       }
     }
   }
@@ -600,11 +600,12 @@ export function previewRequestText(request) {
   lines.push(
     "",
     "Paint this on the live canvas only with place_preview, or many at once with targets. Do not edit files.",
-    "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If the place is unclear and the user named none, ask first."
+    "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: infer anchors and links from the page's own ids and routes, paint, and name your assumption.",
+    "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If no anchor exists at all, say so instead of guessing."
   );
   if (count > 1) {
     lines.push("", `Place all ${count} variants in ONE place_preview call: one ask is one edit with ${count} options to pick from.`);
-    lines.push(`A styles target takes \`variations\`; an insert or update target takes \`variants\` of html, each with a short label. One paint is one row with one state: waiting, then ${count} options ready, then kept or discarded.`);
+    lines.push(`A styles target takes \`variations\` of CSS; an insert or update target takes \`variations\` of html, each with a short label. One paint is one row with one state: waiting, then ${count} options ready, then kept or discarded.`);
     lines.push(`Retrying the same call reuses the existing paint instead of a duplicate row.`);
   }
   return lines.join("\n");

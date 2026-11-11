@@ -56,24 +56,11 @@ const PREVIEW_VARIATIONS = {
     type: "object",
     properties: {
       label: { type: "string", description: "Two or three words the user will see." },
-      props: DECLARATIONS,
+      props: { ...DECLARATIONS, description: "For styles entries: plain CSS declarations." },
       text: { type: "string", description: "Optional: plain words that replace the element's own words." },
+      html: { type: "string", description: "For insert and update entries: the markup option. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
     },
-    required: ["label", "props"],
-    additionalProperties: false,
-  },
-};
-const PREVIEW_HTML_VARIANTS = {
-  type: "array",
-  minItems: 2,
-  maxItems: 10,
-  items: {
-    type: "object",
-    properties: {
-      label: { type: "string", description: "Two or three words the user will see." },
-      html: { type: "string", description: "The markup option. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
-    },
-    required: ["label", "html"],
+    required: ["label"],
     additionalProperties: false,
   },
 };
@@ -86,7 +73,6 @@ const PREVIEW_TARGET = {
     anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
     position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
     html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
-    variants: PREVIEW_HTML_VARIANTS,
     props: DECLARATIONS,
     text: { type: "string", description: "Optional: plain words for update." },
   },
@@ -126,16 +112,21 @@ const TOOLS = [
       "Paint a change on the live Edityy canvas only, not in the code, for a comment-box preview ask. " +
       "The instruction alone names the ask: quote the instruction get_work returned, and a waiting ask with " +
       "those words is answered. No ask file is needed for a chat idea: an instruction with an action and its " +
-      "payload still paints. One ask is one edit with one state: place all its variants in ONE call, " +
+      "payload still paints. One ask is one edit with one state: place all its variations in ONE call, " +
       "or many elements at once with targets: each target keeps its own action, selector or anchor, and payload. " +
-      "styles restyles one element and takes a selector plus 1 to 100 labeled variations of plain CSS declarations, each with an optional text. " +
+      "A variation is one labeled option to pick from: styles entries carry plain CSS declarations in props, " +
+      "insert and update entries carry markup in html. " +
+      "styles restyles one element and takes a selector plus 1 to 100 variations. " +
       "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
-      "It takes html for one option, or 2 to 10 labeled variants of html for a pick. " +
-      "update changes one element named by a selector, with styles, text or markup, or 2 to 10 labeled variants of markup for a pick. " +
+      "It takes html for one option, or 2 to 10 labeled variations of html for a pick. " +
+      "update changes one element named by a selector, with styles, text or markup, or 2 to 10 labeled variations of markup for a pick. " +
       "remove takes away one element named by a selector. " +
       "Inline script + event handlers paint for local UI; network calls and external script src are refused. " +
+      "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, " +
+      "and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: " +
+      "infer anchors and links from the page's own ids and routes, paint, and name your assumption. " +
       "The preview shows on the page with Keep and Discard; keeping makes an edit of it (the agent reads it with get_work). " +
-      "If the place is unclear and the user named none, ask first.",
+      "If no anchor exists at all, say so instead of guessing.",
     inputSchema: {
       type: "object",
       properties: {
@@ -147,7 +138,6 @@ const TOOLS = [
         anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
         position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
         html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
-        variants: { ...PREVIEW_HTML_VARIANTS, description: "For insert and update: 2 to 10 labeled markup options; the user picks one. Takes the place of html." },
         props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },
       },
@@ -163,7 +153,8 @@ const TOOLS = [
       "leaves a slot empty and more has nowhere to go, so any other count is refused. " +
       "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
       "pseudo-element and `when` for a media condition, and it may also set the element's words with `text`. " +
-      "Any CSS, incl. custom properties, !important and url(), paints on the canvas.",
+      "Any CSS, incl. custom properties, !important and url(), paints on the canvas. " +
+      "The canvas is temporary: experiment freely. A wrong set costs one Discard, so cover styles that differ boldly instead of asking the user to choose.",
     inputSchema: {
       type: "object",
       properties: {
