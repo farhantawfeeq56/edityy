@@ -954,7 +954,7 @@
     ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
-    ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}",
+    ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
     ".task-actions{display:none;flex-wrap:wrap;gap:8px;margin-top:2px}",
     ".task[data-open=true] .task-actions{display:flex}",
     ".task-more{font:600 8px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
@@ -967,7 +967,6 @@
     // The always-on controls of a card: round icons at the card's corner, a
     // notes field with X and tick, and the number chips for variants.
     ".task-icons{display:flex;gap:8px;flex:none}",
-    ".task-detail{font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
     ".task-editrow .task-icon{border-radius:7px}",
     ".task-icon{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:50%;background:transparent;cursor:pointer;color:var(--ink);padding:0}",
     ".task-icon svg{width:13px;height:13px}",
@@ -6771,6 +6770,30 @@ function decorations() {
     return tasks.filter(function (task) { return task.state === changesFilter; });
   }
 
+  /**
+   * One card, one key: the preview or request id first, then the edit's
+   * mark, then the element it points at. The label alone is not one: two
+   * edits on elements with the same name (two p "…") would share it, and
+   * opening one would open the other.
+   */
+  function taskKey(task) {
+    if (task.previewId) return "preview:" + task.previewId;
+    if (task.requestId) return "request:" + task.requestId;
+    if (task.item && task.item.mark != null) return "mark:" + task.item.mark;
+    if (task.el) {
+      try {
+        return "el:" + selectorFor(task.el);
+      } catch {
+        return "el:" + task.label;
+      }
+    }
+    if (task.region) {
+      if (task.region.mark != null) return "mark:" + task.region.mark;
+      return "region:" + task.region.left + "," + task.region.top + "," + task.region.width + "," + task.region.height;
+    }
+    return "label:" + task.label;
+  }
+
   /** A card that was not measured cannot travel: the stub DOM has no layout. */
   function captureCardPos() {
     cardPos = {};
@@ -6959,7 +6982,7 @@ function decorations() {
         onKeep: function () {
           rg.confirmed = true;
           autosave();
-          replayArrival(task.item.label);
+          replayArrivalFor(task.item.mark);
           tally();
         },
       });
@@ -7001,7 +7024,7 @@ function decorations() {
       });
       card.appendChild(chips);
       decisionRow(card, task, {
-        key: task.requestId || task.label,
+        key: taskKey(task),
         rec: task.el ? record(task.el) : null,
         // A server card is not live yet: picking a chip makes it live, and
         // only then can Keep approve it.
@@ -7019,7 +7042,7 @@ function decorations() {
   }
 
   function addTaskActions(card, task) {
-    var key = task.previewId || task.requestId || task.label;
+    var key = taskKey(task);
     if (!expandedTasks[key]) return;
     var row = document.createElement("div");
     row.className = "task-actions";
@@ -7088,6 +7111,15 @@ function decorations() {
       changesPanel.filters.setAttribute("data-ui-actions", "");
       changesPanel.filters.setAttribute("role", "radiogroup");
       changesPanel.filters.setAttribute("aria-label", "Filter edits");
+      changesPanel.head = document.createElement("div");
+      changesPanel.head.className = "changes-head";
+      changesPanel.title = document.createElement("span");
+      changesPanel.title.className = "changes-title";
+      changesPanel.title.appendChild(text("Edits"));
+      changesPanel.head.appendChild(changesPanel.title);
+      changesPanel.total = document.createElement("span");
+      changesPanel.total.className = "changes-total";
+      changesPanel.head.appendChild(changesPanel.total);
       changesPanel.thumb = document.createElement("span");
       changesPanel.thumb.className = "changes-thumb";
       changesPanel.thumb.setAttribute("aria-hidden", "true");
@@ -7209,6 +7241,12 @@ function decorations() {
       }
     }
     var activeLabel = "All";
+    var totalText = counts.all === 1 ? "1 edit" : counts.all + " edits";
+    if (changesPanel.totalText !== totalText) {
+      changesPanel.totalText = totalText;
+      while (changesPanel.total.firstChild) changesPanel.total.removeChild(changesPanel.total.firstChild);
+      changesPanel.total.appendChild(text(totalText));
+    }
     CHANGES_FILTERS.forEach(function (entry) { if (entry[0] === changesFilter) activeLabel = entry[1]; });
     var liveText = activeLabel + ": " + shown.length + " of " + tasks.length + " shown";
     if (changesPanel.liveText !== liveText) {
@@ -7252,24 +7290,36 @@ function decorations() {
       name.className = "task-name";
       name.appendChild(text(task.label));
       head.appendChild(name);
-      card.setAttribute("data-open", expandedTasks[task.previewId || task.requestId || task.label] ? "true" : "false");
+      card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);
-      // A detail line only where the wireframe has one: the ready and
-      // pending cards, and the previews. Select cards show their
-      // controls instead.
+      // A meta row on every card: where the edit came from, with the
+      // detail line beside it where the wireframe has one (the ready and
+      // pending cards, and the previews). Select cards show their
+      // controls instead of a detail line.
       var showDetail = task.state === "ready" || task.state === "requested" || task.kind.indexOf("preview") === 0;
-      if (showDetail) {
-        var detail = document.createElement("p");
-        detail.className = "task-detail";
-        detail.appendChild(text(task.detail));
-        card.appendChild(detail);
+      if (showDetail || task.origin) {
+        var meta = document.createElement("div");
+        meta.className = "task-meta";
+        if (task.origin) {
+          var org = document.createElement("span");
+          org.className = "task-origin";
+          org.appendChild(text(task.origin));
+          meta.appendChild(org);
+        }
+        if (showDetail) {
+          var detail = document.createElement("p");
+          detail.className = "task-detail";
+          detail.appendChild(text(task.detail));
+          meta.appendChild(detail);
+        }
+        card.appendChild(meta);
       }
       addTaskBody(card, task, head);
       addTaskActions(card, task);
       if (task.el || task.region) {
         card.addEventListener("click", function (e) {
           if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
-          var key = task.previewId || task.requestId || task.label;
+          var key = taskKey(task);
           expandedTasks[key] = !expandedTasks[key];
           show("changes");
           gotoTask(task);
@@ -7277,7 +7327,7 @@ function decorations() {
       } else {
         card.addEventListener("click", function (e) {
           if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
-          var key = task.previewId || task.requestId || task.label;
+          var key = taskKey(task);
           expandedTasks[key] = !expandedTasks[key];
           show("changes");
         });
@@ -7285,7 +7335,7 @@ function decorations() {
       // A card that was not there before slides in; one that was already
       // there stays put, so a redraw never replays its arrival. A card a
       // filter change brings in slides in the same way.
-      var seen = task.previewId || task.requestId || task.label;
+      var seen = taskKey(task);
       shownKeys[seen] = true;
       card.setAttribute("data-task", seen);
       if (!taskSeen[seen] || (filtering && !oldCards[seen])) {
@@ -7334,7 +7384,8 @@ function decorations() {
     // The empty words fade in where the grid would be, like the component's.
     if (!shown.length && list.firstChild) list.firstChild.className += " task-enter";
     changesPanel.copy.disabled = !report().length;
-    // The wireframe order: cards, then the pill tabs, then the copy button.
+    // The wireframe order: header, cards, then the pill tabs, then the copy button.
+    pop.appendChild(changesPanel.head);
     pop.appendChild(list);
     pop.appendChild(changesPanel.filters);
     pop.appendChild(changesPanel.actions);
@@ -7402,15 +7453,14 @@ function decorations() {
     autosave();
     // The Ready card arrives: the Select card just slid out, so the
     // arrival replays for the same element instead of appearing flat.
-    if (rec.el) replayArrival(nameOf(rec.el));
+    if (rec.el) replayArrivalFor(rec.mark);
     tally();
   }
 
   /** A card that turns into another state replays its arrival, so the new state reads as a change. */
-  function replayArrival(label) {
-    if (!label) return;
-    delete taskSeen[label];
-    delete taskSeen[label.trim()];
+  function replayArrivalFor(mark) {
+    if (mark == null) return;
+    delete taskSeen["mark:" + mark];
   }
 
   /* ---------------------------------------------------------- variations */
@@ -8161,7 +8211,7 @@ function decorations() {
     // to the Ready one: the server forgets it, and the local queues drop it.
     forgetVariationServer(variationServerId || variationId);
     variationServerId = "";
-    if (kept) replayArrival(nameOf(variationFor));
+    if (kept) replayArrivalFor(record(variationFor).mark);
     if (askTimer) clearTimeout(askTimer);
     askTimer = 0;
     variationId = "";
