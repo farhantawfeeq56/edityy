@@ -13,7 +13,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { SaveError } from "./changes.js";
-import { store } from "./store.js";
+import { readClearedAt, store } from "./store.js";
 
 export const SESSION_PATH = "/__edityy/session";
 export const SESSION_FILE = ".edityy/session.json";
@@ -116,6 +116,8 @@ export function checkSession(payload) {
   return {
     version: 1,
     savedAt: new Date().toISOString(),
+    // The clear marker the keeping page had honored, or "" from an older page.
+    honored: typeof payload.honored === "string" ? payload.honored.slice(0, 200) : "",
     path: checkSessionPath(payload.path),
     edits: edits.map(checkEdit),
     regions: regions.map(checkRegion),
@@ -131,8 +133,12 @@ async function write(record, root) {
 /** Keep the canvas the page just sent. */
 export async function writeSession(payload, root = process.cwd()) {
   const record = checkSession(payload);
-  // Temporary clear_all diagnostic (remove after the stale-state hunt).
-  console.log(`[edityy-diag] writeSession path=${record.path} edits=${record.edits.length} regions=${record.regions.length} savedAt=${record.savedAt}`);
+  // A keep that left before the agent cleared must not recreate the canvas
+  // after the delete: it carries the marker it had honored, or none at all.
+  const clearedAt = await readClearedAt(root);
+  if (clearedAt && (record.honored || "") < clearedAt) {
+    throw new SaveError(409, "The canvas was cleared after this state was kept. Read the asks queue and honor the clear, then keep again.");
+  }
   return write(record, root);
 }
 
