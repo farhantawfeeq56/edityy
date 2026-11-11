@@ -186,7 +186,7 @@ test("a comment-box preview request is answered once place_preview paints", asyn
   );
   assert.equal(varied.count, 5);
   assert.match(previewRequestText(varied), /Variants the user asked for: 5/);
-  assert.match(previewRequestText(varied), /Place 5 previews/);
+  assert.match(previewRequestText(varied), /Place all 5 variants in ONE place_preview call/);
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 0 }), { status: 400 });
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 11 }), { status: 400 });
   const preview = await placePreview(insert, root);
@@ -238,4 +238,64 @@ test("several paints for one count ask answer that ask, not another waiting ask"
   const other = await placePreview({ ...insert, instruction: "make the heading bigger" }, root);
   assert.deepEqual((await readPendingPreviewRequests(root)).length, 0);
   assert.equal((await readPreviewRequests(root)).find((one) => one.id === "p-big").previewId, other.id);
+});
+
+test("one ask is one edit: a bundled insert answers a count ask in one paint", async () => {
+  const root = tmp();
+  await writePreviewRequest({ id: "p-bundle", instruction: "add some flair here", count: 5 }, root);
+  const bundled = await placePreview(
+    {
+      instruction: "add some flair here",
+      action: "insert",
+      position: "inside-end",
+      variants: [
+        { label: "Glow strip", html: "<p>one</p>" },
+        { label: "Mini cards", html: "<p>two</p>" },
+        { label: "Step pills", html: "<p>three</p>" },
+        { label: "Hairline row", html: "<p>four</p>" },
+        { label: "Dark banner", html: "<p>five</p>" },
+      ],
+    },
+    root
+  );
+  assert.equal(bundled.linked, 5);
+  assert.equal(bundled.needed, 5);
+  const done = (await readPreviewRequests(root)).find((one) => one.id === "p-bundle");
+  assert.equal(done.status, "answered");
+  assert.deepEqual(done.previewIds, [bundled.id], "one paint is one row");
+  assert.match(previewText(bundled), /Option 1: Glow strip/);
+  assert.match(previewText(bundled), /Option 5: Dark banner/);
+});
+
+test("insert variants are checked: bad options and mixed forms fail", async () => {
+  assert.throws(() => checkPreview({ ...insert, variants: [{ label: "Only", html: "<p>x</p>" }] }), { status: 400 });
+  assert.throws(() => checkPreview({ ...insert, variants: [{ label: "", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }), { status: 400 });
+  assert.throws(
+    () => checkPreview({ ...insert, variants: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }),
+    { status: 400 },
+    "html and variants together fail"
+  );
+  const root = tmp();
+  const retry = {
+    instruction: "same paint twice",
+    action: "insert",
+    position: "inside-end",
+    variants: [{ label: "A", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }],
+  };
+  await writePreviewRequest({ id: "p-retry", instruction: "same paint twice", count: 3 }, root);
+  const first = await placePreview(retry, root);
+  assert.equal(first.reused, false);
+  assert.equal(first.linked, 2, "two bundled options link at once");
+  // Simulate the old EPERM outcome: the paint landed, its link did not.
+  const { readFile, writeFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const reqPath = join(root, ".edityy", "preview-request.json");
+  const queue = JSON.parse(await readFile(reqPath, "utf8"));
+  queue.find((entry) => entry.id === "p-retry").previewIds = [];
+  queue.find((entry) => entry.id === "p-retry").status = "pending";
+  await writeFile(reqPath, JSON.stringify(queue));
+  const again = await placePreview(retry, root);
+  assert.equal(again.reused, true, "an identical retry reuses the paint");
+  assert.equal(again.id, first.id);
+  assert.equal((await readPreviews(root)).history.length, 1, "no duplicate row");
 });

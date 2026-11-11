@@ -63,6 +63,20 @@ const PREVIEW_VARIATIONS = {
     additionalProperties: false,
   },
 };
+const PREVIEW_HTML_VARIANTS = {
+  type: "array",
+  minItems: 2,
+  maxItems: 10,
+  items: {
+    type: "object",
+    properties: {
+      label: { type: "string", description: "Two or three words the user will see." },
+      html: { type: "string", description: "The markup option. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
+    },
+    required: ["label", "html"],
+    additionalProperties: false,
+  },
+};
 const PREVIEW_TARGET = {
   type: "object",
   properties: {
@@ -72,6 +86,7 @@ const PREVIEW_TARGET = {
     anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
     position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
     html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
+    variants: PREVIEW_HTML_VARIANTS,
     props: DECLARATIONS,
     text: { type: "string", description: "Optional: plain words for update." },
   },
@@ -111,10 +126,12 @@ const TOOLS = [
       "Paint a change on the live Edityy canvas only, not in the code, for a comment-box preview ask. " +
       "The instruction alone names the ask: quote the instruction get_work returned, and a waiting ask with " +
       "those words is answered. No ask file is needed for a chat idea: an instruction with an action and its " +
-      "payload still paints. Place one preview with an action and its payload, or many at once with targets: each target keeps its own action, selector or anchor, and payload. " +
+      "payload still paints. One ask is one edit with one state: place all its variants in ONE call, " +
+      "or many elements at once with targets: each target keeps its own action, selector or anchor, and payload. " +
       "styles restyles one element and takes a selector plus 1 to 100 labeled variations of plain CSS declarations, each with an optional text. " +
       "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
-      "update changes one element named by a selector, with styles, text or markup. " +
+      "It takes html for one option, or 2 to 10 labeled variants of html for a pick. " +
+      "update changes one element named by a selector, with styles, text or markup, or 2 to 10 labeled variants of markup for a pick. " +
       "remove takes away one element named by a selector. " +
       "Inline script + event handlers paint for local UI; network calls and external script src are refused. " +
       "The preview shows on the page with Keep and Discard; keeping makes an edit of it (the agent reads it with get_work). " +
@@ -130,6 +147,7 @@ const TOOLS = [
         anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
         position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
         html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
+        variants: { ...PREVIEW_HTML_VARIANTS, description: "For insert and update: 2 to 10 labeled markup options; the user picks one. Takes the place of html." },
         props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },
       },
@@ -322,7 +340,7 @@ export async function handle(message, root) {
           const queue = await readPreviewRequests(root);
           const left = queue.filter((entry) => entry.status === "pending");
           const more = left.length ? ` Still waiting: ${left.map((entry) => entry.instruction).join(" | ")}.` : "";
-          const link = preview.requestId ? ` (paint ${preview.linked} of ${preview.needed} for "${preview.instruction}"${preview.reused ? ", reused without a duplicate" : ""})` : "";
+          const link = preview.requestId && preview.needed > 1 ? ` (${preview.linked} of ${preview.needed} variants for "${preview.instruction}"${preview.reused ? ", reused without a duplicate" : ""})` : preview.reused ? " (reused without a duplicate)" : "";
           return reply({
             content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_work). The user decides on the page.${more}` }],
           });

@@ -27,6 +27,9 @@ const MAX_SELECTOR = 200;
 const MAX_INSTRUCTION = 500;
 /** Inserted markup. */
 const MAX_HTML = 50000;
+/** One paint can offer a pick: 2 to 10 labeled html options, one edit. */
+const MIN_HTML_VARIANTS = 2;
+const MAX_HTML_VARIANTS = 10;
 /** How many past previews the file keeps. */
 const MAX_HISTORY = 20;
 /** How many elements one preview can paint, and how many looks one styles element can hold. */
@@ -112,21 +115,39 @@ function checkTarget(placed) {
       return checked;
     });
   }
+function checkHtmlVariants(variants) {
+  if (!Array.isArray(variants) || variants.length < MIN_HTML_VARIANTS || variants.length > MAX_HTML_VARIANTS) {
+    invalid(`variants must be a list of ${MIN_HTML_VARIANTS} to ${MAX_HTML_VARIANTS} html options`);
+  }
+  return variants.map((variation) => {
+    if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variant must be an object");
+    if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each variant label must be 1 to 50 characters");
+    return { label: variation.label.trim(), html: checkPreviewHtml(variation.html) };
+  });
+}
   if (action === "insert") {
     out.anchor = placed.anchor === undefined || placed.anchor === null ? null : selector(placed.anchor, "anchor");
     if (!POSITIONS.includes(placed.position)) invalid("position must be after, before, inside-start or inside-end");
     out.position = placed.position;
-    out.html = checkPreviewHtml(placed.html);
+    if (placed.variants !== undefined) {
+      if (placed.html !== undefined) invalid("insert takes html or variants, not both");
+      out.variants = checkHtmlVariants(placed.variants);
+    } else {
+      out.html = checkPreviewHtml(placed.html);
+    }
   }
   if (action === "update") {
     out.selector = selector(placed.selector, "selector");
     const props = checkDeclarations(placed.props);
     const text = placed.text === undefined ? undefined : checkPreviewText(placed.text);
     const html = placed.html === undefined ? undefined : checkPreviewHtml(placed.html);
-    if (!props.length && text === undefined && html === undefined) invalid("update must set a style, the text or the markup");
+    const variants = placed.variants === undefined ? undefined : checkHtmlVariants(placed.variants);
+    if (variants !== undefined && html !== undefined) invalid("update takes html or variants, not both");
+    if (!props.length && text === undefined && html === undefined && variants === undefined) invalid("update must set a style, the text or the markup");
     out.props = props;
     if (text !== undefined) out.text = text;
     if (html !== undefined) out.html = html;
+    if (variants !== undefined) out.variants = variants;
   }
   if (action === "remove") {
     out.selector = selector(placed.selector, "selector");
@@ -209,6 +230,9 @@ function fingerprint(checked) {
   const variations = (checked.variations ?? [])
     .map((variation) => `${variation.label}:${props(variation.props)}:${variation.text ?? ""}`)
     .join("|");
+  const htmlVariants = (checked.variants ?? [])
+    .map((variation) => `${variation.label}:${variation.html}`)
+    .join("|");
   return JSON.stringify({
     instruction: checked.instruction,
     action: checked.action,
@@ -219,7 +243,19 @@ function fingerprint(checked) {
     props: props(checked.props),
     text: checked.text ?? null,
     variations,
+    htmlVariants,
   });
+}
+
+/** How many options one paint offers: bundled variants count, a single paint counts one. */
+function paintOptions(preview) {
+  const targets = Array.isArray(preview.targets) ? preview.targets : [preview];
+  return targets.reduce((n, target) => n + (Array.isArray(target.variants) && target.variants.length ? target.variants.length : 1), 0);
+}
+
+function linkedOptions(ids, items) {
+  const byId = new Map((items ?? []).map((entry) => [entry?.id, entry]));
+  return ids.reduce((n, id) => n + paintOptions(byId.get(id) ?? {}), 0);
 }
 
 /** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the oldest pending comment-box request, when there is one. */
@@ -236,7 +272,8 @@ export async function placePreview(placed, root = process.cwd()) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
   const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };
-  const actives = (Array.isArray(saved.items) ? saved.items : []).filter((entry) => entry?.status === "active");
+  const savedItems = Array.isArray(saved.items) ? saved.items : [];
+  const actives = savedItems.filter((entry) => entry?.status === "active");
   const linkedEverywhere = new Set(queue.flatMap((entry) => entry.previewIds ?? []));
   const print = fingerprint(checked);
   // Retry safety: a paint whose link never landed stays active but unlinked.
@@ -249,7 +286,8 @@ export async function placePreview(placed, root = process.cwd()) {
       const ids = own.previewIds?.includes(orphan.id) ? [...own.previewIds] : [...(own.previewIds ?? []), orphan.id];
       own.previewIds = ids;
       own.previewId = ids[0];
-      if (ids.length >= (own.count || 1)) own.status = "answered";
+      const total = linkedOptions(ids, savedItems);
+      if (total >= (own.count || 1)) own.status = "answered";
       const at = fresh.findIndex((entry) => entry.id === own.id);
       if (at >= 0) fresh[at] = own;
       try {
@@ -257,7 +295,7 @@ export async function placePreview(placed, root = process.cwd()) {
       } catch (error) {
         throw new Error(`Paint ${orphan.id} is on the canvas but the link to request ${own.id} did not land (${error.code ?? "write failed"}). Retry the same place_preview call: it reuses ${orphan.id} without a duplicate.`);
       }
-      return { ...orphan, requestId: own.id, linked: ids.length, needed: own.count || 1, reused: true };
+      return { ...orphan, requestId: own.id, linked: linkedOptions(ids, savedItems), needed: own.count || 1, reused: true };
     }
   }
   const id = newPreviewId();
@@ -283,13 +321,15 @@ export async function placePreview(placed, root = process.cwd()) {
     // Adopt same-instruction orphans whose link never landed, oldest first,
     // so a partial write never leaves the count short forever.
     const live = [preview, ...actives].sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
+    const need = own.count || 1;
     for (const entry of live) {
-      if (ids.length >= (own.count || 1)) break;
+      if (linkedOptions(ids, items) >= need) break;
       if (entry.instruction === checked.instruction && !ids.includes(entry.id) && entry.status === "active") ids.push(entry.id);
     }
     own.previewIds = ids;
     own.previewId = ids[0];
-    if (ids.length >= (own.count || 1)) own.status = "answered";
+    const total = linkedOptions(ids, items);
+    if (total >= need) own.status = "answered";
     const at = fresh.findIndex((entry) => entry.id === own.id);
     if (at >= 0) fresh[at] = own;
     try {
@@ -297,7 +337,7 @@ export async function placePreview(placed, root = process.cwd()) {
     } catch (error) {
       throw new Error(`Placed preview ${id} but the link to request ${own.id} did not land (${error.code ?? "write failed"}). The paint is on the canvas. Retry the same place_preview call: it reuses ${id} without a duplicate.`);
     }
-    return { ...preview, requestId: own.id, linked: ids.length, needed: own.count || 1, reused: false };
+    return { ...preview, requestId: own.id, linked: linkedOptions(ids, items), needed: own.count || 1, reused: false };
   }
   return { ...preview, requestId: null, linked: 0, needed: 0, reused: false };
 }
@@ -358,12 +398,20 @@ export function previewText(preview) {
       }
     }
     if (target.action === "insert") {
-      lines.push(`Anchor: ${target.anchor ? `\`${target.anchor}\`` : "end of main"}`, `Position: ${target.position}`, "", target.html);
+      lines.push(`Anchor: ${target.anchor ? `\`${target.anchor}\`` : "end of main"}`, `Position: ${target.position}`);
+      if (Array.isArray(target.variants) && target.variants.length) {
+        target.variants.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
+      } else {
+        lines.push("", target.html);
+      }
     }
     if (target.action === "update") {
       for (const prop of target.props) lines.push(`- \`${prop.property}\`: \`${prop.value}\``);
       if (target.text !== undefined) lines.push(`- Text: ${JSON.stringify(target.text)}`);
       if (target.html !== undefined) lines.push("", target.html);
+      if (Array.isArray(target.variants) && target.variants.length) {
+        target.variants.forEach((variation, i) => lines.push("", `## Option ${i + 1}: ${variation.label}`, "", variation.html));
+      }
     }
   }
   lines.push("", "Apply this to the source in the way the project already styles things, then tell the user it is in.");
@@ -555,8 +603,9 @@ export function previewRequestText(request) {
     "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If the place is unclear and the user named none, ask first."
   );
   if (count > 1) {
-    lines.push("", `Place ${count} previews, one for each variant, with one place_preview call each. The user keeps the one they want.`);
-    lines.push(`Each paint shows as its own row with Keep and Discard, so ${count} paints are ${count} rows. Retrying the same html reuses the existing paint instead of a duplicate row.`);
+    lines.push("", `Place all ${count} variants in ONE place_preview call: one ask is one edit with ${count} options to pick from.`);
+    lines.push(`A styles target takes \`variations\`; an insert or update target takes \`variants\` of html, each with a short label. One paint is one row with one state: waiting, then ${count} options ready, then kept or discarded.`);
+    lines.push(`Retrying the same call reuses the existing paint instead of a duplicate row.`);
   }
   return lines.join("\n");
 }
