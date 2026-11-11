@@ -7,7 +7,7 @@
  * here now: one atomic write, one JSON read, one id maker and one wrapper for
  * both endpoint styles (fetch routes and Node middleware).
  */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /** A JSON file, or `missing` when it was never written. A broken file throws. */
@@ -25,14 +25,59 @@ export async function readJson(path, missing) {
  * server) sees the old file or the new one, never half of a file. The folder
  * gets a `.gitignore` of its own, so pending data never lands in a commit.
  */
+const RETRYABLE = new Set(["EPERM", "EBUSY", "EACCES", "ENOTEMPTY"]);
+const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+
+async function sweepTemps(dir) {
+  let names = [];
+  try {
+    names = await readdir(dir);
+  } catch {
+    return;
+  }
+  const now = Date.now();
+  await Promise.all(
+    names
+      .filter((name) => name.endsWith(".tmp"))
+      .map(async (name) => {
+        try {
+          const found = await stat(join(dir, name));
+          if (now - found.mtimeMs > 120000) await unlink(join(dir, name));
+        } catch {
+          // best effort: a stale temp file never blocks a save
+        }
+      })
+  );
+}
+
 export async function store(root, file, value) {
   const dir = join(root, ".edityy");
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, ".gitignore"), "*\n");
+  await sweepTemps(dir);
   const path = join(root, file);
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  const temp = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   await writeFile(temp, JSON.stringify(value, null, 2) + "\n");
-  await rename(temp, path);
+  let last = null;
+  for (let at = 0; at < 6; at++) {
+    try {
+      await rename(temp, path);
+      return;
+    } catch (error) {
+      last = error;
+      if (!RETRYABLE.has(error?.code) || at === 5) break;
+      await wait(25 * 2 ** at);
+    }
+  }
+  try {
+    await unlink(temp);
+  } catch {
+    // the temp file is already gone or still locked; the sweep takes it later
+  }
+  const hint = last?.code ? ` (${last.code}; the file is locked, usually by the dev server watcher)` : "";
+  const retry = new Error(`Could not save ${file}${hint}. Nothing was half-written: retry the same call, it is safe to retry.`);
+  retry.code = last?.code;
+  throw retry;
 }
 
 /** A random id with a prefix, so two agents never share one. */

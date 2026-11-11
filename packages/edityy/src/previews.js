@@ -200,6 +200,28 @@ export async function readPreview(id, root = process.cwd()) {
   return item ?? null;
 }
 
+function fingerprint(checked) {
+  const props = (list) =>
+    [...(list ?? [])]
+      .map((prop) => `${prop.on ?? ""}|${prop.when ?? ""}|${prop.property}=${prop.value}`)
+      .sort()
+      .join(";");
+  const variations = (checked.variations ?? [])
+    .map((variation) => `${variation.label}:${props(variation.props)}:${variation.text ?? ""}`)
+    .join("|");
+  return JSON.stringify({
+    instruction: checked.instruction,
+    action: checked.action,
+    anchor: checked.anchor ?? null,
+    position: checked.position ?? null,
+    selector: checked.selector ?? null,
+    html: checked.html ?? null,
+    props: props(checked.props),
+    text: checked.text ?? null,
+    variations,
+  });
+}
+
 /** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the oldest pending comment-box request, when there is one. */
 export async function placePreview(placed, root = process.cwd()) {
   const checked = checkPreview(placed);
@@ -213,29 +235,71 @@ export async function placePreview(placed, root = process.cwd()) {
   if (!waiting && queue.some((entry) => entry.status === "cancelled")) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
+  const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };
+  const actives = (Array.isArray(saved.items) ? saved.items : []).filter((entry) => entry?.status === "active");
+  const linkedEverywhere = new Set(queue.flatMap((entry) => entry.previewIds ?? []));
+  const print = fingerprint(checked);
+  // Retry safety: a paint whose link never landed stays active but unlinked.
+  // The same call retries the same html, so reuse that orphan instead of a duplicate row.
+  if (waiting) {
+    const orphan = actives.find((entry) => entry.instruction === checked.instruction && !linkedEverywhere.has(entry.id) && fingerprint(entry) === print);
+    if (orphan) {
+      const fresh = await readPreviewRequests(root);
+      const own = fresh.find((entry) => entry.id === waiting.id) ?? waiting;
+      const ids = own.previewIds?.includes(orphan.id) ? [...own.previewIds] : [...(own.previewIds ?? []), orphan.id];
+      own.previewIds = ids;
+      own.previewId = ids[0];
+      if (ids.length >= (own.count || 1)) own.status = "answered";
+      const at = fresh.findIndex((entry) => entry.id === own.id);
+      if (at >= 0) fresh[at] = own;
+      try {
+        await store(root, PREVIEW_REQUEST_FILE, fresh);
+      } catch (error) {
+        throw new Error(`Paint ${orphan.id} is on the canvas but the link to request ${own.id} did not land (${error.code ?? "write failed"}). Retry the same place_preview call: it reuses ${orphan.id} without a duplicate.`);
+      }
+      return { ...orphan, requestId: own.id, linked: ids.length, needed: own.count || 1, reused: true };
+    }
+  }
   const id = newPreviewId();
   const preview = { ...checked, id, status: "active", createdAt: new Date().toISOString() };
-  const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };
   const items = [preview, ...(Array.isArray(saved.items) ? saved.items : []).filter((entry) => entry?.id !== id)];
   // Past previews stay listed, newest first, within the cap. An older one waits
   // with its own status, so more than one can be up for a decision at once.
-  await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items: items.slice(0, MAX_HISTORY + 1) });
+  try {
+    await store(root, PREVIEWS_FILE, { version: 1, active: latestNonDiscarded(items), items: items.slice(0, MAX_HISTORY + 1) });
+  } catch (error) {
+    throw new Error(`Paint ${id} did not land (${error.code ?? "write failed"}). Nothing is half-written: retry the same place_preview call.`);
+  }
   // The comment-box request it answered waits no more: it stays on file as
   // answered, so the agent never paints the same ask twice. A paint whose
   // words match a waiting ask answers that ask, so several paints for one
   // count ask all land on it and no other waiting ask is consumed. A
   // chat-initiated preview with no request file simply has nothing to answer.
   if (waiting) {
-    const ids = [...(waiting.previewIds || []), id];
-    waiting.previewIds = ids;
-    waiting.previewId = ids[0];
-    if (ids.length >= (waiting.count || 1)) waiting.status = "answered";
-    const queue = await readPreviewRequests(root);
-    const at = queue.findIndex((entry) => entry.id === waiting.id);
-    if (at >= 0) queue[at] = waiting;
-    await store(root, PREVIEW_REQUEST_FILE, queue);
+    const fresh = await readPreviewRequests(root);
+    const own = fresh.find((entry) => entry.id === waiting.id);
+    if (!own) return { ...preview, requestId: null, linked: 0, needed: 0, reused: false };
+    const ids = own.previewIds?.includes(id) ? [...own.previewIds] : [...(own.previewIds ?? []), id];
+    // Adopt same-instruction orphans whose link never landed, oldest first,
+    // so a partial write never leaves the count short forever.
+    const live = [preview, ...actives].sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
+    for (const entry of live) {
+      if (ids.length >= (own.count || 1)) break;
+      if (entry.instruction === checked.instruction && !ids.includes(entry.id) && entry.status === "active") ids.push(entry.id);
+    }
+    own.previewIds = ids;
+    own.previewId = ids[0];
+    if (ids.length >= (own.count || 1)) own.status = "answered";
+    const at = fresh.findIndex((entry) => entry.id === own.id);
+    if (at >= 0) fresh[at] = own;
+    try {
+      await store(root, PREVIEW_REQUEST_FILE, fresh);
+    } catch (error) {
+      throw new Error(`Placed preview ${id} but the link to request ${own.id} did not land (${error.code ?? "write failed"}). The paint is on the canvas. Retry the same place_preview call: it reuses ${id} without a duplicate.`);
+    }
+    return { ...preview, requestId: own.id, linked: ids.length, needed: own.count || 1, reused: false };
   }
-  return preview;
+  return { ...preview, requestId: null, linked: 0, needed: 0, reused: false };
 }
 
 /** The user kept or dropped a preview, on the page or in the chat. */
@@ -492,6 +556,7 @@ export function previewRequestText(request) {
   );
   if (count > 1) {
     lines.push("", `Place ${count} previews, one for each variant, with one place_preview call each. The user keeps the one they want.`);
+    lines.push(`Each paint shows as its own row with Keep and Discard, so ${count} paints are ${count} rows. Retrying the same html reuses the existing paint instead of a duplicate row.`);
   }
   return lines.join("\n");
 }

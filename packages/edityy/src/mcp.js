@@ -322,8 +322,9 @@ export async function handle(message, root) {
           const queue = await readPreviewRequests(root);
           const left = queue.filter((entry) => entry.status === "pending");
           const more = left.length ? ` Still waiting: ${left.map((entry) => entry.instruction).join(" | ")}.` : "";
+          const link = preview.requestId ? ` (paint ${preview.linked} of ${preview.needed} for "${preview.instruction}"${preview.reused ? ", reused without a duplicate" : ""})` : "";
           return reply({
-            content: [{ type: "text", text: `Placed preview ${preview.id}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_work). The user decides on the page.${more}` }],
+            content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_work). The user decides on the page.${more}` }],
           });
         }
         if (params?.name === "place_variants") {
