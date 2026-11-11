@@ -15,7 +15,7 @@ import { readJson, store } from "./store.js";
 
 export const VARIATIONS_PATH = "/__edityy/variations";
 export const VARIATION_REQUEST_FILE = ".edityy/variation-request.json";
-const VARIATION_RESPONSE_FILE = ".edityy/variation-response.json";
+export const VARIATION_RESPONSE_FILE = ".edityy/variation-response.json";
 const ID = /^[\w-]{1,80}$/;
 /** A request is waiting for an answer, withdrawn, or answered. */
 const STATUS = ["pending", "cancelled", "answered"];

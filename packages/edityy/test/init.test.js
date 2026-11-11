@@ -153,12 +153,12 @@ test("--remove drops only the edityy server, and the file with it when nothing i
   rmSync(alone, { recursive: true, force: true });
 });
 
-test("the MCP server answers a handshake with its four tools", async () => {
+test("the MCP server answers a handshake with its five tools", async () => {
   const root = project({ "package.json": "{}" });
   const result = await checkMcp(root, 15000);
 
   assert.equal(result.ok, true, result.error);
-  assert.deepEqual(result.tools.sort(), ["get_work", "mark_applied", "place_preview", "place_variants"]);
+  assert.deepEqual(result.tools.sort(), ["clear_all", "get_work", "mark_applied", "place_preview", "place_variants"]);
   rmSync(root, { recursive: true, force: true });
 });
 

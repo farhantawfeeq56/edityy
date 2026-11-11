@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
-import { PREVIEWS_PATH, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
-import { SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
-import { runNode, runRoute, sameSite, store } from "./store.js";
-import { VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
+import { PREVIEWS_FILE, PREVIEWS_PATH, PREVIEW_REQUEST_FILE, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
+import { SESSION_FILE, SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
+import { readClearedAt, readJson, runNode, runRoute, sameSite, store, writeClearedAt } from "./store.js";
+import { VARIATION_REQUEST_FILE, VARIATION_RESPONSE_FILE, VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
 export { PREVIEWS_PATH };
@@ -562,14 +563,16 @@ async function sessionFromNode(req, res, root, allowedHosts) {
  * The page polls this once, and the MCP getter reads the same files.
  */
 export async function readAsks(root = process.cwd()) {
-  const [variationRequests, variationResponses, previewRequests, previews] = await Promise.all([
+  const [variationRequests, variationResponses, previewRequests, previews, clearedAt] = await Promise.all([
     readVariationRequests(root),
     readVariationResponses(root),
     readPreviewRequests(root),
     readPendingPreviews(root),
+    readClearedAt(root),
   ]);
   return {
     ok: true,
+    clearedAt,
     variations: {
       requests: variationRequests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
       responses: variationResponses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
@@ -579,9 +582,40 @@ export async function readAsks(root = process.cwd()) {
   };
 }
 
+/**
+ * Remove every canvas edit, ask, paint and saved handoff, and mark the clear.
+ *
+ * Deleting the files is not enough: an open page keeps its canvas in memory
+ * and would re-post it. The cleared mark tells the page to drop what it holds.
+ */
+export async function clearCanvas(root = process.cwd()) {
+  const removed = { previews: 0, previewRequests: 0, variationRequests: 0, variationResponses: 0, sessionEdits: 0, savedEdits: 0 };
+  const take = async (file, key) => {
+    try {
+      const saved = await readJson(join(root, file), null);
+      const rows = Array.isArray(saved) ? saved : Array.isArray(saved?.items) ? saved.items : Array.isArray(saved?.changes) ? saved.changes : Array.isArray(saved?.edits) ? [...saved.edits, ...(Array.isArray(saved?.regions) ? saved.regions : [])] : [];
+      removed[key] = rows.length;
+    } catch {
+      // an unreadable file still goes, counted as nothing
+    }
+    try {
+      await rm(join(root, file), { force: true });
+    } catch {
+      // already gone
+    }
+  };
+  await take(PREVIEWS_FILE, "previews");
+  await take(PREVIEW_REQUEST_FILE, "previewRequests");
+  await take(VARIATION_REQUEST_FILE, "variationRequests");
+  await take(VARIATION_RESPONSE_FILE, "variationResponses");
+  await take(SESSION_FILE, "sessionEdits");
+  await take(CHANGES_FILE, "savedEdits");
+  const clearedAt = await writeClearedAt(root);
+  return { removed, clearedAt };
+}
+
 /** The asks queue on a Node dev server: one GET the page polls. */
-async function asksFromNode(req, res, root, allowedHosts) {
-  await runNode(req, res, root, allowedHosts, "read the asks", async () => {
+async function asksFromNode(req, res, root, allowedHosts) {  await runNode(req, res, root, allowedHosts, "read the asks", async () => {
     if (req.method !== "GET") throw new SaveError(405, "GET the asks.");
     return readAsks(root);
   });

@@ -13,7 +13,7 @@ import { newId, readJson, store } from "./store.js";
 import { checkDeclarations, checkPreviewText } from "./variations.js";
 
 export const PREVIEWS_PATH = "/__edityy/previews";
-const PREVIEWS_FILE = ".edityy/previews.json";
+export const PREVIEWS_FILE = ".edityy/previews.json";
 export const PREVIEW_REQUEST_PATH = "/__edityy/preview-request";
 export const PREVIEW_REQUEST_FILE = ".edityy/preview-request.json";
 const ID = /^[\w-]{1,80}$/;

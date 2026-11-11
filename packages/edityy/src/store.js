@@ -28,6 +28,22 @@ export async function readJson(path, missing) {
 const RETRYABLE = new Set(["EPERM", "EBUSY", "EACCES", "ENOTEMPTY"]);
 const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
+export const CLEARED_FILE = ".edityy/cleared.json";
+
+/** When the canvas was last cleared by the agent, or null when never. */
+export async function readClearedAt(root = process.cwd()) {
+  const saved = await readJson(join(root, CLEARED_FILE), null);
+  const at = saved && typeof saved.clearedAt === "string" ? saved.clearedAt : null;
+  return at && !Number.isNaN(Date.parse(at)) ? at : null;
+}
+
+/** Mark the canvas cleared, so an open page drops what it holds too. */
+export async function writeClearedAt(root = process.cwd()) {
+  const clearedAt = new Date().toISOString();
+  await store(root, CLEARED_FILE, { clearedAt });
+  return clearedAt;
+}
+
 async function sweepTemps(dir) {
   let names = [];
   try {

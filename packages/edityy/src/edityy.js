@@ -6377,7 +6377,8 @@ function decorations() {
     keepSoon();
     var items = report();
     var fit = editsTasks();
-    var n = fit.length;
+    // The badge answers the list, not the filter: it shows the shown count.
+    var n = matchingTasks(fit).length;
     paintMarks(items);
     var was = countBadge.hidden ? 0 : Number(countBadge.textContent) || 0;
     countBadge.hidden = !n;
@@ -7646,6 +7647,11 @@ function decorations() {
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) throw new Error((j && j.error) || "The answers could not be read");
+        // The agent cleared every edit: drop memory too, or keep() would re-post it.
+        if (typeof j.clearedAt === "string" && j.clearedAt && j.clearedAt > lastClearedAt) {
+          lastClearedAt = j.clearedAt;
+          forgetCanvas();
+        }
         // The one queue behind the panel: what waits and what is ready.
         if (j.variations) {
           if (Array.isArray(j.variations.requests)) srvVariationRequests = j.variations.requests;
@@ -7761,6 +7767,7 @@ function decorations() {
   var PREVIEW_REQUEST_URL = "/__edityy/preview-request";
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
+  var lastClearedAt = ""; // the clear the page already honored, so a new one drops memory
   var previewCurrent = null; // the preview on the canvas now
   var previewRecords = []; // the change records the paint wrote
   var previewRows = []; // the style rows, kept so a pick moves the tick
@@ -8168,6 +8175,44 @@ function decorations() {
   function resetPreviewBox() {
     if (previewCurrent) unpaintPreview();
     else clearPreviewList();
+  }
+
+  /**
+   * The agent cleared every edit: drop what the page holds too.
+   *
+   * Files alone never empty an open page: keep() would re-post the canvas
+   * on the next keystroke and a removed edit would come back. So every
+   * in-memory edit reverts, the strips put away, and the panel retallies.
+   * Calls are safe on an empty canvas, for a clear the page never saw filled.
+   */
+  function forgetCanvas() {
+    if (variantList.length || variationId || variationServerId) discardVariants();
+    resetPreviewBox();
+    previewSeen = "";
+    answeredRegion = null;
+    variationId = "";
+    variationPolls = 0;
+    variationWords = "";
+    variationPrompt = "";
+    previewReqId = "";
+    previewReqFor = null;
+    previewReqRegion = null;
+    previewReqCount = 1;
+    previewWords = "";
+    previewOrigin = "agent";
+    srvVariantAt = {};
+    changes.slice().forEach(function (rec) {
+      try {
+        revert(rec);
+      } catch {}
+    });
+    changes.length = 0;
+    regions.length = 0;
+    current = null;
+    taskNotes = {};
+    taskSeen = {};
+    expandedTasks = Object.create(null);
+    tally();
   }
 
   /** The answer arrived: paint it. The panel shows its card with Keep and Discard. */

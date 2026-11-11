@@ -21,7 +21,7 @@ import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
-import { CHANGES_FILE } from "./index.js";
+import { CHANGES_FILE, clearCanvas } from "./index.js";
 import { SESSION_FILE } from "./session.js";
 import { placePreview, previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
 import { store } from "./store.js";
@@ -105,6 +105,14 @@ const TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: "clear_all",
+    description:
+      "Remove every Edityy edit, ask, paint and saved handoff from the project files. " +
+      "The open page drops what it holds too, so a removed edit never comes back. " +
+      "Use when the user asks to remove or clear all edits. Nothing is kept: apply first what must stay in the code.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "place_preview",
@@ -334,6 +342,14 @@ export async function handle(message, root) {
           const link = preview.requestId && preview.needed > 1 ? ` (${preview.linked} of ${preview.needed} variants for "${preview.instruction}"${preview.reused ? ", reused without a duplicate" : ""})` : preview.reused ? " (reused without a duplicate)" : "";
           return reply({
             content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_work). The user decides on the page.${more}` }],
+          });
+        }
+        if (params?.name === "clear_all") {
+          const cleared = await clearCanvas(root);
+          const n = Object.values(cleared.removed).reduce((a, b) => a + b, 0);
+          const parts = Object.entries(cleared.removed).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`);
+          return reply({
+            content: [{ type: "text", text: n ? `Cleared ${n} row${n === 1 ? "" : "s"} (${parts.join(", ")}). The canvas is empty; get_work lists nothing.` : "Nothing to clear: the canvas is already empty." }],
           });
         }
         if (params?.name === "place_variants") {

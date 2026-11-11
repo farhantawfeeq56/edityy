@@ -24,7 +24,7 @@ test("initializes as a tools server and lists its four tools", async () => {
   assert.deepEqual(init.result.capabilities, { tools: {} });
   assert.equal(init.result.serverInfo.name, "edityy");
   const list = await call(tmp(), "tools/list");
-  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_work", "mark_applied", "place_preview", "place_variants"]);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_work", "mark_applied", "clear_all", "place_preview", "place_variants"]);
   for (const tool of list.result.tools) assert.equal(tool.inputSchema.type, "object");
 });
 
@@ -243,4 +243,20 @@ test("one get_work lists every pending preview ask, and a chat paint needs no as
   const chat = await paint("a freeform chat idea");
   assert.equal(chat.result.isError, undefined);
   assert.match(chat.result.content[0].text, /Placed preview e-/);
+});
+
+test("clear_all removes every edit, ask and paint", async () => {
+  const { writePreviewRequest } = await import("../src/previews.js");
+  const root = tmp();
+  await writePreviewRequest({ id: "q-gone", instruction: "make it bigger" }, root);
+  await call(root, "tools/call", { name: "place_preview", arguments: { instruction: "make it bigger", action: "remove", selector: "main aside" } });
+  const before = await call(root, "tools/call", { name: "get_work", arguments: {} });
+  assert.match(before.result.content[0].text, /make it bigger/);
+  const cleared = await call(root, "tools/call", { name: "clear_all", arguments: {} });
+  assert.equal(cleared.result.isError, undefined);
+  assert.match(cleared.result.content[0].text, /Cleared \d+ rows/);
+  const after = await call(root, "tools/call", { name: "get_work", arguments: {} });
+  assert.match(after.result.content[0].text, /No pending asks/);
+  const empty = await call(root, "tools/call", { name: "clear_all", arguments: {} });
+  assert.match(empty.result.content[0].text, /already empty/);
 });
