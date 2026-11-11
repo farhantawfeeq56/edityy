@@ -130,7 +130,10 @@ async function write(record, root) {
 
 /** Keep the canvas the page just sent. */
 export async function writeSession(payload, root = process.cwd()) {
-  return write(checkSession(payload), root);
+  const record = checkSession(payload);
+  // Temporary clear_all diagnostic (remove after the stale-state hunt).
+  console.log(`[edityy-diag] writeSession path=${record.path} edits=${record.edits.length} regions=${record.regions.length} savedAt=${record.savedAt}`);
+  return write(record, root);
 }
 
 /**

@@ -7648,7 +7648,12 @@ function decorations() {
       .then(function (j) {
         if (!j || !j.ok) throw new Error((j && j.error) || "The answers could not be read");
         // The agent cleared every edit: drop memory too, or keep() would re-post it.
+        if (!firstPollLogged) {
+          firstPollLogged = true;
+          diag(DIAG + " poll: first asks clearedAt=" + j.clearedAt + " honored=" + lastClearedAt);
+        }
         if (typeof j.clearedAt === "string" && j.clearedAt && j.clearedAt > lastClearedAt) {
+          diag(DIAG + " poll: clear marker " + lastClearedAt + " -> " + j.clearedAt + ", forgetCanvas next");
           lastClearedAt = j.clearedAt;
           forgetCanvas();
         }
@@ -7768,6 +7773,20 @@ function decorations() {
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
   var lastClearedAt = ""; // the clear the page already honored, so a new one drops memory
+  // Temporary clear_all diagnostics (remove after the stale-state hunt): every
+  // line starts with [edityy-diag], so the browser console shows the sequence
+  // boot -> resume -> enter -> poll -> forget -> keep. No behavior changes.
+  var DIAG = "[edityy-diag]";
+  function diag(line) {
+    try {
+      if (typeof console !== "undefined" && console.info) console.info(line);
+    } catch {}
+  }
+  var firstPollLogged = false; // the first asks answer, so later polls stay quiet
+  var keepSig = ""; // the last keep() that was logged, so repeats stay quiet
+  try {
+    diag(DIAG + " boot payload=clear-handling-v1 path=" + (window.location && window.location.pathname));
+  } catch {}
   var previewCurrent = null; // the preview on the canvas now
   var previewRecords = []; // the change records the paint wrote
   var previewRows = []; // the style rows, kept so a pick moves the tick
@@ -8186,6 +8205,7 @@ function decorations() {
    * Calls are safe on an empty canvas, for a clear the page never saw filled.
    */
   function forgetCanvas() {
+    diag(DIAG + " forgetCanvas: dropping changes=" + changes.length + " regions=" + regions.length + " previews=" + (previewCurrent ? 1 : previewList.length));
     if (variantList.length || variationId || variationServerId) discardVariants();
     resetPreviewBox();
     previewSeen = "";
@@ -8632,6 +8652,7 @@ function decorations() {
     if (typeof window.fetch !== "function") return;
     var path = sessionPath();
     if (!active) {
+      diag(DIAG + " keep: mode off, DELETE session");
       try {
         window.fetch(SESSION_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
       } catch {}
@@ -8662,6 +8683,11 @@ function decorations() {
       return { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : null, confirmed: !!rg.confirmed };
     });
     var body = JSON.stringify({ version: 1, savedAt: new Date().toISOString(), path: path, markTop: markTop, edits: edits, regions: savedRegions });
+    var sig = edits.length + "/" + savedRegions.length + "/" + path;
+    if (sig !== keepSig) {
+      keepSig = sig;
+      diag(DIAG + " keep: POST session path=" + path + " edits=" + edits.length + " regions=" + savedRegions.length);
+    }
     try {
       window.fetch(SESSION_URL, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: body }).catch(function () {});
     } catch {}
@@ -8675,8 +8701,13 @@ function decorations() {
     if (typeof window.fetch !== "function") return;
     var path = sessionPath();
     var url = SESSION_URL + "?path=" + encodeURIComponent(path);
+    diag(DIAG + " resume: fetch " + url);
     var done = function (saved) {
-      if (!saved || (saved.v !== 1 && saved.version !== 1) || !Array.isArray(saved.edits)) return;
+      if (!saved || (saved.v !== 1 && saved.version !== 1) || !Array.isArray(saved.edits)) {
+        diag(DIAG + " resume: no session, mode stays off");
+        return;
+      }
+      diag(DIAG + " resume: hydrate edits=" + saved.edits.length + " regions=" + ((saved.regions || []).length) + " savedAt=" + (saved.savedAt || "?") + ", enter next");
       if (saved.markTop) markTop = saved.markTop;
       saved.edits.forEach(function (edit) {
         var el = null;
@@ -8797,6 +8828,7 @@ function decorations() {
   function enter() {
     active = true;
     activeTool = "comment";
+    diag(DIAG + " enter: mode on, in-memory changes=" + changes.length + " regions=" + regions.length);
     // The pill is the closed toolbar: it hides, and the dock stands where it
     // stood. Escape is the way back while it is hidden. The pill hides only
     // once the logo has shrunk: it is the first beat of the choreography,

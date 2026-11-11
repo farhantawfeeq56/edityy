@@ -543,7 +543,10 @@ async function sessionFromNode(req, res, root, allowedHosts) {
   await runNode(req, res, root, allowedHosts, "keep the canvas session", async () => {
     if (req.method === "GET") {
       const path = new URL(req.url ?? "/", "http://localhost").searchParams.get("path") ?? "/";
-      return { ok: true, session: await readSession(path, root) };
+      const session = await readSession(path, root);
+      // Temporary clear_all diagnostic (remove after the stale-state hunt).
+      console.log(`[edityy-diag] session GET path=${path} ${session ? `hit edits=${session.edits.length} savedAt=${session.savedAt}` : "miss"}`);
+      return { ok: true, session };
     }
     if (req.method === "POST") {
       const written = await writeSession(jsonBody(await readBody(req, SESSION_LIMIT)), root);
@@ -611,13 +614,18 @@ export async function clearCanvas(root = process.cwd()) {
   await take(SESSION_FILE, "sessionEdits");
   await take(CHANGES_FILE, "savedEdits");
   const clearedAt = await writeClearedAt(root);
+  // Temporary clear_all diagnostic (remove after the stale-state hunt).
+  console.log(`[edityy-diag] clearCanvas removed=${JSON.stringify(removed)} clearedAt=${clearedAt}`);
   return { removed, clearedAt };
 }
 
 /** The asks queue on a Node dev server: one GET the page polls. */
 async function asksFromNode(req, res, root, allowedHosts) {  await runNode(req, res, root, allowedHosts, "read the asks", async () => {
     if (req.method !== "GET") throw new SaveError(405, "GET the asks.");
-    return readAsks(root);
+    const asks = await readAsks(root);
+    // Temporary clear_all diagnostic (remove after the stale-state hunt).
+    console.log(`[edityy-diag] asks GET clearedAt=${asks.clearedAt}`);
+    return asks;
   });
 }
 
