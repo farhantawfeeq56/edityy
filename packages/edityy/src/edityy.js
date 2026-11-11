@@ -955,8 +955,8 @@
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
     ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
-    ".task-actions{display:none;flex-wrap:wrap;gap:8px;margin-top:2px}",
-    ".task[data-open=true] .task-actions{display:flex}",
+    // Shown by presence: the row is only built when the card is open, so no toggle hides it.
+    ".task-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}",
     ".task-more{font:600 8px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
     ".task[data-open=true] .task-more{transform:rotate(90deg)}",
     ".task-actions .mini[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
@@ -6610,8 +6610,8 @@ function decorations() {
     }
     if (previewReqRegion === rg) cancelPreviewRequest();
     paintMarks();
+    // One redraw: tally() repaints the open panel itself.
     tally();
-    show("changes");
   }
 
   function gotoTask(task) {
@@ -6845,6 +6845,10 @@ function decorations() {
    * them on Keep instead of showing them again.
    */
   var taskNotes = {};
+  // A server card's own pick, by request: picking it must not touch the
+  // live strip's globals, or a session on another element is lost with it.
+  var srvVariantAt = {}; // requestId -> picked index
+  var srvVariantProps = {}; // requestId -> properties the pick wrote
 
   /**
    * One decision row for every card that waits for a choice: the notes
@@ -7004,7 +7008,7 @@ function decorations() {
     }
     if (task.kind === "live-variants" || task.kind === "server-variants") {
       var list = task.kind === "live-variants" ? (task.list || variantList) : task.list;
-      var at = task.kind === "live-variants" ? variantAt : -1;
+      var at = task.kind === "live-variants" ? variantAt : (srvVariantAt[task.requestId] == null ? -1 : srvVariantAt[task.requestId]);
       var chips = document.createElement("div");
       chips.className = "task-chips";
       chips.setAttribute("data-ui-stack", "");
@@ -7014,16 +7018,10 @@ function decorations() {
         var chip = button("task-chip", "", variation.label, function (e) {
           if (e && e.stopPropagation) e.stopPropagation();
           if (e && e.preventDefault) e.preventDefault();
-          if (task.kind === "live-variants") {
-            pickVariant(i);
-          } else {
-            if (!task.el) return;
-            variationFor = task.el;
-            variationId = "";
-            variationServerId = task.requestId;
-            showVariants(task.list);
-            pickVariant(i);
-          }
+          // A server pick stays on its own card: promoting it to the live
+          // strip would drop a session on another element with it.
+          if (task.kind === "live-variants") pickVariant(i);
+          else pickServerVariant(task, i);
           refocusVariant(i);
         }, "variant-" + (i + 1));
         // The click must not move focus onto the chip: the pick rebuilds
@@ -7042,13 +7040,14 @@ function decorations() {
         rec: task.el ? record(task.el) : null,
         // A server card is not live yet: picking a chip makes it live, and
         // only then can Keep approve it.
-        keepDisabled: task.kind === "live-variants" ? variantAt < 0 : true,
+        keepDisabled: task.kind === "live-variants" ? variantAt < 0 : srvVariantAt[task.requestId] == null,
         onDiscard: function () {
           if (task.kind === "live-variants") discardVariants();
-          else forgetVariationServer(task.requestId);
+          else discardServerVariant(task);
         },
         onKeep: function () {
-          closeVariants();
+          if (task.kind === "live-variants") closeVariants();
+          else keepServerVariant(task);
         },
       });
       return;
@@ -7349,7 +7348,7 @@ function decorations() {
           if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
           var key = taskKey(task);
           expandedTasks[key] = !expandedTasks[key];
-          show("changes");
+          // One redraw: gotoTask ends in show("changes") itself.
           gotoTask(task);
         });
       } else {
@@ -7381,12 +7380,16 @@ function decorations() {
         );
       }
     });
+    // The refill clamps the scroll when the new list is shorter: restore it
+    // first, so the exits below can track what was lost.
+    list.scrollTop = top;
+    var drift = top - list.scrollTop;
     if (filtering) {
       for (var ek in oldCards) {
         if (shownKeys[ek]) continue;
         var exit = oldCards[ek].el;
         exit.className += " task-exit";
-        exit.style.top = oldCards[ek].top + "px";
+        exit.style.top = (oldCards[ek].top - drift) + "px";
         exit.setAttribute("aria-hidden", "true");
         list.appendChild(exit);
         (function (el, host) {
@@ -7408,7 +7411,6 @@ function decorations() {
       }
     }
     cardPos = {};
-    list.scrollTop = top;
     if (focusTask) {
       try {
         var kids = list.children || [];
@@ -8324,6 +8326,63 @@ function decorations() {
     while (variantsBox.firstChild) variantsBox.removeChild(variantsBox.firstChild);
     refit();
     tally();
+  }
+
+  /** Preview one server variation on its own card, leaving the live strip alone. */
+  function pickServerVariant(task, index) {
+    var el = task.el;
+    var variation = el && task.list && task.list[index];
+    if (!el || !variation) return;
+    var rec = record(el);
+    var next = {};
+    variation.props.forEach(function (p) { next[propKey(p)] = p.value; });
+    (srvVariantProps[task.requestId] || []).forEach(function (prop) {
+      if (prop in next) return;
+      applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
+    });
+    Object.keys(next).forEach(function (prop) { applyTo(el, prop, next[prop]); });
+    srvVariantProps[task.requestId] = Object.keys(next);
+    srvVariantAt[task.requestId] = index;
+    if (variation.text !== undefined && !el.children.length) previewText(el, variation.text);
+    refit();
+    tally();
+  }
+
+  /** Keep a server variation: an ordinary confirmed edit, the ask forgotten. */
+  function keepServerVariant(task) {
+    if (task.el && srvVariantAt[task.requestId] != null) {
+      var rec = record(task.el);
+      rec.origin = "Comment";
+      rec.confirmed = true;
+      autosave();
+      replayArrivalFor(rec.mark);
+    }
+    delete srvVariantAt[task.requestId];
+    delete srvVariantProps[task.requestId];
+    refit();
+    // Last: its tally repaints the open panel, the one redraw.
+    forgetVariationServer(task.requestId);
+  }
+
+  /** Discard a server variation: the page goes back, the ask is forgotten. */
+  function discardServerVariant(task) {
+    if (task.el && srvVariantAt[task.requestId] != null) {
+      var rec = record(task.el);
+      (srvVariantProps[task.requestId] || []).forEach(function (prop) { restore(rec, prop); });
+      if (rec.text !== null && task.el.textContent !== rec.text) {
+        if (rec.html !== undefined) task.el.innerHTML = rec.html;
+        else task.el.textContent = rec.text;
+      }
+      if (!diff(rec)) {
+        changes = changes.filter(function (other) { return other !== rec; });
+        forget(rec);
+      }
+    }
+    delete srvVariantAt[task.requestId];
+    delete srvVariantProps[task.requestId];
+    refit();
+    // Last: its tally repaints the open panel, the one redraw.
+    forgetVariationServer(task.requestId);
   }
 
   /** The menu while an element's words are being typed: the one way out. */
