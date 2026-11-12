@@ -2514,16 +2514,19 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   const open = openEdits(app);
   const cards = () => open.children[0].children;
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
-  const cardActions = () => exploringCard().children.find((c) => c.className === "task-actions");
+  const cardChips = () => exploringCard().children.find((c) => c.className === "task-chips");
+  const cardRow = () => exploringCard().children.find((c) => c.className === "task-editrow");
+  const cardTick = () => cardRow().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
   assert.ok(exploringCard(), "a Exploring card for the preview");
   quiet(() => { for (const fn of exploringCard().bubbles.click.bubble) fn({}); });
-  const thin = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Use thin");
-  assert.ok(thin, "the variant button");
+  assert.ok(cardChips(), "numbered chips between the heading and the notes");
+  const thin = cardChips().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "thin");
+  assert.ok(thin, "the variant chip");
+  assert.equal(cardTick().disabled, true, "no variant picked, so the tick is disabled");
   for (const fn of thin.bubbles.click.bubble) fn({});
   assert.equal(el.style.getPropertyValue("color"), "red");
-  const keep = cardActions().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview");
-  assert.equal(keep.disabled, false, "a variant is picked, so Keep is enabled");
-  for (const fn of keep.bubbles.click.bubble) fn({});
+  assert.equal(cardTick().disabled, false, "a variant is picked, so the tick is enabled");
+  for (const fn of cardTick().bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { id: "e-abc123", keep: true });
   assert.equal(el.style.getPropertyValue("color"), "red", "kept paint stays: it is an ordinary edit");
@@ -2582,7 +2585,7 @@ test("several previews at once get one Exploring card each", async () => {
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
   // Edits shows one Exploring card per instruction, each with its own
-  // Keep and Discard.
+  // x and tick.
   const open = openEdits(app);
   const cards = () => open.children[0].children;
   const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
@@ -2591,9 +2594,10 @@ test("several previews at once get one Exploring card each", async () => {
   // Keep one card: its decision goes over, the others stay.
   const first = exploring()[0];
   quiet(() => { for (const fn of first.bubbles.click.bubble) fn({}); });
-  const firstActions = exploring()[0].children.find((c) => c.className === "task-actions");
-  const keepOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this preview");
-  assert.equal(keepOne.dataset.key, "task-keep-e-two1", "its own keep button");
+  const firstRow = exploring()[0].children.find((c) => c.className === "task-editrow");
+  assert.ok(firstRow, "the notes line with x and tick, no Keep text button");
+  const keepOne = firstRow.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
+  assert.ok(keepOne, "its own tick");
   for (const fn of keepOne.bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { id: "e-two1", keep: true });
@@ -2630,8 +2634,9 @@ test("discarding a waiting preview takes it out of the list", async () => {
   assert.equal(exploring().length, 2, "both waiting");
   // Discard the first card; the second stays.
   quiet(() => { for (const fn of exploring()[0].bubbles.click.bubble) fn({}); });
-  const firstActions = exploring()[0].children.find((c) => c.className === "task-actions");
-  const dropOne = firstActions.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Discard this preview");
+  const firstRow = exploring()[0].children.find((c) => c.className === "task-editrow");
+  const dropOne = firstRow.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Discard this edit");
+  assert.ok(dropOne, "the x discards it, no Discard text button");
   for (const fn of dropOne.bubbles.click.bubble) fn({});
   assert.deepEqual(posts[0], { id: "e-drop1", keep: false });
   await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision

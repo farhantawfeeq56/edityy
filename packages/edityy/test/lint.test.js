@@ -123,7 +123,7 @@ test("control content keeps the inset minimum", () => {
 });
 
 test("the pop carries the layout markers a live check needs", () => {
-  assert.equal(source.match(/data-ui-actions/g).length, 7, "seven action groups");
+  assert.equal(source.match(/data-ui-actions/g).length, 6, "six action groups");
   assert.equal(source.match(/data-ui-container/g).length, 1, "task cards are containers");
-  assert.equal(source.match(/data-ui-stack/g).length, 1, "the chip row is a stack");
+  assert.equal(source.match(/data-ui-stack/g).length, 2, "chip rows are stacks");
 });
