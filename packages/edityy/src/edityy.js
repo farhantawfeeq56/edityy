@@ -566,14 +566,7 @@
     // One field to a line. A row that holds a value wears `fld` too: the chip
     // sets its own height and padding, and this rule only the flow around it.
     ".bar2{display:flex;align-items:center;gap:10px;padding:4px}",
-    // Two fields to a line, so a shadow is read as a pair of pairs rather than
-    // four rows: the offsets, then the two lengths of the edge. Each chip is as
-    // wide as its own digits, so the columns are as wide as the chips.
-    ".shadow-grid{display:grid;grid-template-columns:repeat(2,max-content);gap:6px;padding:2px 0}",
     ".pair{display:flex;flex-direction:column;gap:6px;padding:2px 0}",
-    // A value and the list that decides where it goes, on one line: the chip is as
-    // wide as its digits, and the list takes the room that is left.
-    ".field-line{display:flex;align-items:center;gap:6px;padding:2px 0}",
 
     ".field-label{white-space:nowrap}",
     // A glyph may stand where a word would: a shadow's blur and spread are
@@ -2652,13 +2645,10 @@ function faces() {
   // Shown as options rather than five more icons in the dock, because the dock is
   // the controls you have and the `+` is the ones you might want.
   var ADD = [
-    { key: "shadow", label: "Shadow", glyph: "layers" },
-
-    // Fill and border are about the box, not the words: an element has a
-    // background and a border, and its text has neither — a text fill is the
-    // text colour, which is in the primary dock, and text has no border at all.
+    // Fill is about the box, not the words: an element has a
+    // background, and its text has neither — a text fill is the
+    // text colour, which is in the primary dock.
     { key: "fill", label: "Fill", glyph: "paint-bucket" },
-    { key: "border", label: "Border", glyph: "square" },
     // Space, inside the box and around it. The base controls of anything that is
     // not text, and behind the `+` for text, whose padding matters too.
     { key: "padding", label: "Padding", glyph: PAD_GLYPH },
@@ -2986,7 +2976,7 @@ function faces() {
     // The picker paints its own surface: HeroUI's white overlay, not the cream
     // the rest of the controls sit on. Named here are the controls the picker is
     // all of; a shadow keeps its own panel, with the picker standing in it.
-    pop.className = key === "color" || key === "fill" || key === "border" ? "pop color" : key === "changes" ? "pop changes" : "pop";
+    pop.className = key === "color" || key === "fill" ? "pop color" : key === "changes" ? "pop changes" : "pop";
     // The menu comes back when the control closes, and stands down when one
     // opens. Only on that change: a redraw of an open control leaves the menu
     // exactly as it was.
@@ -4208,47 +4198,6 @@ function icons(items, current, onPick, cls) {
     return wrap;
   }
 
-  /**
-   * A shadow, written out as the shorthand.
-   *
-   * CSS has no box-shadow-offset-x. The longhands that look like one
-   * (box-shadow-blur and box-shadow-color) exist only inside an @property
-   * registration, and the offsets and spread have none at all — the browser
-   * drops an unknown property on the floor, so writing five invented ones draws
-   * no shadow at all. One shorthand is the honest way.
-   *
-   * [x, y, blur, spread, colour], with x/y/blur/spread absent meaning 0 — the
-   * same defaults getComputedStyle hands back for a "none" shadow.
-   *
-   * The words of the selection are shadowed with text-shadow, and a box with
-   * box-shadow: a shadow on a paragraph is the letters' own, not the block's.
-   * A text shadow has no spread, so the fourth length is left out there.
-   */
-  function shadow(values) {
-    var text = selectedKind === "text";
-    // Nothing to cast: the lengths are zero and a colour draws nothing, so the
-    // property is emptied instead and the element is left as the page had it.
-    var flat = !values[0] && !values[1] && !values[2] && (text || !values[3]);
-    var parts = [values[0] + "px", values[1] + "px", values[2] + "px"];
-    if (!text && values[3]) parts.push(values[3] + "px");
-    // A shadow with no colour of its own is the words' colour: css says so, and
-    // "undefined" in the shorthand would say nothing at all.
-    if (values[4]) parts.push(values[4]);
-    set(text ? "text-shadow" : "box-shadow", flat ? "" : parts.join(" "));
-  }
-
-  /**
-   * The computed shadow of the selection, as the four lengths and the colour.
-   * A shadow is one shorthand, so it is read as one: the colour is the rgba()
-   * it names, and the lengths are the px it spells.
-   */
-  function shadowParts() {
-    var value = String(get(selectedKind === "text" ? "text-shadow" : "box-shadow") || "").trim();
-    var colour = (value.match(/rgba?\([^)]*\)/) || [""])[0];
-    var lengths = (value.replace(/rgba?\([^)]*\)/, "").match(/-?[\d.]+px/g) || []).map(parseFloat);
-    return [lengths[0] || 0, lengths[1] || 0, lengths[2] || 0, lengths[3] || 0, colour];
-  }
-
   /* ---------------------------------------------------------------- colour */
 
   // The colours a picker offers are the page's own: nothing is saved here to
@@ -4959,56 +4908,6 @@ function icons(items, current, onPick, cls) {
     }, { glyph: "move-vertical", label: "Line spacing" });
   }
 
-  /**
-   * Where the border sits, read from the line it is drawn with: a border is drawn
-   * inside the box, an outline outside it, and an outline pulled in by half its
-   * width straddles the edge — the middle.
-   */
-  function borderEdge() {
-    if (!(num("outline-width", 0) > 0)) return "inside";
-    return (parseFloat(get("outline-offset")) || 0) < 0 ? "center" : "outside";
-  }
-
-  /** How wide the line is, wherever it sits. */
-  function borderWidth() {
-    // The computed width first, and the shorthand a value we wrote ourselves may
-    // be the only record of: outline-width says nothing until the browser has
-    // resolved the shorthand.
-    var outline = num("outline-width", 0) || parseFloat(get("outline")) || 0;
-    return Math.round(outline > 0 ? outline : num("border-width", 0));
-  }
-
-  /** The colour the line is drawn in, wherever it sits. */
-  function borderColour() {
-    return borderEdge() === "inside" ? get("border-color") : get("outline-color");
-  }
-
-  /**
-   * Draw the border where it was asked for: one line, one width, one colour.
-   *
-   * CSS draws a border inside the box and an outline outside it. So the middle is
-   * the outside line pulled in by half its own width, and the three are one line
-   * in three places rather than three different things to style.
-   */
-  function setBorder(edge, width, colour) {
-    var outside = edge !== "inside";
-    set("border-width", outside ? "" : width + "px");
-    set("border-style", outside || !width ? "" : "solid");
-    // A border takes its room from the box it sits in; an outline takes none, and
-    // an inside line that grows the element was never inside it.
-    set("box-sizing", !outside && width ? "border-box" : "");
-    set("outline", outside && width ? width + "px solid " + (colour || "currentColor") : "");
-    set("outline-offset", outside && width && edge === "center" ? -(width / 2) + "px" : "");
-    if (colour) set(outside ? "outline-color" : "border-color", colour);
-  }
-
-  /** The three places a border can sit, in the order of the list. */
-  var BORDER_EDGES = [
-    { value: "inside", label: "Inside" },
-    { value: "center", label: "Center" },
-    { value: "outside", label: "Outside" },
-  ];
-
   var CONTROLS = {
     radius: function () {
       number(0, 200, 1, Math.round(parseFloat(get("border-radius")) || 0), function (v) {
@@ -5083,58 +4982,6 @@ function icons(items, current, onPick, cls) {
     fill: function () {
       picker(get("background-color"), function (value) {
         set("background-color", value);
-      });
-    },
-    border: function () {
-      var edge = borderEdge();
-      var width = borderWidth();
-      var colour = borderColour();
-      picker(colour, function (value) {
-        colour = value;
-        setBorder(edge, width, colour);
-      });
-      // A colour on a border that has no width is a colour nobody sees, so the
-      // width is offered too. A hairline, in the ramp: thick enough to read,
-      // thin enough not to shout. Where the line sits is the second half of the
-      // same line: it decides which line the width is written to, so the panel is
-      // drawn again when it changes.
-      var row = document.createElement("div");
-      row.className = "field-line";
-      number(0, 120, 1, width, function (v) {
-        width = v;
-        setBorder(edge, width, colour);
-      }, { glyph: "square", label: "Border width" }, row);
-      row.appendChild(customSelect(BORDER_EDGES, edge, function (value) {
-        setBorder(value, width, colour);
-        show("border");
-      }, "Border position", false));
-      pop.appendChild(row);
-    },
-    shadow: function () {
-      var text = selectedKind === "text";
-      var values = shadowParts();
-      // Two fields to a line: the offsets, then the lengths of the edge. A glyph
-      // stands where "Blur" and "Spread" would, so four fields fit two lines and
-      // the colour keeps a line of its own.
-      var fields = [
-        { i: 0, label: "X", min: -40, max: 40 },
-        { i: 1, label: "Y", min: -40, max: 40 },
-        { i: 2, label: { glyph: "blur", label: "Blur" }, min: 0, max: 80 },
-      ];
-      // A text shadow has no spread: the letters cast it, not the box.
-      if (!text) fields.push({ i: 3, label: { glyph: "maximize", label: "Spread" }, min: -40, max: 40 });
-      var grid = document.createElement("div");
-      grid.className = "shadow-grid";
-      pop.appendChild(grid);
-      fields.forEach(function (field) {
-        number(field.min, field.max, 1, values[field.i], function (v) {
-          values[field.i] = v;
-          shadow(values);
-        }, field.label, grid);
-      });
-      picker(values[4], function (value) {
-        values[4] = value;
-        shadow(values);
       });
     },
     // Direction as a cycle button: one click moves to the next value, so no
