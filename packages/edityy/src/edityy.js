@@ -7934,6 +7934,9 @@ function decorations() {
   /** Paint insert nodes for one target: the records stay ordinary edits. */
   function paintInsertNodes(paint, target, html, scroll) {
     var anchor = target.anchor ? previewQuery(target.anchor) : null;
+    // A named anchor that is not on the page is a miss, not the end of
+    // main: the card stays so the user sees it never landed.
+    if (target.anchor && (!anchor || !anchor.parentElement)) return [];
     var parent = anchor ? anchor.parentElement : (document.querySelector("main") || document.body);
     if (!parent) return [];
     var nodes = previewNodes(html);
@@ -7944,6 +7947,13 @@ function decorations() {
     if (anchor && position === "before") before = anchor;
     var painted = [];
     nodes.forEach(function (node) {
+      // Bare words have no element to paint: wrap them so they land as one.
+      if (node.nodeType === 3) {
+        if (!node.nodeValue || !node.nodeValue.trim()) return;
+        var wrap = document.createElement("span");
+        wrap.textContent = node.nodeValue;
+        node = wrap;
+      }
       if (node.nodeType !== 1) return;
       if (position === "inside-start") parent.insertBefore(node, parent.firstChild);
       else if (before) parent.insertBefore(node, before);
@@ -8032,6 +8042,9 @@ function decorations() {
       return true; // the rows paint it: nothing lands until a pick does
     }
     if (target.action === "insert") {
+      // A named anchor that is not on the page is a miss: skip it like a
+      // bad selector, so the rest still lands and the card says where.
+      if (target.anchor && !previewQuery(target.anchor)) return false;
       // A pick waits: nothing lands until the user chooses an option.
       if (target.variations && target.variations.length) {
         paint.variantInserts.push(target);
