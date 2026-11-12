@@ -261,7 +261,7 @@ async function workText(root) {
     } else if (lastVariation?.status === "answered" || lastPreview?.status === "answered") {
       out.push("The last ask is already answered. If the user asks again, a new ask will appear.");
     } else {
-      out.push("No pending asks. In the browser, set more than one variation in the comment box and press an element, or write a comment with \"Apply on temporary canvas\" ticked.");
+      out.push("No pending asks. In the browser, set more than one variation in the comment box and press an element, or write a comment with \"Ask the agent to preview\" ticked.");
     }
     return out.join("\n");
   }

@@ -830,13 +830,20 @@ const selectText = (app, edit = false) => {
   return p;
 };
 
-/** Click an element and write a comment on it, as the Comment tool does. */
-const commentOn = (app, node, words) => {
+/** Click an element and write a comment on it, as the Comment tool does.
+    With `ask`, the agent-preview tick goes on before Save, as a user who
+    wants a preview does. */
+const commentOn = (app, node, words, ask = false) => {
   app.hover(node);
   quiet(() => app.clickPage());
   const box = app.root.nodes["element-menu"].children[0];
   const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
   area.value = words;
+  if (ask) {
+    const walk = (n) => (n.children || []).flatMap((c) => [c, ...walk(c)]);
+    const tickBox = walk(box).find((b) => b.getAttribute && b.getAttribute("aria-label") === "Ask the agent to preview");
+    tickBox.checked = true;
+  }
   const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
@@ -1654,6 +1661,7 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
     app.move(x1, y1);
     quiet(() => app.fire("mouseup", { clientX: x1, clientY: y1, composedPath: path, preventDefault() {}, stopPropagation() {} }));
     inMenu("Comment").value = words;
+    inMenu("Ask the agent to preview").checked = true;
     for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   };
   const onCard = (label) => {
@@ -2221,7 +2229,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
     return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
   };
   const p = selectText(app);
-  commentOn(app, p, "make it warmer");
+  commentOn(app, p, "make it warmer", true);
   await tick();
   const open = openEdits(app);
   // The foot holds one button only: the copy nudge. There is no save step.
@@ -2276,12 +2284,78 @@ test("saving a comment also asks the agent for a canvas preview", async () => {
     return { status: 200, json: async () => ({ ok: true }) };
   };
   const p = selectText(app);
-  commentOn(app, p, "make it warmer");
+  commentOn(app, p, "make it warmer", true);
   await tick();
   await tick();
   assert.equal(asked.length, 1);
   assert.equal(asked[0].instruction, "make it warmer");
   assert.match(app.win.__edityy_changes(), /make it warmer/, "the comment still saves as before");
+});
+
+test("the comment box starts quiet, remembers its choices, and says what Save does", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const menu = app.root.nodes["element-menu"];
+  const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+  const inMenu = (label) => (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  const hint = () => walk(menu.children[0]).find((b) => b.className === "element-comment-hint");
+  const p = selectText(app);
+  const q = app.el("h2", { text: "second" });
+  assert.equal(inMenu("Ask the agent to preview").checked, false, "the tick starts off: a note is only a note");
+  assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save");
+  assert.match(hint().textContent, /Saves a note with the edits/, "1 says it saves");
+  // Above 1 the button and the line say the card asks the agent instead.
+  for (const fn of inMenu("5 variations").bubbles.click.bubble) fn({});
+  assert.equal(inMenu("Ask for 5 variations").children.map((c) => c.nodeValue || "").join(""), "Ask for 5");
+  assert.match(hint().textContent, /Asks the agent for 5 variations/);
+  assert.equal(inMenu("Ask the agent to preview").disabled, true, "the tick rests while variations are on");
+  // Cancel keeps the choice: the next element opens on 5.
+  for (const fn of inMenu("Cancel the comment").bubbles.click.bubble) fn({});
+  app.hover(q);
+  quiet(() => app.clickPage());
+  assert.equal(inMenu("5 variations").getAttribute("aria-checked"), "true", "the count is remembered");
+  assert.equal(inMenu("Ask the agent to preview").checked, false, "and the tick stays off");
+  // Back to 1, the tick goes on, and the note saves with the ask.
+  for (const fn of inMenu("Single edit").bubbles.click.bubble) fn({});
+  assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save", "1 saves again");
+  inMenu("Ask the agent to preview").checked = true;
+  inMenu("Ask the agent to preview").dispatchEvent({ type: "change" });
+  assert.match(hint().textContent, /asks the agent to preview it/, "the tick says it asks");
+  inMenu("Comment").value = "warmer";
+  for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
+  app.hover(p);
+  quiet(() => app.clickPage());
+  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick is remembered");
+  assert.equal(inMenu("Single edit").getAttribute("aria-checked"), "true", "and the count is back to 1");
+});
+
+test("a waiting variation keeps its words on the card, and Cancel unlocks them", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/variations") return { status: 200, json: async () => ({ ok: true, requestId: "v-1" }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const menu = app.root.nodes["element-menu"];
+  const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+  const inMenu = (label) => (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  selectText(app);
+  inMenu("Comment").value = "thinner and darker";
+  for (const fn of inMenu("2 variations").bubbles.click.bubble) fn({});
+  for (const fn of inMenu("Ask for 2 variations").bubbles.click.bubble) fn({});
+  await tick();
+  await tick();
+  assert.equal(menu.hidden, false, "the card waits with the words");
+  assert.equal(inMenu("Comment").value, "thinner and darker", "the submitted words stay readable");
+  assert.equal(inMenu("Comment").readOnly, true, "locked until the answer lands");
+  assert.match(shown(menu.children[0]), /Waiting for your agent/, "with the wait said");
+  // Cancel withdraws the ask and unlocks the words for edits.
+  for (const fn of inMenu("Cancel the comment").bubbles.click.bubble) fn({});
+  assert.equal(menu.hidden, false, "the card stays");
+  assert.equal(inMenu("Comment").value, "thinner and darker", "with the words to edit");
+  assert.equal(inMenu("Comment").readOnly, undefined, "unlocked again");
 });
 
 test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {
@@ -2332,12 +2406,12 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   area.value = "  thinner and darker  ";
   const chip = inMenu("2 variations");
   for (const fn of chip.bubbles.click.bubble) fn({});
-  const ask = inMenu("Save comment");
+  const ask = inMenu("Ask for 2 variations");
   for (const fn of ask.bubbles.click.bubble) fn({});
   // No waiting card: the same box stays, with a note while the agent answers.
   const asking = menu.children[0];
   assert.equal(asking.className, "element-comment");
-  assert.equal(inMenu("Save comment") !== undefined, true, "the box stays");
+  assert.equal(inMenu("Ask for 2 variations") !== undefined, true, "the box stays");
   assert.equal(inMenu("Comment") !== undefined, true, "the words stay");
 
   await tick();
@@ -2354,7 +2428,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   await new Promise((r) => setTimeout(r, 1100)); // the page asks again after its wait
   assert.equal(polls, 3, "mode start, the ask, and one wait poll: one timer behind every ask");
   assert.equal(strip.hidden, true, "no separate strip: the variants live in the Edits panel");
-  assert.equal(inMenu("Save comment"), undefined, "the prompt box is done");
+  assert.equal(inMenu("Ask for 2 variations"), undefined, "the prompt box is done");
   // Open Edits and the Exploring card for this element.
   const open = openEdits(app);
   const cards = () => open.children[0].children;
@@ -2439,7 +2513,7 @@ test("keeping a variant forgets its server answer, so no Select card lingers", a
   const area = inMenu("Comment");
   area.value = "thinner and darker";
   for (const fn of inMenu("2 variations").bubbles.click.bubble) fn({});
-  for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
+  for (const fn of inMenu("Ask for 2 variations").bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 1100));
   const open = openEdits(app);
   const cards = () => open.children[0].children;

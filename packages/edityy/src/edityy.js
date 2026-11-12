@@ -736,6 +736,7 @@
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
+    ".element-comment-hint{margin:0;font:400 10px/1.4 inherit;color:var(--muted)}",
     // The tick: a square and a clear check, with its label beside it.
     ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
@@ -1854,6 +1855,10 @@
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
   var openComment = null;
+  // What the comment box keeps between opens. The tick starts off, so a
+  // quick note stays a note, and the count keeps its last pick.
+  var commentAskKept = false;
+  var commentCountKept = 1;
   // The card is 90% of its old size. The scale moves every part together.
   var commentScale = 0.9;
   // The element whose card was closed on purpose. It stays shut until the next click.
@@ -2071,17 +2076,21 @@
 
   /**
    * The one comment box: for one element or one drawn box. A field,
-   * the temporary-canvas tick, preset chips, Cancel and Save.
+   * count chips, the agent-preview tick, Cancel and Save.
+   *
+   * The box keeps its last count and tick between opens, and both start
+   * quiet: 1 and off, so a quick note stays a note. Above 1 the count
+   * changes what Save does, so the button and the line under the chips
+   * say which: a note, a preview ask, or a variations ask.
    *
    * A drawn box holds no element, so Save keeps the words on the box
    * itself and, with the tick on, asks the agent for a canvas preview.
    * Above 1, the ask carries the count, so the agent paints that many
    * previews and the user keeps one. An element's box carries the same
-   * chips: 1 makes a single edit, so Save writes the words onto the
-   * element's record and the comment travels with the edits to the
-   * agent's Markdown and to the saved file. Above 1, Save asks the
-   * agent to explore that many variations of the element instead, and
-   * the strip at the bottom right shows the answer.
+   * chips: 1 writes the words onto the element's record and the comment
+   * travels with the edits to the agent's Markdown and to the saved
+   * file. Above 1, Save locks the card with the words and a waiting note
+   * until the agent answers; Cancel withdraws the ask and unlocks the words.
    */
   function commentBox(target) {
     var el = target.el || null;
@@ -2093,18 +2102,21 @@
     area.rows = 3;
     area.placeholder = "Comment";
     area.setAttribute("aria-label", "Comment");
-    area.value = region ? region.comment || "" : variationPrompt || record(el).comment || "";
+    area.value = region ? region.comment || "" : (variationPrompt && el === variationPromptEl ? variationPrompt : record(el).comment || "");
     box.appendChild(area);
-    // The tick decides whether the change previews on a temporary canvas
-    // first.
+    // The tick asks the agent to preview the words. It starts off, so a
+    // quick note stays a note, and it keeps its last state between opens.
     var canvasRow = document.createElement("label");
     canvasRow.className = "element-comment-row";
     var canvasTick = document.createElement("input");
     canvasTick.type = "checkbox";
     canvasTick.className = "tick";
-    canvasTick.setAttribute("aria-label", "Apply on temporary canvas");
-    // The tick starts on: the change previews on the temporary canvas.
-    canvasTick.checked = true;
+    canvasTick.setAttribute("aria-label", "Ask the agent to preview");
+    canvasTick.checked = commentAskKept;
+    canvasTick.addEventListener("change", function () {
+      commentAskKept = canvasTick.checked;
+      syncSave();
+    });
     canvasRow.appendChild(canvasTick);
     var mark = document.createElement("span");
     mark.className = "element-comment-mark";
@@ -2114,14 +2126,15 @@
     var words = document.createElement("span");
     words.className = "element-comment-switch-words";
     var wordsTitle = document.createElement("span");
-    wordsTitle.appendChild(text("Apply on temporary canvas"));
+    wordsTitle.appendChild(text("Ask the agent to preview"));
     words.appendChild(wordsTitle);
     canvasRow.appendChild(words);
     box.appendChild(canvasRow);
-    // The chips decide what Save does. 1 makes a single edit; above 1,
-    // Save asks the agent to explore that many variations: of the element
-    // itself, or, for a drawn box, that many canvas previews to keep one of.
-    var count = 1;
+    // The chips decide what Save does. 1 keeps a note; above 1, Save asks
+    // the agent to explore that many variations: of the element itself,
+    // or, for a drawn box, that many canvas previews to keep one of. The
+    // count keeps its last pick between opens.
+    var count = commentCountKept || 1;
     var modes = document.createElement("div");
     modes.className = "element-comment-modes";
     var chips = document.createElement("div");
@@ -2154,23 +2167,54 @@
     });
     // The chips line sits at the top of the card, above the comment field.
     box.insertBefore(modes, area);
+    // The line under the chips says what Save does now, since the count
+    // changes the action: a note, a preview ask, or a variations ask.
+    var hint = document.createElement("p");
+    hint.className = "element-comment-hint";
+    modes.appendChild(hint);
     function setCount(next) {
       var idx = counts.indexOf(next);
       if (idx === -1) return;
       count = next;
+      commentCountKept = next;
       chipButtons.forEach(function (chip, i) {
         var on = counts[i] === next;
         chip.setAttribute("aria-checked", String(on));
         chip.tabIndex = on ? 0 : -1;
       });
+      syncSave();
+    }
+    // The button and the line follow the choice. Above 1 the tick has no
+    // say for an element: the ask is for variations, not a preview. It
+    // rests unchecked until 1 returns, and keeps its last state meanwhile.
+    function syncSave() {
+      var many = count > 1;
+      var dead = !!el && many;
+      canvasTick.disabled = dead;
+      canvasRow.style.opacity = dead ? ".45" : "";
+      canvasTick.checked = dead ? false : commentAskKept;
+      var say = many ? "Ask for " + count : "Save";
+      saveWords.nodeValue = say;
+      var name = many ? say + (region ? " previews" : " variations") : "Save comment";
+      save.setAttribute("aria-label", name);
+      save.title = name;
+      if (!many) hint.textContent = canvasTick.checked ? "Saves the note and asks the agent to preview it." : (region ? "Saves a note on the box." : "Saves a note with the edits.");
+      else if (region) hint.textContent = "Asks the agent for " + count + " previews. The answer lands at the bottom right.";
+      else hint.textContent = "Asks the agent for " + count + " variations. The card waits with the words until the answer lands.";
     }
     if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
+    // A pending ask outlives a closed card: reopening shows the words with
+    // the wait, locked, so they can be read until the answer lands.
+    var waitingAsk = el && variationFor === el && variationId;
+    if (waitingAsk) box.appendChild(noteBox("Waiting for your agent..."));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
     var save = button("element-action element-comment-action", "", "Save comment", function () {
       var words = area.value.trim();
       if (!words) return;
+      commentCountKept = count;
+      if (!el || count === 1) commentAskKept = canvasTick.checked;
       if (region) {
         region.comment = words;
         if (region.mark == null) region.mark = markTop++;
@@ -2198,19 +2242,29 @@
       }
       var n = count;
       if (n > 1) {
-        // Like a single edit, the card closes on Save and stays shut while
-        // the agent answers: no waiting words on the card, only the strip.
+        // A newer ask replaces a pending one for the same element, so the
+        // agent never works on stale words.
+        if (variationId && variationFor === el) {
+          forgetVariationServer(variationId);
+          variationId = "";
+          variationServerId = "";
+          variationPolls = 0;
+        }
         variationPrompt = words;
-        commentFor = null;
-        openComment = null;
-        cardDoneFor = el;
-        syncElementMenu();
-        requestVariations(el, n, variationPrompt, function (problem) {
-          // The ask never went out: the card reopens with why, so the
+        variationPromptEl = el;
+        // The card waits with the words: locked and noted, until the answer
+        // lands or Cancel withdraws the ask.
+        area.readOnly = true;
+        save.disabled = true;
+        box.appendChild(noteBox("Waiting for your agent..."));
+        requestVariations(el, n, words, function (problem) {
+          // The ask never went out: the card unlocks with why, so the
           // words can go again.
+          area.readOnly = false;
+          save.disabled = !area.value.trim();
           variationWords = problem;
-          cardDoneFor = null;
           commentFor = el;
+          cardDoneFor = null;
           openComment = null;
           syncElementMenu();
         });
@@ -2239,7 +2293,8 @@
         });
       }
     }, "comment-save");
-    save.appendChild(text("Save"));
+    var saveWords = text("Save");
+    save.appendChild(saveWords);
     // Cancel drops the drawn box, or puts the element's card away: what the
     // X did, now left of Save.
     var cancel = button("element-action element-comment-action", "", el ? "Cancel the comment" : "Drop the drawn box", function () {
@@ -2251,12 +2306,24 @@
         paintMarks();
         return;
       }
+      var waiting = el && variationFor === el && variationId;
+      var kept = waiting ? variationPrompt : "";
       closeVariants();
-      variationPrompt = "";
-      commentFor = null;
-      openComment = null;
-      cardDoneFor = el;
-      syncElementMenu();
+      if (waiting) {
+        // The ask is withdrawn: the words stay, editable, ready to go again.
+        variationPrompt = kept;
+        variationPromptEl = el;
+        if (cardDoneFor === el) cardDoneFor = null;
+        commentFor = el;
+        openComment = null;
+        syncElementMenu();
+      } else {
+        variationPrompt = "";
+        commentFor = null;
+        openComment = null;
+        cardDoneFor = el;
+        syncElementMenu();
+      }
     }, "comment-cancel");
     cancel.appendChild(text("Cancel"));
     actions.appendChild(cancel);
@@ -2279,6 +2346,13 @@
     });
     actions.appendChild(save);
     box.appendChild(actions);
+    // The button and the line match the kept choice from the first open.
+    syncSave();
+    // A reopened wait stays locked, as the first card did.
+    if (waitingAsk) {
+      area.readOnly = true;
+      save.disabled = true;
+    }
     // A box opened by a click is ready to type into.
     setTimeout(function () { if (area.focus) area.focus(); }, 0);
     return box;
@@ -7387,6 +7461,9 @@ function decorations() {
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var previewWords = ""; // what a failed preview ask says on the card
   var variationPrompt = "";
+  // The element the kept prompt belongs to. A prompt outlives its card while
+  // its ask waits, but it must never leak into another element's box.
+  var variationPromptEl = null;
   var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
@@ -7555,6 +7632,7 @@ function decorations() {
     if (variationFor && variationPrompt) record(variationFor).comment = variationPrompt;
     variationWords = "";
     variationPrompt = "";
+    variationPromptEl = null;
     commentFor = null;
     openComment = null;
     variantList = list;
@@ -8050,6 +8128,7 @@ function decorations() {
     variationPolls = 0;
     variationWords = "";
     variationPrompt = "";
+    variationPromptEl = null;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
@@ -8279,6 +8358,7 @@ function decorations() {
     variationPolls = 0;
     variationWords = "";
     variationPrompt = "";
+    variationPromptEl = null;
     commentFor = null;
     openComment = null;
     variantList = [];

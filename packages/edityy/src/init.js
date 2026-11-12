@@ -47,7 +47,7 @@ the Edityy MCP server.
   Each variation is plain CSS declarations and may also set the element's words
   with \`text\`. Do not edit files for this.
 - **Temporary canvas.** When the user writes a comment in the Edityy comment
-  box with "Apply on temporary canvas" ticked and presses Save, its ask waits
+  box with "Ask the agent to preview" ticked and presses Save, its ask waits
   in \`get_work\`.
   Read it every message: a preview ask needs no \`edityy::\` typed in the chat.
   A drawn-box ask carries its
