@@ -978,10 +978,11 @@
     ".task-note::placeholder{color:var(--muted)}",
     // The variant numbers wear the comment box preset chips: pills that
     // share the row's width, five to a line, the rest on the next.
-    ".task-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}",
-    ".task-chip{flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 8px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".task-chips{display:flex;flex-wrap:wrap;width:100%;gap:8px;margin-top:2px}",
+    ".task-chip{flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.task-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".task-chip:active{transform:scale(.97)}",
+    ".task-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
     // A card that is going away slides out in its direction; a new one slides
     // in. Both are quick: the state change is never waited on for long.
@@ -7058,54 +7059,62 @@ function decorations() {
   function addTaskActions(card, task) {
     var key = taskKey(task);
     if (!expandedTasks[key]) return;
-    var row = document.createElement("div");
-    row.className = "task-actions";
-    row.setAttribute("data-ui-actions", "");
+    // Preview cards wear the same box as edits: numbered chips between the
+    // heading and the notes, then x and tick. No Keep/Discard text buttons.
     if (task.kind === "preview-current") {
       var current = previewCurrent;
       var choices = current ? previewRowVariations(current) : [];
-      choices.forEach(function (variation, i) {
-        var pick = button("mini", "", "Use " + variation.label, function (e) {
-          if (e && e.stopPropagation) e.stopPropagation();
-          pickPreviewVariant(i);
-        }, "preview-" + (i + 1));
-        pick.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
-        pick.appendChild(text(variation.label));
-        row.appendChild(pick);
+      if (choices.length) {
+        var chips = document.createElement("div");
+        chips.className = "task-chips";
+        chips.setAttribute("data-ui-stack", "");
+        chips.setAttribute("role", "group");
+        chips.setAttribute("aria-label", "Variants");
+        choices.forEach(function (variation, i) {
+          var chip = button("task-chip", "", variation.label || ("Option " + (i + 1)), function (e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            pickPreviewVariant(i);
+          }, "preview-" + (i + 1));
+          chip.addEventListener("mousedown", function (e) {
+            if (e && e.preventDefault) e.preventDefault();
+          });
+          chip.setAttribute("title", variation.label || ("Option " + (i + 1)));
+          chip.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
+          chip.appendChild(text(String(i + 1)));
+          chips.appendChild(chip);
+        });
+        card.appendChild(chips);
+      }
+      // shortcut: preview notes are not carried to the kept edit yet; the field stays for consistent layout.
+      decisionRow(card, task, {
+        key: key,
+        onDiscard: function () {
+          discardPreview();
+        },
+        onKeep: function () {
+          keepPreview();
+        },
+        keepDisabled: choices.length > 0 && previewVariantAt < 0,
       });
-      var keepIt = button("mini primary", "", "Keep this preview", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        keepPreview();
-      }, "task-keep-" + task.previewId);
-      keepIt.disabled = choices.length > 0 && previewVariantAt < 0;
-      keepIt.appendChild(text("Keep"));
-      row.appendChild(keepIt);
-      var dropIt = button("mini danger", "", "Discard this preview", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        discardPreview();
-      }, "task-drop-" + task.previewId);
-      dropIt.appendChild(text("Discard"));
-      row.appendChild(dropIt);
+      return;
     }
     if (task.kind === "preview-listed") {
-      var keepOne = button("mini", "", "Keep this preview", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        notifyDecidedPreview(task.previewId, true);
-        previewSeen = "";
-        tally();
-      }, "task-keep-" + task.previewId);
-      keepOne.appendChild(text("Keep"));
-      row.appendChild(keepOne);
-      var dropOne = button("mini danger", "", "Discard this preview", function (e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        notifyDecidedPreview(task.previewId, false);
-        previewSeen = "";
-        tally();
-      }, "task-drop-" + task.previewId);
-      dropOne.appendChild(text("Discard"));
-      row.appendChild(dropOne);
+      decisionRow(card, task, {
+        key: key,
+        onDiscard: function () {
+          notifyDecidedPreview(task.previewId, false);
+          previewSeen = "";
+          tally();
+        },
+        onKeep: function () {
+          notifyDecidedPreview(task.previewId, true);
+          previewSeen = "";
+          tally();
+        },
+      });
+      return;
     }
-    if (row.firstChild) card.appendChild(row);
   }
 
   function listChanges() {
