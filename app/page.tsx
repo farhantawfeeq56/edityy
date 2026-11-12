@@ -204,8 +204,19 @@ export default function Home() {
             the spacing and the fill. Then hand the edits to your code.
           </p>
 
-          <div className="mt-9">
-            <Install note="One line of config for Vite, Express or Next.js." />
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="#install"
+              className="rounded-lg bg-neutral-900 px-6 py-3 text-[0.9375rem] font-medium text-neutral-50 tint hover:bg-neutral-700"
+            >
+              Install Edityy — it&apos;s free
+            </a>
+            <Link
+              href="/docs"
+              className="rounded-lg border border-neutral-200 bg-white px-6 py-3 text-[0.9375rem] font-medium text-neutral-900 tint hover:border-neutral-300"
+            >
+              View docs →
+            </Link>
           </div>
 
           <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
