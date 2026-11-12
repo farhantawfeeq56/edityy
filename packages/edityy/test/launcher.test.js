@@ -571,6 +571,7 @@ test("clicking the launcher dispatches the seam event and enters edit mode", () 
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
+  ensureComment(app);
   assert.deepEqual(app.win.dispatched, ["edityy:launcher-click"]);
   assert.equal(app.countDoc("click"), 1, "the page is captured in edit mode");
   assert.equal(app.launch().hidden, true, "the pill hides and the dock stands where it stood");
@@ -586,6 +587,7 @@ test("the pill hides in edit mode and the dock stands where it stood", () => {
   const app = run();
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
   });
@@ -601,6 +603,7 @@ test("leaving edit mode keeps the brand pill as the way back in", () => {
   const app = run();
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(text("p", "body"));
     app.fire("mousemove", { clientX: 40, clientY: 90 });
     // One Escape leaves the whole mode: there is no unwinding to get stuck in.
@@ -613,6 +616,7 @@ test("leaving edit mode keeps the brand pill as the way back in", () => {
   assert.equal(app.countDoc("click"), 0, "the page is released");
   // And the pill opens the mode again.
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(app.countDoc("click"), 1, "the brand opens the toolbar again");
   assert.equal(app.launch().hidden, true, "and hides again while the mode is on");
 });
@@ -628,6 +632,7 @@ test("many pointer moves in one frame find and measure once", () => {
   heading.getBoundingClientRect = () => (measured++, rect());
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(heading);
     for (let x = 0; x < 5; x++) app.fire("mousemove", { clientX: x, clientY: 10 });
   });
@@ -646,6 +651,7 @@ test("the hover frame stands off the element", () => {
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
@@ -666,6 +672,7 @@ test("a text element wins over the container around it", () => {
   heading.parentElement = card;
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(heading);
     app.clickPage();
   });
@@ -681,6 +688,7 @@ test("shift-click adds and removes elements, and Shift+Arrow does not extend sel
   const second = el("p", { text: "Second" });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(first);
     app.clickPage();
     app.hover(second);
@@ -707,6 +715,7 @@ test("an element with no text is still selectable", () => {
   const wrapper = el("div");
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(wrapper);
     app.clickPage();
   });
@@ -722,6 +731,7 @@ test("small selections hide only handles on their short dimensions", () => {
   const dot = text("span", "x", {}, { left: 100, top: 50, right: 116, bottom: 66, width: 16, height: 16 });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(dot);
     app.clickPage();
   });
@@ -740,6 +750,7 @@ test("the bounding box is one solid frame with four corner markers", () => {
   const heading = text("h1", "Edityy", {}, { left: 100, top: 50, right: 220, bottom: 98, width: 120, height: 48 });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(heading);
     app.clickPage();
   });
@@ -784,6 +795,7 @@ test("the box wears the brand colour", () => {
     { left: 10, top: 10, right: 210, bottom: 60, width: 200, height: 50 });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(panel);
     app.clickPage();
   });
@@ -818,11 +830,19 @@ const kindOf = (app, node) => {
   return app.root.selection().kind;
 };
 
+/** The Comment tool, on: browse is the default now, so a test that clicks
+    the page presses Comment first, the way a user does. */
+const ensureComment = (app) => {
+  const btn = app.root.nodes.row.children.find((b) => b.dataset.key === "comment");
+  if (btn.getAttribute("aria-pressed") !== "true") quiet(() => { for (const fn of btn.bubbles.click.bubble) fn({}); });
+};
+
 /** Select some text and open its comment box, as picking words does. Enters the
     mode first if it is not already in it, since some callers are already inside.
     With `edit`, Enter puts the caret in the words, as the shortcut does. */
 const selectText = (app, edit = false) => {
   if (!app.countDoc("click")) quiet(() => app.click());
+  ensureComment(app);
   const p = app.el("p", { text: "hello" });
   app.hover(p);
   app.clickPage();
@@ -834,6 +854,7 @@ const selectText = (app, edit = false) => {
     With `ask`, the agent-preview tick goes on before Save, as a user who
     wants a preview does. */
 const commentOn = (app, node, words, ask = false) => {
+  ensureComment(app);
   app.hover(node);
   quiet(() => app.clickPage());
   const box = app.root.nodes["element-menu"].children[0];
@@ -899,6 +920,7 @@ test("a dock that comes back takes clicks again", () => {
   dock.animate = (frames) => (exit = { cancel() {}, frames });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(text("p", "body"));
     app.clickPage();
   });
@@ -916,6 +938,7 @@ test("a dock that comes back takes clicks again", () => {
   // come back with it. Left as none, every press in the row lands on the page.
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(text("p", "second"));
     app.clickPage();
   });
@@ -945,6 +968,7 @@ test("an element is classified before it is selected, as one of three", () => {
   const { run, text, el } = fakeDom();
   const app = run();
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(kindOf(app, text("h1", "Edityy")), "text");
   assert.equal(kindOf(app, el("div")), "container");
   assert.equal(kindOf(app, el("img")), "media");
@@ -961,6 +985,7 @@ test("media beats the words around it", () => {
   img.childNodes = [{ nodeType: 3, nodeValue: "Logo" }];
   quiet(() => {
     app.click();
+    ensureComment(app);
     assert.equal(kindOf(app, img), "media");
   });
 });
@@ -984,6 +1009,7 @@ test("every structural tag is a container", () => {
   ];
   quiet(() => {
     app.click();
+    ensureComment(app);
     for (const tag of CONTAINERS) {
       assert.equal(kindOf(app, el(tag)), "container", tag);
     }
@@ -997,6 +1023,7 @@ test("a control holding words is text, because that is the copy being read", () 
   const link = text("a", "Read more");
   quiet(() => {
     app.click();
+    ensureComment(app);
     assert.equal(kindOf(app, save), "text");
     assert.equal(kindOf(app, link), "text");
   });
@@ -1009,6 +1036,7 @@ test("whitespace alone is not text", () => {
   spacer.childNodes = [{ nodeType: 3, nodeValue: "   \n " }];
   quiet(() => {
     app.click();
+    ensureComment(app);
     assert.equal(kindOf(app, spacer), "container");
   });
 });
@@ -1020,6 +1048,7 @@ test("svg <text> is text, because that is the only place it can be edited", () =
   node.childNodes = [{ nodeType: 3, nodeValue: "Chart" }];
   quiet(() => {
     app.click();
+    ensureComment(app);
     assert.equal(kindOf(app, node), "text");
   });
 });
@@ -1029,6 +1058,7 @@ test("deselecting reports no kind at all", () => {
   const app = run();
   quiet(() => {
     app.click();
+    ensureComment(app);
     kindOf(app, text("p", "hi"));
     app.fire("keydown", { key: "Escape" });
   });
@@ -1143,6 +1173,7 @@ test("a container gets no caret, because its children are not text to rewrite", 
   const card = el("section");
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(card);
     app.clickPage();
   });
@@ -1158,7 +1189,7 @@ test("delete can be undone and redone with the keyboard", () => {
   const sibling = el("aside");
   parent.appendChild(selected);
   parent.appendChild(sibling);
-  quiet(() => { app.click(); app.hover(selected); app.clickPage(); });
+  quiet(() => { app.click(); ensureComment(app); app.hover(selected); app.clickPage(); });
   app.action("Delete");
   assert.deepEqual(parent.children, [sibling]);
   assert.equal(key(app, "z", { ctrlKey: true }), true);
@@ -1201,6 +1232,7 @@ test("the caret goes to the end of the words, not where the click landed", () =>
   });
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(p);
     app.clickPage();
   });
@@ -1214,6 +1246,7 @@ test("an element's own inline outline survives being edited", () => {
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
+  ensureComment(app);
   const p = app.el("p", { text: "hello", style: { outline: "2px solid red" } });
   app.hover(p);
   quiet(() => app.clickPage());
@@ -1297,6 +1330,7 @@ test("the selection frame follows the page when it moves the element on its own"
   section.appendChild(p);
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(p);
     app.clickPage();
   });
@@ -1334,6 +1368,7 @@ test("scrolling drops the hover frame, whose element has nothing to do with the 
   const heading = text("h1", "Edityy");
   quiet(() => {
     app.click();
+    ensureComment(app);
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
   });
@@ -1382,7 +1417,7 @@ test("the toolbar is up with nothing selected, offering the three things it has"
   const row = app.root.nodes.row.children;
   assert.deepEqual(row.map((chip) => chip.dataset.key), ["comment", "add", "edits"], "the three tools");
   assert.equal(row[2], app.root.nodes.review, "the edits list is the last segment of the same row");
-  assert.equal(row[0].getAttribute("aria-pressed"), "true", "Comment is the default tool");
+  assert.equal(row[0].getAttribute("aria-pressed"), "false", "Browse is the default: no tool is on");
   assert.equal(row[1].getAttribute("aria-pressed"), "false");
   assert.equal(app.root.nodes.create, undefined, "there is no Add element button");
 });
@@ -1393,7 +1428,7 @@ test("Edits is one of the three tools: only one is on at a time", () => {
   const row = () => app.root.nodes.row.children;
   const pressed = () => row().map((b) => b.getAttribute("aria-pressed"));
   quiet(() => app.click());
-  assert.deepEqual(pressed(), ["true", "false", "false"], "Comment starts on");
+  assert.deepEqual(pressed(), ["false", "false", "false"], "Browse starts: no tool on");
   press(app, "edits");
   assert.deepEqual(pressed(), ["false", "false", "true"], "Edits takes the place of Comment");
   assert.equal(app.root.nodes.pop.hidden, false, "the list is open");
@@ -1414,8 +1449,7 @@ test("with no tool on, hovering the page shows no bounding box", () => {
   const app = run();
   const heading = text("h1", "Edityy");
   quiet(() => app.click());
-  press(app, "comment");
-  assert.deepEqual(app.root.nodes.row.children.map((b) => b.getAttribute("aria-pressed")), ["false", "false", "false"]);
+  assert.deepEqual(app.root.nodes.row.children.map((b) => b.getAttribute("aria-pressed")), ["false", "false", "false"], "browse is the default");
   quiet(() => {
     app.hover(heading);
     app.fire("mousemove", { clientX: 10, clientY: 10 });
@@ -1428,6 +1462,7 @@ test("Alt+S drops to browse: no tool on, nothing picked", () => {
   const app = run();
   const heading = text("h1", "Edityy");
   quiet(() => app.click());
+  ensureComment(app);
   app.hover(heading);
   quiet(() => app.clickPage());
   assert.ok(app.root.selection(), "a click picked the words first");
@@ -1441,6 +1476,7 @@ test("the grip is part of the primary toolbar, with six dots and no tooltip", ()
   const { run } = fakeDom();
   const app = run();
   quiet(() => app.click());
+  ensureComment(app);
   const html = app.root.innerHTML;
   const gripAt = html.indexOf('id="grip"');
   assert.ok(gripAt !== -1, "the bar carries a grip");
@@ -1470,6 +1506,7 @@ test("dragging the grip moves the toolbar, and exit puts it home", () => {
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
   dock.offsetHeight = 40;
   quiet(() => app.click());
+  ensureComment(app);
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1040, clientY: 760 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1040, clientY: 760 });
@@ -1500,6 +1537,7 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
   dock.offsetHeight = 40;
   quiet(() => app.click());
+  ensureComment(app);
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1040, clientY: 760 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1040, clientY: 760 });
@@ -1507,6 +1545,7 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   assert.equal(launch.style.left, "906px", "the pill stays where the bar stood");
   assert.equal(launch.style.top, "736px");
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(dock.style.left, "906px", "the bar stands back up where the pill was");
   assert.equal(dock.style.top, "736px");
 });
@@ -1520,6 +1559,7 @@ test("dropping between places settles in the nearest one", () => {
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
   dock.offsetHeight = 40;
   quiet(() => app.click());
+  ensureComment(app);
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 400, clientY: 300 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 400, clientY: 300 });
@@ -1538,6 +1578,7 @@ test("dropping on a middle edge stands the bar vertical", () => {
   Object.defineProperty(dock, "offsetHeight", { configurable: true, get: () => (dock.getAttribute("data-orient") === "vertical" ? 270 : 40) });
   Object.defineProperty(dock, "offsetWidth", { configurable: true, get: () => (dock.getAttribute("data-orient") === "vertical" ? 40 : 270) });
   quiet(() => app.click());
+  ensureComment(app);
   for (const fn of grip.bubbles.pointerdown.bubble) fn({ clientX: 910, clientY: 710, preventDefault() {} });
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1150, clientY: 400 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1150, clientY: 400 });
@@ -1559,6 +1600,7 @@ test("opening where the bar would hang off pulls it back on", () => {
   launch.style.right = "auto";
   launch.style.bottom = "auto";
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(dock.style.left, "922px", "the bar comes back inside the page");
   assert.equal(dock.style.top, "750px", "a side that fits stays put");
 });
@@ -1578,8 +1620,10 @@ test("the logo pill itself drags, and a drag never opens", () => {
   assert.match(app.root.innerHTML, /id="label"[^>]*draggable="false"/, "the logo is not natively draggable");
   assert.match(app.root.innerHTML, /#launch img\{[^}]*pointer-events:none/, "presses land on the pill, not the picture");
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(dock.hidden, true, "letting go over the pill does not open");
   quiet(() => app.click());
+  ensureComment(app);
   assert.equal(dock.hidden, false, "a tap still opens");
 });
 
@@ -1864,6 +1908,7 @@ test("an element is found again by a short selector", () => {
   const { run, el } = fakeDom();
   const app = run();
   quiet(() => app.click());
+  ensureComment(app);
   const list = el("ul");
   list.getAttribute = () => undefined;
   const items = [app.el("li", { text: "one" }), app.el("li", { text: "two" })];
@@ -2106,6 +2151,7 @@ test("leaving the mode forgets the canvas on the server", async () => {
   dom.win.fetch = server.fetch;
   const app = dom.run();
   quiet(() => app.click());
+  ensureComment(app);
   await tick();
   assert.notEqual(server.session, null, "kept while the mode is");
   // The brand never closes the mode: Escape leaves it.
@@ -2133,6 +2179,7 @@ test("arrows move the selection to the parent, a child or a sibling", () => {
   const app = dom.run();
   const t = tree(dom);
   quiet(() => app.click());
+  ensureComment(app);
   app.hover(t.img);
   quiet(() => app.clickPage());
   assert.equal(app.root.selection().el, t.img);
@@ -2157,6 +2204,7 @@ test("in words being typed into, a bare arrow moves the caret, not the selection
   const app = dom.run();
   const t = tree(dom);
   quiet(() => app.click());
+  ensureComment(app);
   app.hover(t.p);
   quiet(() => app.clickPage());
   app.action("Edit text");
@@ -2169,6 +2217,7 @@ test("an arrow on one of our own controls is the control's", () => {
   const app = dom.run();
   const t = tree(dom);
   quiet(() => app.click());
+  ensureComment(app);
   app.hover(t.img);
   quiet(() => app.clickPage());
   assert.equal(arrow(app, "ArrowLeft", { composedPath: () => [app.host] }), false);
@@ -2356,6 +2405,41 @@ test("a waiting variation keeps its words on the card, and Cancel unlocks them",
   assert.equal(menu.hidden, false, "the card stays");
   assert.equal(inMenu("Comment").value, "thinner and darker", "with the words to edit");
   assert.equal(inMenu("Comment").readOnly, undefined, "unlocked again");
+});
+
+test("a submitted comment stays on its Pending card while the agent works", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/preview-request" && init.method === "POST") return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const p = selectText(app);
+  commentOn(app, p, "make it warmer", true);
+  await tick();
+  await tick();
+  const open = openEdits(app);
+  const list = open.children.find((c) => c.className === "changes-list");
+  const waiting = list.children.find((c) => shown(c).includes("Waiting for your agent"));
+  assert.ok(waiting, "the Pending card");
+  assert.match(shown(waiting), /make it warmer/, "the submitted words stay readable while the agent works");
+});
+
+test("Cancel then clicking the same element reopens its card", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  const menu = app.root.nodes["element-menu"];
+  assert.equal(menu.hidden, false, "a click opens the card");
+  const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+  const cancel = walk(menu.children[0]).find((b) => b.getAttribute && b.getAttribute("aria-label") === "Cancel the comment");
+  for (const fn of cancel.bubbles.click.bubble) fn({});
+  assert.equal(menu.hidden, true, "Cancel puts it away");
+  app.hover(p);
+  quiet(() => app.clickPage());
+  assert.equal(menu.hidden, false, "the same element reopens its card");
 });
 
 test("a variation request waits for the agent, and keys 1 to 5 switch the element", async () => {
@@ -2557,6 +2641,7 @@ test("a panel that already left takes no ghost down with the mode", () => {
     animate: () => ({}),
   });
   quiet(() => app.click());
+  ensureComment(app);
   // The strip is gone from under the payload: whatever moved it, leaving the
   // mode must not throw on the ghost it leaves behind.
   strip.parentElement = null;
@@ -2578,6 +2663,7 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   };
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
+  ensureComment(app);
   await tick();
   assert.equal(app.root.nodes.preview.hidden, true, "no preview until the agent places one");
   const el = selectText(app);
@@ -2617,6 +2703,7 @@ test("a variant that sets words paints them like a preview", async () => {
   };
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
+  ensureComment(app);
   await tick();
   const el = selectText(app);
   app.doc.querySelector = () => el;
@@ -2654,6 +2741,7 @@ test("several previews at once get one Exploring card each", async () => {
   };
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
+  ensureComment(app);
   const el = selectText(app);
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
@@ -2699,6 +2787,7 @@ test("discarding a waiting preview takes it out of the list", async () => {
   };
   const tick = () => new Promise((r) => setTimeout(r, 0));
   quiet(() => app.click());
+  ensureComment(app);
   const el = selectText(app);
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));

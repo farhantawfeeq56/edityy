@@ -5231,9 +5231,10 @@ function decorations() {
    * lengths, and the corner on them. Its opacity is added with the `+`, as a
    * shadow or a border is.
    */
-  // The toolbar has three parts: Comment, Add, Edits. Comment is on entry.
-  // One tool at a time. A second click on the active tool drops to browse.
-  var activeTool = "comment";
+  // The toolbar has three parts: Comment, Add, Edits. Browse is on entry:
+  // no tool, so a click only looks. One tool at a time. A second click on
+  // the active tool drops back to browse.
+  var activeTool = "";
 
   /** Press a tool in the row. A second press drops to browse. */
   function pressTool(key) {
@@ -6586,12 +6587,13 @@ function decorations() {
     (srvVariationRequests || []).forEach(function (request) {
       if (request && request.id) requestsById[request.id] = request;
     });
-    // Requested: a variation ask with no answer.
+    // Requested: a variation ask with no answer. The words stay on the card
+    // while the agent works, so the submitted comment never vanishes.
     if (variationId) {
       seenVariation[variationId] = true;
       tasks.push({
         state: "requested", el: variationFor || null, label: variationFor ? nameOf(variationFor) : "Element",
-        origin: "Comment", detail: "Waiting for your agent...", kind: "variation", requestId: variationId,
+        origin: "Comment", detail: "Waiting for your agent..." + (variationPrompt ? " \u00b7 " + variationPrompt : ""), kind: "variation", requestId: variationId,
       });
     }
     (srvVariationRequests || []).forEach(function (request) {
@@ -6600,15 +6602,17 @@ function decorations() {
       var el = previewQuery(request.selector);
       tasks.push({
         state: "requested", el: el || null, label: el ? nameOf(el) : request.selector || "Element",
-        origin: "Comment", detail: "Waiting for your agent...", kind: "variation", requestId: request.id,
+        origin: "Comment", detail: "Waiting for your agent..." + (request.prompt ? " \u00b7 " + request.prompt : ""), kind: "variation", requestId: request.id,
       });
     });
-    // Requested: a preview ask with no paint.
+    // Requested: a preview ask with no paint. The words stay on the card
+    // while the agent works, so the submitted comment never vanishes.
     if (previewReqId) {
       seenPreview[previewReqId] = true;
+      var askWords = previewReqFor ? (record(previewReqFor).comment || "") : (previewReqRegion ? (previewReqRegion.comment || "") : "");
       tasks.push({
         state: "requested", el: previewReqFor || null, region: previewReqRegion || null, label: previewReqFor ? nameOf(previewReqFor) : previewReqRegion ? addedLabel(previewReqRegion) : "Element",
-        origin: "Comment", detail: previewReqCount > 1 ? "Waiting for " + previewReqCount + " variants..." : "Waiting for your agent...", kind: "preview", requestId: previewReqId,
+        origin: "Comment", detail: (previewReqCount > 1 ? "Waiting for " + previewReqCount + " variants..." : "Waiting for your agent...") + (askWords ? " \u00b7 " + askWords : ""), kind: "preview", requestId: previewReqId,
       });
     }
     (srvPreviewRequests || []).forEach(function (request) {
@@ -6618,7 +6622,7 @@ function decorations() {
       var rg = request.region ? matchRegion(request.region) : null;
       tasks.push({
         state: "requested", el: el || null, region: rg, label: el ? nameOf(el) : (request.element && request.element.selector) || (rg ? addedLabel(rg) : "Element"),
-        origin: "Comment", detail: request.count > 1 ? "Waiting for " + request.count + " variants..." : "Waiting for your agent...", kind: "preview", requestId: request.id,
+        origin: "Comment", detail: (request.count > 1 ? "Waiting for " + request.count + " variants..." : "Waiting for your agent...") + (request.instruction ? " \u00b7 " + request.instruction : ""), kind: "preview", requestId: request.id,
       });
     });
     // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
@@ -6667,11 +6671,20 @@ function decorations() {
       });
     }
     // Edits: ticked ones are Ready, the rest are Exploring. A comment ask
-    // still waiting for the agent is only the requested card, not an edit.
-    // A drawn box with its ask out is the same: Requested only.
+    // still waiting for the agent is only the requested card, not an edit:
+    // the words stay on that card. A drawn box with its ask out is the same:
+    // Requested only. A wait with no requested card left (a reload dropped
+    // the live request) still shows its edit, so the words never vanish.
+    var waitingEls = [];
+    var waitingRgs = [];
+    tasks.forEach(function (task) {
+      if (!task || task.state !== "requested") return;
+      if (task.el) waitingEls.push(task.el);
+      if (task.region) waitingRgs.push(task.region);
+    });
     var kept = report().filter(function (item) {
-      if (item.rec && item.rec.commentAsk) return false;
-      if (item.rg && item.rg.waiting) return false;
+      if (item.rec && item.rec.commentAsk && waitingEls.indexOf(item.rec.el) !== -1) return false;
+      if (item.rg && item.rg.waiting && waitingRgs.some(function (rg) { return sameRegion(rg, item.rg); })) return false;
       if (item.rec && previewRecords.indexOf(item.rec) !== -1) return false;
       if (item.rec && variantList && variantList.length && item.rec.el === variationFor) return false;
       return true;
@@ -7460,6 +7473,7 @@ function decorations() {
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var previewWords = ""; // what a failed preview ask says on the card
+  var asksReached = false; // the asks queue answered once: the dev server is up
   var variationPrompt = "";
   // The element the kept prompt belongs to. A prompt outlives its card while
   // its ask waits, but it must never leak into another element's box.
@@ -7533,9 +7547,13 @@ function decorations() {
       variationPolls += 1;
       if (variationPolls > MAX_POLLS) {
         // Two minutes of asking: the agent is not coming, so the box says so.
+        // When the queue itself answers, the server is up and only the agent
+        // is quiet: say that, not that the server is missing.
         variationId = "";
         variationWait = "";
-        variationWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        variationWords = asksReached
+          ? "The agent has not answered yet. The request waits on file: ask your agent to read it."
+          : "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
         cardDoneFor = null;
         commentFor = variationFor;
         openComment = null;
@@ -7558,7 +7576,9 @@ function decorations() {
         previewReqRegion = null;
         previewReqCount = 1;
         resetPreviewBox();
-        previewWords = "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        previewWords = asksReached
+          ? "The agent has not answered yet. The request waits on file: ask your agent to read it."
+          : "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
         if (waitRegion) {
           regionFor = waitRegion;
           regionBox.hidden = false;
@@ -7579,6 +7599,7 @@ function decorations() {
     window.fetch(ASKS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
+        asksReached = true;
         if (!j || !j.ok) throw new Error((j && j.error) || "The answers could not be read");
         // The agent cleared every edit: drop memory too, or keep() would re-post it.
         if (typeof j.clearedAt === "string" && j.clearedAt && j.clearedAt > lastClearedAt) {
@@ -8766,7 +8787,7 @@ function decorations() {
 
   function enter() {
     active = true;
-    activeTool = "comment";
+    activeTool = ""; // browse: a click only looks until a tool is pressed
     // The pill is the closed toolbar: it hides, and the dock stands where it
     // stood. Escape is the way back while it is hidden. The pill hides only
     // once the logo has shrunk: it is the first beat of the choreography,
@@ -9336,6 +9357,9 @@ function decorations() {
       return;
     }
     var hit = pickAt(e.clientX, e.clientY);
+    // A fresh click reopens a dismissed card, even on the same element: the
+    // dismissal only stops a reopen without a click, like a scroll refit.
+    cardDoneFor = null;
     if (e.shiftKey) extendSelection(hit && hit.el);
     else select(hit && hit.el, hit);
   }
