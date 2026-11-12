@@ -354,6 +354,11 @@
     ".marks .mark{position:absolute;display:grid;place-items:center;padding:4px;",
     "border-radius:4px;background:#f6e8b0;color:#1a1915;font:600 12px/1 inherit;pointer-events:none;",
     "transform:translate(-50%,-50%);box-shadow:0 1px 2px var(--ink-12)}",
+    // A number whose ask is still out breathes until the answer lands: the
+    // canvas says work is happening, not only that an edit exists. Opacity
+    // only, so the beat never moves the number off its spot.
+    ".marks .mark.waiting{animation:markWait var(--pulse) var(--breathe) infinite}",
+    "@keyframes markWait{0%,100%{opacity:.45}50%{opacity:1}}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
@@ -6355,7 +6360,11 @@ function decorations() {
       }
       if (!at) return;
       var m = document.createElement("span");
-      m.className = "mark";
+      // A mark whose ask is still out breathes: the canvas shows the wait.
+      var waits = (item.rg && item.rg.waiting) ||
+        (item.rec && item.rec.commentAsk && previewReqId) ||
+        (item.rec && variationId && variationFor === item.rec.el);
+      m.className = "mark" + (waits ? " waiting" : "");
       m.style.left = Math.round(at.left) + "px";
       m.style.top = Math.round(at.top) + "px";
       m.appendChild(text(String(item.mark)));
@@ -7477,7 +7486,7 @@ function decorations() {
   var variationPolls = 0;
   var variationWords = ""; // what the prompt box says: waiting, or why not
   var previewWords = ""; // what a failed preview ask says on the card
-  var asksReached = false; // the asks queue answered once: the dev server is up
+  var asksMissed = 0; // consecutive asks reads that failed: the server may be down
   var variationPrompt = "";
   // The element the kept prompt belongs to. A prompt outlives its card while
   // its ask waits, but it must never leak into another element's box.
@@ -7550,14 +7559,14 @@ function decorations() {
     if (variationWait) {
       variationPolls += 1;
       if (variationPolls > MAX_POLLS) {
-        // Two minutes of asking: the agent is not coming, so the box says so.
-        // When the queue itself answers, the server is up and only the agent
-        // is quiet: say that, not that the server is missing.
+        // Two minutes of asking: the agent is not coming. The box names
+        // what went quiet: the server when its reads kept failing, else
+        // the agent, whose request still waits on file.
         variationId = "";
         variationWait = "";
-        variationWords = asksReached
-          ? "The agent has not answered yet. The request waits on file: ask your agent to read it."
-          : "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        variationWords = asksMissed > 1
+          ? "The dev server stopped answering. Start it again, then save the comment again."
+          : "The agent has not answered yet. The request waits on file: ask your agent to read it.";
         cardDoneFor = null;
         commentFor = variationFor;
         openComment = null;
@@ -7568,7 +7577,7 @@ function decorations() {
       previewPolls += 1;
       if (previewPolls > MAX_POLLS) {
         // Two minutes of asking: the agent is not coming. A waiting ask reopens
-        // its card with why, the way a variation ask does.
+        // its card with what went quiet: the server or the agent.
         var waitEl = previewReqFor;
         var waitRegion = previewReqRegion;
         previewReqId = "";
@@ -7580,9 +7589,9 @@ function decorations() {
         previewReqRegion = null;
         previewReqCount = 1;
         resetPreviewBox();
-        previewWords = asksReached
-          ? "The agent has not answered yet. The request waits on file: ask your agent to read it."
-          : "The agent did not answer. Connect the Edityy MCP server so it can read the request.";
+        previewWords = asksMissed > 1
+          ? "The dev server stopped answering. Start it again, then save the comment again."
+          : "The agent has not answered yet. The request waits on file: ask your agent to read it.";
         if (waitRegion) {
           regionFor = waitRegion;
           regionBox.hidden = false;
@@ -7603,7 +7612,7 @@ function decorations() {
     window.fetch(ASKS_URL, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        asksReached = true;
+        asksMissed = 0;
         if (!j || !j.ok) throw new Error((j && j.error) || "The answers could not be read");
         // The agent cleared every edit: drop memory too, or keep() would re-post it.
         if (typeof j.clearedAt === "string" && j.clearedAt && j.clearedAt > lastClearedAt) {
@@ -7641,6 +7650,7 @@ function decorations() {
         askTimer = setTimeout(pollAsks, POLL_DELAY);
       })
       .catch(function () {
+        asksMissed += 1;
         if (askTimer) clearTimeout(askTimer);
         askTimer = setTimeout(pollAsks, POLL_DELAY);
       });
@@ -9351,10 +9361,11 @@ function decorations() {
     }
     // Browse keeps every page click: no tool is on, so nothing is picked.
     if (!activeTool) return;
+    // Add draws its box with a drag: a click alone picks nothing, so the
+    // page keeps it, and links, buttons and text selection still work.
+    if (activeTool === "add" || regionFor) return;
     e.preventDefault();
     e.stopPropagation();
-    // Add draws its box with a drag: a click alone picks nothing.
-    if (activeTool === "add" || regionFor) return;
     if (moving) {
       insertElement(e.clientX, e.clientY);
       return;

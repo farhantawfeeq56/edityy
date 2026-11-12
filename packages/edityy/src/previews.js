@@ -258,17 +258,16 @@ function linkedOptions(ids, items) {
   return ids.reduce((n, id) => n + paintOptions(byId.get(id) ?? {}), 0);
 }
 
-/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the oldest pending comment-box request, when there is one. */
+/** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the pending comment-box request with the same words, when there is one. */
 export async function placePreview(placed, root = process.cwd()) {
   const checked = checkPreview(placed);
   // A request the user withdrew is not answered: the page already took the
   // waiting strip away, and a late paint would fight the next request.
-  // A withdrawn request is skipped: with several asks on file, each one is
-  // independent and the oldest still waiting is the one answered.
+  // Only the ask with the same words is answered: a paint with other words
+  // answers nothing, so it never clears the wrong card.
   const queue = await readPreviewRequests(root);
-  const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === checked.instruction)
-    || queue.find((entry) => entry.status === "pending") || null;
-  if (!waiting && queue.some((entry) => entry.status === "cancelled")) {
+  const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === checked.instruction) || null;
+  if (!waiting && queue.some((entry) => entry.status === "cancelled" && entry.instruction === checked.instruction)) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
   const saved = (await readJson(join(root, PREVIEWS_FILE), null)) ?? { items: [] };

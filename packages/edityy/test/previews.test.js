@@ -189,12 +189,22 @@ test("a comment-box preview request is answered once place_preview paints", asyn
   assert.match(previewRequestText(varied), /Place all 5 variants in ONE place_preview call/);
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 0 }), { status: 400 });
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 11 }), { status: 400 });
-  const preview = await placePreview(insert, root);
+  // The paint quotes the ask's words: only the ask with the same words is answered.
+  const paint = { ...insert, instruction: "make the heading bigger" };
+  const preview = await placePreview(paint, root);
   const answered = await readPreviewRequest(root);
   assert.equal(answered.status, "answered");
   assert.equal(answered.previewId, preview.id);
   await clearPreviewRequest(root);
-  await assert.rejects(placePreview(insert, root), /withdrew/);
+  await assert.rejects(placePreview(paint, root), /withdrew/);
+});
+
+test("a paint with other words answers no ask and clears no card", async () => {
+  const root = tmp();
+  await writePreviewRequest({ id: "p-keep", instruction: "make the heading bigger" }, root);
+  const preview = await placePreview(insert, root);
+  assert.equal(preview.requestId, null, "other words link to no ask");
+  assert.equal((await readPreviewRequest(root)).status, "pending", "the waiting card stays");
 });
 
 test("a dragged-box request carries its location, and every pending ask lists", async () => {
