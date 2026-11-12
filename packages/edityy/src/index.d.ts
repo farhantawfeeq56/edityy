@@ -166,6 +166,11 @@ export declare function readAsks(root?: string): Promise<{
   previews: unknown[];
 }>;
 
+/**
+ * Remove every canvas edit, ask, paint and saved handoff, and mark the clear.
+ */
+export declare function clearCanvas(root?: string): Promise<{ removed: Record<string, number>; clearedAt: string }>;
+
 export declare function asksRoute(options?: Pick<EdityyOptions, "root" | "allowedHosts">): {
   GET: (request: Request) => Promise<Response>;
 };

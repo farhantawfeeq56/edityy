@@ -1709,7 +1709,7 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
     for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   };
   const onCard = (label) => {
-    const list = app.root.nodes.pop.children[0].children;
+    const list = app.root.nodes.pop.children[1].children;
     const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
     return list.flatMap((c) => [c, ...walk(c)]).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
   };
@@ -1721,19 +1721,19 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
   const posted = () => sent.filter((s) => s.url === "/__edityy/changes").map((s) => s.body || "").join("\n");
   assert.doesNotMatch(posted(), /Added element/, "a waiting box is held off the project file");
   let open = openEdits(app);
-  let lines = open.children[0].children;
+  let lines = open.children[1].children;
   assert.equal(lines.length, 1);
   assert.equal(lines[0].getAttribute("data-state"), "requested");
   assert.match(shown(lines[0]), /Added element 1/);
   // A click on the card scrolls to the box and marks the card selected.
   quiet(() => { for (const fn of lines[0].bubbles.click.bubble) fn({}); });
-  lines = app.root.nodes.pop.children[0].children;
+  lines = app.root.nodes.pop.children[1].children;
   assert.match(lines[0].className, /selected/, "the scrolled-to card reads selected");
   assert.equal(app.root.nodes.region.hidden, false, "the box flashes where it is");
   // Withdrawing the ask frees the box as an Exploring edit with a decision row.
   for (const fn of onCard("Delete this request").bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 200));
-  lines = app.root.nodes.pop.children[0].children;
+  lines = app.root.nodes.pop.children[1].children;
   assert.equal(lines.length, 1);
   assert.equal(lines[0].getAttribute("data-state"), "exploring");
   assert.match(shown(lines[0]), /Added element 1/);
@@ -1741,7 +1741,7 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
   // Keep approves it: Ready, with the same pencil an element edit wears.
   for (const fn of onCard("Keep this edit").bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 200));
-  lines = app.root.nodes.pop.children[0].children;
+  lines = app.root.nodes.pop.children[1].children;
   assert.equal(lines[0].getAttribute("data-state"), "ready");
   assert.ok(onCard("Back to select"), "a pencil to un-approve");
   assert.match(app.win.__edityy_changes(), /Added element 1/, "a kept box reaches the agent's Markdown");
@@ -1790,7 +1790,7 @@ test("the edits list names each element, and discards one without the others", a
 
   const open = openEdits(app);
   assert.equal(app.root.nodes.review.getAttribute("aria-expanded"), "true");
-  const lines = open.children[0].children;
+  const lines = open.children[1].children;
   assert.equal(lines.length, 2);
   assert.match(shown(lines[0]), /p “hello”/);
   assert.match(shown(lines[1]), /h2 “second”/);
@@ -1805,7 +1805,7 @@ test("the edits list names each element, and discards one without the others", a
   await new Promise((r) => setTimeout(r, 200));
   assert.doesNotMatch(app.win.__edityy_changes(), /first note/, "the first comment is gone");
   assert.match(app.win.__edityy_changes(), /second note/, "the second is untouched");
-  assert.equal(app.root.nodes.pop.children[0].children.length, 1, "and the list redrew");
+  assert.equal(app.root.nodes.pop.children[1].children.length, 1, "and the list redrew");
   assert.equal(app.root.nodes.count.textContent, "1");
 });
 
@@ -1818,7 +1818,7 @@ test("the edits filter is a radio grid with names, and the arrows walk it", asyn
   const q = app.el("h2", { text: "second" });
   commentOn(app, q, "second note");
   const open = openEdits(app);
-  const filters = open.children[1];
+  const filters = open.children[2];
   assert.equal(filters.getAttribute("role"), "radiogroup", "one radio group");
   assert.equal(filters.getAttribute("aria-label"), "Filter edits");
   const chips = () => filters.children;
@@ -1833,28 +1833,28 @@ test("the edits filter is a radio grid with names, and the arrows walk it", asyn
   assert.ok(chips()[0].children.some((c) => c.className === "changes-thumb"), "the thumb sits in the checked chip");
   const lbl = chips()[0].children.find((c) => c.className === "changes-lbl");
   assert.deepEqual(lbl.children.map((c) => c.className), ["lbl-off", "lbl-on", "changes-sr"], "two stacked labels crossfade");
-  assert.match(shown(open.children[3]), /All: 2 of 2 shown/, "the live region says what is shown");
+  assert.match(shown(open.children[4]), /All: 2 of 2 shown/, "the live region says what is shown");
   // Pick Select: only the two cards stay, and the thumb travels.
   for (const fn of chips()[2].bubbles.click.bubble) fn({});
   assert.equal(chips()[2].getAttribute("aria-checked"), "true");
   assert.equal(chips()[2].tabIndex, 0);
   assert.ok(chips()[2].children.some((c) => c.className === "changes-thumb"), "the thumb moved");
-  assert.equal(open.children[0].children.length, 2, "both edits are Select");
+  assert.equal(open.children[1].children.length, 2, "both edits are Select");
   // The arrow walks to Ready, which is empty, and wraps from the end.
   const send = (k, target) => {
     for (const fn of filters.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
   };
   send("ArrowRight", chips()[2]);
   assert.equal(chips()[3].getAttribute("aria-checked"), "true", "the arrow picked Ready");
-  assert.match(shown(open.children[0]), /No ready tasks/, "Ready is empty");
-  const exits = open.children[0].children.filter((c) => c.className.includes("task-exit"));
+  assert.match(shown(open.children[1]), /No ready tasks/, "Ready is empty");
+  const exits = open.children[1].children.filter((c) => c.className.includes("task-exit"));
   assert.equal(exits.length, 2, "the two cards leave where they stood");
   assert.equal(exits[0].getAttribute("aria-hidden"), "true");
   await new Promise((r) => setTimeout(r, 300));
-  assert.equal(open.children[0].children.filter((c) => c.className.includes("task-exit")).length, 0, "the exits are gone");
+  assert.equal(open.children[1].children.filter((c) => c.className.includes("task-exit")).length, 0, "the exits are gone");
   send("ArrowRight", chips()[3]);
   assert.equal(chips()[0].getAttribute("aria-checked"), "true", "the arrow wraps to All");
-  assert.equal(open.children[0].children.length, 2, "All shows both cards again");
+  assert.equal(open.children[1].children.length, 2, "All shows both cards again");
 });
 
 test("the edits panel is pinned in viewport pixels, so hover cannot pull it", () => {
@@ -1892,7 +1892,7 @@ test("the filter chips wear their names, with the count only spoken", () => {
   const p = selectText(app);
   commentOn(app, p, "first note");
   const open = openEdits(app);
-  const chips = open.children[1].children;
+  const chips = open.children[2].children;
   assert.doesNotMatch(shown(chips[0]), /\(1\)/, "no (1) on the All chip");
   assert.match(shown(chips[1]), /Pending/, "the Pending chip");
   assert.match(chips[1].getAttribute("aria-label"), /Pending, 0 of 1/, "the count stays spoken");
@@ -1927,12 +1927,12 @@ test("with nothing edited the list says so and nothing can be copied", () => {
   const app = run();
   selectText(app);
   const open = openEdits(app);
-  assert.match(shown(open.children[0]), /No edits yet/);
+  assert.match(shown(open.children[1]), /No edits yet/);
   const flat = (el) => [el, ...(el.children ?? []).flatMap(flat)];
   assert.ok(flat(open).some((n) => (n.className ?? "").includes("changes-empty")), "the empty words carry the centered style");
   assert.match(source, /\.changes-list \.changes-empty\{[^}]*text-align:center/, "the empty words sit centered");
   assert.match(source, /\.changes-list \.changes-empty\{[^}]*font-size:13px/, "the empty words read bigger");
-  assert.equal(open.children[2].children[0].disabled, true);
+  assert.equal(open.children[3].children[0].disabled, true);
 });
 
 /** Press a key with modifiers; returns whether the payload took it. */
@@ -2282,19 +2282,19 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   await tick();
   const open = openEdits(app);
   // The foot holds one button only: the copy nudge. There is no save step.
-  assert.equal(open.children[2].children.length, 1, "one button in the foot");
-  const copyBtn = open.children[2].children[0];
+  assert.equal(open.children[3].children.length, 1, "one button in the foot");
+  const copyBtn = open.children[3].children[0];
   assert.match(copyBtn.getAttribute("aria-label"), /Copy a short prompt/, "the copy nudge");
   // The comment ask is still waiting for the agent, so nothing is posted yet.
   assert.equal(sent.length, 0, "a waiting ask saves nothing");
   // Deleting the request ends the wait: the words become an Exploring note.
-  const waiting = open.children[0].children.find((c) => shown(c).includes("Waiting for your agent"));
+  const waiting = open.children[1].children.find((c) => shown(c).includes("Waiting for your agent"));
   assert.ok(waiting, "the waiting card");
   const del = waiting.children[0].children.find((c) => c.className === "task-icons").children[0];
   assert.equal(del.getAttribute("aria-label"), "Delete this request");
   for (const fn of del.bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 200));
-  const card = open.children[0].children.find((c) => c.getAttribute("data-state") === "exploring");
+  const card = open.children[1].children.find((c) => c.getAttribute("data-state") === "exploring");
   assert.ok(card, "the note card now that the wait is over");
   const row = card.children.find((c) => c.className === "task-editrow");
   const tickBtn = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
@@ -2313,7 +2313,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   assert.equal(body.changes[0].rec, undefined, "no live element on the wire");
   assert.match(body.markdown, /# Visual edits from Edityy/);
   assert.match(body.markdown, /- Comment: "make it warmer"/);
-  const ready = open.children[0].children.find((c) => c.getAttribute("data-state") === "ready");
+  const ready = open.children[1].children.find((c) => c.getAttribute("data-state") === "ready");
   assert.ok(ready, "the ticked card is Ready");
   assert.match(shown(ready), /approved & sent to agent/);
 });
@@ -2515,7 +2515,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(inMenu("Ask for 2 variations"), undefined, "the prompt box is done");
   // Open Edits and the Exploring card for this element.
   const open = openEdits(app);
-  const cards = () => open.children[0].children;
+  const cards = () => open.children[1].children;
   // The panel redraws on every pick, so the card is looked up fresh each time.
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   const cardChips = () => exploringCard().children.find((c) => c.className === "task-chips").children;
@@ -2600,7 +2600,7 @@ test("keeping a variant forgets its server answer, so no Select card lingers", a
   for (const fn of inMenu("Ask for 2 variations").bubbles.click.bubble) fn({});
   await new Promise((r) => setTimeout(r, 1100));
   const open = openEdits(app);
-  const cards = () => open.children[0].children;
+  const cards = () => open.children[1].children;
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   // Pick the first variant, then Keep: the Select card must turn into one Ready card.
   quiet(() => app.fire("keydown", { key: "1" }));
@@ -2672,7 +2672,7 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   // The Exploring card in Edits: expand it, pick the variant, then Keep.
   const open = openEdits(app);
-  const cards = () => open.children[0].children;
+  const cards = () => open.children[1].children;
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   const cardChips = () => exploringCard().children.find((c) => c.className === "task-chips");
   const cardRow = () => exploringCard().children.find((c) => c.className === "task-editrow");
@@ -2749,7 +2749,7 @@ test("several previews at once get one Exploring card each", async () => {
   // Edits shows one Exploring card per instruction, each with its own
   // x and tick.
   const open = openEdits(app);
-  const cards = () => open.children[0].children;
+  const cards = () => open.children[1].children;
   const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   assert.equal(exploring().length, 3, "a card per instruction");
   assert.equal(el.style.getPropertyValue("font-weight"), "", "nothing painted on the canvas while several wait");
@@ -2792,7 +2792,7 @@ test("discarding a waiting preview takes it out of the list", async () => {
   app.doc.querySelector = () => el;
   await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
   const open = openEdits(app);
-  const cards = () => open.children[0].children;
+  const cards = () => open.children[1].children;
   const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   assert.equal(exploring().length, 2, "both waiting");
   // Discard the first card; the second stays.
