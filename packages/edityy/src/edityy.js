@@ -6646,16 +6646,18 @@ function decorations() {
         });
       });
     }
-    // Exploring: what is painted now, or waiting in a list. Previewing is
+    // Exploring: every painted preview, then what waits in a list. Previewing is
     // the same state: the agent answered, the user has not ticked yet.
-    if (previewCurrent) {
-      var el = previewTarget || previewQuery(previewCurrent.selector) || (previewFresh.length ? previewFresh[0] : null);
+    previewPaints.forEach(function (paint) {
+      var preview = paint.preview;
+      var el = paint.target || previewQuery(preview.selector) || (paint.fresh.length ? paint.fresh[0] : null);
       tasks.push({
-        state: "exploring", el: el || null, region: el ? null : answeredRegion, label: el ? nameOf(el) : previewWhere(previewCurrent),
-        origin: previewOrigin === "comment" ? "Comment" : "Agent", detail: previewCurrent.instruction || "Preview",
-        kind: "preview-current", previewId: previewCurrent.id,
+        state: "exploring", el: el || null, region: el ? null : answeredRegion, label: el ? nameOf(el) : previewWhere(preview),
+        origin: previewOrigin === "comment" ? "Comment" : "Agent", detail: preview.instruction || "Preview",
+        kind: "preview-current", previewId: preview.id,
       });
-    } else {
+    });
+    {
       (previewList || []).forEach(function (item) {
         if (!item) return;
         var target = previewTargets(item)[0];
@@ -6996,8 +6998,10 @@ function decorations() {
     // Preview cards wear the same box as edits: numbered chips between the
     // heading and the notes, then x and tick. No Keep/Discard text buttons.
     if (task.kind === "preview-current") {
-      var current = previewCurrent;
+      var paint = paintForId(task.previewId);
+      var current = paint ? paint.preview : null;
       var choices = current ? previewRowVariations(current) : [];
+      var at = paint ? paint.variantAt : -1;
       if (choices.length) {
         var chips = document.createElement("div");
         chips.className = "task-chips";
@@ -7008,13 +7012,13 @@ function decorations() {
           var chip = button("task-chip", "", variation.label || ("Option " + (i + 1)), function (e) {
             if (e && e.stopPropagation) e.stopPropagation();
             if (e && e.preventDefault) e.preventDefault();
-            pickPreviewVariant(i);
+            pickPreviewVariant(paintForId(task.previewId), i);
           }, "preview-" + (i + 1));
           chip.addEventListener("mousedown", function (e) {
             if (e && e.preventDefault) e.preventDefault();
           });
           chip.setAttribute("title", variation.label || ("Option " + (i + 1)));
-          chip.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
+          chip.setAttribute("aria-pressed", i === at ? "true" : "false");
           chip.appendChild(text(String(i + 1)));
           chips.appendChild(chip);
         });
@@ -7024,12 +7028,12 @@ function decorations() {
       decisionRow(card, task, {
         key: key,
         onDiscard: function () {
-          discardPreview();
+          discardPreviewById(task.previewId);
         },
         onKeep: function () {
-          keepPreview();
+          keepPreviewById(task.previewId);
         },
-        keepDisabled: choices.length > 0 && previewVariantAt < 0,
+        keepDisabled: choices.length > 0 && at < 0,
       });
       return;
     }
@@ -7723,21 +7727,11 @@ function decorations() {
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
   var lastClearedAt = ""; // the clear the page already honored, so a new one drops memory
-  var previewCurrent = null; // the preview on the canvas now
-  var previewRecords = []; // the change records the paint wrote
-  var previewRows = []; // the style rows, kept so a pick moves the tick
-  var previewKeep = null;
-  var previewVariantAt = -1;
-  var previewVariantProps = [];
-  var previewTarget = null; // the styled element, for a styles preview
-  var previewFresh = []; // the inserted elements, for an insert preview
-  // More than one up at once: a list with a tick each, no paint on the canvas
-  // (several paints could fight over one element), and one batch button.
-  var previewList = []; // the previews the panel cards show
-  var previewStyled = []; // every styles element in the preview: { el, props }
-  var previewVariantInserts = []; // insert targets waiting for a variant pick
-  var previewVariantUpdates = []; // update targets waiting for a variant pick: { target, el, rec, applied }
-  var variantPainted = []; // insert nodes one variant pick painted: { target, nodes }
+  var previewPaints = []; // every preview painted now, in poll order: { preview, variantAt, variantProps, target, records, fresh, styled, variantInserts, variantUpdates, painted }
+  var previewRecords = []; // every change record all paints wrote, so the panel hides them as edits
+  var previewFresh = []; // every inserted element all paints added
+  // A paint the canvas could not place: the card stays, so the user decides it.
+  var previewList = []; // the previews the panel cards show without a paint
   var previewReqId = ""; // the comment-box ask waiting for its paint
   var previewReqFor = null; // the element the ask is about
   var previewReqRegion = null; // the drawn box the ask is about
@@ -7894,7 +7888,7 @@ function decorations() {
     var rec = record(el);
     var next = {};
     props.forEach(function (p) { next[propKey(p)] = p.value; });
-    (prev || previewVariantProps).forEach(function (prop) {
+    (prev || []).forEach(function (prop) {
       if (prop in next) return;
       applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
     });
@@ -7914,42 +7908,31 @@ function decorations() {
     if (before !== words) action(rec, "text", before, words);
   }
 
-  /** Paint every element of one agent preview. Inserts and updates are new records; they stay ordinary edits. */
-  function paintPreview(preview) {
-    previewRecords = [];
-    previewVariantProps = [];
-    previewVariantAt = -1;
-    previewTarget = null;
-    previewVariantInserts = [];
-    previewVariantUpdates = [];
-    variantPainted = [];
-    previewFresh = [];
-    previewStyled = [];
+  /** Remember one painted record on the paint and on the canvas. */
+  function trackRecord(paint, rec) {
+    if (previewRecords.indexOf(rec) === -1) previewRecords.push(rec);
+    if (paint.records.indexOf(rec) === -1) paint.records.push(rec);
+  }
+
+  /** Remember one inserted node on the paint and on the canvas. */
+  function trackFresh(paint, node) {
+    if (previewFresh.indexOf(node) === -1) previewFresh.push(node);
+    if (paint.fresh.indexOf(node) === -1) paint.fresh.push(node);
+  }
+
+  /** Paint every element of one agent preview. A bad target is skipped: the rest still lands. */
+  function paintPreview(paint) {
+    var preview = paint.preview;
     if (!preview || typeof preview !== "object") return false;
-    var painted = true;
+    var placed = false;
     previewTargets(preview).forEach(function (target) {
-      if (painted && !paintTarget(target)) painted = false;
+      if (paintTarget(paint, target)) placed = true;
     });
-    if (!painted) {
-      previewFresh.forEach(function (node) {
-        if (node.parentElement) node.parentElement.removeChild(node);
-      });
-      previewRecords.slice().forEach(revert);
-      previewRecords = [];
-      previewFresh = [];
-      previewStyled = [];
-      previewVariantProps = [];
-      previewVariantInserts = [];
-      previewVariantUpdates = [];
-      variantPainted = [];
-      previewTarget = null;
-      return false;
-    }
-    return true;
+    return placed;
   }
 
   /** Paint insert nodes for one target: the records stay ordinary edits. */
-  function paintInsertNodes(target, html, scroll) {
+  function paintInsertNodes(paint, target, html, scroll) {
     var anchor = target.anchor ? previewQuery(target.anchor) : null;
     var parent = anchor ? anchor.parentElement : (document.querySelector("main") || document.body);
     if (!parent) return [];
@@ -7969,8 +7952,8 @@ function decorations() {
       rec.created = true;
       rec.createdStyle = node.style ? node.style.cssText : "";
       if (!rec.selector) rec.selector = selectorFor(node);
-      previewRecords.push(rec);
-      previewFresh.push(node);
+      trackRecord(paint, rec);
+      trackFresh(paint, node);
       painted.push(node);
     });
     if (scroll && painted[0]) {
@@ -7995,6 +7978,11 @@ function decorations() {
           changes = changes.filter(function (other) { return other !== rec; });
         }
       }
+      previewPaints.forEach(function (paint) {
+        paint.records = paint.records.filter(function (rec) { return rec.el !== node; });
+        paint.fresh = paint.fresh.filter(function (other) { return other !== node; });
+        paint.painted = paint.painted.filter(function (one) { return one.nodes.indexOf(node) === -1; });
+      });
       if (node.parentElement) node.parentElement.removeChild(node);
     });
     for (var j = previewFresh.length - 1; j >= 0; j--) {
@@ -8003,18 +7991,18 @@ function decorations() {
   }
 
   /** Paint one variant pick of an insert target, replacing the last pick. */
-  function repaintInsertVariant(target, html) {
-    for (var i = variantPainted.length - 1; i >= 0; i--) {
-      if (variantPainted[i].target === target) clearPaintedNodes(variantPainted.splice(i, 1)[0].nodes);
+  function repaintInsertVariant(paint, target, html) {
+    for (var i = paint.painted.length - 1; i >= 0; i--) {
+      if (paint.painted[i].target === target) clearPaintedNodes(paint.painted.splice(i, 1)[0].nodes);
     }
-    var nodes = paintInsertNodes(target, html, false);
-    if (nodes.length) variantPainted.push({ target: target, nodes: nodes });
-    if (previewFresh[0]) select(previewFresh[0], { el: previewFresh[0], kind: "container" });
+    var nodes = paintInsertNodes(paint, target, html, false);
+    if (nodes.length) paint.painted.push({ target: target, nodes: nodes });
+    if (paint.fresh[0]) select(paint.fresh[0], { el: paint.fresh[0], kind: "container" });
     return nodes.length > 0;
   }
 
   /** Apply one variant pick of an update target, over the pre-paint state. */
-  function applyUpdateVariant(entry, html) {
+  function applyUpdateVariant(paint, entry, html) {
     var target = entry.target;
     var el = entry.el;
     if (entry.applied && entry.rec) revert(entry.rec);
@@ -8027,71 +8015,71 @@ function decorations() {
     el.innerHTML = "";
     previewNodes(html).forEach(function (node) { el.appendChild(node); });
     action(rec, "text", was, el.innerHTML);
-    if (previewRecords.indexOf(rec) === -1) previewRecords.push(rec);
+    trackRecord(paint, rec);
     entry.rec = rec;
     entry.applied = true;
-    previewTarget = el;
+    paint.target = el;
     select(el, { el: el, kind: "container" });
   }
 
-  /** Paint one element of a preview. A styles element waits for a pick. */
-  function paintTarget(preview) {
-    if (preview.action === "styles") {
-      var el = previewQuery(preview.selector);
+  /** Paint one element of a preview. A styles element waits for a pick. A bad selector is skipped. */
+  function paintTarget(paint, target) {
+    if (target.action === "styles") {
+      var el = previewQuery(target.selector);
       if (!el) return false;
-      if (!previewTarget) previewTarget = el;
-      previewStyled.push({ el: el, props: [] });
+      if (!paint.target) paint.target = el;
+      paint.styled.push({ el: el, props: [] });
       return true; // the rows paint it: nothing lands until a pick does
     }
-    if (preview.action === "insert") {
+    if (target.action === "insert") {
       // A pick waits: nothing lands until the user chooses an option.
-      if (preview.variations && preview.variations.length) {
-        previewVariantInserts.push(preview);
+      if (target.variations && target.variations.length) {
+        paint.variantInserts.push(target);
         return true;
       }
-      return paintInsertNodes(preview, preview.html, true).length > 0;
+      return paintInsertNodes(paint, target, target.html, true).length > 0;
     }
-    if (preview.action === "update") {
-      var target = previewQuery(preview.selector);
-      if (!target) return false;
+    if (target.action === "update") {
+      var up = previewQuery(target.selector);
+      if (!up) return false;
       // A pick waits: the markup lands when the user chooses an option.
-      if (preview.variations && preview.variations.length) {
-        previewTarget = target;
-        previewVariantUpdates.push({ target: preview, el: target, rec: null, applied: false });
+      if (target.variations && target.variations.length) {
+        paint.target = up;
+        paint.variantUpdates.push({ target: target, el: up, rec: null, applied: false });
         return true;
       }
-      previewTarget = target;
-      (preview.props || []).forEach(function (p) { applyTo(target, propKey(p), p.value); });
-      if (preview.text !== undefined) previewText(target, preview.text);
-      if (preview.html !== undefined) {
-        var rec = record(target);
-        if (rec.text === null) rec.text = target.textContent;
-        if (rec.html === undefined) rec.html = target.innerHTML;
-        var was = target.innerHTML;
-        target.innerHTML = "";
-        previewNodes(preview.html).forEach(function (node) { target.appendChild(node); });
-        action(rec, "text", was, target.innerHTML);
+      paint.target = up;
+      (target.props || []).forEach(function (p) { applyTo(up, propKey(p), p.value); });
+      if (target.text !== undefined) previewText(up, target.text);
+      if (target.html !== undefined) {
+        var rec = record(up);
+        if (rec.text === null) rec.text = up.textContent;
+        if (rec.html === undefined) rec.html = up.innerHTML;
+        var was = up.innerHTML;
+        up.innerHTML = "";
+        previewNodes(target.html).forEach(function (node) { up.appendChild(node); });
+        action(rec, "text", was, up.innerHTML);
       }
-      previewRecords.push(record(target));
-      select(target, { el: target, kind: "container" });
+      trackRecord(paint, record(up));
+      select(up, { el: up, kind: "container" });
       return true;
     }
-    if (preview.action === "remove") {
-      var gone = previewQuery(preview.selector);
+    if (target.action === "remove") {
+      var gone = previewQuery(target.selector);
       if (!gone || !gone.parentElement) return false;
       var grec = record(gone);
       if (!grec.selector) grec.selector = selectorFor(gone);
       grec.removed = { parent: gone.parentElement, before: gone.nextSibling };
       action(grec, "delete", grec.removed, null);
       gone.parentElement.removeChild(gone);
-      previewRecords.push(grec);
+      trackRecord(paint, grec);
       select(null);
       return true;
     }
     return false;
   }
 
-  /** Drop the painted preview: inserted nodes leave, the rest reverts. */
+  /** Drop every painted preview: inserted nodes leave, the rest reverts. */
   function unpaintPreview() {
     previewFresh.forEach(function (node) {
       for (var i = previewRecords.length - 1; i >= 0; i--) {
@@ -8105,16 +8093,7 @@ function decorations() {
     previewFresh = [];
     previewRecords.slice().forEach(revert);
     previewRecords = [];
-    previewVariantProps = [];
-    previewVariantAt = -1;
-    previewRows = [];
-    previewKeep = null;
-    previewTarget = null;
-    previewStyled = [];
-    previewVariantInserts = [];
-    previewVariantUpdates = [];
-    variantPainted = [];
-    previewCurrent = null;
+    previewPaints = [];
     while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
     previewBox.hidden = true;
   }
@@ -8126,9 +8105,9 @@ function decorations() {
     previewBox.hidden = true;
   }
 
-  /** Take whatever the box was showing away: a painted one reverts, a list just leaves. */
+  /** Take whatever the box was showing away: painted ones revert, a list just leaves. */
   function resetPreviewBox() {
-    if (previewCurrent) unpaintPreview();
+    if (previewPaints.length) unpaintPreview();
     else clearPreviewList();
   }
 
@@ -8171,24 +8150,24 @@ function decorations() {
     tally();
   }
 
-  /** The answer arrived: paint it. The panel shows its card with Keep and Discard. */
-  function showPreview(preview) {
-    resetPreviewBox();
-    previewRows = [];
-    previewCurrent = preview;
-    if (!previewOrigin) previewOrigin = "agent";
-    if (!paintPreview(preview)) {
-      previewCurrent = null;
-      previewSeen = "";
-      if (typeof window.fetch === "function") {
-        window.fetch(PREVIEWS_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-      }
-      return;
+  /** Paint one pending preview and track it. One the canvas cannot place waits as a card. */
+  function paintOne(preview, pick) {
+    var paint = {
+      preview: preview, variantAt: -1, variantProps: [], target: null,
+      records: [], fresh: [], styled: [], variantInserts: [], variantUpdates: [], painted: [],
+    };
+    previewPaints.push(paint);
+    if (!paintPreview(paint)) {
+      previewPaints.splice(previewPaints.indexOf(paint), 1);
+      previewList.push(preview);
+      return null;
     }
-    tally();
+    // The first option lands at once: a paint with variations is never empty.
+    if (previewRowVariations(preview).length) pickPreviewVariant(paint, pick == null ? 0 : pick);
+    return paint;
   }
 
-  /** The pending previews arrived: one paints; several wait as Previewing cards. */
+  /** The pending previews arrived: every one paints, each with its own card. */
   function showPreviews(pending) {
     if (variantRows.length) closeVariants();
     if (!pending.length) {
@@ -8204,22 +8183,22 @@ function decorations() {
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
-    previewOrigin = fromComment ? "comment" : previewOrigin || "agent";
-    if (pending.length === 1) {
-      showPreview(pending[0]);
-      return;
-    }
-    // Several at once: nothing paints, so several writes can never fight over
-    // one element. Each waits as its own Previewing card in the Edits panel.
+    // A repaint keeps the picks the user already made, by preview id.
+    var picks = {};
+    previewPaints.forEach(function (paint) { picks[paint.preview.id] = paint.variantAt; });
     resetPreviewBox();
-    previewList = pending;
+    previewOrigin = fromComment ? "comment" : previewOrigin || "agent";
+    previewList = [];
+    pending.forEach(function (one) {
+      paintOne(one, picks[one.id]);
+    });
     refit();
     tally();
   }
 
   /** One styled look on every styles element, through the same records as a variant. */
-  function pickPreviewVariant(index) {
-    var preview = previewCurrent;
+  function pickPreviewVariant(paint, index) {
+    var preview = paint && paint.preview;
     if (!preview) return;
     var picked = false;
     previewStyleTargets(preview).forEach(function (target) {
@@ -8228,11 +8207,11 @@ function decorations() {
       var el = previewQuery(target.selector);
       if (!el) return;
       var entry = null;
-      previewStyled.forEach(function (one) { if (one.el === el) entry = one; });
-      previewVariantProps = previewApply(el, variation.props || [], entry ? entry.props : []);
-      if (entry) entry.props = previewVariantProps;
+      paint.styled.forEach(function (one) { if (one.el === el) entry = one; });
+      paint.variantProps = previewApply(el, variation.props || [], entry ? entry.props : []);
+      if (entry) entry.props = paint.variantProps;
       if (variation.text !== undefined) previewText(el, variation.text);
-      if (previewRecords.indexOf(record(el)) === -1) previewRecords.push(record(el));
+      trackRecord(paint, record(el));
       picked = true;
     });
     // Html options: one insert or update target offers a pick of markups.
@@ -8241,24 +8220,20 @@ function decorations() {
       var choice = options[index];
       if (!choice) return;
       if (target.action === "insert") {
-        if (repaintInsertVariant(target, choice.html)) picked = true;
+        if (repaintInsertVariant(paint, target, choice.html)) picked = true;
       } else if (target.action === "update") {
         var entry = null;
-        previewVariantUpdates.forEach(function (one) { if (one.target === target) entry = one; });
+        paint.variantUpdates.forEach(function (one) { if (one.target === target) entry = one; });
         if (entry) {
-          applyUpdateVariant(entry, choice.html);
+          applyUpdateVariant(paint, entry, choice.html);
           picked = true;
         }
       }
     });
     if (!picked) return;
-    if (previewTarget) select(previewTarget, { el: previewTarget, kind: "container" });
-    else if (previewFresh[0]) select(previewFresh[0], { el: previewFresh[0], kind: "container" });
-    previewVariantAt = index;
-    previewRows.forEach(function (row, i) {
-      row.setAttribute("aria-pressed", i === previewVariantAt ? "true" : "false");
-    });
-    if (previewKeep) previewKeep.disabled = false;
+    if (paint.target) select(paint.target, { el: paint.target, kind: "container" });
+    else if (paint.fresh[0]) select(paint.fresh[0], { el: paint.fresh[0], kind: "container" });
+    paint.variantAt = index;
     refit();
     tally();
   }
@@ -8278,11 +8253,13 @@ function decorations() {
 
   /** Escape or leaving the mode: every preview up for a decision goes back. */
   function discardList() {
-    if (!previewList.length) {
+    var ids = previewPaints.map(function (paint) { return { id: paint.preview.id, keep: false }; })
+      .concat(previewList.map(function (one) { return { id: one.id, keep: false }; }));
+    if (!ids.length) {
       resetPreviewBox();
       return;
     }
-    decideOnServer(previewList.map(function (one) { return { id: one.id, keep: false }; }));
+    decideOnServer(ids);
   }
 
   /** Post one round of decisions, then put the box away and let a poll catch up. */
@@ -8302,23 +8279,34 @@ function decorations() {
     tally();
   }
 
-  /** Tell the server the user kept it. It stays: it is an ordinary edit now. */
-  function keepPreview() {
-    var preview = previewCurrent;
-    var id = preview && preview.id;
+  /** Find one painted preview by its id. */
+  function paintForId(id) {
+    for (var i = 0; i < previewPaints.length; i++) {
+      if (previewPaints[i].preview.id === id) return previewPaints[i];
+    }
+    return null;
+  }
+
+  /** Tell the server the user kept one paint. It stays: it is an ordinary edit now. */
+  function keepPreviewById(id) {
+    var paint = paintForId(id);
+    if (!paint) {
+      notifyDecidedPreview(id, true);
+      previewSeen = "";
+      tally();
+      return;
+    }
     // The kept edit remembers where it came from, so the Edits panel can
     // say Agent or Comment on it later.
     var origin = previewOrigin || "agent";
-    previewRecords.forEach(function (rec) { rec.origin = origin === "comment" ? "Comment" : "Agent"; });
+    paint.records.forEach(function (rec) { rec.origin = origin === "comment" ? "Comment" : "Agent"; });
     // A kept preview is a Ready edit: it is written to the project at once.
-    previewRecords.forEach(function (rec) { rec.confirmed = true; });
+    paint.records.forEach(function (rec) { rec.confirmed = true; });
     autosave();
-    previewCurrent = null;
-    previewRows = [];
-    previewKeep = null;
-    while (previewBox.firstChild) previewBox.removeChild(previewBox.firstChild);
-    previewBox.hidden = true;
-    if (id && typeof window.fetch === "function") {
+    previewPaints.splice(previewPaints.indexOf(paint), 1);
+    previewRecords = previewRecords.filter(function (rec) { return paint.records.indexOf(rec) === -1; });
+    previewFresh = previewFresh.filter(function (node) { return paint.fresh.indexOf(node) === -1; });
+    if (typeof window.fetch === "function") {
       window.fetch(PREVIEWS_URL, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -8326,27 +8314,30 @@ function decorations() {
         body: JSON.stringify({ id: id, keep: true }),
       }).catch(function () {});
     }
-    previewRecords = [];
-    previewVariantProps = [];
-    previewVariantAt = -1;
-    previewTarget = null;
-    previewStyled = [];
-    previewFresh = [];
-    previewVariantInserts = [];
-    previewVariantUpdates = [];
-    variantPainted = [];
     answeredRegion = null;
     refit();
     tally();
   }
 
-  /** Tell the server the user dropped it, and put the page back. */
-  function discardPreview() {
-    var id = previewCurrent && previewCurrent.id;
+  /** Tell the server the user dropped one paint, and put its elements back. */
+  function discardPreviewById(id) {
+    var paint = paintForId(id);
+    if (!paint) {
+      notifyDecidedPreview(id, false);
+      previewSeen = "";
+      tally();
+      return;
+    }
+    // The rest paints again from scratch, so a shared element ends
+    // with the picks the user made on the paints that stay.
+    var rest = previewPaints.filter(function (one) { return one !== paint; }).map(function (one) {
+      return { preview: one.preview, variantAt: one.variantAt };
+    });
     unpaintPreview();
     previewSeen = "";
     answeredRegion = null;
-    if (id && typeof window.fetch === "function") {
+    rest.forEach(function (one) { paintOne(one.preview, one.variantAt); });
+    if (typeof window.fetch === "function") {
       window.fetch(PREVIEWS_URL, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -8925,8 +8916,7 @@ function decorations() {
     cancelPreviewRequest();
     // The page pointer goes with the mode: the page wears its own again.
     paintPointer("");
-    if (previewCurrent) discardPreview();
-    else if (previewList.length) discardList();
+    if (previewPaints.length || previewList.length) discardList();
     if (askTimer) clearTimeout(askTimer);
     askTimer = 0;
     previewPolls = 0;
@@ -9389,13 +9379,23 @@ function decorations() {
       }
       return;
     }
-    if (previewCurrent && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+    if (previewPaints.length && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
-      if (!previewTyping && previewIndex < previewRowVariations(previewCurrent).length) {
+      var keyed = null;
+      previewPaints.forEach(function (paint) {
+        if (!keyed && expandedTasks["preview:" + paint.preview.id] && previewIndex < previewRowVariations(paint.preview).length) keyed = paint;
+      });
+      var keyTarget = keyed || null;
+      if (!keyTarget) {
+        previewPaints.forEach(function (paint) {
+          if (!keyTarget && previewIndex < previewRowVariations(paint.preview).length) keyTarget = paint;
+        });
+      }
+      if (!previewTyping && keyTarget) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
-        pickPreviewVariant(previewIndex);
+        pickPreviewVariant(keyTarget, previewIndex);
       }
       return;
     }

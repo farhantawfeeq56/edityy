@@ -2682,10 +2682,10 @@ test("a chat-placed preview paints, keeps as an edit, and discards cleanly", asy
   assert.ok(cardChips(), "numbered chips between the heading and the notes");
   const thin = cardChips().children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "thin");
   assert.ok(thin, "the variant chip");
-  assert.equal(cardTick().disabled, true, "no variant picked, so the tick is disabled");
+  assert.equal(el.style.getPropertyValue("color"), "red", "the first look lands without a pick");
+  assert.equal(cardTick().disabled, false, "the first look picked itself, so the tick is on");
   for (const fn of thin.bubbles.click.bubble) fn({});
   assert.equal(el.style.getPropertyValue("color"), "red");
-  assert.equal(cardTick().disabled, false, "a variant is picked, so the tick is enabled");
   for (const fn of cardTick().bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0], { id: "e-abc123", keep: true });
@@ -2720,7 +2720,7 @@ test("a variant that sets words paints them like a preview", async () => {
   assert.match(app.win.__edityy_changes(), /Start free/);
 });
 
-test("several previews at once get one Exploring card each", async () => {
+test("several previews at once paint together, each with its own card", async () => {
   const { run } = fakeDom();
   const app = run();
   const posts = [];
@@ -2752,7 +2752,7 @@ test("several previews at once get one Exploring card each", async () => {
   const cards = () => open.children[1].children;
   const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
   assert.equal(exploring().length, 3, "a card per instruction");
-  assert.equal(el.style.getPropertyValue("font-weight"), "", "nothing painted on the canvas while several wait");
+  assert.equal(el.style.getPropertyValue("box-shadow"), "0 2px 4px black", "every paint lands at once");
   // Keep one card: its decision goes over, the others stay.
   const first = exploring()[0];
   quiet(() => { for (const fn of first.bubbles.click.bubble) fn({}); });
@@ -2762,12 +2762,13 @@ test("several previews at once get one Exploring card each", async () => {
   assert.ok(keepOne, "its own tick");
   for (const fn of keepOne.bubbles.click.bubble) fn({});
   assert.equal(posts.length, 1);
-  assert.deepEqual(posts[0], { id: "e-two1", keep: true });
+  assert.deepEqual(posts[0], { id: "e-two2", keep: true });
+  assert.equal(el.style.getPropertyValue("box-shadow"), "0 2px 4px black", "the kept paint stays: it is an ordinary edit");
   await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
   assert.equal(exploring().length, 2, "the kept card leaves the list");
 });
 
-test("discarding a waiting preview takes it out of the list", async () => {
+test("discarding one painted preview leaves the other painted", async () => {
   const { run } = fakeDom();
   const app = run();
   const posts = [];
@@ -2794,7 +2795,8 @@ test("discarding a waiting preview takes it out of the list", async () => {
   const open = openEdits(app);
   const cards = () => open.children[1].children;
   const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
-  assert.equal(exploring().length, 2, "both waiting");
+  assert.equal(exploring().length, 2, "both painted");
+  assert.equal(el.style.getPropertyValue("letter-spacing"), "2px", "the first paint lands");
   // Discard the first card; the second stays.
   quiet(() => { for (const fn of exploring()[0].bubbles.click.bubble) fn({}); });
   const firstRow = exploring()[0].children.find((c) => c.className === "task-editrow");
@@ -2802,7 +2804,53 @@ test("discarding a waiting preview takes it out of the list", async () => {
   assert.ok(dropOne, "the x discards it, no Discard text button");
   for (const fn of dropOne.bubbles.click.bubble) fn({});
   assert.deepEqual(posts[0], { id: "e-drop1", keep: false });
+  assert.equal(el.style.getPropertyValue("letter-spacing"), "", "the dropped paint reverts, the other stays");
   await new Promise((r) => setTimeout(r, 1100)); // the next poll drops the decision
   assert.equal(exploring().length, 1, "the discarded card leaves the list");
   assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
+});
+
+test("a preview paints its first option at once, and a bad target spares the rest", async () => {
+  const { run } = fakeDom();
+  const app = run();
+  const calls = [];
+  const preview = {
+    id: "e-mixed1", instruction: "tint it", targets: [
+      { action: "update", selector: ".gone", props: [{ property: "color", value: "blue" }] },
+      { action: "styles", selector: "p", variations: [
+        { label: "red", props: [{ property: "color", value: "red" }] },
+        { label: "green", props: [{ property: "color", value: "green" }] },
+      ] },
+    ],
+  };
+  app.win.fetch = async (url, init = {}) => {
+    calls.push({ url, method: init.method || "GET" });
+    if (url === "/__edityy/asks") {
+      return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [preview] }) };
+    }
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => app.click());
+  ensureComment(app);
+  const el = selectText(app);
+  app.doc.querySelector = (sel) => (sel === "p" ? el : null);
+  await tick(); await tick(); await new Promise((r) => setTimeout(r, 1100));
+  // The bad target is skipped: the good one still paints, with its first look.
+  assert.equal(el.style.getPropertyValue("color"), "red", "the first option lands without a pick");
+  const open = openEdits(app);
+  const cards = () => open.children[1].children;
+  const exploring = () => cards().filter((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
+  assert.equal(exploring().length, 1, "one card for the preview");
+  quiet(() => { for (const fn of exploring()[0].bubbles.click.bubble) fn({}); });
+  const row = exploring()[0].children.find((c) => c.className === "task-editrow");
+  const keep = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
+  assert.equal(keep.disabled, false, "the first option picked itself, so the tick is on");
+  // Nothing is wiped: a partial paint is never silently deleted.
+  assert.ok(!calls.some((c) => c.url === "/__edityy/previews" && c.method === "DELETE"), "no silent delete");
+  // The second look still switches.
+  const chips = exploring()[0].children.find((c) => c.className === "task-chips");
+  const green = chips.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "green");
+  for (const fn of green.bubbles.click.bubble) fn({});
+  assert.equal(el.style.getPropertyValue("color"), "green");
 });
