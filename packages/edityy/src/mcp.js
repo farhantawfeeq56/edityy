@@ -88,8 +88,9 @@ const TOOLS = [
       "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-0: apply it to the " +
       "source code, then call mark_applied with the ids that are in the code. Each ask has a kind, an id and a " +
       "status: answer a variants ask with place_variants and a preview-request ask with place_preview. " +
-      "A preview ask paints on the live canvas only with Keep and Discard; keeping makes it a normal edit that " +
-      "arrives here as an edit of its own. Never re-read for the same turn: this call already lists it all.",
+      "A preview ask paints on the live canvas only with Keep and Discard; Keep saves it as a normal edit " +
+      "for the agent to write into the source, and it arrives here as an edit of its own. " +
+      "Never re-read for the same turn: this call already lists it all.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -122,18 +123,20 @@ const TOOLS = [
       "those words is answered. No ask file is needed for a chat idea: an instruction with an action and its " +
       "payload still paints. One ask is one edit with one state: place all its variations in ONE call, " +
       "or many elements at once with targets: each target keeps its own action, selector or anchor, and payload. " +
+      "The first paint answers the ask, even with fewer options than asked for. " +
       "A variation is one labeled option to pick from: styles entries carry plain CSS declarations in props, " +
       "insert and update entries carry markup in html. " +
       "styles restyles one element and takes a selector plus 1 to 100 variations. " +
       "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
-      "It takes html for one option, or 2 to 10 labeled variations of html for a pick. " +
-      "update changes one element named by a selector, with styles, text or markup, or 2 to 10 labeled variations of markup for a pick. " +
+      "It takes html for one option, or 1 to 10 labeled variations of html for a pick. " +
+      "update changes one element named by a selector, with styles, text or markup, or 1 to 10 labeled variations of markup for a pick. " +
       "remove takes away one element named by a selector. " +
       "Inline script + event handlers paint for local UI; network calls and external script src are refused. " +
       "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, " +
       "and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: " +
       "infer anchors and links from the page's own ids and routes, paint, and name your assumption. " +
-      "The preview shows on the page with Keep and Discard; keeping makes an edit of it (the agent reads it with get_work). " +
+      "The preview shows on the page with Keep and Discard; Keep saves it as an edit for the agent to write " +
+      "into the source (the agent reads it with get_work). Edityy itself changes only the live page. " +
       "If no anchor exists at all, say so instead of guessing.",
     inputSchema: {
       type: "object",
@@ -339,9 +342,9 @@ export async function handle(message, root) {
           const queue = await readPreviewRequests(root);
           const left = queue.filter((entry) => entry.status === "pending");
           const more = left.length ? ` Still waiting: ${left.map((entry) => entry.instruction).join(" | ")}.` : "";
-          const link = preview.requestId && preview.needed > 1 ? ` (${preview.linked} of ${preview.needed} variants for "${preview.instruction}"${preview.reused ? ", reused without a duplicate" : ""})` : preview.reused ? " (reused without a duplicate)" : "";
+          const link = preview.reused ? " (reused without a duplicate)" : "";
           return reply({
-            content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep makes an edit of it (the agent reads it with get_work). The user decides on the page.${more}` }],
+            content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep saves it as an edit for the agent to write into the source (the agent reads it with get_work). The user decides on the page.${more}` }],
           });
         }
         if (params?.name === "clear_all") {

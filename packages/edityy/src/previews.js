@@ -27,8 +27,8 @@ const MAX_SELECTOR = 200;
 const MAX_INSTRUCTION = 500;
 /** Inserted markup. */
 const MAX_HTML = 50000;
-/** One paint can offer a pick: 2 to 10 labeled html options, one edit. */
-const MIN_HTML_VARIATIONS = 2;
+/** One paint can offer a pick: 1 to 10 labeled html options, one edit. */
+const MIN_HTML_VARIATIONS = 1;
 const MAX_HTML_VARIATIONS = 10;
 /** How many past previews the file keeps. */
 const MAX_HISTORY = 20;
@@ -285,8 +285,7 @@ export async function placePreview(placed, root = process.cwd()) {
       const ids = own.previewIds?.includes(orphan.id) ? [...own.previewIds] : [...(own.previewIds ?? []), orphan.id];
       own.previewIds = ids;
       own.previewId = ids[0];
-      const total = linkedOptions(ids, savedItems);
-      if (total >= (own.count || 1)) own.status = "answered";
+      own.status = "answered";
       const at = fresh.findIndex((entry) => entry.id === own.id);
       if (at >= 0) fresh[at] = own;
       try {
@@ -308,10 +307,10 @@ export async function placePreview(placed, root = process.cwd()) {
     throw new Error(`Paint ${id} did not land (${error.code ?? "write failed"}). Nothing is half-written: retry the same place_preview call.`);
   }
   // The comment-box request it answered waits no more: it stays on file as
-  // answered, so the agent never paints the same ask twice. A paint whose
-  // words match a waiting ask answers that ask, so several paints for one
-  // count ask all land on it and no other waiting ask is consumed. A
-  // chat-initiated preview with no request file simply has nothing to answer.
+  // answered, so the agent never paints the same ask twice. The first paint
+  // whose words match a waiting ask answers that ask, so no other waiting
+  // ask is consumed. A chat-initiated preview with no request file simply
+  // has nothing to answer.
   if (waiting) {
     const fresh = await readPreviewRequests(root);
     const own = fresh.find((entry) => entry.id === waiting.id);
@@ -327,8 +326,7 @@ export async function placePreview(placed, root = process.cwd()) {
     }
     own.previewIds = ids;
     own.previewId = ids[0];
-    const total = linkedOptions(ids, items);
-    if (total >= need) own.status = "answered";
+    own.status = "answered";
     const at = fresh.findIndex((entry) => entry.id === own.id);
     if (at >= 0) fresh[at] = own;
     try {
@@ -600,11 +598,11 @@ export function previewRequestText(request) {
     "",
     "Paint this on the live canvas only with place_preview, or many at once with targets. Do not edit files.",
     "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: infer anchors and links from the page's own ids and routes, paint, and name your assumption.",
-    "The preview shows with Keep and Discard; keeping makes it a normal Edityy edit. If no anchor exists at all, say so instead of guessing."
+    "The preview shows on the page with Keep and Discard; Keep saves it as a normal Edityy edit for the agent to write into the source. Edityy itself changes only the live page. If no anchor exists at all, say so instead of guessing."
   );
   if (count > 1) {
     lines.push("", `Place all ${count} variants in ONE place_preview call: one ask is one edit with ${count} options to pick from.`);
-    lines.push(`A styles target takes \`variations\` of CSS; an insert or update target takes \`variations\` of html, each with a short label. One paint is one row with one state: waiting, then ${count} options ready, then kept or discarded.`);
+    lines.push(`A styles target takes \`variations\` of CSS; an insert or update target takes \`variations\` of html, each with a short label. The first paint answers the ask, even with fewer options: waiting, then options ready, then kept or discarded.`);
     lines.push(`Retrying the same call reuses the existing paint instead of a duplicate row.`);
   }
   return lines.join("\n");

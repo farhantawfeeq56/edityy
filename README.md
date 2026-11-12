@@ -48,8 +48,7 @@ element between them, and the one you keep is an ordinary edit.
 
 A change can also start in the agent chat instead. Type `edityy::` followed by an instruction — `edityy:: add a
 pricing section with three cards` — and the agent paints it on the canvas only, without touching your code. The page
-shows the answer with **Keep** and **Discard**. Keep makes it an ordinary Edityy edit, and you can then type
-`implement <id>` to have the agent write it into the source. Markup in a preview is allowlisted twice, on the server
+shows the answer with **Keep** and **Discard**. Keep saves it as an ordinary Edityy edit (JSON in `.edityy/` for the agent to read): nothing is written to your source files until the agent applies it. Edityy itself changes only the live page. Markup in a preview is allowlisted twice, on the server
 and again in the page, so no script, event attribute or iframe can reach the canvas.
 
 ## The idea

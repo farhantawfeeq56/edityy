@@ -231,7 +231,7 @@ test("one get_work lists every pending preview ask, and a chat paint needs no as
   assert.match(first.result.content[0].text, /Still waiting/, "the place answer names what is left, with no re-read");
   assert.match(first.result.content[0].text, /make the heading bigger/);
   const still = await call(root, "tools/call", { name: "get_work", arguments: {} });
-  assert.match(still.result.content[0].text, /add some flair here/, "a count ask waits for its second paint");
+  assert.doesNotMatch(still.result.content[0].text, /\[preview-request\] q-box/, "the first paint answers the ask");
   await paint("add some flair here");
   const left = await call(root, "tools/call", { name: "get_work", arguments: {} });
   assert.doesNotMatch(left.result.content[0].text, /\[preview-request\] q-box/, "the answered ask leaves the roster");

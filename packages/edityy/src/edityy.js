@@ -6378,7 +6378,8 @@ function decorations() {
    *
    * Pending is an ask with no visual change yet. Select is variants
    * ready, waiting for a pick. Previewing is a paint on the live page,
-   * waiting for Keep or Discard. Kept is an ordinary Edityy edit.
+   * waiting for Keep or Discard. Kept is an ordinary Edityy edit: JSON for
+   * the agent, which the agent writes into the source later.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
@@ -7731,7 +7732,8 @@ function decorations() {
 
   // The agent-placed preview (previews.js). The agent answers `edityy::` in
   // the chat with place_preview, the page polls and paints it here, and Keep
-  // makes it an ordinary Edityy edit. Discard puts the page back.
+  // saves it as an ordinary Edityy edit for the agent to write into the
+  // source. Discard puts the page back.
   var PREVIEWS_URL = "/__edityy/previews";
   var PREVIEW_REQUEST_URL = "/__edityy/preview-request";
   var previewPolls = 0;
@@ -8310,7 +8312,7 @@ function decorations() {
     return null;
   }
 
-  /** Tell the server the user kept one paint. It stays: it is an ordinary edit now. */
+  /** Tell the server the user kept one paint. It stays as an ordinary edit for the agent to apply to the source. */
   function keepPreviewById(id) {
     var paint = paintForId(id);
     if (!paint) {
@@ -9328,14 +9330,17 @@ function decorations() {
         hideHover();
         return;
       }
-      // Add is freeform: no element is outlined or picked, only the box drawn.
-      if (drawing) {
-        drawRegion(x, y);
-        hideHover();
-        return;
-      }
-      if (activeTool === "add") {
-        hideHover();
+      // Add is freeform: a click alone picks nothing, but the element under
+      // the pointer is still outlined, so the drag starts and lands with anchor feedback.
+      if (drawing) drawRegion(x, y);
+      if (drawing || activeTool === "add") {
+        var aim = textAt(x, y);
+        if (!aim) {
+          hideHover();
+          return;
+        }
+        place(hoverBox, aim.getBoundingClientRect(), aim);
+        hoverBox.hidden = false;
         return;
       }
       if (moving) {

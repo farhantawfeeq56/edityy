@@ -242,8 +242,9 @@ narrow | when: (max-width: 640px), padding: 8px
 A strip at the bottom right then shows the variations. It names the element it
 varies, and **Keep** is grey until one of them is on the element. Keys `1` to
 `9` pick one and `0` picks the tenth, and **Keep** puts the strip away. What is
-left on the element is an ordinary edit: **Save to project** and
-`get_visual_changes` carry it like any other, and Escape or leaving the mode
+left on the element is an ordinary edit: **Save to project** writes it as JSON
+for the agent, and the agent writes it into your source later. Edityy itself
+changes only the live page. Escape or leaving the mode
 reverts it.
 
 ### States, pseudo-elements and breakpoints

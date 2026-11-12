@@ -230,21 +230,20 @@ test("a dragged-box request carries its location, and every pending ask lists", 
   assert.throws(() => checkPreviewRequest({ id: "p-bad", instruction: "x", region: "hero" }), { status: 400 });
 });
 
-test("several paints for one count ask answer that ask, not another waiting ask", async () => {
+test("the first paint answers a count ask, not another waiting ask", async () => {
   const root = tmp();
   await writePreviewRequest({ id: "p-flair", instruction: "add some flair here", count: 3 }, root);
   await writePreviewRequest({ id: "p-big", instruction: "make the heading bigger" }, root);
   const paint = { ...insert, instruction: "add some flair here" };
   const first = await placePreview(paint, root);
-  const second = await placePreview(paint, root);
-  let waiting = await readPendingPreviewRequests(root);
-  assert.deepEqual(waiting.map((one) => one.id), ["p-flair", "p-big"], "a count ask waits for every paint");
-  const third = await placePreview(paint, root);
-  waiting = await readPendingPreviewRequests(root);
-  assert.deepEqual(waiting.map((one) => one.id), ["p-big"], "only the answered ask leaves");
+  assert.equal(first.requestId, "p-flair");
+  const waiting = await readPendingPreviewRequests(root);
+  assert.deepEqual(waiting.map((one) => one.id), ["p-big"], "the first paint clears the wait");
   const done = (await readPreviewRequests(root)).find((one) => one.id === "p-flair");
   assert.equal(done.status, "answered");
-  assert.deepEqual(done.previewIds, [first.id, second.id, third.id]);
+  assert.deepEqual(done.previewIds, [first.id], "one ask is one row");
+  const second = await placePreview(paint, root);
+  assert.equal(second.requestId, null, "a later paint with the same words answers nothing");
   const other = await placePreview({ ...insert, instruction: "make the heading bigger" }, root);
   assert.deepEqual((await readPendingPreviewRequests(root)).length, 0);
   assert.equal((await readPreviewRequests(root)).find((one) => one.id === "p-big").previewId, other.id);
@@ -278,6 +277,10 @@ test("one ask is one edit: a bundled insert answers a count ask in one paint", a
 });
 
 test("insert variants are checked: bad options and mixed forms fail", async () => {
+  assert.doesNotThrow(
+    () => checkPreview({ instruction: "x", action: "insert", position: "inside-end", variations: [{ label: "Only", html: "<p>x</p>" }] }),
+    "one variation is one option"
+  );
   assert.throws(() => checkPreview({ ...insert, variations: [{ label: "Only", html: "<p>x</p>" }] }), { status: 400 });
   assert.throws(() => checkPreview({ ...insert, variations: [{ label: "", html: "<p>x</p>" }, { label: "B", html: "<p>y</p>" }] }), { status: 400 });
   assert.throws(
