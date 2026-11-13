@@ -1425,10 +1425,9 @@
   // The step this task's writes go into. A control can write two properties
   // for one input (a border's width and its style), and those are one step.
   var current = null;
-  // When the words were last typed into: the browser owns the text's own undo,
-  // so ⌘Z after typing is the browser's and ⌘Z after a drag is ours.
-  var typedAt = 0;
-  var editingTextBefore = "";
+  // Typed words are the browser's to undo: it keeps the caret and the text
+  // history, which a style undo knows nothing about. Edityy records no undo
+  // step for typing, so there is no second stack to fight it.
   // A drag fires an input per pixel, and typing "40" fires two. A slider, a
   // number or a colour holds its step open from the first input to the
   // `change` the browser fires when the drag lets go, so the whole gesture is
@@ -1551,9 +1550,6 @@
     // node itself once it is editable. The record is told the before value so
     // revert() can put it back, but the text is only READ.
     var rec = record(el);
-    // The markup, not the words: an undo that writes back textContent
-    // flattens a link inside the paragraph.
-    editingTextBefore = el.innerHTML;
     if (rec.text === null) rec.text = el.textContent;
     // The markup as well as the words, because the browser can take a child
     // element out while the caret is in the words. This is what exit puts back.
@@ -1594,11 +1590,6 @@
     // The outline goes with it: back to exactly what the record says was there,
     // so an element that had an outline of its own gets it back.
     restore(record(editing), "outline");
-    var top = history[history.length - 1];
-    if (top && top.kind === "text" && top.rec === record(editing)) {
-      top.open = false;
-      if (top.before === top.after) history.pop();
-    }
     if (editing.blur) editing.blur();
     editing = null;
     openDone = false; // the menu goes back to the actions it offers
@@ -6200,6 +6191,14 @@ function decorations() {
   }
 
   /**
+   * A short fingerprint of an element's own words: what resume checks before
+   * it re-attaches an edit, so a re-render cannot move it onto another sibling.
+   */
+  function snippetOf(el) {
+    return (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40);
+  }
+
+  /**
    * Where the element was written, when the Vite plugin stamped it: its own
    * location, or the nearest ancestor's when it was made by a component.
    */
@@ -7154,6 +7153,13 @@ function decorations() {
         });
         card.appendChild(chips);
       }
+      // A target that missed the page is named on the card, and Keep waits:
+      // a partial paint must never look complete.
+      var missing = current ? previewMissing(current) : [];
+      if (missing.length) {
+        card.appendChild(noteBox(missing.length + (missing.length === 1 ? " target never landed: " : " targets never landed: ") +
+          missing.map(function (target) { return target.selector || target.anchor; }).join(", ")));
+      }
       // shortcut: preview notes are not carried to the kept edit yet; the field stays for consistent layout.
       decisionRow(card, task, {
         key: key,
@@ -7163,7 +7169,7 @@ function decorations() {
         onKeep: function () {
           keepPreviewById(task.previewId);
         },
-        keepDisabled: choices.length > 0 && at < 0,
+        keepDisabled: (choices.length > 0 && at < 0) || missing.length > 0,
       });
       return;
     }
@@ -8395,6 +8401,14 @@ function decorations() {
     tally();
   }
 
+  /** Targets of a preview that never landed: a bad selector or a missing anchor. Same rule as paintTarget. */
+  function previewMissing(preview) {
+    return previewTargets(preview).filter(function (target) {
+      if (target.action === "insert") return !!(target.anchor && !previewQuery(target.anchor));
+      return !previewQuery(target.selector);
+    });
+  }
+
   /** Where one preview aims, in words a reader can follow on the page. */
   function previewWhere(preview) {
     return previewTargets(preview).map(function (target) {
@@ -8450,6 +8464,12 @@ function decorations() {
     if (!paint) {
       notifyDecidedPreview(id, true);
       previewSeen = "";
+      tally();
+      return;
+    }
+    // A partial paint never lands whole: a target that missed the page is
+    // not sent on. The card stays, with the miss named on it.
+    if (previewMissing(paint.preview).length) {
       tally();
       return;
     }
@@ -8749,6 +8769,9 @@ function decorations() {
     var edits = [];
     changes.forEach(function (rec) {
       if (!rec.el || rec.el.isConnected === false) return;
+      // What the agent file never received stays out of the session too:
+      // only a Ready edit comes back on reload. Same rule as saveEdits.
+      if (!rec.confirmed) return;
       var props = {};
       var any = false;
       Object.keys(rec.props).forEach(function (prop) {
@@ -8764,9 +8787,10 @@ function decorations() {
       var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
       if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
     });
-    var savedRegions = regions.map(function (rg) {
+    // A drawn box comes back only once ticked, like any other edit.
+    var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
       return { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : null, confirmed: !!rg.confirmed };
     });
@@ -8817,6 +8841,15 @@ function decorations() {
           el = null;
         }
         if (!el || (host.contains && host.contains(el))) return;
+        // A re-render can move a positional selector onto another sibling, so
+        // the tag and the words must still match before the edit re-attaches.
+        // An id or a test id names the element itself: nothing to check there.
+        if (edit.selector.charAt(0) !== "#" && edit.selector.indexOf("data-testid") === -1) {
+          if (edit.tag && (!el.tagName || el.tagName.toLowerCase() !== edit.tag)) return;
+          if (edit.text) {
+            if (el.textContent !== edit.text.before && el.textContent !== edit.text.after) return;
+          } else if (typeof edit.snippet === "string" && snippetOf(el) !== edit.snippet) return;
+        }
         var rec = record(el);
         Object.keys(edit.props || {}).forEach(function (prop) {
           var p = edit.props[prop];
@@ -9095,7 +9128,9 @@ function decorations() {
       var location = record(moving).location;
       location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
     }
-    changes.slice().forEach(revert);
+    // Quiet: one repaint at the end, not one per edit.
+    changes.slice().forEach(function (rec) { revert(rec, true); });
+    tally();
     markTop = 1;
     addTop = 1;
     insertion = null;
@@ -9138,24 +9173,9 @@ function decorations() {
     // Our own field, so its words are not the page's: typing a comment must not
     // count as an edit or redraw the list under the caret.
     if (e && e.composedPath && e.composedPath().indexOf(host) !== -1) return;
-    typedAt = Date.now();
-    if (editing) {
-      var rec = record(editing);
-      // The markup, not the words: an undo that writes back textContent
-      // flattens a link inside the paragraph.
-      var after = editing.innerHTML;
-      if (after !== editingTextBefore) {
-        var top = history[history.length - 1];
-        if (top && top.open && top.kind === "text" && top.rec === rec) {
-          top.after = after;
-          top.at = typedAt;
-        } else {
-          action(rec, "text", editingTextBefore, after);
-          history[history.length - 1].open = true;
-        }
-      }
-      setTimeout(refit, 0);
-    }
+    // No undo step is recorded for typing: the browser owns text undo while
+    // the caret is in the words, and the edit itself is read live from them.
+    if (editing) setTimeout(refit, 0);
     tally();
   }
 
@@ -9403,10 +9423,18 @@ function decorations() {
     showMoveInsertion(x, y);
     if (!insertion || !insertion.parent.insertBefore) return;
     var rec = record(moving);
-    var before = rec.moveFrom;
+    // Where the page put it, read before the move: the handoff names the
+    // code's place, and undo puts it back there, so the edit leaves the list.
+    if (!rec.selector) {
+      rec.selector = selectorFor(moving);
+      rec.source = sourceOf(moving);
+    }
+    // The code's own place, kept from the first move: a second move still
+    // names where the page put it, not the middle stop.
+    if (!rec.location) rec.location = { parent: moving.parentElement, before: moving.nextSibling };
+    var before = { parent: moving.parentElement, before: moving.nextSibling };
     insertion.parent.insertBefore(moving, insertion.before || null);
     action(rec, "move", before, { parent: moving.parentElement, before: moving.nextSibling });
-    delete rec.moveFrom;
     moving = null;
     insertion = null;
     delete insertLine.dataset.on;
@@ -9664,10 +9692,9 @@ function decorations() {
       return;
     }
     // Typed words are the browser's to undo: it keeps the caret and the text
-    // history, which a style undo knows nothing about. So while the caret is in
-    // words typed into since the last drag, the key goes to the browser.
-    var top = isUndo ? history[history.length - 1] : future[future.length - 1];
-    if (editing && (top && top.kind === "text" || !top || typedAt > top.at)) return;
+    // history, which a style undo knows nothing about. So while the caret is
+    // in edited words, the key always goes to the browser.
+    if (editing) return;
     if (isUndo ? undo() : redo()) {
       e.preventDefault();
       e.stopPropagation();

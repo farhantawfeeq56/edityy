@@ -77,6 +77,8 @@ function checkEdit(edit, i) {
     : null;
   return {
     selector: str(edit.selector, `edits[${i}].selector`),
+    tag: str(edit.tag, `edits[${i}].tag`, 50) || null,
+    snippet: str(edit.snippet, `edits[${i}].snippet`, 200) || null,
     props: kept,
     text,
     comment: str(edit.comment, `edits[${i}].comment`, MAX_VALUE) || null,

@@ -1201,17 +1201,20 @@ test("delete can be undone and redone with the keyboard", () => {
 });
 
 
-test("a text edit can be undone after editing ends", () => {
+test("typed words are the browser's to undo, not Edityy's", () => {
   const { run } = fakeDom();
   const app = run();
   const p = selectText(app, false);
   app.action("Edit text");
   p.textContent = "goodbye";
   app.fire("input", {});
+  // While the caret is in the words, ⌘Z belongs to the browser: Edityy
+  // records no text step to fight it, so the key goes through untouched.
+  assert.equal(key(app, "z", { ctrlKey: true }), false);
+  assert.equal(p.textContent, "goodbye");
   app.action("Done editing the text");
-  assert.equal(key(app, "z", { ctrlKey: true }), true);
-  assert.equal(p.textContent, "hello");
-  assert.equal(key(app, "z", { ctrlKey: true, shiftKey: true }), true);
+  // After editing ends there is still no text step: the words stay as typed.
+  assert.equal(key(app, "z", { ctrlKey: true }), false);
   assert.equal(p.textContent, "goodbye");
 });
 
@@ -2038,6 +2041,12 @@ test("the canvas survives a reload, and the mode comes back on", async () => {
   // A closed tab writes at once, as the page leaves.
   // The write waits for the debounce: the mode opens with an empty canvas.
   assert.equal(server.session.edits.length, 0, "the write waits for the keys to stop");
+  // A draft stays out of the session until it is Ready: tick it first.
+  const open0 = openEdits(app);
+  const row0 = open0.children[1].children[0].children.find((c) => c.className === "task-editrow");
+  const keep0 = row0.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
+  for (const fn of keep0.bubbles.click.bubble) fn({});
+  await new Promise((r) => setTimeout(r, 200));
   for (const fn of first.win.bubbles.pagehide.bubble) fn({});
   await tick();
   const saved = server.session;
@@ -2810,7 +2819,20 @@ test("discarding one painted preview leaves the other painted", async () => {
   assert.equal(app.root.nodes.preview.hidden, true, "no separate box");
 });
 
-test("a preview paints its first option at once, and a bad target spares the rest", async () => {
+test("a draft the agent never received does not come back on reload", async () => {
+  const server = sessionServer();
+  const first = fakeDom();
+  first.win.fetch = server.fetch;
+  const app = first.run();
+  const p = selectText(app, false);
+  p.id = "intro";
+  commentOn(app, p, "make it warmer");
+  for (const fn of first.win.bubbles.pagehide.bubble) fn({});
+  await tick();
+  assert.ok(!server.session || server.session.edits.length === 0, "an unticked edit is never kept");
+});
+
+test("a preview paints its first option at once, and a bad target spares the rest and holds Keep", async () => {
   const { run } = fakeDom();
   const app = run();
   const calls = [];
@@ -2845,7 +2867,8 @@ test("a preview paints its first option at once, and a bad target spares the res
   quiet(() => { for (const fn of exploring()[0].bubbles.click.bubble) fn({}); });
   const row = exploring()[0].children.find((c) => c.className === "task-editrow");
   const keep = row.children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
-  assert.equal(keep.disabled, false, "the first option picked itself, so the tick is on");
+  assert.equal(keep.disabled, true, "a target that missed the page holds the tick");
+  assert.match(shown(exploring()[0]), /\.gone/, "the card names the target that never landed");
   // Nothing is wiped: a partial paint is never silently deleted.
   assert.ok(!calls.some((c) => c.url === "/__edityy/previews" && c.method === "DELETE"), "no silent delete");
   // The second look still switches.
