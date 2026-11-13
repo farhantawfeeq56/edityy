@@ -7949,11 +7949,12 @@ function decorations() {
     // A named anchor that is not on the page is a miss, not the end of
     // main: the card stays so the user sees it never landed.
     if (target.anchor && (!anchor || !anchor.parentElement)) return [];
-    var parent = anchor ? anchor.parentElement : (document.querySelector("main") || document.body);
+    var position = target.position || "inside-end";
+    var inside = position === "inside-start" || position === "inside-end";
+    var parent = anchor ? (inside ? anchor : anchor.parentElement) : (document.querySelector("main") || document.body);
     if (!parent) return [];
     var nodes = previewNodes(html);
     if (!nodes.length) return [];
-    var position = target.position || "inside-end";
     var before = null;
     if (anchor && position === "after") before = anchor.nextSibling;
     if (anchor && position === "before") before = anchor;
