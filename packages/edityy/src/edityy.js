@@ -1626,8 +1626,9 @@
     else writeProp(rec, prop, "");
   }
 
-  /** Undo every property and the text of one element. */
-  function revert(rec) {
+  /** Undo every property and the text of one element. Quiet skips the
+   * repaint: forgetCanvas repaints once at the end, not once per edit. */
+  function revert(rec, quiet) {
     // An element that was on its way out and is put back stops leaving: it
     // must not fade away in the reader's hand.
     if (rec.fade) {
@@ -1643,7 +1644,7 @@
         return other !== rec;
       });
       forget(rec);
-      tally();
+      if (!quiet) tally();
       return;
     }
     if (rec.location && rec.location.parent) {
@@ -1672,7 +1673,7 @@
       return other !== rec;
     });
     forget(rec);
-    tally();
+    if (!quiet) tally();
   }
 
   /**
@@ -6204,6 +6205,10 @@ function decorations() {
   function report() {
     var out = [];
     changes.forEach(function (rec) {
+      // An element the page dropped is gone: keep() does not save it, so
+      // the list does not name it either, and no number is spent on it.
+      // A removed edit stays: its card says where it went.
+      if (rec.el && rec.el.isConnected === false && !rec.removed) return;
       var d = diff(rec);
       if (!d) return;
       if (rec.mark == null) rec.mark = markTop++;
@@ -6338,12 +6343,75 @@ function decorations() {
   }
 
   /**
-   * Where a mark sits on an element: the centre of its box, both ways.
-   * One spot for every edit, so the marks line up whatever the element
-   * holds inside itself.
+   * Elements and boxes with an ask still out: only their Requested card
+   * shows, never their edit. One place, so the panel and the marks agree.
    */
-  function markSpot(el, box) {
-    return { left: Math.round(box.left + box.width / 2), top: Math.round(box.top + box.height / 2) };
+  function requestedWaits() {
+    var els = [];
+    var rgs = [];
+    var answered = {};
+    (srvVariationResponses || []).forEach(function (response) {
+      if (response && response.requestId) answered[response.requestId] = true;
+    });
+    if (variationId && variationFor && els.indexOf(variationFor) === -1) els.push(variationFor);
+    (srvVariationRequests || []).forEach(function (request) {
+      if (!request || request.status !== "pending" || answered[request.id]) return;
+      var el = previewQuery(request.selector);
+      if (el && els.indexOf(el) === -1) els.push(el);
+    });
+    if (previewReqId) {
+      if (previewReqFor && els.indexOf(previewReqFor) === -1) els.push(previewReqFor);
+      if (previewReqRegion) rgs.push(previewReqRegion);
+    }
+    (srvPreviewRequests || []).forEach(function (request) {
+      if (!request || request.status !== "pending") return;
+      var found = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
+      if (found && els.indexOf(found) === -1) els.push(found);
+      var rg = request.region ? matchRegion(request.region) : null;
+      if (rg) rgs.push(rg);
+    });
+    return { els: els, rgs: rgs };
+  }
+
+  /**
+   * An edit with no mark on the canvas: the panel hides it as an edit, or
+   * the pixels show the original. A stashed edit (the eye, the pencil), an
+   * edit covered by an agent paint, and a waiting ask all hide.
+   */
+  function markHidden(item, waits) {
+    if (item.rec) {
+      if (item.rec.stash) return true;
+      if (previewRecords.indexOf(item.rec) !== -1) return true;
+      if (variantList && variantList.length && item.rec.el === variationFor) return true;
+      if (item.rec.commentAsk) {
+        waits = waits || requestedWaits();
+        if (waits.els.indexOf(item.rec.el) !== -1) return true;
+      }
+    }
+    if (item.rg && item.rg.waiting) {
+      waits = waits || requestedWaits();
+      if (waits.rgs.some(function (rg) { return sameRegion(rg, item.rg); })) return true;
+    }
+    return false;
+  }
+
+  /** A display:none element paints no box: its zero rect sits at the origin. */
+  function boxHidden(el) {
+    try {
+      if (window.getComputedStyle && window.getComputedStyle(el).getPropertyValue("display") === "none") return true;
+    } catch {}
+    return false;
+  }
+
+  /**
+   * Where a mark sits: above the top-left corner, off the words it labels.
+   * A centred badge covers the text, and nested edits share one centre,
+   * so the corner keeps every number readable.
+   */
+  function markSpot(box) {
+    var top = box.top - 12;
+    if (top < 8) top = box.top + 12;
+    return { left: Math.round(box.left + 10), top: Math.round(top) };
   }
 
   /** Numbered marks on changed elements and saved boxes. One square each,
@@ -6355,18 +6423,29 @@ function decorations() {
       marksBox.hidden = true;
       return;
     }
+    var askWaits = requestedWaits();
     var x = window.pageXOffset || window.scrollX || 0;
     var y = window.pageYOffset || window.scrollY || 0;
+    var placed = [];
     items.forEach(function (item, i) {
       if (item.rg && item.rg.hideMark) return;
+      if (markHidden(item, askWaits)) return;
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
+        // A detached element has no box on the page: a removed edit lives
+        // on its card, never on the canvas. A zero-size element still
+        // stands somewhere, so only a display:none one hides.
+        if (item.rec.el.isConnected === false) return;
         var box = item.rec.el.getBoundingClientRect();
-        if (box.width || box.height) at = markSpot(item.rec.el, box);
+        if (!boxHidden(item.rec.el)) at = markSpot(box);
       } else if (item.region) {
-        at = { left: item.region.left - x + item.region.width / 2, top: item.region.top - y + item.region.height / 2 };
+        at = markSpot({ left: item.region.left - x, top: item.region.top - y });
       }
       if (!at) return;
+      // Nested edits share a corner: each taken spot pushes the next one
+      // down, so no two numbers stack.
+      while (placed.some(function (p) { return Math.abs(p.left - at.left) < 20 && Math.abs(p.top - at.top) < 20; })) at.top += 22;
+      placed.push(at);
       var m = document.createElement("span");
       // A mark whose ask is still out breathes: the canvas shows the wait.
       var waits = (item.rg && item.rg.waiting) ||
@@ -6695,13 +6774,9 @@ function decorations() {
     // the words stay on that card. A drawn box with its ask out is the same:
     // Requested only. A wait with no requested card left (a reload dropped
     // the live request) still shows its edit, so the words never vanish.
-    var waitingEls = [];
-    var waitingRgs = [];
-    tasks.forEach(function (task) {
-      if (!task || task.state !== "requested") return;
-      if (task.el) waitingEls.push(task.el);
-      if (task.region) waitingRgs.push(task.region);
-    });
+    var waits = requestedWaits();
+    var waitingEls = waits.els;
+    var waitingRgs = waits.rgs;
     var kept = report().filter(function (item) {
       if (item.rec && item.rec.commentAsk && waitingEls.indexOf(item.rec.el) !== -1) return false;
       if (item.rg && item.rg.waiting && waitingRgs.some(function (rg) { return sameRegion(rg, item.rg); })) return false;
@@ -8172,7 +8247,7 @@ function decorations() {
     srvVariantAt = {};
     changes.slice().forEach(function (rec) {
       try {
-        revert(rec);
+        revert(rec, true);
       } catch {}
     });
     changes.length = 0;
@@ -8683,6 +8758,9 @@ function decorations() {
         return;
       }
       if (saved.markTop) markTop = saved.markTop;
+      // Two records must never share a mark: the canvas and the panel
+      // both key on it. A duplicate takes a fresh number instead.
+      var usedMarks = {};
       saved.edits.forEach(function (edit) {
         var el = null;
         try {
@@ -8708,16 +8786,22 @@ function decorations() {
         // An edit saved by an older version had no flag: it was already saved.
         rec.confirmed = edit.confirmed !== false;
         if (edit.origin) rec.origin = edit.origin;
-        if (edit.mark != null) {
+        if (edit.mark != null && !usedMarks[edit.mark]) {
           rec.mark = edit.mark;
+          usedMarks[edit.mark] = true;
           if (edit.mark >= markTop) markTop = edit.mark + 1;
+        } else if (edit.mark != null) {
+          rec.mark = markTop++;
+          usedMarks[rec.mark] = true;
         }
         if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
       });
       (Array.isArray(saved.regions) ? saved.regions : []).forEach(function (rg) {
         if (!rg || typeof rg !== "object") return;
         var kept = { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : addTop++, confirmed: !!rg.confirmed, waiting: false };
-        if (kept.mark != null && kept.mark >= markTop) markTop = kept.mark + 1;
+        if (kept.mark == null || usedMarks[kept.mark]) kept.mark = markTop++;
+        usedMarks[kept.mark] = true;
+        if (kept.mark >= markTop) markTop = kept.mark + 1;
         if (kept.addN != null && kept.addN >= addTop) addTop = kept.addN + 1;
         regions.push(kept);
       });
