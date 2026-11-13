@@ -343,10 +343,9 @@
     // the pointer keeps the fill alone.
     ".row>.ic:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     // Numbered marks on changed elements and saved regions. One mark per
-    // edit: a golden outline on a light-yellow fill, drawn over the page
-    // where the edit is, never in its way. Its spot follows the element's
-    // own content: centred content gets a centred mark, content near one
-    // edge gets a mark near that edge, a little in from the corner.
+    // edit: a golden outline on a light-yellow fill, above the top-left
+    // corner of the edit, never over its words. Below the edit when there
+    // is no room above, and pushed down when corners overlap.
     ".marks{position:fixed;inset:0;z-index:2;pointer-events:none}",
     // The words draw the box, not the other way round: the numeral is the
     // same size as the typed comment, and 4px of padding goes round it.
@@ -359,6 +358,9 @@
     // only, so the beat never moves the number off its spot.
     ".marks .mark.waiting{animation:markWait var(--pulse) var(--breathe) infinite}",
     "@keyframes markWait{0%,100%{opacity:.45}50%{opacity:1}}",
+    // A parked edit (the eye, the pencil): the pixels show the original,
+    // so its mark sits back too, but stays to keep its number.
+    ".marks .mark.ghost{opacity:.45}",
     // The box the Add tool draws: a dashed frame while the pointer drags.
     ".region{position:fixed;z-index:2;border:1.5px dashed var(--frame,var(--brand));border-radius:2px;background:var(--ink-6);pointer-events:none}",
     // A control that joins the row arrives, so the row's edge is not the only
@@ -1473,7 +1475,10 @@
   /** Write a step back without recording anything. */
   function replay(target, value) {
     if (target.kind === "text") {
-      target.rec.el.textContent = value;
+      // The markup when there is any: textContent would flatten a child
+      // element the words were typed around.
+      if (target.rec.html !== undefined) target.rec.el.innerHTML = value;
+      else target.rec.el.textContent = value;
     } else if (target.kind === "move" || target.kind === "delete") {
       if (target.rec.fade) {
         target.rec.fade.cancel();
@@ -1546,7 +1551,9 @@
     // node itself once it is editable. The record is told the before value so
     // revert() can put it back, but the text is only READ.
     var rec = record(el);
-    editingTextBefore = el.textContent;
+    // The markup, not the words: an undo that writes back textContent
+    // flattens a link inside the paragraph.
+    editingTextBefore = el.innerHTML;
     if (rec.text === null) rec.text = el.textContent;
     // The markup as well as the words, because the browser can take a child
     // element out while the caret is in the words. This is what exit puts back.
@@ -1689,7 +1696,7 @@
     Object.keys(rec.props).forEach(function (key) {
       if (!OWN[key]) after[key] = readProp(rec, key);
     });
-    rec.stash = { after: after, text: rec.el.textContent };
+    rec.stash = { after: after, text: rec.el.textContent, html: rec.el.innerHTML };
     Object.keys(rec.props).forEach(function (prop) {
       restore(rec, prop);
     });
@@ -1708,8 +1715,11 @@
     Object.keys(stash.after).forEach(function (prop) {
       writeProp(rec, prop, stash.after[prop]);
     });
-    if (rec.text !== null && rec.el.textContent !== stash.text) {
-      rec.el.textContent = stash.text;
+    if (rec.text !== null) {
+      // The markup when there is any: textContent would flatten a child
+      // element the words were typed around.
+      if (rec.html !== undefined) { if (rec.el.innerHTML !== stash.html) rec.el.innerHTML = stash.html; }
+      else if (rec.el.textContent !== stash.text) rec.el.textContent = stash.text;
     }
   }
 
@@ -6257,11 +6267,19 @@ function decorations() {
         rg: rg,
       });
     });
-    // The shown number is the position in this list, so the canvas, the
-    // Markdown and the badge always agree. mark stays the stable key.
-    out.forEach(function (item, i) {
-      item.n = i + 1;
+    // The shown number is the position in creation order, so the canvas,
+    // the panel, the Markdown and the badge always agree. mark stays the
+    // stable key. Creation order is mint order: elements and boxes share
+    // one counter, so sorting by mark interleaves them as made. An edit
+    // with nowhere to draw (removed, display:none, zero-size) takes no
+    // number: it would burn one and draw no badge.
+    out.sort(function (a, b) { return a.mark - b.mark; });
+    var next = 0;
+    out.forEach(function (item) {
+      item.n = drawableItem(item) ? ++next : null;
     });
+    // An empty canvas restarts: the next edit is 1, never 4.
+    if (!out.length) { markTop = 1; addTop = 1; }
     return out;
   }
 
@@ -6283,8 +6301,10 @@ function decorations() {
         "(CSS, CSS modules, Tailwind classes, styled components), not with inline styles.",
       "",
     ];
-    items.forEach(function (item, i) {
-      out.push("## " + (item.n != null ? item.n : i + 1) + ". " + item.label);
+    items.forEach(function (item) {
+      // An edit with no number (removed, never drawn) keeps no number
+      // here either: the selector below is how the agent finds it.
+      out.push(item.n != null ? "## " + item.n + ". " + item.label : "## " + item.label);
       out.push("");
       if (item.selector) out.push("- Selector: `" + item.selector + "`");
       if (item.region) {
@@ -6318,9 +6338,9 @@ function decorations() {
   function tally() {
     keepSoon();
     var items = report();
-    var fit = editsTasks();
-    // The badge answers the list, not the filter: it shows the shown count.
-    var n = matchingTasks(fit).length;
+    // The badge is the highest canvas number: edits with nowhere to draw
+    // take no number, and asks never move it off the marks.
+    var n = items.filter(function (item) { return item.n != null; }).length;
     paintMarks(items);
     var was = countBadge.hidden ? 0 : Number(countBadge.textContent) || 0;
     countBadge.hidden = !n;
@@ -6374,15 +6394,18 @@ function decorations() {
   }
 
   /**
-   * An edit with no mark on the canvas: the panel hides it as an edit, or
-   * the pixels show the original. A stashed edit (the eye, the pencil), an
-   * edit covered by an agent paint, and a waiting ask all hide.
+   * An edit the panel hides as an edit: an agent paint covers it, or its
+   * ask is still out (only the Requested card shows). One place, so the
+   * canvas and the panel never disagree. A parked edit (the eye, the
+   * pencil) is not hidden: its mark sits back as a ghost instead.
    */
-  function markHidden(item, waits) {
+  function editParked(item, waits) {
     if (item.rec) {
-      if (item.rec.stash) return true;
       if (previewRecords.indexOf(item.rec) !== -1) return true;
       if (variantList && variantList.length && item.rec.el === variationFor) return true;
+      // A variation ask out is a wait like a preview ask: only the
+      // Requested card shows until the answer lands.
+      if (variationId && variationFor === item.rec.el) return true;
       if (item.rec.commentAsk) {
         waits = waits || requestedWaits();
         if (waits.els.indexOf(item.rec.el) !== -1) return true;
@@ -6393,6 +6416,22 @@ function decorations() {
       if (waits.rgs.some(function (rg) { return sameRegion(rg, item.rg); })) return true;
     }
     return false;
+  }
+
+  /** An edit with somewhere to draw its number: connected, painted, and
+   * bigger than a point. Anything else takes no number in report(). */
+  function drawableItem(item) {
+    if (item.region) return true;
+    var el = item.rec && item.rec.el;
+    if (!el || el.isConnected === false || !item.rec || item.rec.removed) return false;
+    if (boxHidden(el)) return false;
+    try {
+      if (el.getBoundingClientRect) {
+        var box = el.getBoundingClientRect();
+        if (box && box.width <= 0 && box.height <= 0) return false;
+      }
+    } catch {}
+    return true;
   }
 
   /** A display:none element paints no box: its zero rect sits at the origin. */
@@ -6409,8 +6448,10 @@ function decorations() {
    * so the corner keeps every number readable.
    */
   function markSpot(box) {
+    // Above the corner, off the words; below the element when there is no
+    // room above, never over the first line.
     var top = box.top - 12;
-    if (top < 8) top = box.top + 12;
+    if (top < 8) top = box.bottom != null ? box.bottom + 12 : box.top + 12;
     return { left: Math.round(box.left + 10), top: Math.round(top) };
   }
 
@@ -6428,8 +6469,9 @@ function decorations() {
     var y = window.pageYOffset || window.scrollY || 0;
     var placed = [];
     items.forEach(function (item, i) {
-      if (item.rg && item.rg.hideMark) return;
-      if (markHidden(item, askWaits)) return;
+      // Nowhere to draw takes no badge; the number was never spent (report).
+      if (item.n == null) return;
+      if (editParked(item, askWaits)) return;
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
         // A detached element has no box on the page: a removed edit lives
@@ -6439,7 +6481,7 @@ function decorations() {
         var box = item.rec.el.getBoundingClientRect();
         if (!boxHidden(item.rec.el)) at = markSpot(box);
       } else if (item.region) {
-        at = markSpot({ left: item.region.left - x, top: item.region.top - y });
+        at = markSpot({ left: item.region.left - x, top: item.region.top - y, bottom: item.region.top - y + item.region.height });
       }
       if (!at) return;
       // Nested edits share a corner: each taken spot pushes the next one
@@ -6447,11 +6489,10 @@ function decorations() {
       while (placed.some(function (p) { return Math.abs(p.left - at.left) < 20 && Math.abs(p.top - at.top) < 20; })) at.top += 22;
       placed.push(at);
       var m = document.createElement("span");
-      // A mark whose ask is still out breathes: the canvas shows the wait.
-      var waits = (item.rg && item.rg.waiting) ||
-        (item.rec && item.rec.commentAsk && previewReqId) ||
-        (item.rec && variationId && variationFor === item.rec.el);
-      m.className = "mark" + (waits ? " waiting" : "");
+      // A parked edit keeps its number but sits back: the pixels show the
+      // original while the eye or the pencil holds it off the element.
+      var ghost = (item.rec && item.rec.stash) || (item.rg && item.rg.hideMark);
+      m.className = "mark" + (ghost ? " ghost" : "");
       m.style.left = Math.round(at.left) + "px";
       m.style.top = Math.round(at.top) + "px";
       m.appendChild(text(String(item.n != null ? item.n : i + 1)));
@@ -6775,14 +6816,8 @@ function decorations() {
     // Requested only. A wait with no requested card left (a reload dropped
     // the live request) still shows its edit, so the words never vanish.
     var waits = requestedWaits();
-    var waitingEls = waits.els;
-    var waitingRgs = waits.rgs;
     var kept = report().filter(function (item) {
-      if (item.rec && item.rec.commentAsk && waitingEls.indexOf(item.rec.el) !== -1) return false;
-      if (item.rg && item.rg.waiting && waitingRgs.some(function (rg) { return sameRegion(rg, item.rg); })) return false;
-      if (item.rec && previewRecords.indexOf(item.rec) !== -1) return false;
-      if (item.rec && variantList && variantList.length && item.rec.el === variationFor) return false;
-      return true;
+      return !editParked(item, waits);
     });
     kept.forEach(function (item) {
       var origin = "Canvas session";
@@ -6943,10 +6978,12 @@ function decorations() {
       var hold = function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
         stashRec(rec);
+        paintMarks();
         refit();
       };
       var letGo = function () {
         unstashRec(rec);
+        paintMarks();
         refit();
       };
       eye.addEventListener("pointerdown", hold);
@@ -7331,7 +7368,9 @@ function decorations() {
     var focusStart = 0;
     var focusEnd = 0;
     try {
-      var ae = document.activeElement;
+      // The focus lives in the shadow root: document.activeElement is the
+      // host, so read through it or the field is never found.
+      var ae = (host.shadowRoot && host.shadowRoot.activeElement) || document.activeElement;
       if (ae && ae.className === "task-note" && list.contains(ae)) {
         var fc = ae.closest ? ae.closest("[data-task]") : null;
         focusTask = fc ? fc.getAttribute("data-task") : null;
@@ -7355,6 +7394,13 @@ function decorations() {
       card.setAttribute("data-state", task.state);
       var head = document.createElement("div");
       head.className = "task-top";
+      // The edit number the canvas shows, so the card and the mark agree.
+      if (task.item && task.item.n != null) {
+        var mark = document.createElement("span");
+        mark.className = "task-mark";
+        mark.appendChild(text(String(task.item.n)));
+        head.appendChild(mark);
+      }
       var name = document.createElement("span");
       name.className = "task-name";
       name.appendChild(text(task.label));
@@ -7998,9 +8044,9 @@ function decorations() {
     var rec = record(el);
     if (rec.text === null) rec.text = el.textContent;
     if (rec.html === undefined) rec.html = el.innerHTML;
-    var before = el.textContent;
+    var before = el.innerHTML;
     el.textContent = words;
-    if (before !== words) action(rec, "text", before, words);
+    if (before !== el.innerHTML) action(rec, "text", before, el.innerHTML);
   }
 
   /** Remember one painted record on the paint and on the canvas. */
@@ -8758,9 +8804,11 @@ function decorations() {
         return;
       }
       if (saved.markTop) markTop = saved.markTop;
-      // Two records must never share a mark: the canvas and the panel
-      // both key on it. A duplicate takes a fresh number instead.
+      // Two records must never share a mark, and two boxes must never
+      // share an Added element number: the canvas and the panel both key
+      // on them. A duplicate takes a fresh number instead.
       var usedMarks = {};
+      var usedAdd = {};
       saved.edits.forEach(function (edit) {
         var el = null;
         try {
@@ -8801,6 +8849,8 @@ function decorations() {
         var kept = { left: rg.left, top: rg.top, width: rg.width, height: rg.height, comment: rg.comment || null, mark: rg.mark, addN: rg.addN != null ? rg.addN : addTop++, confirmed: !!rg.confirmed, waiting: false };
         if (kept.mark == null || usedMarks[kept.mark]) kept.mark = markTop++;
         usedMarks[kept.mark] = true;
+        if (kept.addN == null || usedAdd[kept.addN]) kept.addN = addTop++;
+        usedAdd[kept.addN] = true;
         if (kept.mark >= markTop) markTop = kept.mark + 1;
         if (kept.addN != null && kept.addN >= addTop) addTop = kept.addN + 1;
         regions.push(kept);
@@ -9091,7 +9141,9 @@ function decorations() {
     typedAt = Date.now();
     if (editing) {
       var rec = record(editing);
-      var after = editing.textContent;
+      // The markup, not the words: an undo that writes back textContent
+      // flattens a link inside the paragraph.
+      var after = editing.innerHTML;
       if (after !== editingTextBefore) {
         var top = history[history.length - 1];
         if (top && top.open && top.kind === "text" && top.rec === rec) {
@@ -9490,7 +9542,11 @@ function decorations() {
       var at = path && path[0];
       if (at && at.tagName === "TEXTAREA" && path.indexOf(openComment) !== -1) return;
     }
-    var field = e.target;
+    // The real target: a key in our own field retargets to the host on the
+    // document listener, so e.target alone reads every shadow field as the
+    // launcher and hands its digits to the variants.
+    var path = e.composedPath ? e.composedPath() : null;
+    var field = (path && path[0]) || e.target;
     var pageField = field && (field.tagName === "INPUT" || field.tagName === "TEXTAREA" || field.tagName === "SELECT" || field.isContentEditable);
     if (pageField && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) return;
     // 1 to 9 pick a variation while variants are on canvas, and 0 picks the
