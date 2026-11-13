@@ -1181,7 +1181,9 @@
   //     was: {prop: computed value before}, text: words before | null,
   //     html: markup before | undefined, added: [keys] }
   var changes = [];
-  // The next number a changed element takes. One per element, never reused.
+  // The next internal key a changed element takes. One per element, never reused
+  // in a session. The number the canvas shows is the position in report(),
+  // so gaps close and every session starts at 1.
   var markTop = 1;
   // Boxes the Add tool drew. Page distances, so a scroll does not move them.
   var regions = [];
@@ -6208,6 +6210,7 @@ function decorations() {
       var src = sourceOf(rec.el);
       out.push({
         mark: rec.mark,
+        n: 0,
         label: nameOf(rec.el).trim(),
         selector: rec.selector || selectorFor(rec.el),
         source: rec.source ? rec.source.at : src ? src.at : null,
@@ -6231,6 +6234,7 @@ function decorations() {
       if (rg.addN == null) rg.addN = addTop++;
       out.push({
         mark: rg.mark,
+        n: 0,
         label: "Added element " + rg.addN,
         selector: "",
         source: null,
@@ -6247,6 +6251,11 @@ function decorations() {
         rec: null,
         rg: rg,
       });
+    });
+    // The shown number is the position in this list, so the canvas, the
+    // Markdown and the badge always agree. mark stays the stable key.
+    out.forEach(function (item, i) {
+      item.n = i + 1;
     });
     return out;
   }
@@ -6270,7 +6279,7 @@ function decorations() {
       "",
     ];
     items.forEach(function (item, i) {
-      out.push("## " + (i + 1) + ". " + item.label);
+      out.push("## " + (item.n != null ? item.n : i + 1) + ". " + item.label);
       out.push("");
       if (item.selector) out.push("- Selector: `" + item.selector + "`");
       if (item.region) {
@@ -6348,8 +6357,7 @@ function decorations() {
     }
     var x = window.pageXOffset || window.scrollX || 0;
     var y = window.pageYOffset || window.scrollY || 0;
-    items.forEach(function (item) {
-      if (item.mark == null) return;
+    items.forEach(function (item, i) {
       if (item.rg && item.rg.hideMark) return;
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
@@ -6367,7 +6375,7 @@ function decorations() {
       m.className = "mark" + (waits ? " waiting" : "");
       m.style.left = Math.round(at.left) + "px";
       m.style.top = Math.round(at.top) + "px";
-      m.appendChild(text(String(item.mark)));
+      m.appendChild(text(String(item.n != null ? item.n : i + 1)));
       marksBox.appendChild(m);
     });
     marksBox.hidden = !marksBox.firstChild;
@@ -8169,6 +8177,8 @@ function decorations() {
     });
     changes.length = 0;
     regions.length = 0;
+    markTop = 1;
+    addTop = 1;
     current = null;
     taskNotes = {};
     taskSeen = {};
@@ -8952,6 +8962,8 @@ function decorations() {
       location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
     }
     changes.slice().forEach(revert);
+    markTop = 1;
+    addTop = 1;
     insertion = null;
     moving = null;
     drawing = null;
