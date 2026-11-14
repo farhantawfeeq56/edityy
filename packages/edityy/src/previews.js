@@ -659,14 +659,11 @@ export function previewRequestText(request) {
   }
   lines.push(
     "",
-    "Paint this on the live canvas only with place_preview, or many at once with targets. Do not edit files.",
-    "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: infer anchors and links from the page's own ids and routes, paint, and name your assumption.",
-    "The preview shows on the page with Keep and Discard; Keep saves it as a normal Edityy edit for the agent to write into the source. Edityy itself changes only the live page. If no anchor exists at all, say so instead of guessing."
+    "Temporary canvas is disabled: write this directly into the source code. Do not call place_preview.",
+    "Apply it in the way the project already styles things, then tell the user it is in. If no anchor exists at all, say so instead of guessing."
   );
   if (count > 1) {
-    lines.push("", `Place all ${count} variants in ONE place_preview call: one ask is one edit with ${count} options to pick from.`);
-    lines.push(`A styles target takes \`variations\` of CSS; an insert or update target takes \`variations\` of html, each with a short label. The first paint answers the ask, even with fewer options: waiting, then options ready, then kept or discarded.`);
-    lines.push(`Retrying the same call reuses the existing paint instead of a duplicate row.`);
+    lines.push("", `The user asked for ${count} variants: pick the best one and write it into the source.`);
   }
   return lines.join("\n");
 }

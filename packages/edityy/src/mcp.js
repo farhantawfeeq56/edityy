@@ -33,6 +33,10 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  * of them gets it; any other gets the newest, as the spec says.
  */
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+// shortcut: temporary canvas disable — set false to restore canvas paints.
+const CANVAS_DISABLED = true;
+const DISABLED_TEXT =
+  "Temporary canvas is disabled. Write the change directly into the source code, then tell the user it is in. Do not call a placer.";
 
 const DECLARATIONS = {
   type: "array",
@@ -87,9 +91,8 @@ const TOOLS = [
       "Read everything Edityy holds in one call: the saved visual edits plus every ask, oldest first. " +
       "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-1: apply it to the " +
       "source code, then call mark_applied with the ids that are in the code. Each ask has a kind, an id and a " +
-      "status: answer a variants ask with place_variants and a preview-request ask with place_preview. " +
-      "A preview ask paints on the live canvas only with Keep and Discard; Keep saves it as a normal edit " +
-      "for the agent to write into the source, and it arrives here as an edit of its own. " +
+      "status: the temporary canvas is disabled, so write every ask directly into the source code. " +
+      "Do not call place_variants or place_preview. " +
       "Never re-read for the same turn: this call already lists it all.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -118,32 +121,7 @@ const TOOLS = [
   {
     name: "place_preview",
     description:
-      "Paint a change on the live Edityy canvas only, not in the code, for a comment-box preview ask. " +
-      "The instruction alone names the ask: quote the instruction get_work returned, and a waiting ask with " +
-      "those words is answered. No ask file is needed for a chat idea: an instruction with an action and its " +
-      "payload still paints. One ask is one edit with one state: place all its variations in ONE call, " +
-      "or many elements at once with targets: each target keeps its own action, selector or anchor, and payload. " +
-      "The first paint answers the ask, even with fewer options than asked for. " +
-      "A variation is one labeled option to pick from: styles entries carry plain CSS declarations in props, " +
-      "insert and update entries carry markup in html. " +
-      "styles restyles one element and takes a selector plus 1 to 100 variations. " +
-      "insert adds one element near an anchor with after, before, inside-start or inside-end (inside-end when untold). " +
-      "When the ask names a suggested anchor, use it or omit anchor to accept it: it is where the user drew the box. " +
-      "Without a suggested anchor, omit anchor to go at the end of main, or infer one from the page and name the assumption. " +
-      "It takes html for one option, or 1 to 10 labeled variations of html for a pick. " +
-      "update changes one element named by a selector, with styles, text or markup, or 1 to 10 labeled variations of markup for a pick. " +
-      "remove takes away one element named by a selector. " +
-      "Inline script + event handlers paint for local UI; network calls and external script src are refused. " +
-      "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, " +
-      "and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: " +
-      "infer anchors and links from the page's own ids and routes, paint, and name your assumption. " +
-      "Before each paint, run this design gate: the root block sets its own spacing (margin plus padding, such as mt-12 with pt-8 or p-6); " +
-      "the block fits the parent width with no fixed pixel width and no horizontal overflow; " +
-      "one heading at most, in the page type scale; no raw colour, reuse the page tokens; " +
-      "a multi-column row stacks on small screens with sm:. Fix each miss before you place. " +
-      "The preview shows on the page with Keep and Discard; Keep saves it as an edit for the agent to write " +
-      "into the source (the agent reads it with get_work). Edityy itself changes only the live page. " +
-      "If no anchor exists at all, say so instead of guessing.",
+      "Temporarily disabled: do not call. The temporary canvas is off, so write the change directly into the source code. " + DISABLED_TEXT,
     inputSchema: {
       type: "object",
       properties: {
@@ -165,13 +143,7 @@ const TOOLS = [
   {
     name: "place_variants",
     description:
-      "Place the style variations for a pending variants ask, for the user to try on the live element. " +
-      "Use the requestId get_work returned, and place exactly the number of variations the ask holds: fewer " +
-      "leaves a slot empty and more has nowhere to go, so any other count is refused. " +
-      "Each variation is a label and plain standard CSS declarations, with `on` for a state or " +
-      "pseudo-element and `when` for a media condition, and it may also set the element's words with `text`. " +
-      "Any CSS, incl. custom properties, !important and url(), paints on the canvas. " +
-      "The canvas is temporary: experiment freely. A wrong set costs one Discard, so cover styles that differ boldly instead of asking the user to choose.",
+      "Temporarily disabled: do not call. The temporary canvas is off, so write the change directly into the source code. " + DISABLED_TEXT,
     inputSchema: {
       type: "object",
       properties: {
@@ -227,7 +199,7 @@ const TOOLS = [
  * agent applies what it reads to the code.
  */
 async function workText(root) {
-  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first."];
+  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", DISABLED_TEXT];
   let saved = null;
   try {
     saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
@@ -346,6 +318,7 @@ export async function handle(message, root) {
           return reply({ content: [{ type: "text", text: `Marked ${ids.length} applied. Still waiting: ${rest}.` }] });
         }
         if (params?.name === "place_preview") {
+          if (CANVAS_DISABLED) return reply({ content: [{ type: "text", text: DISABLED_TEXT }] });
           const preview = await placePreview(params?.arguments, root);
           const queue = await readPreviewRequests(root);
           const left = queue.filter((entry) => entry.status === "pending");
@@ -371,6 +344,7 @@ export async function handle(message, root) {
           });
         }
         if (params?.name === "place_variants") {
+          if (CANVAS_DISABLED) return reply({ content: [{ type: "text", text: DISABLED_TEXT }] });
           const placed = await placeVariations(params?.arguments, root);
           const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
           return reply({

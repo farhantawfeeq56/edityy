@@ -42,28 +42,17 @@ the Edityy MCP server.
 
 - **vartest.** When the user sets more than one variation in the Edityy comment box and presses
   an element, its ask waits in \`get_work\`.
-  Read it every time: an answer for an older request is refused. Then answer
-  with exactly the number of variations it asks for, and call \`place_variants\`.
-  Each variation is plain CSS declarations and may also set the element's words
-  with \`text\`. Do not edit files for this.
-- **Temporary canvas.** When the user writes a comment in the Edityy comment
+  The temporary canvas is disabled: pick the best variation and write it directly
+  into the source code. Do not call \`place_variants\`.
+- **Temporary canvas (disabled).** When the user writes a comment in the Edityy comment
   box with "Ask the agent to preview" ticked and presses Save, its ask waits
   in \`get_work\`.
   Read it every message: a preview ask needs no \`edityy::\` typed in the chat.
   A drawn-box ask carries its
   location: document pixels, viewport percent and pixels, and center and
-  parent selectors. Paint one preview per asked variant with \`place_preview\`.
-  Then paint the change on the live canvas only. Do not edit files. Call
-  \`place_preview\` with the instruction quoted, an action and its payload:
-  \`styles\` restyles one element, \`insert\` adds markup, \`update\` changes one
-  element, and \`remove\` takes one away.
+  parent selectors. Write the change directly into the source code.
+  Do not call \`place_preview\`.
   If the user names no place and the place is unclear, ask them first.
-  One preview shows with Keep and Discard. Several waiting at once show a
-  checkbox list, and the user keeps the ticked ones with "Keep all" or takes
-  back the rest with "Discard all changes".
-  Keep and Discard on the page decide it. When a preview is kept, it arrives as
-  a saved edit, so \`get_work\` reads it
-  straight away, with no save step.
 - **Work.** Call \`get_work\` once per turn, before any other Edityy tool.
   It returns every saved edit and every ask in one read, oldest first. Each
   edit has an id such as \`c-1\`: apply it to the source code, then call

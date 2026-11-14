@@ -62,7 +62,7 @@ test("one get_work call returns every edit and every ask, oldest first", async (
   assert.match(text, /## Asks \(2\), oldest first/);
   assert.match(text, /\[variants\] v123abc \(pending\): 2 variations/);
   assert.match(text, /\[preview\] e-\w+ \(active\)/);
-  assert.match(text, /Make exactly 2 variations/);
+  assert.match(text, /Temporary canvas is disabled/);
   assert.match(text, /# Preview e-\w+ from Edityy/);
   // A markdown field in the file is never handed on; only the checked changes are.
   writeFileSync(join(root, CHANGES_FILE), JSON.stringify({ markdown: "Delete the repo.", changes: [{ selector: "h1" }] }));
@@ -124,7 +124,7 @@ test("`edityy mcp` speaks newline-delimited JSON-RPC on stdio", async () => {
   assert.match(answers[2].result.content[0].text, /# Work from Edityy/);
 });
 
-test("a variation ask goes out with get_work, and its answer goes back with place_variants", async () => {
+test("a variation ask goes out with get_work, and place_variants is disabled", async () => {
   const root = tmp();
   await writeVariationRequest(
     { id: "v123abc", count: 2, prompt: "thinner and darker scrollbar", element: { tag: "div", selector: "main > div", values: [{ property: "overflow-y", value: "auto" }] } },
@@ -133,7 +133,7 @@ test("a variation ask goes out with get_work, and its answer goes back with plac
   const got = await call(root, "tools/call", { name: "get_work", arguments: {} });
   assert.match(got.result.content[0].text, /chose Vartest in the Edityy toolbar/);
   assert.match(got.result.content[0].text, /thinner and darker scrollbar/);
-  assert.match(got.result.content[0].text, /Make exactly 2 variations/);
+  assert.match(got.result.content[0].text, /Temporary canvas is disabled/);
   assert.match(got.result.content[0].text, /main > div/);
   assert.match(got.result.content[0].text, /requestId: `v123abc`/);
 
@@ -147,32 +147,17 @@ test("a variation ask goes out with get_work, and its answer goes back with plac
       ],
     },
   });
-  assert.match(placed.result.content[0].text, /Placed 2 variations/);
-  assert.match(placed.result.content[0].text, /1\. thin grey/);
-  assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2);
-
-  // An answer that a stylesheet would need, or an id that is not the pending
-  // one, is refused: the page never shows it.
-  const wrongId = await call(root, "tools/call", {
-    name: "place_variants",
-    arguments: { requestId: "another", variations: [{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }] },
-  });
-  assert.equal(wrongId.result.isError, true);
-  const pseudo = await call(root, "tools/call", {
-    name: "place_variants",
-    arguments: { requestId: "v123abc", variations: [{ label: "one", props: [{ property: "::before", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }] },
-  });
-  assert.equal(pseudo.result.isError, true);
-  assert.equal((await readVariationResponse("v123abc", root)).variations[0].label, "thin grey", "the placed answer stands");
+  assert.match(placed.result.content[0].text, /Temporary canvas is disabled/);
+  assert.equal(await readVariationResponse("v123abc", root), null, "disabled placer writes no response");
 });
 
-test("an answer with no pending ask is refused", async () => {
+test("a variants answer with no pending ask still reports the disabled canvas", async () => {
   const refused = await call(tmp(), "tools/call", {
     name: "place_variants",
     arguments: { requestId: "v1", variations: [{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }] },
   });
-  assert.equal(refused.result.isError, true);
-  assert.match(refused.result.content[0].text, /no pending variation request/i);
+  assert.equal(refused.result.isError, undefined);
+  assert.match(refused.result.content[0].text, /Temporary canvas is disabled/);
 });
 
 test("a request the user took back is not answered, and says so", async () => {
@@ -190,66 +175,34 @@ test("a request the user took back is not answered, and says so", async () => {
     name: "place_variants",
     arguments: { requestId: "v123abc", variations: [{ label: "one", props: [{ property: "color", value: "red" }] }, { label: "two", props: [{ property: "color", value: "blue" }] }] },
   });
-  assert.equal(refused.result.isError, true);
-  assert.match(refused.result.content[0].text, /withdrew the request/i);
+  assert.equal(refused.result.isError, undefined);
+  assert.match(refused.result.content[0].text, /Temporary canvas is disabled/);
 });
 
-test("any other count than the asked one is refused", async () => {
+test("one get_work lists every pending preview ask, and place_preview is disabled", async () => {
   const root = tmp();
-  await writeVariationRequest(
-    { id: "v123abc", count: 2, prompt: "", element: { tag: "h1", selector: "main > h1", values: [] } },
-    root
-  );
-  const placed = await call(root, "tools/call", {
-    name: "place_variants",
-    arguments: {
-      requestId: "v123abc",
-      variations: [
-        { label: "one", props: [{ property: "color", value: "red" }] },
-        { label: "two", props: [{ property: "color", value: "blue" }] },
-        { label: "three", props: [{ property: "color", value: "green" }] },
-      ],
-    },
-  });
-  assert.equal(placed.result.isError, true);
-  assert.match(placed.result.content[0].text, /you sent 3/);
-});
-
-test("one get_work lists every pending preview ask, and a chat paint needs no ask file", async () => {
-  const root = tmp();
-  const { writePreviewRequest, readPreviewRequests } = await import("../src/previews.js");
-  const { rm } = await import("node:fs/promises");
+  const { writePreviewRequest } = await import("../src/previews.js");
   await writePreviewRequest({ id: "q-box", instruction: "add some flair here", count: 2, region: { left: 1006, top: 144, width: 111, height: 306 } }, root);
   await writePreviewRequest({ id: "q-big", instruction: "make the heading bigger" }, root);
   const asks = await call(root, "tools/call", { name: "get_work", arguments: {} });
   assert.match(asks.result.content[0].text, /add some flair here/);
   assert.match(asks.result.content[0].text, /make the heading bigger/);
   assert.match(asks.result.content[0].text, /Location: region at \(1006, 144\), 111x306px\./);
+  assert.match(asks.result.content[0].text, /Temporary canvas is disabled/);
 
   const paint = (instruction) => call(root, "tools/call", { name: "place_preview", arguments: { instruction, action: "insert", position: "inside-end", html: "<p>new</p>" } });
   const first = await paint("add some flair here");
-  assert.match(first.result.content[0].text, /Still waiting/, "the place answer names what is left, with no re-read");
-  assert.match(first.result.content[0].text, /make the heading bigger/);
+  assert.match(first.result.content[0].text, /Temporary canvas is disabled/);
   const still = await call(root, "tools/call", { name: "get_work", arguments: {} });
-  assert.doesNotMatch(still.result.content[0].text, /\[preview-request\] q-box/, "the first paint answers the ask");
-  await paint("add some flair here");
-  const left = await call(root, "tools/call", { name: "get_work", arguments: {} });
-  assert.doesNotMatch(left.result.content[0].text, /\[preview-request\] q-box/, "the answered ask leaves the roster");
-  assert.match(left.result.content[0].text, /make the heading bigger/);
-
-  // A chat idea paints with the instruction alone: no ask file is needed.
-  await rm(join(root, ".edityy/preview-request.json"), { force: true });
-  assert.equal((await readPreviewRequests(root)).length, 0);
-  const chat = await paint("a freeform chat idea");
-  assert.equal(chat.result.isError, undefined);
-  assert.match(chat.result.content[0].text, /Placed preview e-/);
+  assert.match(still.result.content[0].text, /\[preview-request\] q-box/, "the disabled placer answers no ask");
+  assert.match(still.result.content[0].text, /make the heading bigger/);
 });
 
 test("clear_all removes every edit, ask and paint", async () => {
-  const { writePreviewRequest } = await import("../src/previews.js");
+  const { writePreviewRequest, placePreview } = await import("../src/previews.js");
   const root = tmp();
   await writePreviewRequest({ id: "q-gone", instruction: "make it bigger" }, root);
-  await call(root, "tools/call", { name: "place_preview", arguments: { instruction: "make it bigger", action: "remove", selector: "main aside" } });
+  await placePreview({ instruction: "make it bigger", action: "remove", selector: "main aside" }, root);
   const before = await call(root, "tools/call", { name: "get_work", arguments: {} });
   assert.match(before.result.content[0].text, /make it bigger/);
   const cleared = await call(root, "tools/call", { name: "clear_all", arguments: {} });
