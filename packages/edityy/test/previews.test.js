@@ -230,6 +230,27 @@ test("a dragged-box request carries its location, and every pending ask lists", 
   assert.throws(() => checkPreviewRequest({ id: "p-bad", instruction: "x", region: "hero" }), { status: 400 });
 });
 
+test("an anchorless insert lands at the drawn spot, an explicit anchor wins", async () => {
+  const root = tmp();
+  await writePreviewRequest(
+    {
+      id: "p-spot",
+      instruction: "add a badge here",
+      region: { left: 10, top: 20, width: 100, height: 40, parent: "main > section" },
+    },
+    root
+  );
+  const text = previewRequestText((await readPendingPreviewRequests(root))[0]);
+  assert.match(text, /Suggested anchor: `main > section`, suggested position: `inside-end`\./);
+  const preview = await placePreview({ instruction: "add a badge here", action: "insert", html: "<span>New</span>" }, root);
+  assert.equal(preview.anchor, "main > section");
+  assert.equal(preview.position, "inside-end");
+  assert.equal(preview.targets[0].anchor, "main > section");
+  await writePreviewRequest({ id: "p-spot-2", instruction: "add a badge there", region: { left: 10, top: 20, width: 100, height: 40, parent: "main > section" } }, root);
+  const placed = await placePreview({ instruction: "add a badge there", action: "insert", anchor: "#hero", position: "after", html: "<span>New</span>" }, root);
+  assert.equal(placed.anchor, "#hero", "an anchor the agent sets overrides the drawn spot");
+});
+
 test("the first paint answers a count ask, not another waiting ask", async () => {
   const root = tmp();
   await writePreviewRequest({ id: "p-flair", instruction: "add some flair here", count: 3 }, root);

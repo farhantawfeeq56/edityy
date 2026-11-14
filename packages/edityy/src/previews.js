@@ -127,8 +127,10 @@ function checkHtmlVariations(variations) {
 }
   if (action === "insert") {
     out.anchor = placed.anchor === undefined || placed.anchor === null ? null : selector(placed.anchor, "anchor");
-    if (!POSITIONS.includes(placed.position)) invalid("position must be after, before, inside-start or inside-end");
-    out.position = placed.position;
+    // No position means the end of the anchor: the request's insert
+    // parent fills the anchor in when the agent omits it.
+    out.position = placed.position === undefined || placed.position === null ? "inside-end" : placed.position;
+    if (!POSITIONS.includes(out.position)) invalid("position must be after, before, inside-start or inside-end");
     if (placed.variations !== undefined) {
       if (placed.html !== undefined) invalid("insert takes html or variations, not both");
       out.variations = checkHtmlVariations(placed.variations);
@@ -267,6 +269,21 @@ export async function placePreview(placed, root = process.cwd()) {
   // answers nothing, so it never clears the wrong card.
   const queue = await readPreviewRequests(root);
   const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === checked.instruction) || null;
+  // A dragged Add-box names its spot: an insert with no anchor takes the
+  // request's insert parent, so the paint lands where the user drew.
+  // An anchor the agent sets wins: it overrides the drawn spot.
+  const drawn = (waiting && waiting.region && typeof waiting.region.parent === "string" && waiting.region.parent) || null;
+  if (drawn) {
+    let moved = false;
+    for (const target of checked.targets) {
+      if (target.action === "insert" && !target.anchor) {
+        target.anchor = drawn;
+        if (!target.position) target.position = "inside-end";
+        moved = true;
+      }
+    }
+    if (moved && checked.targets[0]) Object.assign(checked, checked.targets[0]);
+  }
   if (!waiting && queue.some((entry) => entry.status === "cancelled" && entry.instruction === checked.instruction)) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
@@ -592,7 +609,12 @@ export function previewRequestText(request) {
     }
     if (box.center) lines.push(`Center: \`${box.center}\`.${box.parent ? ` Insert parent: \`${box.parent}\`.` : ""}`);
     else if (box.parent) lines.push(`Insert parent: \`${box.parent}\`.`);
-    lines.push("Insert the new markup at the insert parent, or ask where when none is named.");
+    if (box.parent) {
+      lines.push(`Suggested anchor: \`${box.parent}\`, suggested position: \`inside-end\`.`);
+      lines.push("Omit anchor to paint at the drawn spot. Set another anchor only when the words name a different place.");
+    } else {
+      lines.push("Insert the new markup at the end of main, or ask where when the words name no place.");
+    }
   }
   lines.push(
     "",

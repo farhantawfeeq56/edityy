@@ -70,8 +70,8 @@ const PREVIEW_TARGET = {
     action: { type: "string", description: "One of styles, insert, update or remove." },
     selector: { type: "string", description: "The element to change, for styles, update and remove." },
     variations: PREVIEW_VARIATIONS,
-    anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
-    position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
+    anchor: { type: "string", description: "The element the insert goes by; omit to accept the ask's suggested spot, or to go at the end of main." },
+    position: { type: "string", description: "For insert: after, before, inside-start or inside-end; inside-end when untold." },
     html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
     props: DECLARATIONS,
     text: { type: "string", description: "Optional: plain words for update." },
@@ -127,7 +127,9 @@ const TOOLS = [
       "A variation is one labeled option to pick from: styles entries carry plain CSS declarations in props, " +
       "insert and update entries carry markup in html. " +
       "styles restyles one element and takes a selector plus 1 to 100 variations. " +
-      "insert adds one element near an anchor, or at the end of main without one, with after, before, inside-start or inside-end. " +
+      "insert adds one element near an anchor with after, before, inside-start or inside-end (inside-end when untold). " +
+      "When the ask names a suggested anchor, use it or omit anchor to accept it: it is where the user drew the box. " +
+      "Without a suggested anchor, omit anchor to go at the end of main, or infer one from the page and name the assumption. " +
       "It takes html for one option, or 1 to 10 labeled variations of html for a pick. " +
       "update changes one element named by a selector, with styles, text or markup, or 1 to 10 labeled variations of markup for a pick. " +
       "remove takes away one element named by a selector. " +
@@ -146,8 +148,8 @@ const TOOLS = [
         selector: { type: "string", description: "The element to change, for styles, update and remove." },
         variations: PREVIEW_VARIATIONS,
         targets: { type: "array", minItems: 1, maxItems: 100, items: PREVIEW_TARGET, description: "Many elements in one preview, each with its own action, selector or anchor, and payload. Old single-action calls keep working without it." },
-        anchor: { type: "string", description: "Optional: the element the insert goes by; without one it goes at the end of main." },
-        position: { type: "string", description: "For insert: after, before, inside-start or inside-end." },
+        anchor: { type: "string", description: "The element the insert goes by; omit to accept the ask's suggested spot, or to go at the end of main." },
+        position: { type: "string", description: "For insert: after, before, inside-start or inside-end; inside-end when untold." },
         html: { type: "string", description: "For insert and update: the markup. Strict-inline JS only: inline script + on* for local UI; no script src, no network in script." },
         props: DECLARATIONS,
         text: { type: "string", description: "Optional: plain words for update." },

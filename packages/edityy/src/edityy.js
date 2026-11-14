@@ -7923,8 +7923,12 @@ function decorations() {
       try {
         var under = document.elementFromPoint(Math.min(Math.max(viewLeft + box.width / 2, 0), vw - 1), Math.min(Math.max(viewTop + box.height / 2, 0), vh - 1));
         if (under && under !== document.documentElement) {
-          out.center = selectorFor(under);
-          if (under.parentElement) out.parent = selectorFor(under.parentElement);
+          var at = selectorFor(under);
+          if (at) out.center = at;
+          if (under.parentElement) {
+            var above = selectorFor(under.parentElement);
+            if (above) out.parent = above;
+          }
         }
       } catch { /* a page that cannot be measured still sends the box */ }
     }

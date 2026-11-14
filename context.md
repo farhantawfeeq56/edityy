@@ -111,6 +111,7 @@ Key invariants:
 * `inject()` uses two regexes (script-src check, `</head>` match). Returns body untouched when not HTML or tag present.
 * Save endpoint accepts `localhost`, subdomains, IP addresses, plus `allowedHosts` option. `allowedHosts: true` accepts all.
 * `store()` writes beside target then renames. Reader sees old or new file, never half a file.
+* An insert with no anchor lands at the ask's insert parent when the ask names one, else at the end of `main`. An anchor the agent sets wins.
 
 ## The site (`app/`)
 
