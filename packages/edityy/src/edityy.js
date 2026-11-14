@@ -2168,6 +2168,8 @@
         // clicked chip: let it leave with its own animation instead. It is
         // back on the next hover, through the menu's own delegation.
         hideTip();
+        // The next step is typing, so the cursor lands in the field at once.
+        area.focus();
       }, "comment-count-" + n);
       // The graphite hint reads the aria-label, so the native title only
       // doubles it and sticks around on a click: it goes, the label stays.
