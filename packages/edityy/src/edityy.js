@@ -1834,6 +1834,9 @@
     // The element being moved is off the page until it is placed, so it has no
     // box to frame: measured, it is a dot in the top-left corner.
     var items = moving ? [] : selectedItems;
+    // Edits reads from its list: the click opens the edit's card, and no
+    // box is drawn for the selection, hovered or picked.
+    if (activeTool === "edits") items = [];
     watchSelection(items);
     var count = items.length;
     var wasHidden = selBox.hidden;
@@ -1864,9 +1867,10 @@
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
   var openComment = null;
-  // What the comment box keeps between opens. The tick starts off, so a
-  // quick note stays a note, and the count keeps its last pick.
-  var commentAskKept = false;
+  // What the comment box keeps between opens. The tick starts on, so a
+  // quick note also asks the agent to preview it, and the count keeps
+  // its last pick.
+  var commentAskKept = true;
   var commentCountKept = 1;
   // The card is 90% of its old size. The scale moves every part together.
   var commentScale = 0.9;
@@ -2113,8 +2117,8 @@
     area.setAttribute("aria-label", "Comment");
     area.value = region ? region.comment || "" : (variationPrompt && el === variationPromptEl ? variationPrompt : record(el).comment || "");
     box.appendChild(area);
-    // The tick asks the agent to preview the words. It starts off, so a
-    // quick note stays a note, and it keeps its last state between opens.
+    // The tick asks the agent to preview the words. It starts on, so a
+    // quick note also asks, and it keeps its last state between opens.
     var canvasRow = document.createElement("label");
     canvasRow.className = "element-comment-row";
     var canvasTick = document.createElement("input");
@@ -2207,7 +2211,7 @@
       var name = many ? say + (region ? " previews" : " variations") : "Save comment";
       save.setAttribute("aria-label", name);
       save.title = name;
-      if (!many) hint.textContent = canvasTick.checked ? "Saves the note and asks the agent to preview it." : "";
+      if (!many) hint.textContent = "";
       else if (region) hint.textContent = "Asks the agent for " + count + " previews. The answer lands at the bottom right.";
       else hint.textContent = "Asks the agent for " + count + " variations. The card waits with the words until the answer lands.";
     }
@@ -9513,8 +9517,9 @@ function decorations() {
       }
       // Add is freeform: a click alone picks nothing, and the hover
       // frame stays away, so the pointer draws its own box unbothered.
+      // Edits reads from its list, so its hover frame stays away too.
       if (drawing) drawRegion(x, y);
-      if (drawing || activeTool === "add") {
+      if (drawing || activeTool === "add" || activeTool === "edits") {
         hideHover();
         return;
       }
@@ -9556,6 +9561,15 @@ function decorations() {
     cardDoneFor = null;
     if (e.shiftKey) extendSelection(hit && hit.el);
     else select(hit && hit.el, hit);
+    // Edits reads from its list: a click on an edited element opens that
+    // edit's card, so its controls are showing instead of a frame.
+    if (activeTool === "edits" && !e.shiftKey && hit && hit.el) {
+      var found = matchingTasks(editsTasks());
+      for (var fi = 0; fi < found.length; fi++) {
+        if (found[fi].el === hit.el) expandedTasks[taskKey(found[fi])] = true;
+      }
+      show("changes");
+    }
   }
 
   /** Escape backs out one level: the open control first, then the mode. */

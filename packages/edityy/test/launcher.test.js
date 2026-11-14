@@ -851,8 +851,8 @@ const selectText = (app, edit = false) => {
 };
 
 /** Click an element and write a comment on it, as the Comment tool does.
-    With `ask`, the agent-preview tick goes on before Save, as a user who
-    wants a preview does. */
+    With `ask`, the agent-preview tick stays on for Save; without it the
+    tick goes off first, so the words save as a plain note. */
 const commentOn = (app, node, words, ask = false) => {
   ensureComment(app);
   app.hover(node);
@@ -860,11 +860,10 @@ const commentOn = (app, node, words, ask = false) => {
   const box = app.root.nodes["element-menu"].children[0];
   const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
   area.value = words;
-  if (ask) {
-    const walk = (n) => (n.children || []).flatMap((c) => [c, ...walk(c)]);
-    const tickBox = walk(box).find((b) => b.getAttribute && b.getAttribute("aria-label") === "Ask the agent to preview");
-    tickBox.checked = true;
-  }
+  const walk = (n) => (n.children || []).flatMap((c) => [c, ...walk(c)]);
+  const tickBox = walk(box).find((b) => b.getAttribute && b.getAttribute("aria-label") === "Ask the agent to preview");
+  tickBox.checked = ask;
+  tickBox.dispatchEvent({ type: "change" });
   const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
@@ -1782,6 +1781,22 @@ test("the edits button counts the elements that really changed", () => {
   assert.equal(app.root.nodes.count.textContent, "1");
 });
 
+test("edits mode draws no frame, and a click opens the edit's card", () => {
+  const { run } = fakeDom();
+  const app = run();
+  const p = selectText(app);
+  commentOn(app, p, "bigger");
+  press(app, "edits");
+  assert.equal(app.root.nodes.review.getAttribute("aria-expanded"), "true", "the list is open");
+  app.hover(p);
+  app.fire("mousemove", { clientX: 10, clientY: 10 });
+  assert.equal(app.root.nodes.hover.hidden, true, "no hover frame in edits mode");
+  quiet(() => app.clickPage());
+  assert.equal(app.root.nodes.sel.hidden, true, "no selection frame in edits mode");
+  const cards = app.root.nodes.pop.children[1].children;
+  assert.ok(cards.some((c) => c.getAttribute("data-open") === "true"), "the click opens the edit's card");
+});
+
 
 test("the edits list names each element, and discards one without the others", async () => {
   const { run } = fakeDom();
@@ -2359,7 +2374,7 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   const hint = () => walk(menu.children[0]).find((b) => b.className === "element-comment-hint");
   const p = selectText(app);
   const q = app.el("h2", { text: "second" });
-  assert.equal(inMenu("Ask the agent to preview").checked, false, "the tick starts off: a note is only a note");
+  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick starts on: a note also asks for a preview");
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save");
   assert.equal(hint().textContent, "", "1 stays quiet: the note needs no explainer");
   // Above 1 the button and the line say the card asks the agent instead.
@@ -2373,12 +2388,11 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   quiet(() => app.clickPage());
   assert.equal(inMenu("5 variations").getAttribute("aria-checked"), "true", "the count is remembered");
   assert.equal(inMenu("Ask the agent to preview").checked, false, "and the tick stays off");
-  // Back to 1, the tick goes on, and the note saves with the ask.
+  // Back to 1, the tick is on, and the note saves with the ask, quietly.
   for (const fn of inMenu("Single edit").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save", "1 saves again");
-  inMenu("Ask the agent to preview").checked = true;
-  inMenu("Ask the agent to preview").dispatchEvent({ type: "change" });
-  assert.match(hint().textContent, /asks the agent to preview it/, "the tick says it asks");
+  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick is back on");
+  assert.equal(hint().textContent, "", "1 stays quiet even with the ask on");
   inMenu("Comment").value = "warmer";
   for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   app.hover(p);
