@@ -7114,40 +7114,57 @@ function decorations() {
       });
       return;
     }
+    // Preview cards wear their options on the card, the way variants do:
+    // the chips are always on, never behind the expand.
+    if (task.kind === "preview-current") {
+      previewChips(card, task);
+      return;
+    }
+  }
+
+  /**
+   * The variant chips of a preview card. One shared builder, so the card
+   * wears the same chips open or not: options are never one tap away
+   * when the paint holds them.
+   */
+  function previewChips(card, task) {
+    var paint = paintForId(task.previewId);
+    var current = paint ? paint.preview : null;
+    var choices = current ? previewRowVariations(current) : [];
+    var at = paint ? paint.variantAt : -1;
+    if (!choices.length) return;
+    var chips = document.createElement("div");
+    chips.className = "task-chips";
+    chips.setAttribute("data-ui-stack", "");
+    chips.setAttribute("role", "group");
+    chips.setAttribute("aria-label", "Variants");
+    choices.forEach(function (variation, i) {
+      var chip = button("task-chip", "", variation.label || ("Option " + (i + 1)), function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (e && e.preventDefault) e.preventDefault();
+        pickPreviewVariant(paintForId(task.previewId), i);
+      }, "preview-" + (i + 1));
+      chip.addEventListener("mousedown", function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+      });
+      chip.setAttribute("title", variation.label || ("Option " + (i + 1)));
+      chip.setAttribute("aria-pressed", i === at ? "true" : "false");
+      chip.appendChild(text(String(i + 1)));
+      chips.appendChild(chip);
+    });
+    card.appendChild(chips);
   }
 
   function addTaskActions(card, task) {
     var key = taskKey(task);
     if (!expandedTasks[key]) return;
-    // Preview cards wear the same box as edits: numbered chips between the
-    // heading and the notes, then x and tick. No Keep/Discard text buttons.
+    // Preview cards wear the same box as edits: chips on the card (see
+    // previewChips), then notes with x and tick. No Keep/Discard text buttons.
     if (task.kind === "preview-current") {
       var paint = paintForId(task.previewId);
       var current = paint ? paint.preview : null;
       var choices = current ? previewRowVariations(current) : [];
       var at = paint ? paint.variantAt : -1;
-      if (choices.length) {
-        var chips = document.createElement("div");
-        chips.className = "task-chips";
-        chips.setAttribute("data-ui-stack", "");
-        chips.setAttribute("role", "group");
-        chips.setAttribute("aria-label", "Variants");
-        choices.forEach(function (variation, i) {
-          var chip = button("task-chip", "", variation.label || ("Option " + (i + 1)), function (e) {
-            if (e && e.stopPropagation) e.stopPropagation();
-            if (e && e.preventDefault) e.preventDefault();
-            pickPreviewVariant(paintForId(task.previewId), i);
-          }, "preview-" + (i + 1));
-          chip.addEventListener("mousedown", function (e) {
-            if (e && e.preventDefault) e.preventDefault();
-          });
-          chip.setAttribute("title", variation.label || ("Option " + (i + 1)));
-          chip.setAttribute("aria-pressed", i === at ? "true" : "false");
-          chip.appendChild(text(String(i + 1)));
-          chips.appendChild(chip);
-        });
-        card.appendChild(chips);
-      }
       // A target that missed the page is named on the card, and Keep waits:
       // a partial paint must never look complete.
       var missing = current ? previewMissing(current) : [];
@@ -8337,11 +8354,12 @@ function decorations() {
       return;
     }
     var fromComment = !!previewReqId;
+    var askedRegion = previewReqRegion;
     // The agent answered: the ask's words are an Exploring note now.
     if (previewReqFor) record(previewReqFor).commentAsk = false;
-    if (previewReqRegion) previewReqRegion.waiting = false;
+    if (askedRegion) askedRegion.waiting = false;
     // Cards without an element scroll to the box the ask drew.
-    answeredRegion = previewReqRegion;
+    answeredRegion = askedRegion;
     previewReqId = "";
     previewReqFor = null;
     previewReqRegion = null;
@@ -8354,8 +8372,32 @@ function decorations() {
     pending.forEach(function (one) {
       paintOne(one, picks[one.id]);
     });
+    // The box did its job: the paint is the state now, not one more edit.
+    // A box whose ask is still out stays where it is. previewPaints holds
+    // only the paints that landed: resetPreviewBox cleared it above, and a
+    // miss lands on the waiting list instead.
+    if (previewPaints.length && askedRegion && regionAnswered(askedRegion)) {
+      var consumedAt = regions.indexOf(askedRegion);
+      if (consumedAt !== -1) regions.splice(consumedAt, 1);
+      if (selectedRegion === askedRegion) {
+        selectedRegion = null;
+        regionBox.hidden = true;
+      }
+      paintMarks();
+    }
     refit();
     tally();
+  }
+
+  /** A drawn box whose ask the server marked answered. */
+  function regionAnswered(rg) {
+    var list = srvPreviewRequests || [];
+    for (var i = 0; i < list.length; i++) {
+      var rq = list[i];
+      if (!rq || rq.status !== "answered" || !rq.region) continue;
+      if (sameRegion(rq.region, rg)) return true;
+    }
+    return false;
   }
 
   /** One styled look on every styles element, through the same records as a variant. */
