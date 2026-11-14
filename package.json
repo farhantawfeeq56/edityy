@@ -34,7 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-rsc": "^0.5.39",
-    "cf": "^1.0.0-beta.27",
+    "cf": "^1.0.0-beta.29",
     "edityy": "^0.8.0",
     "esbuild": "^0.28.2",
     "eslint": "^9",
