@@ -260,6 +260,33 @@ test("an anchorless insert lands at the drawn spot, an explicit anchor wins", as
   assert.equal(placed.anchor, "#hero", "an anchor the agent sets overrides the drawn spot");
 });
 
+test("a drawn spot between children fills before, not the end", async () => {
+  const root = tmp();
+  await writePreviewRequest(
+    {
+      id: "p-between",
+      instruction: "add a card here",
+      region: {
+        left: 10,
+        top: 20,
+        width: 100,
+        height: 40,
+        parent: "main > div.cards",
+        center: "main > div.cards > article",
+        anchor: "main > div.cards > article:nth-of-type(2)",
+        position: "before",
+      },
+    },
+    root
+  );
+  const text = previewRequestText((await readPendingPreviewRequests(root))[0]);
+  assert.match(text, /Suggested anchor: `main > div\.cards > article:nth-of-type\(2\)`, suggested position: `before`\./);
+  const preview = await placePreview({ instruction: "add a card here", action: "insert", html: "<article>New</article>" }, root);
+  assert.equal(preview.anchor, "main > div.cards > article:nth-of-type(2)");
+  assert.equal(preview.position, "before");
+  assert.throws(() => checkPreviewRequest({ id: "p-bad", instruction: "x", region: { left: 0, top: 0, width: 1, height: 1, position: "middle" } }), { status: 400 });
+});
+
 test("the first paint answers a count ask, not another waiting ask", async () => {
   const root = tmp();
   await writePreviewRequest({ id: "p-flair", instruction: "add some flair here", count: 3 }, root);

@@ -281,28 +281,33 @@ function linkedOptions(ids, items) {
 
 /** Place a preview from the agent chat. It becomes the active one. Older ones stay in history. It also answers the pending comment-box request with the same words, when there is one. */
 export async function placePreview(placed, root = process.cwd()) {
-  const checked = checkPreview(placed);
+  const words = checkPreview(placed).instruction;
   // A request the user withdrew is not answered: the page already took the
   // waiting strip away, and a late paint would fight the next request.
   // Only the ask with the same words is answered: a paint with other words
   // answers nothing, so it never clears the wrong card.
   const queue = await readPreviewRequests(root);
-  const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === checked.instruction) || null;
+  const waiting = queue.find((entry) => entry.status === "pending" && entry.instruction === words) || null;
   // A dragged Add-box names its spot: an insert with no anchor takes the
-  // request's insert parent, so the paint lands where the user drew.
+  // request's drawn spot, so the paint lands where the user drew.
   // An anchor the agent sets wins: it overrides the drawn spot.
-  const drawn = (waiting && waiting.region && typeof waiting.region.parent === "string" && waiting.region.parent) || null;
-  if (drawn) {
-    let moved = false;
-    for (const target of checked.targets) {
-      if (target.action === "insert" && !target.anchor) {
-        target.anchor = drawn;
-        if (!target.position) target.position = "inside-end";
-        moved = true;
+  // The fill runs before the check: the check defaults an omitted position
+  // to inside-end, past which a drawn `before` could no longer apply.
+  const drawnAnchor =
+    (waiting && waiting.region && typeof waiting.region.anchor === "string" && waiting.region.anchor) ||
+    (waiting && waiting.region && typeof waiting.region.parent === "string" && waiting.region.parent) ||
+    null;
+  const drawnPosition = (waiting && waiting.region && waiting.region.position) || "inside-end";
+  if (drawnAnchor) {
+    const raws = placed.targets !== undefined ? placed.targets : [placed];
+    for (const raw of raws) {
+      if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.action === "insert" && !raw.anchor) {
+        raw.anchor = drawnAnchor;
+        if (!raw.position) raw.position = drawnPosition;
       }
     }
-    if (moved && checked.targets[0]) Object.assign(checked, checked.targets[0]);
   }
+  const checked = checkPreview(placed);
   if (!waiting && queue.some((entry) => entry.status === "cancelled" && entry.instruction === checked.instruction)) {
     throw new Error("The user withdrew the preview request. Do not place it.");
   }
@@ -489,13 +494,17 @@ function checkRegion(source) {
     if (typeof source.pctLeft !== "number" || !(source.pctLeft >= 0) || source.pctLeft > 100) invalid("region pctLeft must be 0 to 100");
     out.pctLeft = Math.round(source.pctLeft * 10) / 10;
   }
-  for (const key of ["center", "parent"]) {
+  for (const key of ["center", "parent", "anchor"]) {
     if (source[key] !== undefined && source[key] !== null) {
       if (typeof source[key] !== "string" || !source[key].trim() || source[key].length > MAX_SELECTOR) {
         invalid(`region ${key} must be 1 to ${MAX_SELECTOR} characters`);
       }
       out[key] = source[key].trim();
     }
+  }
+  if (source.position !== undefined && source.position !== null) {
+    if (!POSITIONS.includes(source.position)) invalid("region position must be after, before, inside-start or inside-end");
+    out.position = source.position;
   }
   return out;
 }
@@ -640,7 +649,9 @@ export function previewRequestText(request) {
     if (box.center) lines.push(`Center: \`${box.center}\`.${box.parent ? ` Insert parent: \`${box.parent}\`.` : ""}`);
     else if (box.parent) lines.push(`Insert parent: \`${box.parent}\`.`);
     if (box.parent) {
-      lines.push(`Suggested anchor: \`${box.parent}\`, suggested position: \`inside-end\`.`);
+      const spotAnchor = box.anchor || box.parent;
+      const spotPosition = box.position || "inside-end";
+      lines.push(`Suggested anchor: \`${spotAnchor}\`, suggested position: \`${spotPosition}\`.`);
       lines.push("Omit anchor to paint at the drawn spot. Set another anchor only when the words name a different place.");
     } else {
       lines.push("Insert the new markup at the end of main, or ask where when the words name no place.");

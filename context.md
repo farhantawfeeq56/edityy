@@ -104,6 +104,7 @@ Data files (all under `<root>/.edityy/`, git-ignored via own `.gitignore`):
 |`.edityy/previews\*.json`|Pending previews (`PREVIEWS\_FILE`) and preview requests (`PREVIEW\_REQUEST\_FILE`).|
 |`.edityy/session.json`|Canvas session (`SESSION\_FILE`).|
 |`.edityy/cleared.json`|Last clear timestamp (`CLEARED\_FILE`). Open page drops its state on clear.|
+|`.edityy/applied.json`|Last applied timestamp (`APPLIED\_FILE`). Open page adopts its paint on apply, so no refresh is needed.|
 
 Key invariants:
 
@@ -111,7 +112,7 @@ Key invariants:
 * `inject()` uses two regexes (script-src check, `</head>` match). Returns body untouched when not HTML or tag present.
 * Save endpoint accepts `localhost`, subdomains, IP addresses, plus `allowedHosts` option. `allowedHosts: true` accepts all.
 * `store()` writes beside target then renames. Reader sees old or new file, never half a file.
-* An insert with no anchor lands at the ask's insert parent when the ask names one, else at the end of `main`. An anchor the agent sets wins.
+* An insert with no anchor lands at the ask's drawn spot (`region.anchor` plus `region.position`, else the insert parent, else the end of `main`). An anchor the agent sets wins.
 
 ## The site (`app/`)
 

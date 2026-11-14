@@ -7813,6 +7813,11 @@ function decorations() {
           lastClearedAt = j.clearedAt;
           forgetCanvas();
         }
+        // The agent wrote the edits into the code: keep the paint and drop
+        // the records, so the change shows with no refresh.
+        if (typeof j.appliedAt === "string" && j.appliedAt && j.appliedAt > lastAppliedAt) {
+          if (adoptCanvas(j.appliedAt)) lastAppliedAt = j.appliedAt;
+        }
         // The one queue behind the panel: what waits and what is ready.
         if (j.variations) {
           if (Array.isArray(j.variations.requests)) srvVariationRequests = j.variations.requests;
@@ -7932,6 +7937,8 @@ function decorations() {
   var previewPolls = 0;
   var previewSeen = ""; // signature of what the box shows, so a poll redraws only on a change
   var lastClearedAt = ""; // the clear the page already honored, so a new one drops memory
+  var lastAppliedAt = ""; // the applied mark the page already honored, so a new one adopts once
+  var appliedWait = null; // an applied mark seen once, with its record count for the check
   var previewPaints = []; // every preview painted now, in poll order: { preview, variantAt, variantProps, target, records, fresh, styled, variantInserts, variantUpdates, painted }
   var previewRecords = []; // every change record all paints wrote, so the panel hides them as edits
   var previewFresh = []; // every inserted element all paints added
@@ -7981,13 +7988,37 @@ function decorations() {
       out.pctLeft = Math.round((viewLeft / vw) * 1000) / 10;
       out.viewTop = viewTop;
       try {
-        var under = document.elementFromPoint(Math.min(Math.max(viewLeft + box.width / 2, 0), vw - 1), Math.min(Math.max(viewTop + box.height / 2, 0), vh - 1));
-        if (under && under !== document.documentElement) {
-          var at = selectorFor(under);
+        // The same spot a Move drop would take: the sibling the box middle
+        // sits in front of, in the container that holds it. A box in empty
+        // container space names the container, not its parent, and a box
+        // between children names the next sibling with `before`.
+        var cx = Math.min(Math.max(viewLeft + box.width / 2, 0), vw - 1);
+        var cy = Math.min(Math.max(viewTop + box.height / 2, 0), vh - 1);
+        var hit = pickAt(cx, cy);
+        var target = hit && hit.el;
+        if (target && target !== document.documentElement) {
+          var at = selectorFor(target);
           if (at) out.center = at;
-          if (under.parentElement) {
-            var above = selectorFor(under.parentElement);
-            if (above) out.parent = above;
+          var holder = hit.kind === "container" ? target : target.parentElement;
+          if (holder && holder !== document.documentElement) {
+            var own = hit.kind === "container" ? holder.children : [];
+            var siblings = own && own.length ? Array.prototype.slice.call(own) : Array.prototype.slice.call(holder.children);
+            var spot = spotAmong(siblings, cx, cy, holder);
+            var container = selectorFor(holder);
+            if (container) out.parent = container;
+            if (spot.before) {
+              var ref = selectorFor(spot.before);
+              if (ref) {
+                out.anchor = ref;
+                out.position = "before";
+              } else if (container) {
+                out.anchor = container;
+                out.position = "inside-end";
+              }
+            } else if (container) {
+              out.anchor = container;
+              out.position = "inside-end";
+            }
           }
         }
       } catch { /* a page that cannot be measured still sends the box */ }
@@ -8337,14 +8368,11 @@ function decorations() {
   }
 
   /**
-   * The agent cleared every edit: drop what the page holds too.
-   *
-   * Files alone never empty an open page: keep() would re-post the canvas
-   * on the next keystroke and a removed edit would come back. So every
-   * in-memory edit reverts, the strips put away, and the panel retallies.
-   * Calls are safe on an empty canvas, for a clear the page never saw filled.
+   * Drop what the page holds: every in-memory edit goes, the strips put
+   * away, and the panel retallies. Revert the paint first when told to.
+   * Calls are safe on an empty canvas, for a mark the page never saw filled.
    */
-  function forgetCanvas() {
+  function dropCanvas(revertEach) {
     if (variantList.length || variationId || variationServerId) discardVariants();
     resetPreviewBox();
     previewSeen = "";
@@ -8361,11 +8389,13 @@ function decorations() {
     previewWords = "";
     previewOrigin = "agent";
     srvVariantAt = {};
-    changes.slice().forEach(function (rec) {
-      try {
-        revert(rec, true);
-      } catch {}
-    });
+    if (revertEach) {
+      changes.slice().forEach(function (rec) {
+        try {
+          revert(rec, true);
+        } catch {}
+      });
+    }
     changes.length = 0;
     regions.length = 0;
     keptPreviews = {};
@@ -8377,6 +8407,36 @@ function decorations() {
     taskSeen = {};
     expandedTasks = Object.create(null);
     tally();
+  }
+
+  /**
+   * The agent cleared every edit: drop what the page holds too.
+   *
+   * Files alone never empty an open page: keep() would re-post the canvas
+   * on the next keystroke and a removed edit would come back.
+   */
+  function forgetCanvas() {
+    dropCanvas(true);
+  }
+
+  /**
+   * Adopt the canvas the agent applied: keep the paint, drop the records.
+   * A mode exit then cannot revert to the old values.
+   * Adopt only a settled canvas: the same confirmed count on two polls in
+   * a row. A tick in between means a new edit, so the next poll tries again.
+   */
+  function adoptCanvas(at) {
+    var total = changes.length + regions.length;
+    var i;
+    for (i = 0; i < changes.length; i++) if (!changes[i].confirmed) return false;
+    for (i = 0; i < regions.length; i++) if (!regions[i].confirmed) return false;
+    if (!appliedWait || appliedWait.at !== at || appliedWait.count !== total) {
+      appliedWait = { at: at, count: total };
+      return false;
+    }
+    appliedWait = null;
+    dropCanvas(false);
+    return true;
   }
 
   /** Paint one pending preview and track it. One the canvas cannot place waits as a card. */
