@@ -743,7 +743,6 @@
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
-    ".element-comment-hint{margin:0;font:400 10px/1.4 inherit;color:var(--muted)}",
     // The tick: a square and a clear check, with its label beside it.
     ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
@@ -2180,11 +2179,6 @@
     });
     // The chips line sits at the top of the card, above the comment field.
     box.insertBefore(modes, area);
-    // The line under the chips says what Save does now, since the count
-    // changes the action: a note, a preview ask, or a variations ask.
-    var hint = document.createElement("p");
-    hint.className = "element-comment-hint";
-    modes.appendChild(hint);
     function setCount(next) {
       var idx = counts.indexOf(next);
       if (idx === -1) return;
@@ -2197,7 +2191,7 @@
       });
       syncSave();
     }
-    // The button and the line follow the choice. Above 1 the tick has no
+    // The button follows the choice. Above 1 the tick has no
     // say for an element: the ask is for variations, not a preview. It
     // rests unchecked until 1 returns, and keeps its last state meanwhile.
     function syncSave() {
@@ -2211,9 +2205,6 @@
       var name = many ? say + (region ? " previews" : " variations") : "Save comment";
       save.setAttribute("aria-label", name);
       save.title = name;
-      if (!many) hint.textContent = "";
-      else if (region) hint.textContent = "Asks the agent for " + count + " previews. The answer lands at the bottom right.";
-      else hint.textContent = "Asks the agent for " + count + " variations. The card waits with the words until the answer lands.";
     }
     if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
     // A pending ask outlives a closed card: reopening shows the words with

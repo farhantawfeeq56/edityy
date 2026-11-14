@@ -2371,16 +2371,13 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   const menu = app.root.nodes["element-menu"];
   const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
   const inMenu = (label) => (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
-  const hint = () => walk(menu.children[0]).find((b) => b.className === "element-comment-hint");
   const p = selectText(app);
   const q = app.el("h2", { text: "second" });
   assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick starts on: a note also asks for a preview");
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save");
-  assert.equal(hint().textContent, "", "1 stays quiet: the note needs no explainer");
-  // Above 1 the button and the line say the card asks the agent instead.
+  // Above 1 the button says the card asks the agent instead.
   for (const fn of inMenu("5 variations").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Ask for 5 variations").children.map((c) => c.nodeValue || "").join(""), "Ask for 5");
-  assert.match(hint().textContent, /Asks the agent for 5 variations/);
   assert.equal(inMenu("Ask the agent to preview").disabled, true, "the tick rests while variations are on");
   // Cancel keeps the choice: the next element opens on 5.
   for (const fn of inMenu("Cancel the comment").bubbles.click.bubble) fn({});
@@ -2392,7 +2389,6 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   for (const fn of inMenu("Single edit").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save", "1 saves again");
   assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick is back on");
-  assert.equal(hint().textContent, "", "1 stays quiet even with the ask on");
   inMenu("Comment").value = "warmer";
   for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   app.hover(p);
