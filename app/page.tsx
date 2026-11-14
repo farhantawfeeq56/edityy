@@ -232,7 +232,7 @@ export default function Home() {
         <section id="how" className="scroll-mt-28 pt-40">
           <Eyebrow>How it works</Eyebrow>
           <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
-            One install, then the page answers to you.
+            One install and everything is under your control
           </h2>
           <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
             {steps.map((step, i) => (
