@@ -709,7 +709,11 @@
     ".element-comment-text:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}",
     // 2. Temporary canvas: a full-width row with a visible hover fill and a
     // keyboard-visible tick.
-    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;padding:5px 8px 5px 5px;border:0;border-radius:12px;background:transparent;font:400 8px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard)}",
+    ".element-comment-row{position:relative;display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:6px;width:100%;max-height:32px;overflow:hidden;padding:5px 8px 5px 5px;border:0;border-radius:12px;background:transparent;opacity:1;font:400 8px/1.3 inherit;color:var(--muted);cursor:pointer;transition:background-color var(--tint) var(--standard),opacity var(--tint) var(--standard),transform var(--tint) var(--standard),max-height var(--tint) var(--standard),padding var(--tint) var(--standard),margin var(--tint) var(--standard),visibility 0s}",
+    // Above 1 the preview tick has no say, so it folds away instead of
+    // sitting dimmed: the collapse eats its own gap, and visibility waits
+    // out the fade so the row can return the same way it left.
+    ".element-comment-row.is-gone{max-height:0;opacity:0;transform:translateY(-4px);padding-top:0;padding-bottom:0;margin-top:-6px;visibility:hidden;pointer-events:none;transition:background-color var(--tint) var(--standard),opacity var(--tint) var(--standard),transform var(--tint) var(--standard),max-height var(--tint) var(--standard),padding var(--tint) var(--standard),margin var(--tint) var(--standard),visibility 0s linear var(--tint)}",
     ".element-comment-row .tick{position:absolute;opacity:0;width:1px;height:1px;margin:0}",
     ".element-comment-row input:focus-visible+.element-comment-mark{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}",
     ".element-comment-row:focus-within{outline:none;box-shadow:none}",
@@ -724,7 +728,7 @@
     // 5. Footer: taller buttons, Save dominant, Cancel ghost, both with
     // hover, press, disabled and focus states.
     ".element-menu .element-comment .element-menu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:0}",
-    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:31px;padding:0 15px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard)}",
+    ".element-menu .element-comment .element-comment-action{flex:none;width:auto;height:31px;padding:0 15px;border-radius:9px;white-space:nowrap;font:500 10px/1 inherit;transition:background-color var(--tint) var(--standard),filter var(--tint) var(--standard),opacity var(--tint) var(--standard),width var(--tint) var(--standard)}",
     ".element-menu .element-comment [data-key=comment-save]{min-width:80px;background:var(--brand);color:var(--on-brand);font-weight:600;box-shadow:0 1px 4px var(--ink-8)}",
     "@media (hover:hover){.element-menu .element-comment [data-key=comment-save]:hover:not(:disabled){filter:brightness(1.06)}}",
     ".element-menu .element-comment [data-key=comment-save]:active:not(:disabled){filter:brightness(.96)}",
@@ -738,11 +742,19 @@
     // words that say what Save does.
     ".element-comment-modes{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%}",
     ".element-comment-chips{display:flex;width:100%;gap:6px}",
-    ".element-comment-chip{display:grid;place-items:center;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".element-comment-chip{display:grid;place-items:center;position:relative;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
+    // The count hint is drawn here, not borrowed from the browser: a native
+    // title blinks out past our control, while this one fades and rises in
+    // and, on a click, settles back out the same way it came.
+    ".element-comment-chip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translate(-50%,4px);padding:4px 8px;border-radius:7px;background:var(--ink);color:var(--paper);font:500 9px/1.4 inherit;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".element-comment-chip:hover::after,.element-comment-chip:focus-visible::after{opacity:1;transform:translate(-50%,0)}",
+    // A click parks the tip back out while the pointer stays put; leaving
+    // hands it back, so the next hover still explains itself.
+    ".element-comment-chip.tip-gone:hover::after,.element-comment-chip.tip-gone:focus-visible::after{opacity:0;transform:translate(-50%,4px)}",
     // The tick: a square and a clear check, with its label beside it.
     ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
@@ -2158,7 +2170,21 @@
     // the words are for the reader, the array is for the choice.
     var counts = [1, 2, 5, 10];
     var chipButtons = counts.map(function (n) {
-      var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () { setCount(n); }, "comment-count-" + n);
+      var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () {
+        setCount(n);
+        // The hint fades out with the tip-gone class while the pointer
+        // stays put, instead of hanging over the clicked chip.
+        chip.className = "element-comment-chip tip-gone";
+      }, "comment-count-" + n);
+      // The hint lives in data-tip, not in a native title: the browser's
+      // own tooltip cannot fade, so it would blink out past our control.
+      chip.dataset.tip = chip.title;
+      chip.title = "";
+      chip.removeAttribute("title");
+      chip.addEventListener("mouseleave", function () {
+        // Leaving hands the hint back, so the next hover still explains itself.
+        chip.className = "element-comment-chip";
+      });
       chip.setAttribute("role", "radio");
       chip.setAttribute("aria-checked", String(n === count));
       chip.tabIndex = n === count ? 0 : -1;
@@ -2191,17 +2217,39 @@
       });
       syncSave();
     }
-    // The button follows the choice. Above 1 the tick has no
-    // say for an element: the ask is for variations, not a preview. It
-    // rests unchecked until 1 returns, and keeps its last state meanwhile.
+    // The button follows the choice. Above 1 the tick has no say: the ask
+    // is for variations (or previews, for a drawn box), not a single
+    // preview. The row folds away instead of sitting dimmed, and the tick
+    // rests unchecked until 1 returns, keeping its last state meanwhile.
+    // lastSay skips the morph on the first paint, where the card simply
+    // opens on the kept choice.
+    var lastSay = "";
     function syncSave() {
       var many = count > 1;
-      var dead = !!el && many;
-      canvasTick.disabled = dead;
-      canvasRow.style.opacity = dead ? ".45" : "";
-      canvasTick.checked = dead ? false : commentAskKept;
+      canvasTick.disabled = many;
+      canvasTick.tabIndex = many ? -1 : 0;
+      // ClassName, not classList: the row folds with a transition, and the
+      // test stub has no classList.
+      canvasRow.className = many ? "element-comment-row is-gone" : "element-comment-row";
+      canvasRow.setAttribute("aria-hidden", String(many));
+      canvasTick.checked = many ? false : commentAskKept;
       var say = many ? "Ask for " + count : "Save";
-      saveWords.nodeValue = say;
+      if (say !== lastSay) {
+        // The label changes the button's width: pin the old width, swap the
+        // words, and let the width transition carry it to the new one, the
+        // way the preview row folds. The inline width clears when it lands.
+        var from = lastSay ? save.offsetWidth : 0;
+        saveWords.nodeValue = say;
+        lastSay = say;
+        if (from) {
+          var to = save.offsetWidth;
+          if (to !== from) {
+            save.style.width = from + "px";
+            void save.offsetWidth;
+            save.style.width = to + "px";
+          }
+        }
+      }
       var name = many ? say + (region ? " previews" : " variations") : "Save comment";
       save.setAttribute("aria-label", name);
       save.title = name;
@@ -2218,7 +2266,7 @@
       var words = area.value.trim();
       if (!words) return;
       commentCountKept = count;
-      if (!el || count === 1) commentAskKept = canvasTick.checked;
+      if (count === 1) commentAskKept = canvasTick.checked;
       if (region) {
         region.comment = words;
         if (region.mark == null) region.mark = markTop++;
@@ -2350,6 +2398,11 @@
     });
     actions.appendChild(save);
     box.appendChild(actions);
+    // The pinned width clears when it lands, so the button stays fluid.
+    save.addEventListener("transitionend", function (e) {
+      if (e && e.propertyName && e.propertyName !== "width") return;
+      save.style.width = "";
+    });
     // The button and the line match the kept choice from the first open.
     syncSave();
     // A reopened wait stays locked, as the first card did.
