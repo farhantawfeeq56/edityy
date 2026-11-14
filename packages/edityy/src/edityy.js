@@ -952,6 +952,9 @@
     ".task-top{display:flex;align-items:center;gap:7px}",
     ".task-mark{font:500 8px/1 inherit;color:var(--muted);flex:none}",
     ".task-name{font:500 10px/1.3 inherit;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".task-nav{display:flex;gap:4px;flex:none}",
+    ".task-nav .task-icon{width:24px;height:24px}",
+    ".task-nav .task-icon svg{width:11px;height:11px}",
     ".task-badge{flex:none;font:600 8px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
     ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
     ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
@@ -7292,7 +7295,7 @@ function decorations() {
       else empty.appendChild(text("No " + activeLabel.toLowerCase() + " tasks."));
       list.appendChild(empty);
     }
-    shown.forEach(function (task) {
+    shown.forEach(function (task, i) {
       var card = document.createElement("div");
       var isSel = (task.el && task.el === selected) || (task.region && sameRegion(task.region, selectedRegion));
       card.className = isSel ? "task selected" : "task";
@@ -7311,6 +7314,23 @@ function decorations() {
       name.className = "task-name";
       name.appendChild(text(task.label));
       head.appendChild(name);
+      // Popped card nav: < and > move across elements, copy takes the id.
+      var nav = document.createElement("div");
+      nav.className = "task-nav";
+      nav.setAttribute("data-ui-actions", "");
+      nav.appendChild(iconButton("arrow-left", "Previous element", function () {
+        var prev = shown[(i - 1 + shown.length) % shown.length];
+        if (prev) gotoTask(prev);
+      }, "task-prev-" + taskKey(task)));
+      nav.appendChild(iconButton("arrow-right", "Next element", function () {
+        var next = shown[(i + 1) % shown.length];
+        if (next) gotoTask(next);
+      }, "task-next-" + taskKey(task)));
+      nav.appendChild(iconButton("copy", "Copy element id", function () {
+        var id = task.previewId || task.requestId || (task.item && task.item.mark != null ? "mark-" + task.item.mark : taskKey(task));
+        copyText(String(id), function () {});
+      }, "task-copy-" + taskKey(task)));
+      head.appendChild(nav);
       card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);
       // A meta row on every card: where the edit came from, with the
@@ -9597,6 +9617,30 @@ function decorations() {
         pickVariant(index);
       }
       return;
+    }
+    // Digits pick a server variant too: the open card first, else the first match.
+    if (!variantList.length && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
+      var serverTyping = editing || pageField;
+      var serverIndex = e.key === "0" ? 9 : Number(e.key) - 1;
+      if (!serverTyping) {
+        var found = null;
+        var open = null;
+        var all = editsTasks();
+        for (var si = 0; si < all.length; si++) {
+          var st = all[si];
+          if (st.kind !== "server-variants" || !st.list || serverIndex >= st.list.length) continue;
+          if (!found) found = st;
+          if (expandedTasks[taskKey(st)]) open = st;
+        }
+        var target = open || found;
+        if (target) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          pickServerVariant(target, serverIndex);
+          refocusVariant(serverIndex);
+          return;
+        }
+      }
     }
     if (previewPaints.length && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
