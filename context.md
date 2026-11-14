@@ -161,6 +161,7 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 * `vartest{N}` (for example `vartest3`): user tests variants. Segmented control floats bottom-right. Keys `1`–`N` switch variants. Agent answers via `place\_variants` with exactly the requested count. Kept variant becomes a normal edit.
 * `edityy:: instruction`: agent paints on canvas only via `place\_preview`. No source change. Page shows Keep and Discard. Keep makes a normal edit. `implement <id>` writes it into source.
 * After writing source from edits, call `mark\_applied` with the edit ids so they are not applied twice.
+* Pencil on a kept preview reopens its options: the paint returns with the kept pick selected. A reopened preview keeps, discards, and switches like a new one.
 * `clear\_all` removes every edit, ask, paint, and handoff. Use only when user asks to remove or clear all edits.
 * This repo: `AGENTS.md` is the working agreement. Branch per issue. No push to `main`. Every PR needs the other developer's approval. Commit format: `<type>(<scope>): <summary> \[#<issue>]`.
 

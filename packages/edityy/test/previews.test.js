@@ -333,3 +333,21 @@ test("insert variants are checked: bad options and mixed forms fail", async () =
   assert.equal(again.id, first.id);
   assert.equal((await readPreviews(root)).history.length, 1, "no duplicate row");
 });
+
+test("a kept preview reopens to active, and only a kept one does", async () => {
+  const root = tmp();
+  const preview = await placePreview(insert, root);
+  assert.deepEqual(await decidePreviews([{ id: preview.id, reopen: true }], root), [], "an active preview ignores reopen");
+  assert.equal((await readPreview(preview.id, root)).status, "active");
+  await decidePreview(preview.id, "keep", root);
+  assert.deepEqual(await decidePreviews([{ id: preview.id, reopen: true }], root), [{ id: preview.id, status: "active" }]);
+  assert.equal((await readPreview(preview.id, root)).status, "active");
+  assert.deepEqual(
+    (await readPendingPreviews(root)).map((one) => one.id),
+    [preview.id],
+    "a reopened preview paints again"
+  );
+  await decidePreview(preview.id, "discard", root);
+  assert.deepEqual(await decidePreviews([{ id: preview.id, reopen: true }], root), [], "a discarded preview never reopens");
+  assert.deepEqual(await decidePreviews([{ id: "e-unknownid00000000000000000000000001", reopen: true }], root), [], "an unknown id reopens nothing");
+});

@@ -381,9 +381,20 @@ export async function decidePreviews(decisions, root = process.cwd()) {
   const decided = [];
   for (const one of decisions) {
     const id = one?.id;
-    if (typeof id !== "string" || !ID.test(id) || (one.keep !== true && one.keep !== false)) continue;
+    if (typeof id !== "string" || !ID.test(id)) continue;
     const item = items.find((entry) => entry?.id === id);
-    if (!item || item.status !== "active") continue;
+    if (!item) continue;
+    // A kept preview goes back to the canvas: the pencil on its edit
+    // reopens the options instead of leaving one more ordinary edit.
+    // A discarded preview never reopens: its ask is over.
+    if (one.reopen === true) {
+      if (item.status !== "kept") continue;
+      item.status = "active";
+      decided.push({ id: item.id, status: item.status });
+      continue;
+    }
+    if (one.keep !== true && one.keep !== false) continue;
+    if (item.status !== "active") continue;
     item.status = one.keep ? "kept" : "discarded";
     decided.push({ id: item.id, status: item.status });
   }

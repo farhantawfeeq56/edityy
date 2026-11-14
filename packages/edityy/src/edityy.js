@@ -6960,6 +6960,9 @@ function decorations() {
       icons.className = "task-icons";
       icons.setAttribute("data-ui-actions", "");
       var pencil = iconButton("pencil", "Back to select", function () {
+        // A kept preview goes back to its options: the paint returns with
+        // the kept pick selected, instead of one more ordinary edit.
+        if (reopenPreview(rec)) return;
         // The edit goes back to Exploring: off the element, kept as data,
         // and out of the project file until it is ticked again.
         stashRec(rec);
@@ -7894,6 +7897,8 @@ function decorations() {
   var previewReqId = ""; // the comment-box ask waiting for its paint
   var previewReqFor = null; // the element the ask is about
   var previewReqRegion = null; // the drawn box the ask is about
+  var keptPreviews = {}; // a kept preview by the mark of each edit it made
+  var reopenedAt = {}; // a reopened preview's pick, spent on its next paint
   // The drawn box an answered ask was about: cards without an element scroll to it.
   var answeredRegion = null;
   var previewReqCount = 1; // how many previews the ask wants, 1 when untold
@@ -8320,6 +8325,8 @@ function decorations() {
     });
     changes.length = 0;
     regions.length = 0;
+    keptPreviews = {};
+    reopenedAt = {};
     markTop = 1;
     addTop = 1;
     current = null;
@@ -8342,6 +8349,10 @@ function decorations() {
       return null;
     }
     // The first option lands at once: a paint with variations is never empty.
+    if (pick == null && reopenedAt[preview.id] != null) {
+      pick = reopenedAt[preview.id];
+      delete reopenedAt[preview.id];
+    }
     if (previewRowVariations(preview).length) pickPreviewVariant(paint, pick == null ? 0 : pick);
     return paint;
   }
@@ -8500,6 +8511,33 @@ function decorations() {
   }
 
   /** Tell the server the user kept one paint. It stays as an ordinary edit for the agent to apply to the source. */
+  /**
+   * Pencil on a kept preview: the paint comes back with its options, the
+   * kept pick selected, instead of one more ordinary edit. The kept nodes
+   * leave first, so the returning paint never doubles them. The save
+   * rewrites without them, so no stale edit waits for the agent.
+   */
+  function reopenPreview(rec) {
+    var kept = rec && keptPreviews[rec.mark];
+    if (!kept || !kept.preview) return false;
+    reopenedAt[kept.preview.id] = kept.variantAt;
+    kept.recs.slice().forEach(function (one) { revert(one, true); });
+    Object.keys(keptPreviews).forEach(function (mark) {
+      if (keptPreviews[mark] && keptPreviews[mark].preview === kept.preview) delete keptPreviews[mark];
+    });
+    autosave();
+    if (typeof window.fetch === "function") {
+      window.fetch(PREVIEWS_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ decisions: [{ id: kept.preview.id, reopen: true }] }),
+      }).catch(function () {});
+    }
+    tally();
+    return true;
+  }
+
   function keepPreviewById(id) {
     var paint = paintForId(id);
     if (!paint) {
@@ -8520,6 +8558,12 @@ function decorations() {
     paint.records.forEach(function (rec) { rec.origin = origin === "comment" ? "Comment" : "Agent"; });
     // A kept preview is a Ready edit: it is written to the project at once.
     paint.records.forEach(function (rec) { rec.confirmed = true; });
+    // The pencil can bring the options back: each edit keeps the preview
+    // it came from, by mark, with the pick that was kept.
+    paint.records.forEach(function (rec) {
+      if (rec.mark == null) rec.mark = markTop++;
+      keptPreviews[rec.mark] = { preview: paint.preview, variantAt: paint.variantAt, recs: paint.records.slice() };
+    });
     autosave();
     previewPaints.splice(previewPaints.indexOf(paint), 1);
     previewRecords = previewRecords.filter(function (rec) { return paint.records.indexOf(rec) === -1; });
