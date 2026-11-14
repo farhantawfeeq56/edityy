@@ -17,8 +17,8 @@ The product, from the user's view:
 - Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings. Shift+A stacks them in a column.
 - Fonts. The user picks from fonts already on the page or browses Google Fonts. Edityy loads a face only on preview or pick.
 - Undo. Undo and redo cover style changes. The edits list reviews, selects, or reverts each edit.
-- Variations. The user picks one element, asks for N style variants, and switches them live with keys `1` to `9` and `0`. Each popped card shows the element name, a copy-id button, `<` and `>` element nav, numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The words save as an edit at once; no card waits for the agent. Note: the temporary canvas is disabled for now, so a comment ask writes directly into source code (no `place_variants` paint).
-- Chat previews. The user types `edityy::` plus an instruction in agent chat. The agent paints the idea on the canvas only. The page shows Keep and Discard. Keep makes it a normal edit. Note: the temporary canvas is disabled for now, so a comment ask writes directly into source code (no `place_preview` paint).
+- Variations. The user picks one element, asks for N style variants, and switches them live with keys `1` to `9` and `0`. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The words save as an edit at once; no card waits for the agent. The temporary canvas is removed, so a comment ask writes directly into source code.
+- Chat previews. The user types `edityy::` plus an instruction in agent chat. The agent writes the change into the source code directly. The temporary canvas is removed: nothing is painted, and no card waits on the canvas.
 - Handoff. Three paths move edits to the agent: copy as Markdown prompt, save to `.edityy/changes.json`, or MCP read with `npx edityy mcp`. Edityy never writes source code. The agent does.
 - Setup CLI. `npx edityy init` writes the config for the detected framework. `npx edityy doctor` checks the setup again. Both are idempotent.
 
@@ -122,9 +122,8 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |Path|Role|
 |-|-|
 |`app/layout.tsx`|Root layout. Loads self-hosted Figtree (`app/fonts/Figtree-latin.woff2`). Imports `edityy/motion.css` and `globals.css`.|
-|`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`). Client code: `CopyButton` (`app/copy.tsx`) and `AgentCardVartest` (`app/agent-vartest.tsx`).|
+|`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`). Client code: `CopyButton` (`app/copy.tsx`). The `#agent` card is static markup.|
 |`app/copy.tsx`|Copy-to-clipboard button with live region and `say` animation.|
-|`app/agent-vartest.tsx`|Handoff card in `#agent` with 5 live variants. Keys `1`–`5` switch. Toolbar floats bottom-right.|
 |`app/globals.css`|Tailwind theme. Paper `#faf9f6`, ink `#25241f`, gold `#d4a72c` (fill only), brand-ink `#8a6a10` (readable gold text). Utilities: `tint`, `lift`, `say`. Old `rose`/`blush`/`plum` names kept as aliases.|
 |`app/docs/layout.tsx`|Docs chrome. Header plus sidebar driven by `nav.ts`.|
 |`app/docs/nav.ts`|Docs structure. One list drives the sidebar. Add a page here.|
@@ -161,8 +160,8 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 ## Agent workflow (how to work with Edityy artifacts)
 
 * Saved edits live in `.edityy/changes.json`. Read `markdown` for the prompt, `changes\[]` for selectors, `source` lines, and `props\[]` before/after values.
-* `vartest{N}` (for example `vartest3`): user tests variants. Segmented control floats bottom-right. Keys `1`–`N` switch variants. Agent answers via `place\_variants` with exactly the requested count. Kept variant becomes a normal edit.
-* `edityy:: instruction`: agent paints on canvas only via `place\_preview`. No source change. Page shows Keep and Discard. Keep makes a normal edit. `implement <id>` writes it into source.
+* `vartest{N}` (for example `vartest3`): user tests variants. Segmented control floats bottom-right. Keys `1`–`N` switch variants. Agent writes the variants into the source code. Kept variant becomes a normal edit.
+* `edityy:: instruction`: agent writes it into the source code directly. No canvas paint.
 * After writing source from edits, call `mark\_applied` with the edit ids so they are not applied twice.
 * Pencil on a kept preview reopens its options: the paint returns with the kept pick selected. A reopened preview keeps, discards, and switches like a new one.
 * `clear\_all` removes every edit, ask, paint, and handoff. Use only when user asks to remove or clear all edits.

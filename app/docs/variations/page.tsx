@@ -21,7 +21,8 @@ export default function DocsVariations() {
       </P>
       <P>
         The comment saves as an edit at once, and the card closes. The ask runs in the background: the agent
-        reads it with <Code>get_work</Code>, and its answer arrives as variants to try on the live element.
+        reads it with <Code>get_work</Code> and writes the variants into the source code. There is no canvas
+        paint. The temporary canvas is removed.
       </P>
       <P>
         In your agent, type <Code>vartest</Code> and say what you want in the same message. The agent follows your own
@@ -30,21 +31,18 @@ export default function DocsVariations() {
       </P>
 
       <H2 id="answering">Answering</H2>
-      <P>Your agent has one job, in two tool calls.</P>
+      <P>Your agent has one job, in one tool call.</P>
       <UL>
         <LI>
           <Code>get_work</Code> returns the ask: the number of variations, the comment, the element’s tag, its
           selector and a few current values. Read it at the start of every <Code>vartest</Code>: you may have asked
-          again since the last one, and an answer for an old request is refused.
+          again since the last one.
         </LI>
         <LI>
-          <Code>place_variants</Code> takes the answer. It takes exactly that many variations, each a short label and
-          a list of declarations.
+          The agent writes that many variants into the source code, one look per variant. Each variant carries a
+          short label, which the popped card shows as its variant name.
         </LI>
       </UL>
-      <P>
-        Any other count than the asked one is refused, and the message says so.
-      </P>
       <Pre>{`thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
 rose pill | scrollbar-color: #f43f5e #f4f4f5
 notched | on: ::-webkit-scrollbar-thumb, background: #f43f5e
@@ -58,9 +56,10 @@ narrow | when: (max-width: 640px), padding: 8px`}</Pre>
 
       <H2 id="picking">Picking one</H2>
       <P>
-        A strip at the bottom right shows the variations. It names the element it varies, and <strong>Keep</strong> is
-        grey until one of them is on the element. Keys <Code>1</Code> to <Code>9</Code> pick one, and <Code>0</Code>{" "}
-        picks the tenth. <strong>Keep</strong> puts the strip away.
+        A popped card in the Edits panel shows the variants. It names the element and the picked variant, with a
+        copy-id button and <Code>&lt;</Code> and <Code>&gt;</Code> element nav. Numbered chips pick a variant, and
+        keys <Code>1</Code> to <Code>9</Code> pick one, and <Code>0</Code> picks the tenth. <strong>Keep</strong> is
+        grey until one of them is picked.
       </P>
       <P>
         What is left on the element is an ordinary edit. <strong>Save to project</strong> and{" "}

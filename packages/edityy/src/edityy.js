@@ -990,6 +990,21 @@
     ".task-chip:active{transform:scale(.97)}",
     ".task-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
+    // The popped card from the sketch: a stronger frame, the element name
+    // over the variant name, square nav buttons, square number chips sharing
+    // one row, and a notes field with square X and tick. The meta row stays
+    // off: the subtitle already says what waits.
+    ".task[data-popped=true]{border-width:1.5px;border-radius:12px;padding:12px;gap:8px}",
+    ".task-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}",
+    ".task[data-popped=true] .task-name{flex:none;font-size:12px;font-weight:600}",
+    ".task-variant{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 10px/1.3 inherit;color:var(--muted)}",
+    ".task[data-popped=true] .task-meta{display:none}",
+    ".task[data-popped=true] .task-nav{gap:6px}",
+    ".task[data-popped=true] .task-nav .task-icon{width:30px;height:30px;border-radius:8px}",
+    ".task[data-popped=true] .task-chips{gap:6px}",
+    ".task[data-popped=true] .task-chip{flex:1 1 0;min-width:28px;height:34px;padding:0;border-radius:8px}",
+    ".task[data-popped=true] .task-note{height:32px;border-radius:8px}",
+    ".task[data-popped=true] .task-editrow .task-icon{width:32px;height:32px;border-radius:8px}",
     // A card that is going away slides out in its direction; a new one slides
     // in. Both are quick: the state change is never waited on for long.
     ".task-enter{animation:task-in var(--tint) var(--standard)}",
@@ -6770,6 +6785,28 @@ function decorations() {
     return "label:" + task.label;
   }
 
+  /**
+   * The variant name a popped card shows under the element name: the picked
+   * variation's label, or what waits when nothing is picked yet.
+   */
+  function poppedVariantName(task) {
+    if (task.kind === "live-variants") {
+      var live = variantList[variantAt];
+      return live ? live.label : task.detail;
+    }
+    if (task.kind === "server-variants") {
+      var server = task.list && task.list[srvVariantAt[task.requestId]];
+      return server ? server.label : task.detail;
+    }
+    if (task.kind === "preview-current") {
+      var paint = paintForId(task.previewId);
+      var choices = paint ? previewRowVariations(paint.preview) : [];
+      var current = paint ? choices[paint.variantAt] : null;
+      return (current && current.label) || task.detail;
+    }
+    return task.detail || task.label;
+  }
+
   /** A card that was not measured cannot travel: the stub DOM has no layout. */
   function captureCardPos() {
     cardPos = {};
@@ -7310,14 +7347,38 @@ function decorations() {
         mark.appendChild(text(String(task.item.n)));
         head.appendChild(mark);
       }
-      var name = document.createElement("span");
-      name.className = "task-name";
-      name.appendChild(text(task.label));
-      head.appendChild(name);
-      // Popped card nav: < and > move across elements, copy takes the id.
+      // A popped card wears the sketch head: the element name over the
+      // variant name, then copy, < and > in that order. Other cards keep
+      // the single-line name.
+      var popped = task.kind === "live-variants" || task.kind === "server-variants" ||
+        task.kind === "preview-current" || task.kind === "preview-listed";
+      if (popped) {
+        card.setAttribute("data-popped", "true");
+        var titles = document.createElement("div");
+        titles.className = "task-titles";
+        var poppedName = document.createElement("span");
+        poppedName.className = "task-name";
+        poppedName.appendChild(text(task.label));
+        titles.appendChild(poppedName);
+        var variantName = document.createElement("span");
+        variantName.className = "task-variant";
+        variantName.appendChild(text(poppedVariantName(task)));
+        titles.appendChild(variantName);
+        head.appendChild(titles);
+      } else {
+        var name = document.createElement("span");
+        name.className = "task-name";
+        name.appendChild(text(task.label));
+        head.appendChild(name);
+      }
+      // Popped card nav: copy takes the id, < and > move across elements.
       var nav = document.createElement("div");
       nav.className = "task-nav";
       nav.setAttribute("data-ui-actions", "");
+      nav.appendChild(iconButton("copy", "Copy element id", function () {
+        var id = task.previewId || task.requestId || (task.item && task.item.mark != null ? "mark-" + task.item.mark : taskKey(task));
+        copyText(String(id), function () {});
+      }, "task-copy-" + taskKey(task)));
       nav.appendChild(iconButton("arrow-left", "Previous element", function () {
         var prev = shown[(i - 1 + shown.length) % shown.length];
         if (prev) gotoTask(prev);
@@ -7326,10 +7387,6 @@ function decorations() {
         var next = shown[(i + 1) % shown.length];
         if (next) gotoTask(next);
       }, "task-next-" + taskKey(task)));
-      nav.appendChild(iconButton("copy", "Copy element id", function () {
-        var id = task.previewId || task.requestId || (task.item && task.item.mark != null ? "mark-" + task.item.mark : taskKey(task));
-        copyText(String(id), function () {});
-      }, "task-copy-" + taskKey(task)));
       head.appendChild(nav);
       card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);

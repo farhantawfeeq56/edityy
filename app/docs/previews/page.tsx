@@ -1,8 +1,8 @@
-import { H1, Lead, P, H2, H3, UL, LI, Code, Pre, Note } from "../ui";
+import { H1, Lead, P, H2, H3, UL, LI, Code, Pre } from "../ui";
 
 export const metadata = {
   title: "Chat previews — Edityy Docs",
-  description: "Type edityy:: in your agent and see the change on the canvas, not in the code.",
+  description: "Type edityy:: in your agent and get the change in the source code.",
 };
 
 export default function DocsPreviews() {
@@ -10,8 +10,8 @@ export default function DocsPreviews() {
     <>
       <H1>Chat previews</H1>
       <Lead>
-        Type <Code>edityy::</Code> in your agent chat and the change appears on the running page. Your code is not
-        touched until you say so.
+        Type <Code>edityy::</Code> in your agent chat and the agent writes the change into your source code. The
+        temporary canvas is removed: nothing is painted, and there is nothing to keep or discard.
       </Lead>
 
       <H2 id="asking">Asking from the chat</H2>
@@ -23,11 +23,12 @@ edityy:: make the hero heading bigger and tighter
 edityy:: change this button to say Start free
 edityy:: remove the grey banner above the footer`}</Pre>
       <P>
-        The agent calls <Code>place_preview</Code> with the instruction, an action and the payload that action needs.
-        The page paints the result and shows it with <strong>Keep</strong> and <strong>Discard</strong>.
+        The agent writes the change into the source code directly. A popped card in the Edits panel shows the
+        element name, the variant name, the numbered chips, Notes, and <strong>x</strong> and tick.
       </P>
 
       <H2 id="actions">The four actions</H2>
+      <P>Each change the agent writes is one of four kinds:</P>
       <UL>
         <LI>
           <Code>styles</Code> restyles one element: a selector and 1 to 10 labeled looks. Keys <Code>1</Code> to{" "}
@@ -44,51 +45,16 @@ edityy:: remove the grey banner above the footer`}</Pre>
         </LI>
       </UL>
 
-      <H2 id="deciding">Keeping or discarding</H2>
+      <H2 id="deciding">Deciding</H2>
       <P>
-        <strong>Keep</strong> leaves the change on the page as an ordinary Edityy edit. It counts in the edits list,
-        it travels to <strong>Save to project</strong> and <Code>get_work</Code>, and <Code>Escape</Code>{" "}
-        still puts it back.
+        The popped card carries <strong>x</strong> and tick. <strong>x</strong> drops the card. The tick keeps
+        the change as an ordinary Edityy edit: it counts in the edits list, and it travels to{" "}
+        <strong>Save to project</strong> and <Code>get_work</Code>.
       </P>
-      <P>
-        <strong>Discard</strong>, or <Code>Escape</Code>, puts the page back the way it was.
-      </P>
-      <H3>Several at once</H3>
-      <P>
-        When more than one preview is waiting, they show as a checkbox list instead of one card, and the canvas stays
-        untouched until you decide. Every row reads ticked to start, keys <Code>1</Code> to <Code>9</Code> and{" "}
-        <Code>0</Code> flip the tick on a row, and the one button under the list answers what the ticks say:
-      </P>
-      <UL>
-        <LI>
-          Anything ticked, it reads <strong>Keep all</strong>: every ticked preview is kept, and the rest are taken
-          back.
-        </LI>
-        <LI>
-          Nothing ticked, it reads <strong>Discard all changes</strong>: the whole list goes back.
-        </LI>
-        <LI>
-          The <Code>&gt;</Code> on a row opens where that change lands: the element it names, or the place an insert
-          takes.
-        </LI>
-        <LI>
-          <Code>Escape</Code>, or leaving edit mode, takes back everything still waiting.
-        </LI>
-      </UL>
-      <P>Each preview has an id, such as e-abc123. In the chat you can say what to do with it:</P>
-      <Pre>{`implement e-abc123
-discard e-abc123`}</Pre>
-      <P>
-        A kept preview arrives as a saved edit, so the agent reads it with <Code>get_work</Code> and writes it
-        into your source. <Code>discard</Code> takes it off the page.
-      </P>
-      <Note title="History after the list">
-        A decided preview leaves the screen, but it stays in <Code>.edityy/previews.json</Code>, kept or discarded.
-      </Note>
 
       <H2 id="asking-first">When the place is unclear</H2>
       <P>
-        If you name no element and the place is not obvious, the agent should ask before it paints. A preview that
+        If you name no element and the place is not obvious, the agent should ask before it writes. A change that
         lands somewhere you did not mean is worse than a question.
       </P>
 
