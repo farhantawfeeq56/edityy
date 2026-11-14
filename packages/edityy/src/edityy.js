@@ -953,7 +953,6 @@
     ".task-mark{font:500 8px/1 inherit;color:var(--muted);flex:none}",
     ".task-name{font:500 10px/1.3 inherit;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".task-badge{flex:none;font:600 8px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
-    ".task-badge[data-state=requested]{background:#FFF3D6;color:#7A5A00}",
     ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
     ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
@@ -2008,8 +2007,7 @@
    *
    * When the card is a different one from the one that was there, the new card
    * arrives. A card that swaps its whole contents under the reader's eyes is a
-   * card that stutters, and the prompt card becoming the waiting card is the
-   * biggest swap of them all.
+   * card that stutters.
    */
   function drawMenu(box) {
     var wasVisible = !elementMenu.hidden;
@@ -2105,8 +2103,8 @@
    * previews and the user keeps one. An element's box carries the same
    * chips: 1 writes the words onto the element's record and the comment
    * travels with the edits to the agent's Markdown and to the saved
-   * file. Above 1, Save locks the card with the words and a waiting note
-   * until the agent answers; Cancel withdraws the ask and unlocks the words.
+   * file. Above 1, the words save the same way, and the variation ask
+   * runs in the background until the agent answers.
    */
   function commentBox(target) {
     var el = target.el || null;
@@ -2245,10 +2243,6 @@
       save.title = name;
     }
     if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
-    // A pending ask outlives a closed card: reopening shows the words with
-    // the wait, locked, so they can be read until the answer lands.
-    var waitingAsk = el && variationFor === el && variationId;
-    if (waitingAsk) box.appendChild(noteBox("Waiting for your agent..."));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -2273,10 +2267,9 @@
         // user keeps one, tick or no tick.
         if (canvasTick.checked || count > 1) {
           previewWords = "";
-          // The box waits for the answer: only the Requested card shows.
-          region.waiting = true;
+          // The words are already an edit above: the ask runs in the
+          // background, and a failed one only leaves a note.
           requestPreview(null, region, words, function (problem) {
-            region.waiting = false;
             previewWords = problem;
           }, count);
         }
@@ -2292,18 +2285,19 @@
           variationServerId = "";
           variationPolls = 0;
         }
+        // The words save as an edit at once: the variation ask runs in
+        // the background, and a failed one only leaves a note.
+        var vrec = record(el);
+        vrec.comment = words;
         variationPrompt = words;
         variationPromptEl = el;
-        // The card waits with the words: locked and noted, until the answer
-        // lands or Cancel withdraws the ask.
-        area.readOnly = true;
-        save.disabled = true;
-        box.appendChild(noteBox("Waiting for your agent..."));
+        variationWords = "";
+        commentFor = null;
+        openComment = null;
+        cardDoneFor = el;
+        syncElementMenu();
+        tally();
         requestVariations(el, n, words, function (problem) {
-          // The ask never went out: the card unlocks with why, so the
-          // words can go again.
-          area.readOnly = false;
-          save.disabled = !area.value.trim();
           variationWords = problem;
           commentFor = el;
           cardDoneFor = null;
@@ -2326,10 +2320,8 @@
       syncElementMenu();
       tally();
       if (n === 1 && canvasTick.checked) {
-        // The words are the ask, not an edit yet: the requested card in the
-        // panel carries the wait, and this record only shows once the agent
-        // has answered (or never does).
-        rec.commentAsk = true;
+        // The words are already an edit above: the ask runs in the
+        // background, and a failed one only leaves a note.
         requestPreview(el, null, words, function (problem) {
           previewWords = problem;
         });
@@ -2348,24 +2340,12 @@
         paintMarks();
         return;
       }
-      var waiting = el && variationFor === el && variationId;
-      var kept = waiting ? variationPrompt : "";
       closeVariants();
-      if (waiting) {
-        // The ask is withdrawn: the words stay, editable, ready to go again.
-        variationPrompt = kept;
-        variationPromptEl = el;
-        if (cardDoneFor === el) cardDoneFor = null;
-        commentFor = el;
-        openComment = null;
-        syncElementMenu();
-      } else {
-        variationPrompt = "";
-        commentFor = null;
-        openComment = null;
-        cardDoneFor = el;
-        syncElementMenu();
-      }
+      variationPrompt = "";
+      commentFor = null;
+      openComment = null;
+      cardDoneFor = el;
+      syncElementMenu();
     }, "comment-cancel");
     cancel.appendChild(text("Cancel"));
     actions.appendChild(cancel);
@@ -2395,11 +2375,6 @@
     });
     // The button and the line match the kept choice from the first open.
     syncSave();
-    // A reopened wait stays locked, as the first card did.
-    if (waitingAsk) {
-      area.readOnly = true;
-      save.disabled = true;
-    }
     // A box opened by a click is ready to type into.
     setTimeout(function () { if (area.focus) area.focus(); }, 0);
     return box;
@@ -6279,8 +6254,6 @@ function decorations() {
       });
     });
     // Drawn boxes travel with the edits: each one is a change of its own.
-    // A box whose ask is still out stays on this list: the Requested card
-    // hides until the answer, the way a comment ask hides its edit.
     regions.forEach(function (rg) {
       if (rg.mark == null) rg.mark = markTop++;
       if (rg.addN == null) rg.addN = addTop++;
@@ -6400,57 +6373,14 @@ function decorations() {
   }
 
   /**
-   * Elements and boxes with an ask still out: only their Requested card
-   * shows, never their edit. One place, so the panel and the marks agree.
+   * An edit the panel hides as an edit: an agent paint covers it.
+   * A parked edit (the eye, the pencil) is not hidden: its mark sits
+   * back as a ghost instead.
    */
-  function requestedWaits() {
-    var els = [];
-    var rgs = [];
-    var answered = {};
-    (srvVariationResponses || []).forEach(function (response) {
-      if (response && response.requestId) answered[response.requestId] = true;
-    });
-    if (variationId && variationFor && els.indexOf(variationFor) === -1) els.push(variationFor);
-    (srvVariationRequests || []).forEach(function (request) {
-      if (!request || request.status !== "pending" || answered[request.id]) return;
-      var el = previewQuery(request.selector);
-      if (el && els.indexOf(el) === -1) els.push(el);
-    });
-    if (previewReqId) {
-      if (previewReqFor && els.indexOf(previewReqFor) === -1) els.push(previewReqFor);
-      if (previewReqRegion) rgs.push(previewReqRegion);
-    }
-    (srvPreviewRequests || []).forEach(function (request) {
-      if (!request || request.status !== "pending") return;
-      var found = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
-      if (found && els.indexOf(found) === -1) els.push(found);
-      var rg = request.region ? matchRegion(request.region) : null;
-      if (rg) rgs.push(rg);
-    });
-    return { els: els, rgs: rgs };
-  }
-
-  /**
-   * An edit the panel hides as an edit: an agent paint covers it, or its
-   * ask is still out (only the Requested card shows). One place, so the
-   * canvas and the panel never disagree. A parked edit (the eye, the
-   * pencil) is not hidden: its mark sits back as a ghost instead.
-   */
-  function editParked(item, waits) {
+  function editParked(item) {
     if (item.rec) {
       if (previewRecords.indexOf(item.rec) !== -1) return true;
       if (variantList && variantList.length && item.rec.el === variationFor) return true;
-      // A variation ask out is a wait like a preview ask: only the
-      // Requested card shows until the answer lands.
-      if (variationId && variationFor === item.rec.el) return true;
-      if (item.rec.commentAsk) {
-        waits = waits || requestedWaits();
-        if (waits.els.indexOf(item.rec.el) !== -1) return true;
-      }
-    }
-    if (item.rg && item.rg.waiting) {
-      waits = waits || requestedWaits();
-      if (waits.rgs.some(function (rg) { return sameRegion(rg, item.rg); })) return true;
     }
     return false;
   }
@@ -6501,14 +6431,13 @@ function decorations() {
       marksBox.hidden = true;
       return;
     }
-    var askWaits = requestedWaits();
     var x = window.pageXOffset || window.scrollX || 0;
     var y = window.pageYOffset || window.scrollY || 0;
     var placed = [];
     items.forEach(function (item, i) {
       // Nowhere to draw takes no badge; the number was never spent (report).
       if (item.n == null) return;
-      if (editParked(item, askWaits)) return;
+      if (editParked(item)) return;
       var at = null;
       if (item.rec && item.rec.el && item.rec.el.getBoundingClientRect) {
         // A detached element has no box on the page: a removed edit lives
@@ -6541,18 +6470,18 @@ function decorations() {
   /**
    * The edits panel: every task on the page, in the state it is in.
    *
-   * Pending is an ask with no visual change yet. Select is variants
-   * ready, waiting for a pick. Previewing is a paint on the live page,
-   * waiting for Keep or Discard. Kept is an ordinary Edityy edit: JSON for
-   * the agent, which the agent writes into the source later.
+   * Select is variants ready, waiting for a pick. Previewing is a paint
+   * on the live page, waiting for Keep or Discard. Kept is an ordinary
+   * Edityy edit: JSON for the agent, which the agent writes into the
+   * source later.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, pending, select, ready
+  var changesFilter = "all"; // all, select, ready
   // The filter grid, after interior.dev's Filter Grid: one chip per state
   // with its count, a thumb that travels to the picked chip, and the arrow
   // keys walking the chips. The cards below already travel the same way.
-  var CHANGES_FILTERS = [["all", "All"], ["requested", "Pending"], ["exploring", "Select"], ["ready", "Ready"]];
+  var CHANGES_FILTERS = [["all", "All"], ["exploring", "Select"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
@@ -6612,35 +6541,6 @@ function decorations() {
       credentials: "same-origin",
       body: JSON.stringify({ id: id, keep: !!keep }),
     }).catch(function () {});
-  }
-
-  function cancelVariationId(id) {
-    if (variationId === id) {
-      closeVariants();
-      return;
-    }
-    forgetVariationServer(id);
-    tally();
-  }
-
-  function cancelPreviewId(id) {
-    if (previewReqId === id) {
-      cancelPreviewRequest();
-      return;
-    }
-    // A withdrawn ask frees its box: it shows as an edit again.
-    (srvPreviewRequests || []).forEach(function (request) {
-      if (request && request.id === id && request.region) {
-        var live = matchRegion(request.region);
-        if (live && live.waiting) live.waiting = false;
-      }
-    });
-    if (typeof window.fetch === "function") {
-      window.fetch("/__edityy/preview-request?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
-    }
-    editsRefreshedAt = 0;
-    refreshEditsServer();
-    tally();
   }
 
   /**
@@ -6752,8 +6652,6 @@ function decorations() {
   /** Every task for the panel, from the live strips and the server queues. */
   function editsTasks() {
     var tasks = [];
-    var seenVariation = {};
-    var seenPreview = {};
     var responsesById = {};
     (srvVariationResponses || []).forEach(function (response) {
       if (response && response.requestId) responsesById[response.requestId] = response;
@@ -6761,44 +6659,6 @@ function decorations() {
     var requestsById = {};
     (srvVariationRequests || []).forEach(function (request) {
       if (request && request.id) requestsById[request.id] = request;
-    });
-    // Requested: a variation ask with no answer. The words stay on the card
-    // while the agent works, so the submitted comment never vanishes.
-    if (variationId) {
-      seenVariation[variationId] = true;
-      tasks.push({
-        state: "requested", el: variationFor || null, label: variationFor ? nameOf(variationFor) : "Element",
-        origin: "Comment", detail: "Waiting for your agent..." + (variationPrompt ? " \u00b7 " + variationPrompt : ""), kind: "variation", requestId: variationId,
-      });
-    }
-    (srvVariationRequests || []).forEach(function (request) {
-      if (!request || request.status !== "pending" || seenVariation[request.id] || responsesById[request.id]) return;
-      seenVariation[request.id] = true;
-      var el = previewQuery(request.selector);
-      tasks.push({
-        state: "requested", el: el || null, label: el ? nameOf(el) : request.selector || "Element",
-        origin: "Comment", detail: "Waiting for your agent..." + (request.prompt ? " \u00b7 " + request.prompt : ""), kind: "variation", requestId: request.id,
-      });
-    });
-    // Requested: a preview ask with no paint. The words stay on the card
-    // while the agent works, so the submitted comment never vanishes.
-    if (previewReqId) {
-      seenPreview[previewReqId] = true;
-      var askWords = previewReqFor ? (record(previewReqFor).comment || "") : (previewReqRegion ? (previewReqRegion.comment || "") : "");
-      tasks.push({
-        state: "requested", el: previewReqFor || null, region: previewReqRegion || null, label: previewReqFor ? nameOf(previewReqFor) : previewReqRegion ? addedLabel(previewReqRegion) : "Element",
-        origin: "Comment", detail: (previewReqCount > 1 ? "Waiting for " + previewReqCount + " variants..." : "Waiting for your agent...") + (askWords ? " \u00b7 " + askWords : ""), kind: "preview", requestId: previewReqId,
-      });
-    }
-    (srvPreviewRequests || []).forEach(function (request) {
-      if (!request || request.status !== "pending" || seenPreview[request.id]) return;
-      seenPreview[request.id] = true;
-      var el = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
-      var rg = request.region ? matchRegion(request.region) : null;
-      tasks.push({
-        state: "requested", el: el || null, region: rg, label: el ? nameOf(el) : (request.element && request.element.selector) || (rg ? addedLabel(rg) : "Element"),
-        origin: "Comment", detail: (request.count > 1 ? "Waiting for " + request.count + " variants..." : "Waiting for your agent...") + (request.instruction ? " \u00b7 " + request.instruction : ""), kind: "preview", requestId: request.id,
-      });
     });
     // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
     if (variantList && variantList.length && variationFor) {
@@ -6847,14 +6707,10 @@ function decorations() {
         });
       });
     }
-    // Edits: ticked ones are Ready, the rest are Exploring. A comment ask
-    // still waiting for the agent is only the requested card, not an edit:
-    // the words stay on that card. A drawn box with its ask out is the same:
-    // Requested only. A wait with no requested card left (a reload dropped
-    // the live request) still shows its edit, so the words never vanish.
-    var waits = requestedWaits();
+    // Edits: ticked ones are Ready, the rest are Exploring. A comment
+    // saves as an edit at once, while its ask runs in the background.
     var kept = report().filter(function (item) {
-      return !editParked(item, waits);
+      return !editParked(item);
     });
     kept.forEach(function (item) {
       var origin = "Canvas session";
@@ -6875,7 +6731,7 @@ function decorations() {
   }
 
   function taskCounts(tasks) {
-    var counts = { all: tasks.length, requested: 0, exploring: 0, ready: 0 };
+    var counts = { all: tasks.length, exploring: 0, ready: 0 };
     tasks.forEach(function (task) {
       if (counts[task.state] !== undefined) counts[task.state] += 1;
     });
@@ -6993,8 +6849,8 @@ function decorations() {
 
   /**
    * The controls that are always on a card, the way the wireframe draws
-   * them: pencil and eye on a Ready card, X on a pending one, notes with
-   * Discard and Keep on a select one, number chips for the variants.
+   * them: pencil and eye on a Ready card, notes with Discard and Keep on
+   * a select one, number chips for the variants.
    */
   function addTaskBody(card, task, head) {
     var rec = task.item && task.item.rec;
@@ -7033,19 +6889,6 @@ function decorations() {
       eye.addEventListener("click", function (e) { if (e) e.stopPropagation(); });
       icons.appendChild(eye);
       head.appendChild(icons);
-      return;
-    }
-    if (task.state === "requested") {
-      var box = document.createElement("div");
-      box.className = "task-icons";
-      box.setAttribute("data-ui-actions", "");
-      box.appendChild(iconButton("x", "Delete this request", function () {
-        slideOut(card, "right", function () {
-          if (task.kind === "variation") cancelVariationId(task.requestId);
-          else if (task.kind === "preview") cancelPreviewId(task.requestId);
-        });
-      }, "task-x-" + (task.requestId || task.label)));
-      head.appendChild(box);
       return;
     }
     if (task.kind === "exploring-edit" && rec) {
@@ -7257,8 +7100,7 @@ function decorations() {
     // The edits panel: header, filter grid, cards, copy button under them.
     // They are kept between redraws, so a change that lands while the panel
     // is open does not throw away the scroll position. The server queues
-    // refresh in the background, so pending and select tasks survive
-    // a reload.
+    // refresh in the background, so select tasks survive a reload.
     if (!changesPanel) {
       changesPanel = {};
       changesPanel.filters = document.createElement("div");
@@ -7753,16 +7595,13 @@ function decorations() {
     if (variationWait) {
       variationPolls += 1;
       if (variationPolls > MAX_POLLS) {
-        // Two minutes of asking: the agent is not coming. The box names
-        // what went quiet: the server when its reads kept failing, else
-        // the agent, whose request still waits on file.
+        // Two minutes of asking: the agent is not coming. The edit stays:
+        // only a note names what went quiet, the server or the agent.
         variationId = "";
         variationWait = "";
         variationWords = asksMissed > 1
           ? "The dev server stopped answering. Start it again, then save the comment again."
           : "The agent has not answered yet. The request waits on file: ask your agent to read it.";
-        cardDoneFor = null;
-        commentFor = variationFor;
         openComment = null;
         syncElementMenu();
       }
@@ -7770,15 +7609,10 @@ function decorations() {
     if (previewWait) {
       previewPolls += 1;
       if (previewPolls > MAX_POLLS) {
-        // Two minutes of asking: the agent is not coming. A waiting ask reopens
-        // its card with what went quiet: the server or the agent.
-        var waitEl = previewReqFor;
-        var waitRegion = previewReqRegion;
+        // Two minutes of asking: the agent is not coming. The edit stays:
+        // only a note names what went quiet, the server or the agent.
         previewReqId = "";
         previewWait = "";
-        // The wait is over: the words are an Exploring note now.
-        if (waitEl) record(waitEl).commentAsk = false;
-        if (waitRegion) waitRegion.waiting = false;
         previewReqFor = null;
         previewReqRegion = null;
         previewReqCount = 1;
@@ -7786,17 +7620,8 @@ function decorations() {
         previewWords = asksMissed > 1
           ? "The dev server stopped answering. Start it again, then save the comment again."
           : "The agent has not answered yet. The request waits on file: ask your agent to read it.";
-        if (waitRegion) {
-          regionFor = waitRegion;
-          regionBox.hidden = false;
-          openComment = null;
-          syncElementMenu();
-        } else {
-          cardDoneFor = null;
-          commentFor = waitEl;
-          openComment = null;
-          syncElementMenu();
-        }
+        openComment = null;
+        syncElementMenu();
       }
     }
     // The panel redraws only when the queues changed: rebuilding it on
@@ -8029,8 +7854,6 @@ function decorations() {
   /** Ask the dev server for a canvas preview of one comment. `failed` is told why it never went out. */
   function requestPreview(el, region, instruction, failed, count) {
     if (typeof window.fetch !== "function") {
-      // The ask never went out: the words are an Exploring note, not a wait.
-      if (el) record(el).commentAsk = false;
       return failed("Cannot ask here");
     }
     var id = newId();
@@ -8054,18 +7877,14 @@ function decorations() {
       previewSeen = "";
       pollAsks(); // at once: a paint already waiting is not waited for
     }).catch(function (error) {
-      // The ask never went out: the words are an Exploring note, not a wait.
-      if (el) record(el).commentAsk = false;
       failed(error.message || "Could not ask the dev server");
     });
   }
 
-  /** Cancel a waiting ask, on the panel or leaving the mode: no agent answers it late. */
+  /** Cancel an ask, on the panel or leaving the mode: no agent answers it late. */
   function cancelPreviewRequest() {
     var id = previewReqId;
     previewReqId = "";
-    if (previewReqFor) record(previewReqFor).commentAsk = false;
-    if (previewReqRegion) previewReqRegion.waiting = false;
     previewReqFor = null;
     previewReqRegion = null;
     previewReqCount = 1;
@@ -8469,9 +8288,7 @@ function decorations() {
     }
     var fromComment = !!previewReqId;
     var askedRegion = previewReqRegion;
-    // The agent answered: the ask's words are an Exploring note now.
-    if (previewReqFor) record(previewReqFor).commentAsk = false;
-    if (askedRegion) askedRegion.waiting = false;
+    // The agent answered: the edit stays, the paint joins it.
     // Cards without an element scroll to the box the ask drew.
     answeredRegion = askedRegion;
     previewReqId = "";

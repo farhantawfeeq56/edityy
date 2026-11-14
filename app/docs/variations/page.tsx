@@ -20,9 +20,8 @@ export default function DocsVariations() {
         darker”. Press <strong>Send to agent</strong>.
       </P>
       <P>
-        The box then becomes the waiting card. It says <strong>Waiting for your agent</strong>, names the keyword{" "}
-        <Code>vartest</Code>, and says to say what you want in the same message. An <strong>X</strong> puts the card
-        away.
+        The comment saves as an edit at once, and the card closes. The ask runs in the background: the agent
+        reads it with <Code>get_work</Code>, and its answer arrives as variants to try on the live element.
       </P>
       <P>
         In your agent, type <Code>vartest</Code> and say what you want in the same message. The agent follows your own
@@ -99,9 +98,8 @@ narrow | when: (max-width: 640px), padding: 8px`}</Pre>
         at-rule in place of <Code>when</Code>, <Code>!important</Code> or <Code>url()</Code> is refused.
       </P>
       <P>
-        The <strong>X</strong> in the waiting card takes the request back. The request stays in the file, marked as
-        taken back, and the agent is told not to answer it. A withdrawal is not the same as a request that was never
-        made. A new request replaces it.
+        A new request replaces a pending one. The request stays in the file, marked as taken back, and the
+        agent is told not to answer it. A replacement is not the same as a request that was never made.
       </P>
 
       <H3>Next.js</H3>

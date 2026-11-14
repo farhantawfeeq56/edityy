@@ -214,12 +214,12 @@ Select one element and choose **Variations** in its actions. The box asks two
 things: how many variants to make, 2 to 10, and an optional comment, such as
 "thinner and darker". Press **Send to agent**.
 
-The box then becomes the waiting card: **Waiting for your agent**, the keyword
-`vartest` to type, a line that says to say what you want in the same message,
-the command that adds the server, and an **X** that puts the card away. In your
-agent, type `vartest`, and say what you want in the same message: the agent
-follows your own words as well as the comment. If the agent has no Edityy server
-yet, add one with `npx edityy mcp` and ask again.
+The comment saves as an edit at once, and the card closes. The ask runs
+in the background: the agent reads it with `get_work`, and its answer
+arrives as variants to try on the live element. Say what you want in your
+agent in the same message: the agent follows your own words as well as the
+comment. If the agent has no Edityy server yet, add one with `npx edityy mcp`
+and ask again.
 
 Your agent then has one job, in two tool calls:
 
@@ -268,10 +268,9 @@ its answer are written to `.edityy/variation-request.json` and
 only plain values, and an answer is checked before the page shows it: a custom
 property, an at-rule in place of `when`, `!important` or `url()` is refused.
 
-The **X** in the waiting card takes the request back. The request stays in the
+A new request replaces a pending one. The request stays in the
 file, marked as taken back, and the agent is told not to answer it, so a
-withdrawal is not the same as a request that was never made. A new request
-replaces it.
+replacement is not the same as a request that was never made.
 
 **Next.js** needs one more route file and one more rewrite, next to the one for
 the edits:

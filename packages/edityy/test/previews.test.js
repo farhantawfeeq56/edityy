@@ -213,7 +213,7 @@ test("a paint with other words answers no ask and clears no card", async () => {
   await writePreviewRequest({ id: "p-keep", instruction: "make the heading bigger" }, root);
   const preview = await placePreview(insert, root);
   assert.equal(preview.requestId, null, "other words link to no ask");
-  assert.equal((await readPreviewRequest(root)).status, "pending", "the waiting card stays");
+  assert.equal((await readPreviewRequest(root)).status, "pending", "the ask stays pending");
 });
 
 test("a dragged-box request carries its location, and every pending ask lists", async () => {
