@@ -2361,7 +2361,7 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   const q = app.el("h2", { text: "second" });
   assert.equal(inMenu("Ask the agent to preview").checked, false, "the tick starts off: a note is only a note");
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save");
-  assert.match(hint().textContent, /Saves a note with the edits/, "1 says it saves");
+  assert.equal(hint().textContent, "", "1 stays quiet: the note needs no explainer");
   // Above 1 the button and the line say the card asks the agent instead.
   for (const fn of inMenu("5 variations").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Ask for 5 variations").children.map((c) => c.nodeValue || "").join(""), "Ask for 5");

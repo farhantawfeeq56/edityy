@@ -2207,7 +2207,7 @@
       var name = many ? say + (region ? " previews" : " variations") : "Save comment";
       save.setAttribute("aria-label", name);
       save.title = name;
-      if (!many) hint.textContent = canvasTick.checked ? "Saves the note and asks the agent to preview it." : (region ? "Saves a note on the box." : "Saves a note with the edits.");
+      if (!many) hint.textContent = canvasTick.checked ? "Saves the note and asks the agent to preview it." : "";
       else if (region) hint.textContent = "Asks the agent for " + count + " previews. The answer lands at the bottom right.";
       else hint.textContent = "Asks the agent for " + count + " variations. The card waits with the words until the answer lands.";
     }
@@ -9507,17 +9507,11 @@ function decorations() {
         hideHover();
         return;
       }
-      // Add is freeform: a click alone picks nothing, but the element under
-      // the pointer is still outlined, so the drag starts and lands with anchor feedback.
+      // Add is freeform: a click alone picks nothing, and the hover
+      // frame stays away, so the pointer draws its own box unbothered.
       if (drawing) drawRegion(x, y);
       if (drawing || activeTool === "add") {
-        var aim = textAt(x, y);
-        if (!aim) {
-          hideHover();
-          return;
-        }
-        place(hoverBox, aim.getBoundingClientRect(), aim);
-        hoverBox.hidden = false;
+        hideHover();
         return;
       }
       if (moving) {
