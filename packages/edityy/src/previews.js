@@ -82,6 +82,25 @@ export function checkPreviewHtml(html) {
   return html;
 }
 
+/** Design warnings for a paint. Never blocks: each warning names the fix.
+ *
+ * A fast paint misses spacing, fixed widths, raw colours, or small screens.
+ * The placer reads these warnings in the place_preview reply and fixes
+ * what applies before the user decides. */
+export function lintPreviewHtml(html) {
+  const warnings = [];
+  if (typeof html !== "string" || !html.trim()) return warnings;
+  const first = html.match(/<([a-z][a-z0-9-]*)\b([^>]*)>/i);
+  const cls = (first?.[2].match(/class\s*=\s*("[^"]*"|'[^']*')/i) || [])[1] || "";
+  // The root block sets its own spacing: a paint with no margin, padding or gap leans on the page.
+  if (!/\bm[trblxy]?-|\bp[trblxy]?-|\bgap-|\bspace-/.test(cls)) warnings.push("no spacing utility on the root block (add mt-12, p-6 or gap-8)");
+  if (/\bw-\[\d+px\]|width\s*:\s*\d+px/i.test(html)) warnings.push("fixed pixel width (use w-full, max-w-* or grid)");
+  if (/#[0-9a-fA-F]{3,6}\b|rgba?\s*\(/i.test(html)) warnings.push("raw colour value (reuse the page tokens)");
+  // A multi-column row with no small-screen rule crowds a narrow viewport.
+  if (/\bgrid-cols-[2-9]\b/.test(html) && !/\b(sm|md|lg):/.test(html)) warnings.push("no responsive breakpoint (stack on small screens with sm:)");
+  return warnings;
+}
+
 /** A random preview id, so two agents never share one. */
 export function newPreviewId() {
   return newId("e");

@@ -66,7 +66,7 @@ the Edityy MCP server.
   straight away, with no save step.
 - **Work.** Call \`get_work\` once per turn, before any other Edityy tool.
   It returns every saved edit and every ask in one read, oldest first. Each
-  edit has an id such as \`c-0\`: apply it to the source code, then call
+  edit has an id such as \`c-1\`: apply it to the source code, then call
   \`mark_applied\` with the ids that are in the code.
 - **Visual edits.** The saved edits wait in \`get_work\`.
   Apply them to the source code, then call

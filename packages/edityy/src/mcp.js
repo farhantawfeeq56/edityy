@@ -23,7 +23,7 @@ import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE, clearCanvas } from "./index.js";
 import { SESSION_FILE } from "./session.js";
-import { placePreview, previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
+import { lintPreviewHtml, placePreview, previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
 import { store } from "./store.js";
 import { placeVariations, readVariationRequests, requestText } from "./variations.js";
 
@@ -85,7 +85,7 @@ const TOOLS = [
     name: "get_work",
     description:
       "Read everything Edityy holds in one call: the saved visual edits plus every ask, oldest first. " +
-      "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-0: apply it to the " +
+      "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-1: apply it to the " +
       "source code, then call mark_applied with the ids that are in the code. Each ask has a kind, an id and a " +
       "status: answer a variants ask with place_variants and a preview-request ask with place_preview. " +
       "A preview ask paints on the live canvas only with Keep and Discard; Keep saves it as a normal edit " +
@@ -97,7 +97,7 @@ const TOOLS = [
     name: "mark_applied",
     description:
       "Mark saved edits applied once the code holds them, so they are not applied twice. " +
-      "Pass the edit ids get_work returned, such as [\"c-0\", \"c-1\"]. With no ids, every saved edit is marked. " +
+      "Pass the edit ids get_work returned, such as [\"c-1\", \"c-2\"]. With no ids, every saved edit is marked. " +
       "That also clears the canvas session.",
     inputSchema: {
       type: "object",
@@ -137,6 +137,10 @@ const TOOLS = [
       "The canvas is temporary: experiment freely within these constraints. Nothing here touches source files, " +
       "and a wrong paint costs one Discard. Paint boldly instead of asking the user to choose: " +
       "infer anchors and links from the page's own ids and routes, paint, and name your assumption. " +
+      "Before each paint, run this design gate: the root block sets its own spacing (margin plus padding, such as mt-12 with pt-8 or p-6); " +
+      "the block fits the parent width with no fixed pixel width and no horizontal overflow; " +
+      "one heading at most, in the page type scale; no raw colour, reuse the page tokens; " +
+      "a multi-column row stacks on small screens with sm:. Fix each miss before you place. " +
       "The preview shows on the page with Keep and Discard; Keep saves it as an edit for the agent to write " +
       "into the source (the agent reads it with get_work). Edityy itself changes only the live page. " +
       "If no anchor exists at all, say so instead of guessing.",
@@ -216,7 +220,7 @@ const TOOLS = [
 /**
  * Every saved edit and every ask as text for the agent, in one read.
  *
- * Edits carry ids of the form `c-0`: the agent applies them to the code and
+ * Edits carry ids of the form `c-1`: the agent applies them to the code and
  * marks them with mark_applied. Asks carry their kind, id and status: the
  * agent answers a pending one with a placer. The Markdown is made here from
  * the checked changes. A `markdown` field in the file is never passed on: the
@@ -245,8 +249,8 @@ async function workText(root) {
     out.push("No saved edits. In the browser, open Edityy's edits list and approve an edit with the tick.");
   } else {
     out.push("Apply each edit to the source code, then call mark_applied with its id.", "");
-    // The headers number from 1; the ids the agent marks number from 0.
-    let next = -1;
+    // The headers and the ids number from 1, like the canvas marks.
+    let next = 0;
     const at = saved.savedAt && !Number.isNaN(Date.parse(saved.savedAt)) ? `Saved at ${saved.savedAt}` : null;
     const from = page ? ` from ${page}` : "";
     out.push(`${at ? at + from + ".\n\n" : ""}${markdownFor(changes, page).replace(/^## \d+\./gm, () => `## c-${++next}.`)}`);
@@ -309,7 +313,7 @@ export async function handle(message, root) {
         }
         if (params?.name === "mark_applied") {
           const ids = params?.arguments?.ids;
-          if (ids !== undefined && !Array.isArray(ids)) throw new Error("ids must be a list of edit ids such as [\"c-0\"].");
+          if (ids !== undefined && !Array.isArray(ids)) throw new Error("ids must be a list of edit ids such as [\"c-1\"].");
           let saved;
           try {
             saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
@@ -324,11 +328,11 @@ export async function handle(message, root) {
             return reply({ content: [{ type: "text", text: `Marked ${changes.length} edit${changes.length === 1 ? "" : "s"} applied. Cleared the saved edits and the canvas session.` }] });
           }
           for (const one of ids) {
-            const at = typeof one === "string" && /^c-\d+$/.test(one) ? Number(one.slice(2)) : -1;
+            const at = typeof one === "string" && /^c-\d+$/.test(one) ? Number(one.slice(2)) - 1 : -1;
             if (at < 0 || at >= changes.length) throw new Error(`Unknown edit id ${JSON.stringify(one)}. get_work lists the ids still waiting.`);
           }
           const marked = new Set(ids);
-          const left = changes.filter((_, at) => !marked.has(`c-${at}`));
+          const left = changes.filter((_, at) => !marked.has(`c-${at + 1}`));
           const page = checkPage(saved.page);
           if (!left.length) {
             await rm(join(root, CHANGES_FILE), { force: true });
@@ -336,7 +340,7 @@ export async function handle(message, root) {
             return reply({ content: [{ type: "text", text: `Marked ${changes.length} edits applied. Cleared the saved edits and the canvas session.` }] });
           }
           await store(root, CHANGES_FILE, { ...saved, changes: left, markdown: markdownFor(left, page) });
-          const rest = left.map((_, at) => `c-${at}`).join(", ");
+          const rest = left.map((_, at) => `c-${at + 1}`).join(", ");
           return reply({ content: [{ type: "text", text: `Marked ${ids.length} applied. Still waiting: ${rest}.` }] });
         }
         if (params?.name === "place_preview") {
@@ -345,8 +349,15 @@ export async function handle(message, root) {
           const left = queue.filter((entry) => entry.status === "pending");
           const more = left.length ? ` Still waiting: ${left.map((entry) => entry.instruction).join(" | ")}.` : "";
           const link = preview.reused ? " (reused without a duplicate)" : "";
+          const paints = [];
+          for (const target of preview.targets ?? []) {
+            if (target.html) paints.push(target.html);
+            for (const variation of target.variations ?? []) if (variation.html) paints.push(variation.html);
+          }
+          const flaws = [...new Set(paints.flatMap((html) => lintPreviewHtml(html)))];
+          const design = flaws.length ? ` Design check: ${flaws.join("; ")}. Fix what applies, or place again.` : "";
           return reply({
-            content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep saves it as an edit for the agent to write into the source (the agent reads it with get_work). The user decides on the page.${more}` }],
+            content: [{ type: "text", text: `Placed preview ${preview.id}${link}. It shows on the page: one preview keeps or discards on its own, and several waiting at once show a checkbox list with a Keep all button. Keep saves it as an edit for the agent to write into the source (the agent reads it with get_work). The user decides on the page.${more}${design} Read the paint back with get_work and check spacing before you tell the user it is done.` }],
           });
         }
         if (params?.name === "clear_all") {

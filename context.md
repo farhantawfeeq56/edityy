@@ -68,7 +68,7 @@ Source files:
 |File|Role|
 |-|-|
 |`src/edityy.js`|The launcher payload. About 9600 lines. IIFE. Mounts host element fixed to viewport. Uses open shadow root. Selects elements, shows dock, makes inline-style edits, polls asks, paints previews.|
-|`src/previews.js`|Comment-box preview requests and agent previews. Allowlist markup twice (server and page). No script, no event attribute, no iframe reaches canvas.|
+|`src/previews.js`|Comment-box preview requests and agent previews. Allowlist markup twice (server and page). No script, no event attribute, no iframe reaches canvas. Warns on weak paints (spacing, fixed width, raw colour, breakpoints) in the `place_preview` reply.|
 |`src/variations.js`|Style variations for one element. Agent answers with N variants. Keys `1`–`9` and `0` switch the live element.|
 |`src/changes.js`|Saved edit list. Validates browser payload. Makes agent Markdown from checked fields only. Never trusts browser Markdown.|
 |`src/session.js`|Canvas session persist. Reload or hot update restores edits from `sessionStorage` plus `.edityy/session.json`.|

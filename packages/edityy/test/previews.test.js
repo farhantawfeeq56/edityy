@@ -12,6 +12,7 @@ import {
   clearPreviewRequest,
   decidePreview,
   decidePreviews,
+  lintPreviewHtml,
   placePreview,
   previewRequestText,
   previewText,
@@ -128,6 +129,14 @@ test("each action checks what it needs, and nothing else passes", () => {
     assert.throws(() => checkPreviewHtml(value), { status: 400 }, JSON.stringify(value)?.slice(0, 80));
   }
   assert.equal(checkPreview({ instruction: "u", action: "update", selector: "p", props: [{ property: "--x", value: "1" }] }).props[0].property, "--x");
+});
+
+test("lintPreviewHtml warns on bare markup and passes a spaced block", () => {
+  assert.deepEqual(lintPreviewHtml('<div class="mt-12 grid gap-8 sm:grid-cols-3"><p>Hi</p></div>'), []);
+  assert.ok(lintPreviewHtml("<div><p>Hi</p></div>").some((w) => w.startsWith("no spacing")));
+  assert.ok(lintPreviewHtml('<div class="mt-12" style="width: 400px">x</div>').some((w) => w.startsWith("fixed pixel")));
+  assert.ok(lintPreviewHtml('<div class="mt-12" style="color: #fff">x</div>').some((w) => w.startsWith("raw colour")));
+  assert.ok(lintPreviewHtml('<div class="mt-12 grid grid-cols-3 gap-8">x</div>').some((w) => w.startsWith("no responsive")));
 });
 
 test("the agent reads a short preview, not the page", async () => {

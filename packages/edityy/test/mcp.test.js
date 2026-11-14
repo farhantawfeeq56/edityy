@@ -55,8 +55,8 @@ test("one get_work call returns every edit and every ask, oldest first", async (
   const got = await call(root, "tools/call", { name: "get_work", arguments: {} });
   const text = got.result.content[0].text;
   assert.match(text, /## Edits \(2\)/);
-  assert.match(text, /## c-0\./, "edits carry mark_applied ids");
-  assert.match(text, /## c-1\./);
+  assert.match(text, /## c-1\./, "edits carry mark_applied ids");
+  assert.match(text, /## c-2\./);
   assert.match(text, /from http:\/\/localhost:5173\//);
   assert.match(text, /- Selector: `h1`/);
   assert.match(text, /## Asks \(2\), oldest first/);
@@ -75,8 +75,8 @@ test("one get_work call returns every edit and every ask, oldest first", async (
 test("mark_applied clears marked edits, or every edit with no ids", async () => {
   const root = tmp();
   await writeChanges({ changes: [{ selector: "h1" }, { selector: "p" }] }, root);
-  const one = await call(root, "tools/call", { name: "mark_applied", arguments: { ids: ["c-0"] } });
-  assert.match(one.result.content[0].text, /Still waiting: c-0/);
+  const one = await call(root, "tools/call", { name: "mark_applied", arguments: { ids: ["c-1"] } });
+  assert.match(one.result.content[0].text, /Still waiting: c-1/);
   const left = await call(root, "tools/call", { name: "get_work", arguments: {} });
   assert.doesNotMatch(left.result.content[0].text, /`h1`/);
   assert.match(left.result.content[0].text, /`p`/);
