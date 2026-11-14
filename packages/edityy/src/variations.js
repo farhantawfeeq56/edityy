@@ -281,12 +281,12 @@ export function requestText(request) {
     `- Current values: ${values ? "`" + values + "`" : "none read"}`,
     `- Variations the user asked for: ${request.count}`,
     "",
-    "Temporary canvas is disabled: write the change directly into the source code. Do not call place_variants.",
+    "Answer with place_variants: exactly that many variations.",
     "",
-    `Pick the best of the ${request.count} variations below and apply it to the source in the way the project already styles things, then tell the user it is in.`,
+    "Nothing is painted: the user picks one on the popped card, the kept pick arrives as a saved edit, and you carry that edit into the source code.",
     "The user may have told you in their own message what they want. Follow",
     "that when they did: the comment above is only part of what they asked for.",
     "",
-    `requestId: \`${request.id}\` (for reference only; the placer is disabled).`,
+    `requestId: \`${request.id}\` (pass it back to place_variants).`,
   ].join("\n");
 }

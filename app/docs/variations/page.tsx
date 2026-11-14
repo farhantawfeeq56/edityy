@@ -39,8 +39,9 @@ export default function DocsVariations() {
           again since the last one.
         </LI>
         <LI>
-          The agent writes that many variants into the source code, one look per variant. Each variant carries a
-          short label, which the popped card shows as its variant name.
+          <Code>place_variants</Code> takes the answer: exactly that many variations, each a short label and
+          a list of declarations. Nothing is painted. The user picks one on the popped card, the kept pick
+          arrives as a saved edit, and you carry that edit into the source code.
         </LI>
       </UL>
       <Pre>{`thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent

@@ -17,7 +17,7 @@ The product, from the user's view:
 - Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings. Shift+A stacks them in a column.
 - Fonts. The user picks from fonts already on the page or browses Google Fonts. Edityy loads a face only on preview or pick.
 - Undo. Undo and redo cover style changes. The edits list reviews, selects, or reverts each edit.
-- Variations. The user picks one element, asks for N style variants, and switches them live with keys `1` to `9` and `0`. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The words save as an edit at once; no card waits for the agent. The temporary canvas is removed, so a comment ask writes directly into source code.
+- Variations. The user picks one element, asks for N style variants, and switches them live with keys `1` to `9` and `0`. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The words save as an edit at once; no card waits for the agent. The temporary canvas is removed for previews: a comment ask writes directly into source code. Variants are answered with `place_variants`: the user picks one on the popped card without a live preview, the kept pick becomes a normal edit, and the words save as an edit at once.
 - Chat previews. The user types `edityy::` plus an instruction in agent chat. The agent writes the change into the source code directly. The temporary canvas is removed: nothing is painted, and no card waits on the canvas.
 - Handoff. Three paths move edits to the agent: copy as Markdown prompt, save to `.edityy/changes.json`, or MCP read with `npx edityy mcp`. Edityy never writes source code. The agent does.
 - Setup CLI. `npx edityy init` writes the config for the detected framework. `npx edityy doctor` checks the setup again. Both are idempotent.
@@ -160,7 +160,7 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 ## Agent workflow (how to work with Edityy artifacts)
 
 * Saved edits live in `.edityy/changes.json`. Read `markdown` for the prompt, `changes\[]` for selectors, `source` lines, and `props\[]` before/after values.
-* `vartest{N}` (for example `vartest3`): user tests variants. Segmented control floats bottom-right. Keys `1`–`N` switch variants. Agent writes the variants into the source code. Kept variant becomes a normal edit.
+* `vartest{N}` (for example `vartest3`): user tests variants. Segmented control floats bottom-right. Keys `1`–`N` switch variants. Agent answers a variants ask with `place_variants`. The pick arrives as a saved edit to carry into the source. `mark_applied` marks them applied.
 * `edityy:: instruction`: agent writes it into the source code directly. No canvas paint.
 * After writing source from edits, call `mark\_applied` with the edit ids so they are not applied twice.
 * Pencil on a kept preview reopens its options: the paint returns with the kept pick selected. A reopened preview keeps, discards, and switches like a new one.

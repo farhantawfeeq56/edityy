@@ -10,8 +10,10 @@
  * (`.edityy/preview-request.json` and `.edityy/previews.json`, from
  * previews.js). This serves all of them through four tools: one read
  * (get_work) that returns every edit and every ask in one go, oldest first,
- * two placers (place_variants for CSS-only answers, place_preview for canvas
- * paints), and mark_applied once the code holds an edit.
+ * one placer (place_variants for answers: the user picks one on the card,
+ * the pick arrives as a saved edit, and the agent carries it into the
+ * source), one retired canvas placer (place_preview stays disabled), and
+ * mark_applied once the code holds an edit.
  *
  * MCP over stdio is newline-delimited JSON-RPC 2.0, and this server needs four
  * methods of it, so it is written out here rather than pulled in as an SDK: the
@@ -33,10 +35,13 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  * of them gets it; any other gets the newest, as the spec says.
  */
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-// shortcut: temporary canvas disable — set false to restore canvas paints.
-const CANVAS_DISABLED = true;
-const DISABLED_TEXT =
-  "Temporary canvas is disabled. Write the change directly into the source code, then tell the user it is in. Do not call a placer.";
+// shortcut: preview canvas disable — the preview placer stays off. Variants
+// are answered with place_variants: the user picks one on the popped card
+// without a live preview, the pick arrives as a saved edit, and the agent
+// carries it into the source code. Nothing is ever painted.
+const PREVIEW_DISABLED = true;
+const PREVIEW_DISABLED_TEXT =
+  "The preview canvas is disabled. Write the change directly into the source code, then tell the user it is in. Do not call place_preview.";
 
 const DECLARATIONS = {
   type: "array",
@@ -91,8 +96,9 @@ const TOOLS = [
       "Read everything Edityy holds in one call: the saved visual edits plus every ask, oldest first. " +
       "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-1: apply it to the " +
       "source code, then call mark_applied with the ids that are in the code. Each ask has a kind, an id and a " +
-      "status: the temporary canvas is disabled, so write every ask directly into the source code. " +
-      "Do not call place_variants or place_preview. " +
+      "status. Answer a variants ask with place_variants: the user picks one on the popped card, the pick " +
+      "arrives as a saved edit, and you carry it into the source code. The preview canvas is disabled, so " +
+      "write every preview ask directly into the source code. Do not call place_preview. " +
       "Never re-read for the same turn: this call already lists it all.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -121,7 +127,7 @@ const TOOLS = [
   {
     name: "place_preview",
     description:
-      "Temporarily disabled: do not call. The temporary canvas is off, so write the change directly into the source code. " + DISABLED_TEXT,
+      "Temporarily disabled: do not call. The preview canvas is off, so write the change directly into the source code. " + PREVIEW_DISABLED_TEXT,
     inputSchema: {
       type: "object",
       properties: {
@@ -143,7 +149,9 @@ const TOOLS = [
   {
     name: "place_variants",
     description:
-      "Temporarily disabled: do not call. The temporary canvas is off, so write the change directly into the source code. " + DISABLED_TEXT,
+      "Answer a pending variants ask. Takes exactly the asked number of variations, each a short label and " +
+      "a list of declarations. The user picks one on the popped card without a live preview: the kept pick " +
+      "arrives as a saved edit, and you carry it into the source code (read it back with get_work).",
     inputSchema: {
       type: "object",
       properties: {
@@ -194,12 +202,13 @@ const TOOLS = [
  *
  * Edits carry ids of the form `c-1`: the agent applies them to the code and
  * marks them with mark_applied. Asks carry their kind, id and status: the
- * agent answers a pending one with a placer. The Markdown is made here from
+ * agent answers a pending variants ask with place_variants, and writes every
+ * preview ask directly into the source. The Markdown is made here from
  * the checked changes. A `markdown` field in the file is never passed on: the
  * agent applies what it reads to the code.
  */
 async function workText(root) {
-  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", DISABLED_TEXT];
+  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card without a live preview, and the kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
   let saved = null;
   try {
     saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
@@ -318,7 +327,7 @@ export async function handle(message, root) {
           return reply({ content: [{ type: "text", text: `Marked ${ids.length} applied. Still waiting: ${rest}.` }] });
         }
         if (params?.name === "place_preview") {
-          if (CANVAS_DISABLED) return reply({ content: [{ type: "text", text: DISABLED_TEXT }] });
+          if (PREVIEW_DISABLED) return reply({ content: [{ type: "text", text: PREVIEW_DISABLED_TEXT }] });
           const preview = await placePreview(params?.arguments, root);
           const queue = await readPreviewRequests(root);
           const left = queue.filter((entry) => entry.status === "pending");
@@ -344,11 +353,10 @@ export async function handle(message, root) {
           });
         }
         if (params?.name === "place_variants") {
-          if (CANVAS_DISABLED) return reply({ content: [{ type: "text", text: DISABLED_TEXT }] });
           const placed = await placeVariations(params?.arguments, root);
           const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
           return reply({
-            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one with keys 1 to ${placed.variations.length}:\n\n${labels}` }],
+            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one on the popped card with keys 1 to ${placed.variations.length}, without a live preview. The kept pick arrives as a saved edit: read it back with get_work and carry it into the source code.\n\n${labels}` }],
           });
         }
         return fail(-32602, `Unknown tool: ${params?.name}`);

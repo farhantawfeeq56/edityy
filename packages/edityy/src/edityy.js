@@ -921,7 +921,7 @@
     // four states and one card per task. A card goes to its element on click.
     // Its text wears the comment box scale: 10px for labels and buttons,
     // 8px for secondary words, nothing larger.
-    ".pop.changes{width:min(284px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
+    ".pop.changes{width:min(250px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
     ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
@@ -7781,28 +7781,15 @@ function decorations() {
   }
 
   /**
-   * Put one variation on the element. It is written as edits, so it is undoable,
-   * revertible, and saved and copied like any other change.
+   * Pick one variation. The pick only selects: nothing is painted on the
+   * element, so there is no temporary canvas. Keep writes the pick into
+   * the saved edits, and the agent carries it into the source code.
+   * Variants live in the code, not on the canvas.
    */
   function pickVariant(index) {
     var variation = variantList[index];
     if (!variation || !variationFor) return;
-    var rec = record(variationFor);
-    var next = {};
-    variation.props.forEach(function (p) { next[propKey(p)] = p.value; });
-    // What this variation does not set goes back to the page's own value, so a
-    // key press shows the whole variation and never a mix of two. It goes back
-    // through applyTo, so undo steps over it like any other write.
-    variantProps.forEach(function (prop) {
-      if (prop in next) return;
-      applyTo(variationFor, prop, rec.set[prop] ? rec.props[prop] : "");
-    });
-    Object.keys(next).forEach(function (prop) { applyTo(variationFor, prop, next[prop]); });
-    variantProps = Object.keys(next);
     variantAt = index;
-    // A variation may also set the element's words: leaf text only, so markup is
-    // never flattened by a textContent write.
-    if (variation.text !== undefined && !variationFor.children.length) previewText(variationFor, variation.text);
     refit();
     // One redraw: tally() repaints the open panel itself, so a paint here
     // would rebuild the chips twice and drop the pointer's focus twice.
@@ -8613,6 +8600,9 @@ function decorations() {
     var kept = !!(variationFor && variantAt >= 0);
     // A kept variation came from the comment box.
     if (kept) record(variationFor).origin = "Comment";
+    // Keep writes the picked variation into the saved edits: the pick never
+    // painted, so the agent carries it into the source code from here.
+    if (kept) applyVariation(record(variationFor), variantList[variantAt]);
     // A kept variation is a Ready edit: it is written to the project at once.
     if (kept) {
       record(variationFor).confirmed = true;
@@ -8652,6 +8642,17 @@ function decorations() {
     if (active) pollAsks();
   }
 
+  /**
+   * Write one answered variation into a record: its declarations and words.
+   * Runs on Keep, never on pick, so switching chips paints nothing.
+   */
+  function applyVariation(rec, variation) {
+    if (!rec || !variation) return;
+    (variation.props || []).forEach(function (p) { applyTo(rec.el, propKey(p), p.value); });
+    // Words ride with the declarations, leaf text only, the way a pick did.
+    if (variation.text !== undefined && rec.el && !rec.el.children.length) previewText(rec.el, variation.text);
+  }
+
   /** Drop the variations without keeping one: the page goes back, nothing is saved. */
   function discardVariants() {
     if (variationFor) {
@@ -8689,30 +8690,21 @@ function decorations() {
     if (active) pollAsks();
   }
 
-  /** Preview one server variation on its own card, leaving the live strip alone. */
+  /** Pick one server variation on its own card. The pick only selects: Keep writes it. */
   function pickServerVariant(task, index) {
-    var el = task.el;
-    var variation = el && task.list && task.list[index];
-    if (!el || !variation) return;
-    var rec = record(el);
-    var next = {};
-    variation.props.forEach(function (p) { next[propKey(p)] = p.value; });
-    (srvVariantProps[task.requestId] || []).forEach(function (prop) {
-      if (prop in next) return;
-      applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
-    });
-    Object.keys(next).forEach(function (prop) { applyTo(el, prop, next[prop]); });
-    srvVariantProps[task.requestId] = Object.keys(next);
+    var variation = task.el && task.list && task.list[index];
+    if (!variation) return;
     srvVariantAt[task.requestId] = index;
-    if (variation.text !== undefined && !el.children.length) previewText(el, variation.text);
     refit();
     tally();
   }
 
-  /** Keep a server variation: an ordinary confirmed edit, the ask forgotten. */
+  /** Keep a server variation: the pick is written as an ordinary confirmed edit, the ask forgotten. */
   function keepServerVariant(task) {
-    if (task.el && srvVariantAt[task.requestId] != null) {
+    var picked = task.el && task.list && task.list[srvVariantAt[task.requestId]];
+    if (task.el && picked) {
       var rec = record(task.el);
+      applyVariation(rec, picked);
       rec.origin = "Comment";
       rec.confirmed = true;
       autosave();

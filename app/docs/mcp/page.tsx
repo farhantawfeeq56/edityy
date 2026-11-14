@@ -1,4 +1,4 @@
-import { H1, Lead, P, H2, H3, Code, Pre } from "../ui";
+import { H1, Lead, P, H2, H3, UL, LI, Code, Pre, Note } from "../ui";
 
 export const metadata = {
   title: "The MCP server — Edityy Docs",
@@ -48,14 +48,50 @@ export default function DocsMcp() {
         no ids, every saved edit is marked. That also clears the canvas session.
       </P>
 
-      <H3 id="removed-placers">Removed: place_variants and place_preview</H3>
+      <H3 id="place-variants">place_variants</H3>
       <P>
-        The temporary canvas is removed, and the two placers are gone with it. The agent answers every ask by
-        writing into the source code. A client that still calls one gets a message that says so.
+        Returns what you asked for on one element: the number of variations, their optional comment, the element’s
+        tag, its selector and its current values. The agent never sees your code for this.
       </P>
       <P>
-        Each answer carries a short label per variant. The popped card shows the label as its variant name, beside
-        the numbered chips.
+        Takes the answer: exactly that many variations, each a short label and a list of declarations. Nothing is
+        painted. The user picks one on the popped card, the kept pick arrives as a saved edit, and the agent
+        carries that edit into the source code.
+      </P>
+      <P>Each variation is a label and a list of declarations.</P>
+      <Pre>{`{
+  "requestId": "the id get_work returned",
+  "variations": [
+    {
+      "label": "thin grey",
+      "props": [
+        { "property": "scrollbar-width", "value": "thin" },
+        { "property": "scrollbar-color", "value": "#8a8a8a transparent" }
+      ]
+    }
+  ]
+}`}</Pre>
+      <UL>
+        <LI>
+          <Code>on</Code> is a state or a pseudo-element, such as <Code>:hover</Code>, <Code>:focus-visible</Code> or{" "}
+          <Code>::before</Code>.
+        </LI>
+        <LI>
+          <Code>when</Code> is a media condition, such as <Code>(max-width: 640px)</Code>.
+        </LI>
+        <LI>
+          A custom property, an at-rule in place of <Code>when</Code>, <Code>!important</Code> or <Code>url()</Code>{" "}
+          is refused.
+        </LI>
+      </UL>
+      <Note title="Place exactly what was asked for">
+        Any other count than the asked one is refused: fewer leaves a slot empty, and more has nowhere to go.
+      </Note>
+
+      <H3 id="removed-preview">Removed: place_preview</H3>
+      <P>
+        The preview canvas is removed, and its placer is gone with it. The agent writes every preview change into
+        the source code directly. A client that still calls it gets a message that says so.
       </P>
 
       <H2 id="the-files">The files</H2>
