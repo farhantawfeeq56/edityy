@@ -742,19 +742,11 @@
     // words that say what Save does.
     ".element-comment-modes{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%}",
     ".element-comment-chips{display:flex;width:100%;gap:6px}",
-    ".element-comment-chip{display:grid;place-items:center;position:relative;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".element-comment-chip{display:grid;place-items:center;flex:1;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.element-comment-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".element-comment-chip:active{transform:scale(.97)}",
     ".element-comment-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".element-comment-chip[aria-checked=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
-    // The count hint is drawn here, not borrowed from the browser: a native
-    // title blinks out past our control, while this one fades and rises in
-    // and, on a click, settles back out the same way it came.
-    ".element-comment-chip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translate(-50%,4px);padding:4px 8px;border-radius:7px;background:var(--ink);color:var(--paper);font:500 9px/1.4 inherit;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity var(--tint) var(--standard),transform var(--tint) var(--standard)}",
-    ".element-comment-chip:hover::after,.element-comment-chip:focus-visible::after{opacity:1;transform:translate(-50%,0)}",
-    // A click parks the tip back out while the pointer stays put; leaving
-    // hands it back, so the next hover still explains itself.
-    ".element-comment-chip.tip-gone:hover::after,.element-comment-chip.tip-gone:focus-visible::after{opacity:0;transform:translate(-50%,4px)}",
     // The tick: a square and a clear check, with its label beside it.
     ".element-comment-mark{display:grid;place-items:center;width:14px;height:14px;flex:none;border:1.5px solid var(--ink-20);border-radius:5px;background:var(--paper);color:transparent;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard)}",
     ".element-comment-row input:checked+.element-comment-mark{background:var(--accent);border-color:var(--accent);color:var(--paper)}",
@@ -2172,19 +2164,15 @@
     var chipButtons = counts.map(function (n) {
       var chip = button("element-comment-chip", "", n === 1 ? "Single edit" : n + " variations", function () {
         setCount(n);
-        // The hint fades out with the tip-gone class while the pointer
-        // stays put, instead of hanging over the clicked chip.
-        chip.className = "element-comment-chip tip-gone";
+        // The pointer stays put, so the graphite hint would hang over the
+        // clicked chip: let it leave with its own animation instead. It is
+        // back on the next hover, through the menu's own delegation.
+        hideTip();
       }, "comment-count-" + n);
-      // The hint lives in data-tip, not in a native title: the browser's
-      // own tooltip cannot fade, so it would blink out past our control.
-      chip.dataset.tip = chip.title;
+      // The graphite hint reads the aria-label, so the native title only
+      // doubles it and sticks around on a click: it goes, the label stays.
       chip.title = "";
       chip.removeAttribute("title");
-      chip.addEventListener("mouseleave", function () {
-        // Leaving hands the hint back, so the next hover still explains itself.
-        chip.className = "element-comment-chip";
-      });
       chip.setAttribute("role", "radio");
       chip.setAttribute("aria-checked", String(n === count));
       chip.tabIndex = n === count ? 0 : -1;
