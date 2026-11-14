@@ -44,6 +44,22 @@ export async function writeClearedAt(root = process.cwd()) {
   return clearedAt;
 }
 
+export const APPLIED_FILE = ".edityy/applied.json";
+
+/** When the agent last wrote applied edits into the code, or null when never. */
+export async function readAppliedAt(root = process.cwd()) {
+  const saved = await readJson(join(root, APPLIED_FILE), null);
+  const at = saved && typeof saved.appliedAt === "string" ? saved.appliedAt : null;
+  return at && !Number.isNaN(Date.parse(at)) ? at : null;
+}
+
+/** Mark the canvas applied, so an open page adopts its paint. */
+export async function writeAppliedAt(root = process.cwd()) {
+  const appliedAt = new Date().toISOString();
+  await store(root, APPLIED_FILE, { appliedAt });
+  return appliedAt;
+}
+
 async function sweepTemps(dir) {
   let names = [];
   try {

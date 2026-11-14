@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 import { PREVIEWS_FILE, PREVIEWS_PATH, PREVIEW_REQUEST_FILE, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
 import { SESSION_FILE, SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
-import { readClearedAt, readJson, runNode, runRoute, sameSite, store, writeClearedAt } from "./store.js";
+import { APPLIED_FILE, readAppliedAt, readClearedAt, readJson, runNode, runRoute, sameSite, store, writeClearedAt } from "./store.js";
 import { VARIATION_REQUEST_FILE, VARIATION_RESPONSE_FILE, VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
 /** The previews endpoint path, answered by previewsFromNode and previewsRoute. */
@@ -563,16 +563,18 @@ async function sessionFromNode(req, res, root, allowedHosts) {
  * The page polls this once, and the MCP getter reads the same files.
  */
 export async function readAsks(root = process.cwd()) {
-  const [variationRequests, variationResponses, previewRequests, previews, clearedAt] = await Promise.all([
+  const [variationRequests, variationResponses, previewRequests, previews, clearedAt, appliedAt] = await Promise.all([
     readVariationRequests(root),
     readVariationResponses(root),
     readPreviewRequests(root),
     readPendingPreviews(root),
     readClearedAt(root),
+    readAppliedAt(root),
   ]);
   return {
     ok: true,
     clearedAt,
+    appliedAt,
     variations: {
       requests: variationRequests.map((entry) => ({ id: entry.id, selector: entry.element.selector, prompt: entry.prompt, count: entry.count, status: entry.status })),
       responses: variationResponses.map((entry) => ({ requestId: entry.requestId, variations: entry.variations })),
@@ -610,6 +612,12 @@ export async function clearCanvas(root = process.cwd()) {
   await take(VARIATION_RESPONSE_FILE, "variationResponses");
   await take(SESSION_FILE, "sessionEdits");
   await take(CHANGES_FILE, "savedEdits");
+  // A stale applied mark must not adopt a later canvas, so it goes too. Uncounted.
+  try {
+    await rm(join(root, APPLIED_FILE), { force: true });
+  } catch {
+    // already gone
+  }
   const clearedAt = await writeClearedAt(root);
   return { removed, clearedAt };
 }

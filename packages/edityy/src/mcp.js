@@ -24,7 +24,7 @@ import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE, clearCanvas } from "./index.js";
 import { SESSION_FILE } from "./session.js";
 import { lintPreviewHtml, placePreview, previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
-import { store } from "./store.js";
+import { store, writeAppliedAt } from "./store.js";
 import { placeVariations, readVariationRequests, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -98,7 +98,7 @@ const TOOLS = [
     description:
       "Mark saved edits applied once the code holds them, so they are not applied twice. " +
       "Pass the edit ids get_work returned, such as [\"c-1\", \"c-2\"]. With no ids, every saved edit is marked. " +
-      "That also clears the canvas session.",
+      "That also clears the canvas session, and tells the open page to adopt the paint instead of reverting it, so the change shows with no refresh.",
     inputSchema: {
       type: "object",
       properties: {
@@ -325,7 +325,8 @@ export async function handle(message, root) {
           if (!ids || !ids.length) {
             await rm(join(root, CHANGES_FILE), { force: true });
             await rm(join(root, SESSION_FILE), { force: true });
-            return reply({ content: [{ type: "text", text: `Marked ${changes.length} edit${changes.length === 1 ? "" : "s"} applied. Cleared the saved edits and the canvas session.` }] });
+            await writeAppliedAt(root);
+            return reply({ content: [{ type: "text", text: `Marked ${changes.length} edit${changes.length === 1 ? "" : "s"} applied. Cleared the saved edits and the canvas session. The page keeps the paint, so no refresh is needed.` }] });
           }
           for (const one of ids) {
             const at = typeof one === "string" && /^c-\d+$/.test(one) ? Number(one.slice(2)) - 1 : -1;
@@ -337,7 +338,8 @@ export async function handle(message, root) {
           if (!left.length) {
             await rm(join(root, CHANGES_FILE), { force: true });
             await rm(join(root, SESSION_FILE), { force: true });
-            return reply({ content: [{ type: "text", text: `Marked ${changes.length} edits applied. Cleared the saved edits and the canvas session.` }] });
+            await writeAppliedAt(root);
+            return reply({ content: [{ type: "text", text: `Marked ${changes.length} edits applied. Cleared the saved edits and the canvas session. The page keeps the paint, so no refresh is needed.` }] });
           }
           await store(root, CHANGES_FILE, { ...saved, changes: left, markdown: markdownFor(left, page) });
           const rest = left.map((_, at) => `c-${at + 1}`).join(", ");
