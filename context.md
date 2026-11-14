@@ -122,8 +122,9 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |Path|Role|
 |-|-|
 |`app/layout.tsx`|Root layout. Loads self-hosted Figtree (`app/fonts/Figtree-latin.woff2`). Imports `edityy/motion.css` and `globals.css`.|
-|`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`), prompt sample. Client code: `CopyButton` only (`app/copy.tsx`).|
+|`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`). Client code: `CopyButton` (`app/copy.tsx`) and `AgentCardVartest` (`app/agent-vartest.tsx`).|
 |`app/copy.tsx`|Copy-to-clipboard button with live region and `say` animation.|
+|`app/agent-vartest.tsx`|Handoff card in `#agent` with 5 live variants. Keys `1`–`5` switch. Toolbar floats bottom-right.|
 |`app/globals.css`|Tailwind theme. Paper `#faf9f6`, ink `#25241f`, gold `#d4a72c` (fill only), brand-ink `#8a6a10` (readable gold text). Utilities: `tint`, `lift`, `say`. Old `rose`/`blush`/`plum` names kept as aliases.|
 |`app/docs/layout.tsx`|Docs chrome. Header plus sidebar driven by `nav.ts`.|
 |`app/docs/nav.ts`|Docs structure. One list drives the sidebar. Add a page here.|

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
+import { AgentCardVartest } from "./agent-vartest";
 import logo from "./logo.png";
 
 const INSTALL = "npx edityy init";
@@ -79,18 +80,6 @@ const glyphs: Record<string, string> = {
   code: "M9 8l-5 4 5 4M15 8l5 4-5 4",
   agent: "M12 4l1.9 4.3L18 10l-4.1 1.7L12 16l-1.9-4.3L6 10l4.1-1.7z",
 };
-
-const promptSample = `# Visual edits from Edityy
-
-Apply these edits to the source code. Change the code
-that renders each element, in the styling approach
-the project already uses.
-
-## 1. Heading
-- Selector: \`h1.hero-title\`
-- Source: \`src/App.tsx:12:7\`
-- \`font-size\`: \`44px\` → \`52px\`
-- \`color\`: \`#16233a\` → \`#2f5fa8\``;
 
 function Icon({ name, className = "size-4" }: { name: string; className?: string }) {
   return (
@@ -285,19 +274,7 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div aria-hidden="true" className="rounded-xl border border-neutral-50/10 bg-neutral-50/[0.04] p-1">
-                <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-neutral-50/50">
-                  <span className="size-1.5 rounded-full bg-rose-500" />
-                  copied as a prompt to use with your coding agents
-                </div>
-                <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-neutral-50/80">
-                  {promptSample}
-                </pre>
-                <div className="flex items-center gap-2 border-t border-neutral-50/10 px-3 py-2.5 font-mono text-[0.6875rem] text-neutral-50/60">
-                  <span className="text-neutral-50/40">$</span>
-                  npx edityy mcp
-                </div>
-              </div>
+              <AgentCardVartest />
             </div>
           </div>
         </section>
