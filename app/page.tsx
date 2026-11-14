@@ -253,7 +253,7 @@ export default function Home() {
 
         <section id="agent" className="mt-20 scroll-mt-28 sm:mt-24">
           <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-neutral-50 sm:px-10 sm:py-14">
-            <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
+            <div className="max-w-[36rem]">
               <div>
                 <Eyebrow inverted>Hand-off</Eyebrow>
                 <h2 className="mt-4 text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
@@ -271,28 +271,6 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-              </div>
-
-              <div aria-hidden="true" className="rounded-xl border border-neutral-50/10 bg-neutral-50/[0.04] p-1">
-                <div className="flex items-center gap-2 px-3 py-2 text-[0.6875rem] text-neutral-50/50">
-                  <span className="size-1.5 rounded-full bg-rose-500" />
-                  copied as a prompt to use with your coding agents
-                </div>
-                <pre className="overflow-x-auto rounded-lg bg-neutral-900 p-4 font-mono text-[0.75rem] leading-[1.7] text-neutral-50/80">{`# Visual edits from Edityy
-
-Apply these edits to the source code. Change the code
-that renders each element, in the styling approach
-the project already uses.
-
-## 1. Heading
-- Selector: \`h1.hero-title\`
-- Source: \`src/App.tsx:12:7\`
-- \`font-size\`: \`44px\` → \`52px\`
-- \`color\`: \`#16233a\` → \`#2f5fa8\``}</pre>
-                <div className="flex items-center gap-2 border-t border-neutral-50/10 px-3 py-2.5 font-mono text-[0.6875rem] text-neutral-50/60">
-                  <span className="text-neutral-50/40">$</span>
-                  npx edityy mcp
-                </div>
               </div>
             </div>
           </div>
