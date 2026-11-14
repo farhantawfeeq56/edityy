@@ -42,6 +42,7 @@ Edityy never writes source code. The agent does.
 |`app/docs/`|Docs pages. One page per topic.|
 |`app/playground/`|Throwaway page. It compares Puck and Tiptap stacks. Issue #11. Not linked.|
 |`app/design/`|Design preview and `vartest` fixture.|
+|`app/landing-page/`|Blank test page for landing look. Not linked.|
 |`scripts/`|`bump.mjs` (release version bump) and `check-pack.mjs` (tarball check).|
 |`.github/workflows/`|`ci.yml`, `release.yml`, `cloudflare-deployments.yml`.|
 |`DESIGN.md`|Visual language. Warm paper, graphite ink, one gold signal.|
