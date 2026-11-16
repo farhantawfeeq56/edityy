@@ -17,7 +17,7 @@ The product, from the user's view:
 - Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings. Shift+A stacks them in a column.
 - Fonts. The user picks from fonts already on the page or browses Google Fonts. Edityy loads a face only on preview or pick.
 - Undo. Undo and redo cover style changes. The edits list reviews, selects, or reverts each edit.
-- Variations. The user picks one element, asks for N style variants, and switches them live with keys `1` to `9` and `0`. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The words save as an edit at once; no card waits for the agent. The temporary canvas is removed for previews: a comment ask writes directly into source code. Variants are answered with `place_variants`: the user picks one on the popped card without a live preview, the kept pick becomes a normal edit, and the words save as an edit at once.
+- Variations. The user picks one element, asks for N variants, and picks one on the popped card. Each variant holds styles, words, or markup with inline elements. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The pick never paints on a canvas. Variants are answered with `place_variants`: the user picks one without a live preview, the kept pick becomes a normal edit, and the agent carries it into the source code.
 - Chat previews. The user types `edityy::` plus an instruction in agent chat. The agent writes the change into the source code directly. The temporary canvas is removed: nothing is painted, and no card waits on the canvas.
 - Handoff. Three paths move edits to the agent: copy as Markdown prompt, save to `.edityy/changes.json`, or MCP read with `npx edityy mcp`. Edityy never writes source code. The agent does.
 - Setup CLI. `npx edityy init` writes the config for the detected framework. `npx edityy doctor` checks the setup again. Both are idempotent.
@@ -69,14 +69,14 @@ Source files:
 |File|Role|
 |-|-|
 |`src/edityy.js`|The launcher payload. About 9600 lines. IIFE. Mounts host element fixed to viewport. Uses open shadow root. Selects elements, shows dock, makes inline-style edits, polls asks, paints previews.|
-|`src/previews.js`|Comment-box preview requests and agent previews. Allowlist markup twice (server and page). No script, no event attribute, no iframe reaches canvas. Warns on weak paints (spacing, fixed width, raw colour, breakpoints) in the `place_preview` reply.|
-|`src/variations.js`|Style variations for one element. Agent answers with N variants. Keys `1`–`9` and `0` switch the live element.|
+|`src/previews.js`|Comment-box preview requests and agent previews. Reuses the markup check from `variations.js`. No script, no event attribute, no iframe reaches canvas. Warns on weak paints (spacing, fixed width, raw colour, breakpoints) in the `place_preview` reply.|
+|`src/variations.js`|Style, word, and markup variations for one element. Agent answers with N variants. Each variant holds `props`, `text`, or `html` with inline elements. Holds the shared markup check that `previews.js` reuses. Keys `1`–`9` and `0` switch the pick. No live paint: Keep writes the pick into the saved edits.|
 |`src/changes.js`|Saved edit list. Validates browser payload. Makes agent Markdown from checked fields only. Never trusts browser Markdown.|
 |`src/session.js`|Canvas session persist. Reload or hot update restores edits from `sessionStorage` plus `.edityy/session.json`.|
 |`src/store.js`|Shared store. One atomic write (temp file plus rename), one JSON read, one id maker, wrappers for fetch routes and Node middleware.|
 |`src/index.js`|Middleware plus all route factories. Serves `/\_\_edityy/edityy.js` and `logo.png`. Injects tag before `</head>`. Fails open (calls `next()` on error).|
 |`src/vite.js`|Vite plugin (`apply: "serve"`, `enforce: "pre"`). Stamps each intrinsic JSX element with `data-edityy-src="path:line:col"`. Skips components. Fails open.|
-|`src/mcp.js`|MCP server. Exposes saved changes, asks, previews, variations. Agent tools: `get\_work`, `mark\_applied`, `clear\_all`, `place\_preview`, `place\_variants`.|
+|`src/mcp.js`|MCP server. Exposes saved changes, asks, previews, variations. Agent tools: `get\_work`, `mark\_applied`, `clear\_all`, `place\_preview`, `place\_variants`. `place_variants` takes `label` plus `props`, `text`, or `html` with inline elements.|
 |`src/init.js`|`npx edityy init`. Detects framework from `package.json`. Writes Vite plugin, or `instrumentation-client.ts` plus `proxy.ts` for Next.js, or prints middleware. Writes MCP config. Appends `vartest` rules to `AGENTS.md`. Idempotent. `--remove` reverts.|
 |`src/cli.js`|CLI entry. Commands: `init`, `doctor`, `mcp`.|
 |`src/client.js`|One import of `edityy.js`. Next.js 15.3+ path via `instrumentation-client` file. Next.js 16.3+ path via `instrumentationClientInject`.|
@@ -100,7 +100,7 @@ Data files (all under `<root>/.edityy/`, git-ignored via own `.gitignore`):
 
 |File|Holds|
 |-|-|
-|`.edityy/changes.json`|`{ version: 1, savedAt, page, markdown, changes\[] }`. Each change: `{ label, selector, source, props\[], text, comment, added, removed, moved }`. Each prop: `{ prop, before, after, on?, when?, googleFont? }`. `source` is `path:line:col` or null.|
+|`.edityy/changes.json`|`{ version: 1, savedAt, page, markdown, changes\[] }`. Each change: `{ label, selector, source, props\[], text, html, comment, added, removed, moved }`. Each prop: `{ prop, before, after, on?, when?, googleFont? }`. `text` and `html` are `{ before, after }`. `source` is `path:line:col` or null.|
 |`.edityy/variation-\*.json`|Variation request (`VARIATION\_REQUEST\_FILE`) and responses (`VARIATION\_RESPONSE\_FILE`).|
 |`.edityy/previews\*.json`|Pending previews (`PREVIEWS\_FILE`) and preview requests (`PREVIEW\_REQUEST\_FILE`).|
 |`.edityy/session.json`|Canvas session (`SESSION\_FILE`).|

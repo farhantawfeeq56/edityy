@@ -150,7 +150,7 @@ const TOOLS = [
     name: "place_variants",
     description:
       "Answer a pending variants ask. Takes exactly the asked number of variations, each a short label and " +
-      "a list of declarations. The user picks one on the popped card without a live preview: the kept pick " +
+      "a list of declarations, plain words, or markup with inline elements. The user picks one on the popped card without a live preview: the kept pick " +
       "arrives as a saved edit, and you carry it into the source code (read it back with get_work).",
     inputSchema: {
       type: "object",
@@ -185,8 +185,9 @@ const TOOLS = [
                 },
               },
               text: { type: "string", description: "Optional: plain words that replace the element's own words." },
+              html: { type: "string", description: "Optional: markup that replaces the element's inner content, with inline elements." },
             },
-            required: ["label", "props"],
+            required: ["label"],
             additionalProperties: false,
           },
         },

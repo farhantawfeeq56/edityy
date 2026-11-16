@@ -1890,7 +1890,6 @@
   // What the comment box keeps between opens. The tick starts on, so a
   // quick note also asks the agent to preview it, and the count keeps
   // its last pick.
-  var commentAskKept = true;
   var commentCountKept = 1;
   // The card is 90% of its old size. The scale moves every part together.
   var commentScale = 0.9;
@@ -2108,21 +2107,18 @@
 
   /**
    * The one comment box: for one element or one drawn box. A field,
-   * count chips, the agent-preview tick, Cancel and Save.
+   * count chips, Cancel and Save.
    *
-   * The box keeps its last count and tick between opens, and both start
-   * quiet: 1 and off, so a quick note stays a note. Above 1 the count
-   * changes what Save does, so the button and the line under the chips
-   * say which: a note, a preview ask, or a variations ask.
+   * The box keeps its last count between opens, and it starts quiet: 1,
+   * so a quick note stays a note. Above 1 the count changes what Save
+   * does, so the button says which: a note or a variations ask.
    *
    * A drawn box holds no element, so Save keeps the words on the box
-   * itself and, with the tick on, asks the agent for a canvas preview.
-   * Above 1, the ask carries the count, so the agent paints that many
-   * previews and the user keeps one. An element's box carries the same
-   * chips: 1 writes the words onto the element's record and the comment
-   * travels with the edits to the agent's Markdown and to the saved
-   * file. Above 1, the words save the same way, and the variation ask
-   * runs in the background until the agent answers.
+   * itself. An element's box carries the same chips: 1 writes the words
+   * onto the element's record and the comment travels with the edits to
+   * the agent's Markdown and to the saved file. Above 1, the words save
+   * the same way, and the variation ask runs in the background until
+   * the agent answers.
    */
   function commentBox(target) {
     var el = target.el || null;
@@ -2136,32 +2132,6 @@
     area.setAttribute("aria-label", "Comment");
     area.value = region ? region.comment || "" : (variationPrompt && el === variationPromptEl ? variationPrompt : record(el).comment || "");
     box.appendChild(area);
-    // The tick asks the agent to preview the words. It starts on, so a
-    // quick note also asks, and it keeps its last state between opens.
-    var canvasRow = document.createElement("label");
-    canvasRow.className = "element-comment-row";
-    var canvasTick = document.createElement("input");
-    canvasTick.type = "checkbox";
-    canvasTick.className = "tick";
-    canvasTick.setAttribute("aria-label", "Ask the agent to preview");
-    canvasTick.checked = commentAskKept;
-    canvasTick.addEventListener("change", function () {
-      commentAskKept = canvasTick.checked;
-      syncSave();
-    });
-    canvasRow.appendChild(canvasTick);
-    var mark = document.createElement("span");
-    mark.className = "element-comment-mark";
-    mark.setAttribute("aria-hidden", "true");
-    mark.innerHTML = svg("check");
-    canvasRow.appendChild(mark);
-    var words = document.createElement("span");
-    words.className = "element-comment-switch-words";
-    var wordsTitle = document.createElement("span");
-    wordsTitle.appendChild(text("Ask the agent to preview"));
-    words.appendChild(wordsTitle);
-    canvasRow.appendChild(words);
-    box.appendChild(canvasRow);
     // The chips decide what Save does. 1 keeps a note; above 1, Save asks
     // the agent to explore that many variations: of the element itself,
     // or, for a drawn box, that many canvas previews to keep one of. The
@@ -2223,22 +2193,13 @@
       });
       syncSave();
     }
-    // The button follows the choice. Above 1 the tick has no say: the ask
-    // is for variations (or previews, for a drawn box), not a single
-    // preview. The row folds away instead of sitting dimmed, and the tick
-    // rests unchecked until 1 returns, keeping its last state meanwhile.
+    // The button follows the choice. Above 1 the ask is for variations
+    // (or previews, for a drawn box), never a single preview.
     // lastSay skips the morph on the first paint, where the card simply
     // opens on the kept choice.
     var lastSay = "";
     function syncSave() {
       var many = count > 1;
-      canvasTick.disabled = many;
-      canvasTick.tabIndex = many ? -1 : 0;
-      // ClassName, not classList: the row folds with a transition, and the
-      // test stub has no classList.
-      canvasRow.className = many ? "element-comment-row is-gone" : "element-comment-row";
-      canvasRow.setAttribute("aria-hidden", String(many));
-      canvasTick.checked = many ? false : commentAskKept;
       var say = many ? "Ask for " + count : "Save";
       if (say !== lastSay) {
         // The label changes the button's width: pin the old width, swap the
@@ -2268,7 +2229,6 @@
       var words = area.value.trim();
       if (!words) return;
       commentCountKept = count;
-      if (count === 1) commentAskKept = canvasTick.checked;
       if (region) {
         region.comment = words;
         if (region.mark == null) region.mark = markTop++;
@@ -2279,11 +2239,9 @@
         hideMenu();
         regionBox.hidden = true;
         tally();
-        // The tick also asks for a canvas preview of the words. The words
-        // are already on the box, so a failed ask only leaves a note. Above 1
-        // the chips are the ask: the agent paints that many previews and the
-        // user keeps one, tick or no tick.
-        if (canvasTick.checked || count > 1) {
+        // Above 1 the chips are the ask: the words are already on the
+        // box, so a failed ask only leaves a note.
+        if (count > 1) {
           previewWords = "";
           // The words are already an edit above: the ask runs in the
           // background, and a failed one only leaves a note.
@@ -2325,25 +2283,16 @@
         return;
       }
       var rec = record(el);
-      // The comment saves as before. With the tick on, the words also go
-      // to the agent as a canvas preview ask. A failed ask only leaves a
+      // The comment saves as before. A failed variation ask only leaves a
       // note for the next open, never a reopened card.
       rec.comment = words;
       variationPrompt = "";
       variationWords = "";
-      if (n === 1 && canvasTick.checked) previewWords = "";
       commentFor = null;
       openComment = null;
       cardDoneFor = el;
       syncElementMenu();
       tally();
-      if (n === 1 && canvasTick.checked) {
-        // The words are already an edit above: the ask runs in the
-        // background, and a failed one only leaves a note.
-        requestPreview(el, null, words, function (problem) {
-          previewWords = problem;
-        });
-      }
     }, "comment-save");
     var saveWords = text("Save");
     save.appendChild(saveWords);
@@ -6157,14 +6106,17 @@ function decorations() {
     var text = rec.text !== null && (rec.stash ? rec.stash.text : rec.el.textContent) !== rec.text
       ? { before: rec.text, after: rec.stash ? rec.stash.text : rec.el.textContent }
       : null;
+    var html = rec.html !== undefined && (rec.stash ? rec.stash.html : rec.el.innerHTML) !== rec.html && rec.el.children.length
+      ? { before: rec.html, after: rec.stash ? rec.stash.html : rec.el.innerHTML }
+      : null;
     // An element added and then deleted in this session leaves nothing to report.
     if (rec.created && rec.removed) return null;
     // Not moved while it is still in the air, nor once it is deleted: "Removed"
     // already says where it went.
     var moved = rec.location && rec.el !== moving && !rec.removed &&
       (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
-    return props.length || text || rec.comment || rec.created || rec.removed || moved
-      ? { props: props, text: text, comment: rec.comment || null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+    return props.length || text || html || rec.comment || rec.created || rec.removed || moved
+      ? { props: props, text: text, html: html, comment: rec.comment || null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
       : null;
   }
 
@@ -6356,6 +6308,7 @@ function decorations() {
       if (item.removed) out.push("- Removed: " + item.label);
       if (item.moved) out.push("- Moved to: `" + (item.movedTo || "a new position") + "`");
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
+      if (item.html) out.push("- Markup: " + JSON.stringify(item.html.before) + " → " + JSON.stringify(item.html.after));
       if (item.comment) out.push("- Comment: " + JSON.stringify(item.comment));
       out.push("");
     });
@@ -7514,7 +7467,7 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      var out = { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      var out = { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, html: item.html || null, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
       if (item.region) out.region = item.region;
       return out;
     });
@@ -8030,6 +7983,17 @@ function decorations() {
     if (rec.html === undefined) rec.html = el.innerHTML;
     var before = el.innerHTML;
     el.textContent = words;
+    if (before !== el.innerHTML) action(rec, "text", before, el.innerHTML);
+  }
+
+  /** Write markup with inline elements. Runs on Keep, never on pick. */
+  function previewHtml(el, markup) {
+    if (!el || typeof markup !== "string") return;
+    var rec = record(el);
+    if (rec.text === null) rec.text = el.textContent;
+    if (rec.html === undefined) rec.html = el.innerHTML;
+    var before = el.innerHTML;
+    el.innerHTML = markup;
     if (before !== el.innerHTML) action(rec, "text", before, el.innerHTML);
   }
 
@@ -8649,8 +8613,9 @@ function decorations() {
   function applyVariation(rec, variation) {
     if (!rec || !variation) return;
     (variation.props || []).forEach(function (p) { applyTo(rec.el, propKey(p), p.value); });
-    // Words ride with the declarations, leaf text only, the way a pick did.
-    if (variation.text !== undefined && rec.el && !rec.el.children.length) previewText(rec.el, variation.text);
+    // Markup with inline elements wins over plain words: it replaces the content.
+    if (variation.html !== undefined && rec.el) previewHtml(rec.el, variation.html);
+    else if (variation.text !== undefined && rec.el && !rec.el.children.length) previewText(rec.el, variation.text);
   }
 
   /** Drop the variations without keeping one: the page goes back, nothing is saved. */
@@ -8859,9 +8824,10 @@ function decorations() {
         any = true;
       });
       var text = rec.text !== null && rec.el.textContent !== rec.text ? { before: rec.text, after: rec.el.textContent } : null;
-      if (!any && !text && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
+      var html = rec.html !== undefined && rec.el.innerHTML !== rec.html && rec.el.children.length ? { before: rec.html, after: rec.el.innerHTML } : null;
+      if (!any && !text && !html && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
     });
     // A drawn box comes back only once ticked, like any other edit.
     var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {
@@ -8935,6 +8901,11 @@ function decorations() {
         if (edit.text && isLeafText(el) && el.textContent === edit.text.before) {
           rec.text = edit.text.before;
           el.textContent = edit.text.after;
+        }
+        if (edit.html && typeof edit.html.after === "string" && el.innerHTML === edit.html.before) {
+          if (rec.text === null) rec.text = el.textContent;
+          if (rec.html === undefined) rec.html = el.innerHTML;
+          el.innerHTML = edit.html.after;
         }
         if (edit.added && edit.added.length) rec.added = edit.added.slice();
         if (typeof edit.comment === "string") rec.comment = edit.comment;

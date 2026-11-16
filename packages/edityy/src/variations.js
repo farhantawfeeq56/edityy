@@ -44,6 +44,42 @@ export function checkPreviewText(text) {
   return text;
 }
 
+/** Markup for an element, with inline elements. Nothing paints on a canvas. */
+const MAX_HTML = 50000;
+const BANNED_JS = /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|localStorage|sessionStorage|document\.cookie|\beval\s*\(|new\s+Function|importScripts|document\.write\b|window\.location|document\.location|location\s*=(?!=)|location\.href/i;
+const DANGEROUS_URL = /^\s*((javascript|vbscript)\s*:|data\s*:\s*(text\/html|application\/javascript|application\/xhtml\+xml))/i;
+const EXTERNAL_URL = /^\s*(https?:\/\/|\/\/)/i;
+export function checkVariationHtml(html) {
+  if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) invalid("html must be 1 to 50000 characters");
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+  for (const body of scripts) {
+    if (BANNED_JS.test(body)) invalid("html cannot use network or storage in script");
+  }
+  const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
+  for (const body of styles) {
+    if (/@import/i.test(body)) invalid("html cannot use @import in style");
+  }
+  const tags = html.match(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g) || [];
+  for (const tag of tags) {
+    const name = tag.match(/^<\/?([a-zA-Z][a-zA-Z0-9-]*)/)[1].toLowerCase();
+    if (/^<\//.test(tag)) continue;
+    const inside = tag.replace(/^<[a-zA-Z][a-zA-Z0-9-]*/, "").replace(/\/?>$/, "");
+    const attrs = inside.match(/[a-zA-Z:-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g) || [];
+    for (const attr of attrs) {
+      const eq = attr.indexOf("=");
+      const key = (eq === -1 ? attr : attr.slice(0, eq)).trim().toLowerCase();
+      const raw = eq === -1 ? "" : attr.slice(eq + 1).trim();
+      const value = raw.replace(/^("|')|("|')$/g, "");
+      if (name === "script" && key === "src") invalid("html cannot use script src");
+      if (key.startsWith("on") && BANNED_JS.test(value)) invalid("html cannot use network or storage in event handler");
+      if (["href", "src", "action", "formaction", "xlink:href", "poster", "data"].includes(key) && DANGEROUS_URL.test(value)) invalid("html links cannot run code");
+      if ((key === "action" || key === "formaction") && EXTERNAL_URL.test(value)) invalid("html forms cannot post to another site");
+      if (name === "iframe" && key === "srcdoc" && /<script|javascript\s*:/i.test(value)) invalid("html cannot put script in iframe");
+    }
+  }
+  return html;
+}
+
 /** Declarations with any property and any value. */
 export function checkDeclarations(declarations) {
   if (declarations === undefined) return [];
@@ -129,9 +165,11 @@ export function checkVariations(response, expectedId, count) {
     if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each label must be 1 to 50 characters");
     const props = checkDeclarations(variation.props);
     const text = variation.text === undefined ? undefined : checkPreviewText(variation.text);
-    if (!props.length && text === undefined) invalid("each variation must set a style or the text");
+    const html = variation.html === undefined ? undefined : checkVariationHtml(variation.html);
+    if (!props.length && text === undefined && html === undefined) invalid("each variation must set a style, the text or the markup");
     const out = { label: variation.label.trim(), props };
     if (text !== undefined) out.text = text;
+    if (html !== undefined) out.html = html;
     return out;
   });
   return { requestId: expectedId, variations };

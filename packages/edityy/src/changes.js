@@ -104,9 +104,13 @@ export function checkChanges(changes) {
       movedTo: str(change.movedTo, "movedTo", MAX_SHORT, null),
     };
     // Only a change that drew a box carries one: the saved file keeps the shape
-    // it had for every other edit.
+    // it had for every other edit. Same rule for markup: old edits keep no key.
     const region = checkRegion(change.region);
     if (region) checked.region = region;
+    if (change.html !== undefined && change.html !== null) {
+      if (typeof change.html !== "object" || Array.isArray(change.html)) throw invalid("html must be an object");
+      checked.html = { before: str(change.html.before, "html.before", MAX_TEXT), after: str(change.html.after, "html.after", MAX_TEXT) };
+    }
     return checked;
   });
 }
@@ -201,6 +205,7 @@ export function markdownFor(changes, page) {
       out.push(`- Region: a ${code(r.width + " × " + r.height)} pixel box at ${code(r.left + "px from the left, " + r.top + "px from the top")} of the page. Put the new element inside it.`);
     }
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
+    if (change.html) out.push(`- Markup: ${line(JSON.stringify(change.html.before))} → ${line(JSON.stringify(change.html.after))}`);
     if (change.comment) out.push(`- Comment: ${line(JSON.stringify(change.comment))}`);
     if (change.removed) out.push("- Removed: this element");
     if (change.moved) out.push(`- Moved to: ${code(change.movedTo || "a new position")}`);
