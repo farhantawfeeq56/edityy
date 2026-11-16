@@ -25,8 +25,6 @@ const POSITIONS = ["after", "before", "inside-start", "inside-end"];
 const MAX_SELECTOR = 200;
 /** The instruction the user typed, as the agent quotes it. */
 const MAX_INSTRUCTION = 500;
-/** Inserted markup. */
-const MAX_HTML = 50000;
 /** One paint can offer a pick: 1 to 10 labeled html options, one edit. */
 const MIN_HTML_VARIATIONS = 1;
 const MAX_HTML_VARIATIONS = 10;
