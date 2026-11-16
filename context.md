@@ -17,7 +17,7 @@ The product, from the user's view:
 - Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings. Shift+A stacks them in a column.
 - Fonts. The user picks from fonts already on the page or browses Google Fonts. Edityy loads a face only on preview or pick.
 - Undo. Undo and redo cover style changes. The edits list reviews, selects, or reverts each edit.
-- Variations. The user picks one element, asks for N variants, and picks one on the popped card. Each variant holds styles, words, or markup with inline elements. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The pick never paints on a canvas. Variants are answered with `place_variants`: the user picks one without a live preview, the kept pick becomes a normal edit, and the agent carries it into the source code.
+- Variations. The user picks one element, asks for N variants, and picks one on the popped card. Each variant holds styles, words, or markup with inline elements. Each popped card shows the element name over the variant name, a copy-id button with `<` and `>` element nav, square numbered chips, Notes, and `x`/tick. The kept variant becomes a normal edit. The pick never paints on a canvas. Variants are answered with `place_variants`: each pick paints live on the element, the kept pick becomes a normal edit, and the agent carries it into the source code.
 - Chat previews. The user types `edityy::` plus an instruction in agent chat. The agent writes the change into the source code directly. The temporary canvas is removed: nothing is painted, and no card waits on the canvas.
 - Handoff. Three paths move edits to the agent: copy as Markdown prompt, save to `.edityy/changes.json`, or MCP read with `npx edityy mcp`. Edityy never writes source code. The agent does.
 - Setup CLI. `npx edityy init` writes the config for the detected framework. `npx edityy doctor` checks the setup again. Both are idempotent.
@@ -70,7 +70,7 @@ Source files:
 |-|-|
 |`src/edityy.js`|The launcher payload. About 9600 lines. IIFE. Mounts host element fixed to viewport. Uses open shadow root. Selects elements, shows dock, makes inline-style edits, polls asks, paints previews.|
 |`src/previews.js`|Comment-box preview requests and agent previews. Reuses the markup check from `variations.js`. No script, no event attribute, no iframe reaches canvas. Warns on weak paints (spacing, fixed width, raw colour, breakpoints) in the `place_preview` reply.|
-|`src/variations.js`|Style, word, and markup variations for one element. Agent answers with N variants. Each variant holds `props`, `text`, or `html` with inline elements. Holds the shared markup check that `previews.js` reuses. Keys `1`–`9` and `0` switch the pick. No live paint: Keep writes the pick into the saved edits.|
+|`src/variations.js`|Style, word, and markup variations for one element. Agent answers with N variants. Each variant holds `props`, `text`, or `html` with inline elements. Holds the shared markup check that `previews.js` reuses. Keys `1`–`9` and `0` switch the pick. Each pick paints live on the element; Keep saves it.|
 |`src/changes.js`|Saved edit list. Validates browser payload. Makes agent Markdown from checked fields only. Never trusts browser Markdown.|
 |`src/session.js`|Canvas session persist. Reload or hot update restores edits from `sessionStorage` plus `.edityy/session.json`.|
 |`src/store.js`|Shared store. One atomic write (temp file plus rename), one JSON read, one id maker, wrappers for fetch routes and Node middleware.|
@@ -124,7 +124,6 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |`app/layout.tsx`|Root layout. Loads self-hosted Figtree (`app/fonts/Figtree-latin.woff2`). Imports `edityy/motion.css` and `globals.css`.|
 |`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`). Client code: `CopyButton` (`app/copy.tsx`). The `#agent` section is copy only, no card.|
 |`app/copy.tsx`|Copy-to-clipboard button with live region and `say` animation.|
-|`app/hero-vartest.tsx`|Temporary vartest for the landing hero. 10 `h1` variants with inline elements. Floating segmented control bottom-right. Keys `1`–`9` and `0` switch variants. Remove it when the winner is kept.|
 |`app/globals.css`|Tailwind theme. Paper `#faf9f6`, ink `#25241f`, gold `#d4a72c` (fill only), brand-ink `#8a6a10` (readable gold text). Utilities: `tint`, `lift`, `say`. Old `rose`/`blush`/`plum` names kept as aliases.|
 |`app/docs/layout.tsx`|Docs chrome. Header plus sidebar driven by `nav.ts`.|
 |`app/docs/nav.ts`|Docs structure. One list drives the sidebar. Add a page here.|

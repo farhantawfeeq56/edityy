@@ -321,7 +321,7 @@ export function requestText(request) {
     "",
     "Answer with place_variants: exactly that many variations.",
     "",
-    "Nothing is painted: the user picks one on the popped card, the kept pick arrives as a saved edit, and you carry that edit into the source code.",
+    "Each pick paints live on the element: keys 1 to 0 switch the look on the popped Edits card. The kept pick arrives as a saved edit, and you carry that edit into the source code.",
     "The user may have told you in their own message what they want. Follow",
     "that when they did: the comment above is only part of what they asked for.",
     "",

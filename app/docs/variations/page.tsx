@@ -40,8 +40,9 @@ export default function DocsVariations() {
         </LI>
         <LI>
           <Code>place_variants</Code> takes the answer: exactly that many variations, each a short label and
-          a list of declarations. Nothing is painted. The user picks one on the popped card, the kept pick
-          arrives as a saved edit, and you carry that edit into the source code.
+          styles, words, or markup with inline elements. Each pick paints live on the element. The user picks
+          one on the popped card, the kept pick arrives as a saved edit, and you carry that edit into the
+          source code.
         </LI>
       </UL>
       <Pre>{`thin grey | scrollbar-width: thin; scrollbar-color: #8a8a8a transparent
@@ -50,8 +51,9 @@ notched | on: ::-webkit-scrollbar-thumb, background: #f43f5e
 narrow | when: (max-width: 640px), padding: 8px`}</Pre>
 
       <P>
-        A variation may also change the element’s words. Add <Code>text</Code> beside the declarations, and the words
-        are set with it.
+        A variation may also change the element’s words or markup. Add <Code>text</Code> beside the
+        declarations, and the words are set with it. Add <Code>html</Code> and the inner content is replaced,
+        so inline elements like badges and markers are possible.
       </P>
       <Pre>{`{ "label": "shorter", "props": [], "text": "Start free" }`}</Pre>
 

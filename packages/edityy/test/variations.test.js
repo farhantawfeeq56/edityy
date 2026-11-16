@@ -286,7 +286,7 @@ test("the agent reads a short request, not the page", () => {
   assert.match(text, /overflow-y: auto/);
   assert.match(text, /Answer with place_variants/);
   assert.match(text, /requestId: `v123abc`/);
-  assert.match(text, /Nothing is painted/);
+  assert.match(text, /paints live/);
   assert.ok(text.length < 1400, `the request is short (${text.length} characters)`);
   assert.match(requestText(checkVariationRequest({ ...request, prompt: "" })), /wrote no comment/);
   // With no direction, the agent is told to cover styles that differ.

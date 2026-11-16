@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
-import { HeroVartest } from "./hero-vartest";
 import logo from "./logo.png";
 
 const INSTALL = "npx edityy init";
@@ -182,7 +181,11 @@ export default function Home() {
             Open source, MIT licensed
           </span>
 
-          <HeroVartest />
+          <h1 className="mx-auto mt-7 max-w-[44rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[5.25rem] sm:leading-[86px]">
+            Shape the page.
+            <br />
+            <span className="text-brand-ink">Keep the code.</span>
+          </h1>
 
           <p className="mx-auto mt-6 max-w-[34rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
             Edityy puts a visual editor on the site you already run. Point at an element. Change the type, the colour,

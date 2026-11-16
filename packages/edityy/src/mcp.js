@@ -36,9 +36,9 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  */
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 // shortcut: preview canvas disable — the preview placer stays off. Variants
-// are answered with place_variants: the user picks one on the popped card
-// without a live preview, the pick arrives as a saved edit, and the agent
-// carries it into the source code. Nothing is ever painted.
+// are answered with place_variants: the user picks one on the popped card,
+// each pick paints live on the element, the kept pick arrives as a saved
+// edit, and the agent carries it into the source code.
 const PREVIEW_DISABLED = true;
 const PREVIEW_DISABLED_TEXT =
   "The preview canvas is disabled. Write the change directly into the source code, then tell the user it is in. Do not call place_preview.";
@@ -150,7 +150,7 @@ const TOOLS = [
     name: "place_variants",
     description:
       "Answer a pending variants ask. Takes exactly the asked number of variations, each a short label and " +
-      "a list of declarations, plain words, or markup with inline elements. The user picks one on the popped card without a live preview: the kept pick " +
+      "a list of declarations, plain words, or markup with inline elements. The user picks one on the popped card, and each pick paints live on the element: the kept pick " +
       "arrives as a saved edit, and you carry it into the source code (read it back with get_work).",
     inputSchema: {
       type: "object",
@@ -209,7 +209,7 @@ const TOOLS = [
  * agent applies what it reads to the code.
  */
 async function workText(root) {
-  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card without a live preview, and the kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
+  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card, and each pick paints live on the element. The kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
   let saved = null;
   try {
     saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
@@ -357,7 +357,7 @@ export async function handle(message, root) {
           const placed = await placeVariations(params?.arguments, root);
           const labels = placed.variations.map((variation, i) => `${i + 1}. ${variation.label}`).join("\n");
           return reply({
-            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one on the popped card with keys 1 to ${placed.variations.length}, without a live preview. The kept pick arrives as a saved edit: read it back with get_work and carry it into the source code.\n\n${labels}` }],
+            content: [{ type: "text", text: `Placed ${placed.variations.length} variations. The user picks one on the popped card with keys 1 to ${placed.variations.length}: each pick paints live on the element. The kept pick arrives as a saved edit: read it back with get_work and carry it into the source code.\n\n${labels}` }],
           });
         }
         return fail(-32602, `Unknown tool: ${params?.name}`);

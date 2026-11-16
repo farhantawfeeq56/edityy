@@ -853,17 +853,13 @@ const selectText = (app, edit = false) => {
 /** Click an element and write a comment on it, as the Comment tool does.
     With `ask`, the agent-preview tick stays on for Save; without it the
     tick goes off first, so the words save as a plain note. */
-const commentOn = (app, node, words, ask = false) => {
+const commentOn = (app, node, words) => {
   ensureComment(app);
   app.hover(node);
   quiet(() => app.clickPage());
   const box = app.root.nodes["element-menu"].children[0];
   const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
   area.value = words;
-  const walk = (n) => (n.children || []).flatMap((c) => [c, ...walk(c)]);
-  const tickBox = walk(box).find((b) => b.getAttribute && b.getAttribute("aria-label") === "Ask the agent to preview");
-  tickBox.checked = ask;
-  tickBox.dispatchEvent({ type: "change" });
   const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
@@ -1707,7 +1703,6 @@ test("a drawn box waits, keeps and discards like an element edit", async () => {
     app.move(x1, y1);
     quiet(() => app.fire("mouseup", { clientX: x1, clientY: y1, composedPath: path, preventDefault() {}, stopPropagation() {} }));
     inMenu("Comment").value = words;
-    inMenu("Ask the agent to preview").checked = true;
     for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   };
   const onCard = (label) => {
@@ -2293,7 +2288,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
     return { status: 200, json: async () => ({ ok: true, path: ".edityy/changes.json" }) };
   };
   const p = selectText(app);
-  commentOn(app, p, "make it warmer", true);
+  commentOn(app, p, "make it warmer");
   await tick();
   const open = openEdits(app);
   // The foot holds one button only: the copy nudge. There is no save step.
@@ -2326,30 +2321,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   assert.match(shown(ready), /approved & sent to agent/);
 });
 
-test("saving a comment also asks the agent for a canvas preview", async () => {
-  const { run } = fakeDom();
-  const app = run();
-  const asked = [];
-  app.win.fetch = async (url, init) => {
-    if (url === "/__edityy/preview-request" && init.method === "POST") {
-      asked.push(JSON.parse(init.body));
-      return { status: 200, json: async () => ({ ok: true, requestId: "p-1" }) };
-    }
-    if (url === "/__edityy/previews") return { status: 200, json: async () => ({ ok: true, previews: [] }) };
-    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
-    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
-    return { status: 200, json: async () => ({ ok: true }) };
-  };
-  const p = selectText(app);
-  commentOn(app, p, "make it warmer", true);
-  await tick();
-  await tick();
-  assert.equal(asked.length, 1);
-  assert.equal(asked[0].instruction, "make it warmer");
-  assert.match(app.win.__edityy_changes(), /make it warmer/, "the comment still saves as before");
-});
-
-test("the comment box starts quiet, remembers its choices, and says what Save does", () => {
+test("the comment box starts quiet, remembers its count, and says what Save does", () => {
   const { run } = fakeDom();
   const app = run();
   const menu = app.root.nodes["element-menu"];
@@ -2357,27 +2329,23 @@ test("the comment box starts quiet, remembers its choices, and says what Save do
   const inMenu = (label) => (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
   const p = selectText(app);
   const q = app.el("h2", { text: "second" });
-  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick starts on: a note also asks for a preview");
+  assert.equal(inMenu("Ask the agent to preview"), undefined, "no preview tick: a note stays a note");
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save");
   // Above 1 the button says the card asks the agent instead.
   for (const fn of inMenu("5 variations").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Ask for 5 variations").children.map((c) => c.nodeValue || "").join(""), "Ask for 5");
-  assert.equal(inMenu("Ask the agent to preview").disabled, true, "the tick rests while variations are on");
   // Cancel keeps the choice: the next element opens on 5.
   for (const fn of inMenu("Cancel the comment").bubbles.click.bubble) fn({});
   app.hover(q);
   quiet(() => app.clickPage());
   assert.equal(inMenu("5 variations").getAttribute("aria-checked"), "true", "the count is remembered");
-  assert.equal(inMenu("Ask the agent to preview").checked, false, "and the tick stays off");
-  // Back to 1, the tick is on, and the note saves with the ask, quietly.
+  // Back to 1, the note saves again.
   for (const fn of inMenu("Single edit").bubbles.click.bubble) fn({});
   assert.equal(inMenu("Save comment").children.map((c) => c.nodeValue || "").join(""), "Save", "1 saves again");
-  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick is back on");
   inMenu("Comment").value = "warmer";
   for (const fn of inMenu("Save comment").bubbles.click.bubble) fn({});
   app.hover(p);
   quiet(() => app.clickPage());
-  assert.equal(inMenu("Ask the agent to preview").checked, true, "the tick is remembered");
   assert.equal(inMenu("Single edit").getAttribute("aria-checked"), "true", "and the count is back to 1");
 });
 
@@ -2419,7 +2387,7 @@ test("a submitted comment lands on its Exploring card at once", async () => {
     return { status: 200, json: async () => ({ ok: true }) };
   };
   const p = selectText(app);
-  commentOn(app, p, "make it warmer", true);
+  commentOn(app, p, "make it warmer");
   await tick();
   await tick();
   const open = openEdits(app);

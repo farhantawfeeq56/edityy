@@ -149,7 +149,7 @@ test("a variation ask goes out with get_work, and place_variants answers it", as
     },
   });
   assert.match(placed.result.content[0].text, /Placed 2 variations/);
-  assert.match(placed.result.content[0].text, /without a live preview/);
+  assert.match(placed.result.content[0].text, /paints live/);
   assert.equal(placed.result.isError, undefined);
   assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2, "the answer is stored for the card");
 });

@@ -6801,6 +6801,7 @@ function decorations() {
   // live strip's globals, or a session on another element is lost with it.
   var srvVariantAt = {}; // requestId -> picked index
   var srvVariantProps = {}; // requestId -> properties the pick wrote
+  var srvVariantHtml = {}; // requestId -> markup the pick painted
 
   /**
    * One decision row for every card that waits for a choice: the notes
@@ -7561,6 +7562,7 @@ function decorations() {
   var variantList = []; // the variations the agent placed
   var variantAt = -1; // the one on the element, -1 for none
   var variantProps = []; // the properties the last variation wrote
+  var variantHtml = null; // the markup the picked variation painted, null when none
   // The variant state lives on the card now: the tick and the Keep button
   // follow the pick when the panel re-renders.
   var variantRows = [];
@@ -7727,6 +7729,7 @@ function decorations() {
     variantList = list;
     variantAt = -1;
     variantProps = [];
+    variantHtml = null;
     while (elementMenu.firstChild) elementMenu.removeChild(elementMenu.firstChild);
     menuAway();
     paintVariants();
@@ -7734,15 +7737,36 @@ function decorations() {
   }
 
   /**
-   * Pick one variation. The pick only selects: nothing is painted on the
-   * element, so there is no temporary canvas. Keep writes the pick into
-   * the saved edits, and the agent carries it into the source code.
-   * Variants live in the code, not on the canvas.
+   * Put one variation on the element. It is written as edits, so it is undoable,
+   * revertible, and saved and copied like any other change. Each pick paints live
+   * on the popped Edits card: keys 1 to 9 pick one, 0 picks the tenth.
    */
   function pickVariant(index) {
     var variation = variantList[index];
     if (!variation || !variationFor) return;
+    var rec = record(variationFor);
+    var next = {};
+    (variation.props || []).forEach(function (p) { next[propKey(p)] = p.value; });
+    // What this variation does not set goes back to the page's own value, so a
+    // key press shows the whole variation and never a mix of two. It goes back
+    // through applyTo, so undo steps over it like any other write.
+    variantProps.forEach(function (prop) {
+      if (prop in next) return;
+      applyTo(variationFor, prop, rec.set[prop] ? rec.props[prop] : "");
+    });
+    Object.keys(next).forEach(function (prop) { applyTo(variationFor, prop, next[prop]); });
+    variantProps = Object.keys(next);
     variantAt = index;
+    // Markup with inline elements wins over plain words. A pick without markup
+    // puts the element's own markup back, so chips never mix.
+    if (variation.html !== undefined) {
+      previewHtml(variationFor, variation.html);
+      variantHtml = variation.html;
+    } else {
+      if (variantHtml !== null && rec.html !== undefined && variationFor.innerHTML === variantHtml) previewHtml(variationFor, rec.html);
+      variantHtml = null;
+      if (variation.text !== undefined && !variationFor.children.length) previewText(variationFor, variation.text);
+    }
     refit();
     // One redraw: tally() repaints the open panel itself, so a paint here
     // would rebuild the chips twice and drop the pointer's focus twice.
@@ -8564,10 +8588,7 @@ function decorations() {
     var kept = !!(variationFor && variantAt >= 0);
     // A kept variation came from the comment box.
     if (kept) record(variationFor).origin = "Comment";
-    // Keep writes the picked variation into the saved edits: the pick never
-    // painted, so the agent carries it into the source code from here.
-    if (kept) applyVariation(record(variationFor), variantList[variantAt]);
-    // A kept variation is a Ready edit: it is written to the project at once.
+    // The pick already painted: Keep only confirms it.
     if (kept) {
       record(variationFor).confirmed = true;
       autosave();
@@ -8589,6 +8610,7 @@ function decorations() {
     variantList = [];
     variantAt = -1;
     variantProps = [];
+    variantHtml = null;
     variantRows = [];
     variationFor = null;
     // The strip leaves the way it came: a copy of it fades out where it
@@ -8606,24 +8628,12 @@ function decorations() {
     if (active) pollAsks();
   }
 
-  /**
-   * Write one answered variation into a record: its declarations and words.
-   * Runs on Keep, never on pick, so switching chips paints nothing.
-   */
-  function applyVariation(rec, variation) {
-    if (!rec || !variation) return;
-    (variation.props || []).forEach(function (p) { applyTo(rec.el, propKey(p), p.value); });
-    // Markup with inline elements wins over plain words: it replaces the content.
-    if (variation.html !== undefined && rec.el) previewHtml(rec.el, variation.html);
-    else if (variation.text !== undefined && rec.el && !rec.el.children.length) previewText(rec.el, variation.text);
-  }
-
   /** Drop the variations without keeping one: the page goes back, nothing is saved. */
   function discardVariants() {
     if (variationFor) {
       var rec = record(variationFor);
       variantProps.forEach(function (prop) { restore(rec, prop); });
-      if (rec.text !== null && rec.el.textContent !== rec.text) {
+      if (rec.text !== null && (rec.el.textContent !== rec.text || (rec.html !== undefined && rec.el.innerHTML !== rec.html))) {
         if (rec.html !== undefined) rec.el.innerHTML = rec.html;
         else rec.el.textContent = rec.text;
       }
@@ -8645,6 +8655,7 @@ function decorations() {
     variantList = [];
     variantAt = -1;
     variantProps = [];
+    variantHtml = null;
     variantRows = [];
     variationFor = null;
     variantsBox.hidden = true;
@@ -8655,21 +8666,37 @@ function decorations() {
     if (active) pollAsks();
   }
 
-  /** Pick one server variation on its own card. The pick only selects: Keep writes it. */
+  /** Preview one server variation on its own card, leaving the live strip alone. */
   function pickServerVariant(task, index) {
-    var variation = task.el && task.list && task.list[index];
-    if (!variation) return;
+    var el = task.el;
+    var variation = el && task.list && task.list[index];
+    if (!el || !variation) return;
+    var rec = record(el);
+    var next = {};
+    (variation.props || []).forEach(function (p) { next[propKey(p)] = p.value; });
+    (srvVariantProps[task.requestId] || []).forEach(function (prop) {
+      if (prop in next) return;
+      applyTo(el, prop, rec.set[prop] ? rec.props[prop] : "");
+    });
+    Object.keys(next).forEach(function (prop) { applyTo(el, prop, next[prop]); });
+    srvVariantProps[task.requestId] = Object.keys(next);
     srvVariantAt[task.requestId] = index;
+    if (variation.html !== undefined) {
+      previewHtml(el, variation.html);
+      srvVariantHtml[task.requestId] = variation.html;
+    } else {
+      if (srvVariantHtml[task.requestId] && rec.html !== undefined && el.innerHTML === srvVariantHtml[task.requestId]) previewHtml(el, rec.html);
+      delete srvVariantHtml[task.requestId];
+      if (variation.text !== undefined && !el.children.length) previewText(el, variation.text);
+    }
     refit();
     tally();
   }
 
-  /** Keep a server variation: the pick is written as an ordinary confirmed edit, the ask forgotten. */
+  /** Keep a server variation: an ordinary confirmed edit, the ask forgotten. */
   function keepServerVariant(task) {
-    var picked = task.el && task.list && task.list[srvVariantAt[task.requestId]];
-    if (task.el && picked) {
+    if (task.el && srvVariantAt[task.requestId] != null) {
       var rec = record(task.el);
-      applyVariation(rec, picked);
       rec.origin = "Comment";
       rec.confirmed = true;
       autosave();
@@ -8677,6 +8704,7 @@ function decorations() {
     }
     delete srvVariantAt[task.requestId];
     delete srvVariantProps[task.requestId];
+    delete srvVariantHtml[task.requestId];
     refit();
     // Last: its tally repaints the open panel, the one redraw.
     forgetVariationServer(task.requestId);
@@ -8687,7 +8715,7 @@ function decorations() {
     if (task.el && srvVariantAt[task.requestId] != null) {
       var rec = record(task.el);
       (srvVariantProps[task.requestId] || []).forEach(function (prop) { restore(rec, prop); });
-      if (rec.text !== null && task.el.textContent !== rec.text) {
+      if (rec.text !== null && (task.el.textContent !== rec.text || (rec.html !== undefined && task.el.innerHTML !== rec.html))) {
         if (rec.html !== undefined) task.el.innerHTML = rec.html;
         else task.el.textContent = rec.text;
       }
@@ -8698,6 +8726,7 @@ function decorations() {
     }
     delete srvVariantAt[task.requestId];
     delete srvVariantProps[task.requestId];
+    delete srvVariantHtml[task.requestId];
     refit();
     // Last: its tally repaints the open panel, the one redraw.
     forgetVariationServer(task.requestId);
