@@ -137,7 +137,7 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |`app/docs/api/page.tsx`|Options, exports, events.|
 |`app/docs/ui.tsx`|Docs primitives (`H1`, `Lead`, `P`, `UL`, `LI`, `Code`, `Note`, `Pre`, `H2`).|
 |`app/playground/`|Puck vs Tiptap comparison. Not linked from site.|
-|`app/design/`|Design preview (`page.tsx`, `preview.tsx`, `edityy.css`) and `comment-count-vartest.tsx` fixture.|
+|`app/design/`|Design preview (`page.tsx`, `preview.tsx`, `edityy.css`) and vartest fixtures (`comment-count-vartest.tsx`, `asked-state-vartest.tsx`).|
 |`app/edityy/\*/route.ts`|Thin wrappers: `changesRoute`, `variationsRoute`, `previewsRoute`, `previewRequestRoute`, `sessionRoute`, `asksRoute`, `logoRoute` from the package.|
 |`next.config.ts`|Dev-only `instrumentationClientInject: \["edityy/client"]` (gated on `NODE\_ENV`). Rewrites `/\_\_edityy/\*` onto `/edityy/\*` routes. Never ship launcher to production.|
 |`vite.config.ts`|`vinext()`, `tailwindcss()`, Cloudflare plugin. Build path for Workers.|
