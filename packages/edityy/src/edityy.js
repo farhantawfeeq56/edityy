@@ -6678,12 +6678,20 @@ function decorations() {
         });
       });
     }
+    // One element shows once: an ask card already stands for its element,
+    // so the edit the pick writes underneath stays off the panel until
+    // the ask is kept or dropped. Two asks for one element still show both.
+    var covered = [];
+    tasks.forEach(function (task) {
+      if (task.el && (task.kind === "live-variants" || task.kind === "server-variants" || task.kind === "preview-current" || task.kind === "preview-listed")) covered.push(task.el);
+    });
     // Edits: ticked ones are Ready, the rest are Exploring. A comment
     // saves as an edit at once, while its ask runs in the background.
     var kept = report().filter(function (item) {
       return !editParked(item);
     });
     kept.forEach(function (item) {
+      if (item.rec && item.rec.el && covered.indexOf(item.rec.el) !== -1) return;
       var origin = "Canvas session";
       if (item.region) origin = item.comment ? "Comment" : "Canvas session";
       else if (item.rec && item.rec.origin) origin = item.rec.origin;
@@ -7302,7 +7310,7 @@ function decorations() {
         head.appendChild(mark);
       }
       // A popped card wears the sketch head: the element name over the
-      // variant name, then copy, < and > in that order. Other cards keep
+      // variant name, then copy. Other cards keep
       // the single-line name.
       var popped = task.kind === "live-variants" || task.kind === "server-variants" ||
         task.kind === "preview-current" || task.kind === "preview-listed";
@@ -7325,7 +7333,8 @@ function decorations() {
         name.appendChild(text(task.label));
         head.appendChild(name);
       }
-      // Popped card nav: copy takes the id, < and > move across elements.
+      // Popped card nav holds copy alone; other cards keep the
+      // single-line name with the same nav.
       var nav = document.createElement("div");
       nav.className = "task-nav";
       nav.setAttribute("data-ui-actions", "");
@@ -7333,14 +7342,6 @@ function decorations() {
         var id = task.previewId || task.requestId || (task.item && task.item.mark != null ? "mark-" + task.item.mark : taskKey(task));
         copyText(String(id), function () {});
       }, "task-copy-" + taskKey(task)));
-      nav.appendChild(iconButton("arrow-left", "Previous element", function () {
-        var prev = shown[(i - 1 + shown.length) % shown.length];
-        if (prev) gotoTask(prev);
-      }, "task-prev-" + taskKey(task)));
-      nav.appendChild(iconButton("arrow-right", "Next element", function () {
-        var next = shown[(i + 1) % shown.length];
-        if (next) gotoTask(next);
-      }, "task-next-" + taskKey(task)));
       head.appendChild(nav);
       card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);
