@@ -918,7 +918,7 @@
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
     // The edits panel: a tall sheet over the dock, with a filter grid for the
-    // four states and one card per task. A card goes to its element on click.
+    // Sent, Select and Ready, and one card per task. A card goes to its element on click.
     // Its text wears the comment box scale: 10px for labels and buttons,
     // 8px for secondary words, nothing larger.
     ".pop.changes{width:min(250px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px)}",
@@ -956,11 +956,16 @@
     ".task-nav .task-icon{width:24px;height:24px}",
     ".task-nav .task-icon svg{width:11px;height:11px}",
     ".task-badge{flex:none;font:600 8px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
+    ".task-badge[data-state=sent]{background:var(--accent);color:#1a1915}",
     ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
     ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
     ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
     ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
+    // A waiting ask wears a pulsing gold dot before its words, so it never
+    // reads as variants ready. The meta row stays off popped cards anyway.
+    ".task[data-waiting=true] .task-detail::before{content:\"\";display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--accent);animation:task-wait 1.6s ease-in-out infinite}",
+    "@keyframes task-wait{0%,100%{opacity:1}50%{opacity:.3}}",
     // Shown by presence: the row is only built when the card is open, so no toggle hides it.
     ".task-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}",
     ".task-more{font:600 8px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
@@ -6448,11 +6453,11 @@ function decorations() {
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, select, ready
+  var changesFilter = "all"; // all, sent, select, ready
   // The filter grid, after interior.dev's Filter Grid: one chip per state
   // with its count, a thumb that travels to the picked chip, and the arrow
   // keys walking the chips. The cards below already travel the same way.
-  var CHANGES_FILTERS = [["all", "All"], ["exploring", "Select"], ["ready", "Ready"]];
+  var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Select"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
@@ -6652,6 +6657,19 @@ function decorations() {
         });
       });
     }
+    // Sent: an ask the agent has not answered yet. It wears its own
+    // card with a waiting note, so it never reads as variants ready.
+    (srvVariationRequests || []).forEach(function (request) {
+      if (!request || !request.id || request.status !== "pending") return;
+      if (responsesById[request.id]) return;
+      var el = previewQuery(request.selector);
+      if (variantList && variantList.length && el === variationFor) return;
+      tasks.push({
+        state: "sent", el: el || null, label: el ? nameOf(el) : request.selector || "Element", origin: "Comment",
+        detail: "Waiting for agent" + (request.prompt ? " · " + request.prompt : ""),
+        kind: "waiting-variants", requestId: request.id,
+      });
+    });
     // Exploring: every painted preview, then what waits in a list. Previewing is
     // the same state: the agent answered, the user has not ticked yet.
     previewPaints.forEach(function (paint) {
@@ -6683,7 +6701,7 @@ function decorations() {
     // the ask is kept or dropped. Two asks for one element still show both.
     var covered = [];
     tasks.forEach(function (task) {
-      if (task.el && (task.kind === "live-variants" || task.kind === "server-variants" || task.kind === "preview-current" || task.kind === "preview-listed")) covered.push(task.el);
+      if (task.el && (task.kind === "live-variants" || task.kind === "server-variants" || task.kind === "waiting-variants" || task.kind === "preview-current" || task.kind === "preview-listed")) covered.push(task.el);
     });
     // Edits: ticked ones are Ready, the rest are Exploring. A comment
     // saves as an edit at once, while its ask runs in the background.
@@ -6710,7 +6728,7 @@ function decorations() {
   }
 
   function taskCounts(tasks) {
-    var counts = { all: tasks.length, exploring: 0, ready: 0 };
+    var counts = { all: tasks.length, sent: 0, exploring: 0, ready: 0 };
     tasks.forEach(function (task) {
       if (counts[task.state] !== undefined) counts[task.state] += 1;
     });
@@ -7333,6 +7351,8 @@ function decorations() {
         name.appendChild(text(task.label));
         head.appendChild(name);
       }
+      // A waiting ask wears a pulsing dot, so it never reads as ready.
+      if (task.kind === "waiting-variants") card.setAttribute("data-waiting", "true");
       // Popped card nav holds copy alone; other cards keep the
       // single-line name with the same nav.
       var nav = document.createElement("div");

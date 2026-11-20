@@ -15,10 +15,10 @@ const names = [
   "Badges only",
 ] as const;
 
-type State = "exploring" | "ready";
+type State = "sent" | "exploring" | "ready";
 
 const tasks: { name: string; origin: string; detail: string; state: State; waiting?: boolean }[] = [
-  { name: "Hero headline", origin: "Comment", detail: "Waiting for agent…", state: "exploring", waiting: true },
+  { name: "Hero headline", origin: "Comment", detail: "Waiting for agent…", state: "sent", waiting: true },
   { name: "Hero headline", origin: "Comment", detail: "3 variants ready", state: "exploring" },
   { name: "Intro paragraph", origin: "Agent", detail: "2 variants ready", state: "exploring" },
   { name: "Nav links", origin: "Canvas session", detail: "Approved & sent to agent", state: "ready" },
@@ -41,10 +41,10 @@ function Card({ task }: { task: (typeof tasks)[number] }) {
 }
 
 function Badge({ state }: { state: State }) {
-  return <span className={`edy-filter-badge is-${state}`}>{state === "ready" ? "Ready" : "Select"}</span>;
+  return <span className={`edy-filter-badge is-${state}`}>{state === "ready" ? "Ready" : state === "sent" ? "Sent" : "Select"}</span>;
 }
 
-/** Ten filter treatments beyond the All/Select/Ready tabs. Keys 1-9 and 0 switch. */
+/** Ten filter treatments beyond the All/Sent/Select/Ready tabs. Keys 1-9 and 0 switch. */
 export function EditsFilterVartest() {
   const [variant, setVariant] = useState(0);
   const [filter, setFilter] = useState<State | "all">("all");
@@ -64,12 +64,14 @@ export function EditsFilterVartest() {
 
   const counts = {
     all: tasks.length,
+    sent: tasks.filter((t) => t.state === "sent").length,
     exploring: tasks.filter((t) => t.state === "exploring").length,
     ready: tasks.filter((t) => t.state === "ready").length,
   };
   const shown = tasks.filter((t) => filter === "all" || t.state === filter);
   const searched = tasks.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()));
   const stepped = tasks[step % tasks.length];
+  const sent = tasks.filter((t) => t.state === "sent");
   const exploring = tasks.filter((t) => t.state === "exploring");
   const ready = tasks.filter((t) => t.state === "ready");
 
@@ -83,7 +85,7 @@ export function EditsFilterVartest() {
 
         {variant === 0 && (
           <div className="edy-filter-tabs" role="radiogroup" aria-label="Filter edits">
-            {(["all", "exploring", "ready"] as const).map((key) => (
+            {(["all", "sent", "exploring", "ready"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -92,15 +94,15 @@ export function EditsFilterVartest() {
                 className={filter === key ? "is-on" : ""}
                 onClick={() => setFilter(key)}
               >
-                {key === "all" ? "All" : key === "exploring" ? "Select" : "Ready"} · {counts[key]}
+                {key === "all" ? "All" : key === "sent" ? "Sent" : key === "exploring" ? "Select" : "Ready"} · {counts[key]}
               </button>
             ))}
           </div>
         )}
 
         {variant === 2 && (
-          <button type="button" className="edy-filter-summary" onClick={() => setFilter(filter === "all" ? "exploring" : filter === "exploring" ? "ready" : "all")}>
-            {counts.exploring} need pick · {counts.ready} ready — show: {filter === "all" ? "all" : filter === "exploring" ? "needs pick" : "ready"}
+          <button type="button" className="edy-filter-summary" onClick={() => setFilter(filter === "all" ? "sent" : filter === "sent" ? "exploring" : filter === "exploring" ? "ready" : "all")}>
+            {counts.sent} sent · {counts.exploring} need pick · {counts.ready} ready — show: {filter === "all" ? "all" : filter === "sent" ? "sent" : filter === "exploring" ? "needs pick" : "ready"}
           </button>
         )}
 
@@ -109,6 +111,7 @@ export function EditsFilterVartest() {
             Show
             <select value={filter} onChange={(e) => setFilter(e.target.value as State | "all")} aria-label="Filter edits">
               <option value="all">All · {counts.all}</option>
+              <option value="sent">Sent · {counts.sent}</option>
               <option value="exploring">Needs pick · {counts.exploring}</option>
               <option value="ready">Ready · {counts.ready}</option>
             </select>
@@ -128,9 +131,9 @@ export function EditsFilterVartest() {
               <i style={{ width: `${(counts.ready / counts.all) * 100}%` }} />
             </div>
             <div className="edy-filter-rail-btns">
-              {(["all", "exploring", "ready"] as const).map((key) => (
+              {(["all", "sent", "exploring", "ready"] as const).map((key) => (
                 <button key={key} type="button" aria-pressed={filter === key} className={filter === key ? "is-on" : ""} onClick={() => setFilter(key)}>
-                  {key === "all" ? `All ${counts.all}` : key === "exploring" ? `${counts.exploring} to pick` : `${counts.ready} ready`}
+                  {key === "all" ? `All ${counts.all}` : key === "sent" ? `${counts.sent} sent` : key === "exploring" ? `${counts.exploring} to pick` : `${counts.ready} ready`}
                 </button>
               ))}
             </div>
@@ -159,6 +162,8 @@ export function EditsFilterVartest() {
         <div className="edy-filter-list">
           {variant === 1 ? (
             <>
+              <p className="edy-filter-group">Sent · {sent.length}</p>
+              {sent.map((t, i) => <Card key={`s${i}`} task={t} />)}
               <p className="edy-filter-group">Needs pick · {exploring.length}</p>
               {exploring.map((t, i) => <Card key={`e${i}`} task={t} />)}
               <p className="edy-filter-group">Ready · {ready.length}</p>
@@ -168,6 +173,10 @@ export function EditsFilterVartest() {
             <Card task={stepped} />
           ) : variant === 8 ? (
             <div className="edy-filter-split">
+              <div>
+                <p className="edy-filter-group">Sent · {sent.length}</p>
+                {sent.map((t, i) => <Card key={`s${i}`} task={t} />)}
+              </div>
               <div>
                 <p className="edy-filter-group">Select · {exploring.length}</p>
                 {exploring.map((t, i) => <Card key={`e${i}`} task={t} />)}
