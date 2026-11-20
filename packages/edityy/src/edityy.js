@@ -6462,6 +6462,7 @@ function decorations() {
   var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Select"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
+  var chipFlight = null; // the picked chip's old slot, so the new one travels from it
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
   var srvVariationRequests = []; // server queue: asks waiting for variants
   var srvVariationResponses = []; // server queue: variants ready to try
@@ -6788,6 +6789,26 @@ function decorations() {
     return task.detail || task.label;
   }
 
+  /**
+   * Note the picked chip's slot before a pick rebuilds it, so the new
+   * picked chip travels from the old one (after interior.dev's Pagination:
+   * the window moves, the row does not). Keys and clicks share the pick
+   * functions, so both run the same move.
+   */
+  function armChipFlight(id, prefix, from, to) {
+    chipFlight = null;
+    if (from == null || from < 0 || to === from) return;
+    try {
+      var row = changesPanel && changesPanel.list
+        ? changesPanel.list.querySelector('[data-chiplist="' + id + '"]')
+        : null;
+      var chip = row ? row.querySelector('[data-key="' + prefix + '-' + (from + 1) + '"]') : null;
+      var rect = chip && chip.getBoundingClientRect ? chip.getBoundingClientRect() : null;
+      if (rect && rect.width) {
+        chipFlight = { id: id, key: prefix + '-' + (to + 1), left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      }
+    } catch {}
+  }
   /** A card that was not measured cannot travel: the stub DOM has no layout. */
   function captureCardPos() {
     cardPos = {};
@@ -6987,6 +7008,7 @@ function decorations() {
       chips.setAttribute("data-ui-stack", "");
       chips.setAttribute("role", "group");
       chips.setAttribute("aria-label", "Variants");
+      chips.setAttribute("data-chiplist", task.kind === "live-variants" ? "live" : task.requestId);
       (list || []).forEach(function (variation, i) {
         var chip = button("task-chip", "", variation.label, function (e) {
           if (e && e.stopPropagation) e.stopPropagation();
@@ -7049,6 +7071,7 @@ function decorations() {
     chips.setAttribute("data-ui-stack", "");
     chips.setAttribute("role", "group");
     chips.setAttribute("aria-label", "Variants");
+    chips.setAttribute("data-chiplist", task.previewId);
     choices.forEach(function (variation, i) {
       var chip = button("task-chip", "", variation.label || ("Option " + (i + 1)), function (e) {
         if (e && e.stopPropagation) e.stopPropagation();
@@ -7482,6 +7505,31 @@ function decorations() {
     pop.appendChild(changesPanel.filters);
     pop.appendChild(changesPanel.actions);
     pop.appendChild(changesPanel.live);
+    // Variant travel: the new picked chip glides from the old one's slot,
+    // instead of jumping. The flight is armed in the pick, so keys and
+    // clicks land on the same move. Measured here, once the list is back
+    // on the page: mid-render it is detached and every slot reads zero.
+    if (chipFlight) {
+      var flight = chipFlight;
+      chipFlight = null;
+      try {
+        var flightRow = list.querySelector('[data-chiplist="' + flight.id + '"]');
+        var flightChip = flightRow ? flightRow.querySelector('[data-key="' + flight.key + '"]') : null;
+        var flightNow = flightChip && flightChip.getBoundingClientRect ? flightChip.getBoundingClientRect() : null;
+        if (flightChip && flightNow && flightNow.width && moves(flightChip) && typeof flightChip.animate === "function") {
+          var dx = flight.left - flightNow.left;
+          var dy = flight.top - flightNow.top;
+          if (dx || dy) {
+            var sx = flight.width / flightNow.width;
+            var sy = flight.height / flightNow.height;
+            flightChip.animate(
+              [{ transform: "translate(" + dx + "px," + dy + "px) scale(" + sx + "," + sy + ")" }, { transform: "none" }],
+              { duration: T.move, easing: ARRIVE },
+            );
+          }
+        }
+      } catch {}
+    }
     refreshEditsServer();
   }
 
@@ -7769,6 +7817,7 @@ function decorations() {
   function pickVariant(index) {
     var variation = variantList[index];
     if (!variation || !variationFor) return;
+    armChipFlight("live", "variant", variantAt, index);
     var rec = record(variationFor);
     var next = {};
     (variation.props || []).forEach(function (p) { next[propKey(p)] = p.value; });
@@ -8443,6 +8492,7 @@ function decorations() {
       }
     });
     if (!picked) return;
+    armChipFlight(paint.preview.id, "preview", paint.variantAt, index);
     if (paint.target) select(paint.target, { el: paint.target, kind: "container" });
     else if (paint.fresh[0]) select(paint.fresh[0], { el: paint.fresh[0], kind: "container" });
     paint.variantAt = index;
@@ -8701,6 +8751,7 @@ function decorations() {
     var el = task.el;
     var variation = el && task.list && task.list[index];
     if (!el || !variation) return;
+    armChipFlight(task.requestId, "variant", srvVariantAt[task.requestId], index);
     var rec = record(el);
     var next = {};
     (variation.props || []).forEach(function (p) { next[propKey(p)] = p.value; });
