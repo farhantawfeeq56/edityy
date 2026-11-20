@@ -2,6 +2,7 @@ import Link from "next/link";
 import "./edityy.css";
 import { ChangeCountBadgeVartest } from "./comment-count-vartest";
 import { AskedStateVartest } from "./asked-state-vartest";
+import { EditsFilterVartest } from "./edits-filter-vartest";
 
 const palette = [
   ["Canvas", "#FAF9F6", "The page around the work", "workspace"],
@@ -35,7 +36,7 @@ export function DesignPreview() {
       <div className="edy-frame">
         <aside className="edy-rail" aria-label="On this page">
           <span>EDITYY / VISUAL LANGUAGE</span>
-          <a href="#system">The system</a><a href="#color">Color roles</a><a href="#type">Typography</a><a href="#controls">Control grammar</a><a href="#states">Feedback states</a><a href="#asked">Asked states</a><a href="#principles">Principles</a>
+          <a href="#system">The system</a><a href="#color">Color roles</a><a href="#type">Typography</a><a href="#controls">Control grammar</a><a href="#states">Feedback states</a><a href="#asked">Asked states</a><a href="#filter">Edits filter</a><a href="#principles">Principles</a>
           <small>AN ORIGINAL SYSTEM<br />BUILT FOR VISUAL EDITING</small>
         </aside>
 
@@ -108,6 +109,11 @@ export function DesignPreview() {
           <section className="edy-section" id="asked">
             <div className="edy-section-head"><div><span className="edy-index">ASKED STATES</span><h2>Waiting looks different from ready.</h2></div><p>A comment ask waits for the agent before its variants land. Ten treatments, no tabs — keys 1–9 and 0 switch. Tell me the winner.</p></div>
             <AskedStateVartest />
+          </section>
+
+          <section className="edy-section" id="filter">
+            <div className="edy-section-head"><div><span className="edy-index">EDITS FILTER</span><h2>Beyond the three tabs.</h2></div><p>All, Select and Ready work as tabs. Ten other treatments for finding a task. Keys 1–9 and 0 switch. Tell me the winner.</p></div>
+            <EditsFilterVartest />
           </section>
 
           <section className="edy-section edy-principles" id="principles">
