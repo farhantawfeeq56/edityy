@@ -1,7 +1,5 @@
 import Link from "next/link";
 import "./edityy.css";
-import { ChangeCountBadgeVartest } from "./comment-count-vartest";
-import { AskedStateVartest } from "./asked-state-vartest";
 import { EditsFilterVartest } from "./edits-filter-vartest";
 
 const palette = [
@@ -36,7 +34,7 @@ export function DesignPreview() {
       <div className="edy-frame">
         <aside className="edy-rail" aria-label="On this page">
           <span>EDITYY / VISUAL LANGUAGE</span>
-          <a href="#system">The system</a><a href="#color">Color roles</a><a href="#type">Typography</a><a href="#controls">Control grammar</a><a href="#states">Feedback states</a><a href="#asked">Asked states</a><a href="#filter">Edits filter</a><a href="#principles">Principles</a>
+          <a href="#system">The system</a><a href="#color">Color roles</a><a href="#type">Typography</a><a href="#controls">Control grammar</a><a href="#states">Feedback states</a><a href="#filter">Edits filter</a><a href="#principles">Principles</a>
           <small>AN ORIGINAL SYSTEM<br />BUILT FOR VISUAL EDITING</small>
         </aside>
 
@@ -44,7 +42,7 @@ export function DesignPreview() {
           <section className="edy-hero" id="system">
             <div className="edy-hero-copy">
               <p className="edy-overline"><span /> THE EDITYY DESIGN SYSTEM</p>
-              <ChangeCountBadgeVartest />
+              <h1 className="edy-hero-title">Keep the page<br />in <em>view.</em></h1>
               <p className="edy-intro">A visual language for editing real websites in place: precise enough for detailed work, quiet enough to keep the page—not the tools—at the center.</p>
               <a className="edy-hero-link" href="#controls">Explore the controls <b>↓</b></a>
             </div>
@@ -104,11 +102,6 @@ export function DesignPreview() {
               <div><span className="edy-state-mark state-saved" /><b>Saved</b><span>All changes saved</span><small>Quiet confirmation; no blocking toast.</small></div>
               <div><span className="edy-state-mark state-error" /><b>Error</b><span>Couldn’t save changes</span><small>Explain what happened and offer Retry.</small></div>
             </div>
-          </section>
-
-          <section className="edy-section" id="asked">
-            <div className="edy-section-head"><div><span className="edy-index">ASKED STATES</span><h2>Waiting looks different from ready.</h2></div><p>A comment ask waits for the agent before its variants land. Ten treatments, no tabs — keys 1–9 and 0 switch. Tell me the winner.</p></div>
-            <AskedStateVartest />
           </section>
 
           <section className="edy-section" id="filter">
