@@ -6215,7 +6215,7 @@ function decorations() {
       out.push({
         mark: rec.mark,
         n: 0,
-        label: nameOf(rec.el).trim(),
+        label: (rec.variationName || nameOf(rec.el)).trim(),
         selector: rec.selector || selectorFor(rec.el),
         source: rec.source ? rec.source.at : src ? src.at : null,
         sourceIsOwn: rec.source ? rec.source.own : src ? src.own : false,
@@ -6641,7 +6641,7 @@ function decorations() {
     // Exploring: variants ready on the strip, or a styles preview waiting for a pick.
     if (variantList && variantList.length && variationFor) {
       tasks.push({
-        state: "exploring", el: variationFor, label: nameOf(variationFor), origin: "Comment",
+        state: "exploring", el: variationFor, label: variationName || nameOf(variationFor), origin: "Comment",
         detail: variantList.length + (variantList.length === 1 ? " variant" : " variants") + " ready", kind: "live-variants",
       });
     } else {
@@ -6653,9 +6653,9 @@ function decorations() {
         var el = previewQuery(request.selector);
         if (variantList && variantList.length && el === variationFor) return;
         tasks.push({
-          state: "exploring", el: el || null, label: el ? nameOf(el) : request.selector || "Element", origin: "Comment",
+          state: "exploring", el: el || null, label: response.name || (el ? nameOf(el) : request.selector || "Element"), origin: "Comment",
           detail: response.variations.length + (response.variations.length === 1 ? " variant" : " variants") + " ready" + (request.prompt ? " · " + request.prompt : ""),
-          kind: "server-variants", requestId: response.requestId, list: response.variations,
+          kind: "server-variants", requestId: response.requestId, list: response.variations, name: response.name || "",
         });
       });
     }
@@ -7583,6 +7583,7 @@ function decorations() {
   var variationPromptEl = null;
   var openDone = false; // the menu holds the Done card of a text edit
   var variantList = []; // the variations the agent placed
+  var variationName = ""; // the one name the agent gave the element, shown on the card
   var variantAt = -1; // the one on the element, -1 for none
   var variantProps = []; // the properties the last variation wrote
   var variantHtml = null; // the markup the picked variation painted, null when none
@@ -7711,7 +7712,7 @@ function decorations() {
           var answers = j.variations.responses || [];
           for (var i = 0; i < answers.length; i++) {
             if (answers[i] && answers[i].requestId === variationId && answers[i].variations) {
-              showVariants(answers[i].variations);
+              showVariants(answers[i].variations, answers[i].name);
               answered = true;
             }
           }
@@ -7736,7 +7737,7 @@ function decorations() {
   }
 
   /** The answer arrived: variants up, the comment box away. The panel redraws, so the card shows them. */
-  function showVariants(list) {
+  function showVariants(list, name) {
     if (askTimer) clearTimeout(askTimer);
     askTimer = 0;
     variationId = "";
@@ -7750,6 +7751,7 @@ function decorations() {
     commentFor = null;
     openComment = null;
     variantList = list;
+    variationName = name || "";
     variantAt = -1;
     variantProps = [];
     variantHtml = null;
@@ -8614,6 +8616,9 @@ function decorations() {
     // The pick already painted: Keep only confirms it.
     if (kept) {
       record(variationFor).confirmed = true;
+      // The agent's name stays with the edit, so the Ready card and the
+      // agent handoff call it what the popped card called it.
+      if (variationName) record(variationFor).variationName = variationName;
       autosave();
     }
     // Decided either way, the answer must not linger as a Select card next
@@ -8631,6 +8636,7 @@ function decorations() {
     commentFor = null;
     openComment = null;
     variantList = [];
+    variationName = "";
     variantAt = -1;
     variantProps = [];
     variantHtml = null;
@@ -8676,6 +8682,7 @@ function decorations() {
     commentFor = null;
     openComment = null;
     variantList = [];
+    variationName = "";
     variantAt = -1;
     variantProps = [];
     variantHtml = null;
@@ -8722,6 +8729,7 @@ function decorations() {
       var rec = record(task.el);
       rec.origin = "Comment";
       rec.confirmed = true;
+      if (task.name) rec.variationName = task.name;
       autosave();
       replayArrivalFor(rec.mark);
     }
@@ -8879,7 +8887,7 @@ function decorations() {
       var html = rec.html !== undefined && rec.el.innerHTML !== rec.html && rec.el.children.length ? { before: rec.html, after: rec.el.innerHTML } : null;
       if (!any && !text && !html && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
     });
     // A drawn box comes back only once ticked, like any other edit.
     var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {
@@ -8964,6 +8972,7 @@ function decorations() {
         // An edit saved by an older version had no flag: it was already saved.
         rec.confirmed = edit.confirmed !== false;
         if (edit.origin) rec.origin = edit.origin;
+        if (typeof edit.variationName === "string" && edit.variationName) rec.variationName = edit.variationName;
         if (edit.mark != null && !usedMarks[edit.mark]) {
           rec.mark = edit.mark;
           usedMarks[edit.mark] = true;

@@ -23,7 +23,7 @@ const request = {
   prompt: "  thinner and darker  ",
   element: { tag: "div", selector: "main > div.scroll", values: [{ property: "overflow-y", value: "auto" }] },
 };
-const answer = (variations) => ({ requestId: "v123abc", variations });
+const answer = (variations, name = "Hero") => ({ requestId: "v123abc", name, variations });
 
 test("a request keeps its shape, and its prompt is trimmed", () => {
   const checked = checkVariationRequest(request);
@@ -192,6 +192,23 @@ test("a variation may set the words of the element", () => {
   // Words that are empty or too long are refused.
   assert.throws(() => checkVariations(answer([{ label: "blank", props: [], text: "   " }, { label: "two", props: [{ property: "color", value: "red" }] }]), "v123abc"), { status: 400 });
   assert.throws(() => checkVariations(answer([{ label: "long", props: [], text: "x".repeat(2001) }, { label: "two", props: [{ property: "color", value: "red" }] }]), "v123abc"), { status: 400 });
+});
+
+test("an answer names the element in one or two words", () => {
+  const two = [
+    { label: "one", props: [{ property: "color", value: "red" }] },
+    { label: "two", props: [{ property: "color", value: "blue" }] },
+  ];
+  assert.equal(checkVariations(answer(two, "Pricing cards"), "v123abc", 2).name, "Pricing cards");
+  assert.equal(checkVariations(answer(two, "  Hero  "), "v123abc", 2).name, "Hero", "the name is trimmed");
+  // Older answers named nothing: they still read, and the card falls back.
+  const { name, ...unnamed } = answer(two);
+  assert.equal(checkVariations(unnamed, "v123abc", 2).name, "");
+  assert.equal(checkVariations(answer(two, ""), "v123abc", 2).name, "");
+  for (const bad of ["one two three", "x".repeat(31), "Hero!"]) {
+    assert.throws(() => checkVariations(answer(two, bad), "v123abc", 2), { status: 400 }, JSON.stringify(bad));
+  }
+  assert.throws(() => checkVariations(answer(two, "one two three"), "v123abc", 2), /one or two words/);
 });
 
 test("a placed answer is read back only by the request that asked for it", async () => {

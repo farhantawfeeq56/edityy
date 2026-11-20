@@ -26,6 +26,9 @@ const VALUE = /[;{}\u0000-\u001f]|url\s*\(|expression\s*\(|@import|!important|\/
 const MIN_VARIATIONS = 2;
 const MAX_VARIATIONS = 10;
 const MAX_PROPERTIES = 50;
+/** One name for the whole answer: what the popped card calls the element. */
+const MAX_NAME = 30;
+const NAME = /^[A-Za-z0-9][A-Za-z0-9'-]*(\s[A-Za-z0-9][A-Za-z0-9'-]*)?$/;
 /** The comment is optional, so an empty one is a request too. */
 const MAX_COMMENT = 240;
 /** The element context the page sends: its own short list of current values. */
@@ -160,6 +163,11 @@ export function checkVariations(response, expectedId, count) {
   } else if (response.variations.length < MIN_VARIATIONS || response.variations.length > MAX_VARIATIONS) {
     invalid(`variations must contain ${MIN_VARIATIONS} to ${MAX_VARIATIONS} entries`);
   }
+  // The one name for the whole answer. It is optional, so answers placed
+  // before it existed still read: the card falls back to a generated name.
+  const raw = typeof response.name === "string" ? response.name.trim().replace(/\s+/g, " ") : "";
+  if (raw && (raw.length > MAX_NAME || !NAME.test(raw))) invalid("name must be one or two words, such as Hero or Pricing cards");
+  const name = raw;
   const variations = response.variations.map((variation) => {
     if (!variation || typeof variation !== "object" || Array.isArray(variation)) invalid("each variation must be an object");
     if (typeof variation.label !== "string" || !variation.label.trim() || variation.label.length > 50) invalid("each label must be 1 to 50 characters");
@@ -172,7 +180,7 @@ export function checkVariations(response, expectedId, count) {
     if (html !== undefined) out.html = html;
     return out;
   });
-  return { requestId: expectedId, variations };
+  return { requestId: expectedId, name, variations };
 }
 
 export async function writeVariationRequest(request, root = process.cwd()) {
@@ -319,9 +327,9 @@ export function requestText(request) {
     `- Current values: ${values ? "`" + values + "`" : "none read"}`,
     `- Variations the user asked for: ${request.count}`,
     "",
-    "Answer with place_variants: exactly that many variations.",
+    "Answer with place_variants: exactly that many variations, plus one name.",
     "",
-    "Each pick paints live on the element: keys 1 to 0 switch the look on the popped Edits card. The kept pick arrives as a saved edit, and you carry that edit into the source code.",
+    "Name the element in one or two words (for example Hero or Pricing cards) and pass it back as `name`: the popped card shows that name instead of a generated one. Each pick paints live on the element: keys 1 to 0 switch the look on the popped Edits card. The kept pick arrives as a saved edit, and you carry that edit into the source code.",
     "The user may have told you in their own message what they want. Follow",
     "that when they did: the comment above is only part of what they asked for.",
     "",

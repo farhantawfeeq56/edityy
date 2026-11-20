@@ -40,7 +40,8 @@ export default function DocsVariations() {
         </LI>
         <LI>
           <Code>place_variants</Code> takes the answer: exactly that many variations, each a short label and
-          styles, words, or markup with inline elements. Each pick paints live on the element. The user picks
+          styles, words, or markup with inline elements, plus one name of one or two words for the element.
+          The popped card shows that name. Each pick paints live on the element. The user picks
           one on the popped card, the kept pick arrives as a saved edit, and you carry that edit into the
           source code.
         </LI>
