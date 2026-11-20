@@ -6463,6 +6463,7 @@ function decorations() {
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var chipFlight = null; // the picked chip's old slot, so the new one travels from it
+  var chipFlying = null; // the glide now running, finished early when the next pick lands
   var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
   var srvVariationRequests = []; // server queue: asks waiting for variants
   var srvVariationResponses = []; // server queue: variants ready to try
@@ -6798,6 +6799,13 @@ function decorations() {
   function armChipFlight(id, prefix, from, to) {
     chipFlight = null;
     if (from == null || from < 0 || to === from) return;
+    // A new pick lands while the last glide still runs: finish it, so the
+    // old slot is read where it stands and not mid-air, or the next glide
+    // starts from a random point on the way.
+    if (chipFlying) {
+      try { chipFlying.finish(); } catch {}
+      chipFlying = null;
+    }
     try {
       var row = changesPanel && changesPanel.list
         ? changesPanel.list.querySelector('[data-chiplist="' + id + '"]')
@@ -7522,10 +7530,10 @@ function decorations() {
           if (dx || dy) {
             var sx = flight.width / flightNow.width;
             var sy = flight.height / flightNow.height;
-            flightChip.animate(
+            try { chipFlying = flightChip.animate(
               [{ transform: "translate(" + dx + "px," + dy + "px) scale(" + sx + "," + sy + ")" }, { transform: "none" }],
               { duration: T.move, easing: ARRIVE },
-            );
+            ); } catch { chipFlying = null; }
           }
         }
       } catch {}
