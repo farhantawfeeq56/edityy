@@ -997,9 +997,10 @@
     ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
     // The popped card from the sketch: a stronger frame, the element name
     // over the variant name, square nav buttons, square number chips sharing
-    // one row, and a notes field with square X and tick. The meta row stays
+    // one row, and a notes field with square X and tick. It wears the
+    // toolbar's own surface, so the two agree. The meta row stays
     // off: the subtitle already says what waits.
-    ".task[data-popped=true]{border-width:1.5px;border-radius:12px;padding:12px;gap:8px}",
+    ".task[data-popped=true]{border-width:1.5px;border-radius:12px;padding:12px;gap:8px;background:var(--surface)}",
     ".task-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}",
     ".task[data-popped=true] .task-name{flex:none;font-size:12px;font-weight:600}",
     ".task-variant{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 10px/1.3 inherit;color:var(--muted)}",
