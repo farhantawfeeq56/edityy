@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { VartestToolbar, VartestView, useVartestSwitch } from "./vartest-toolbar";
 
 const names = [
   "Status dot",
@@ -80,21 +80,11 @@ function WaitingCard({ index }: { index: number }) {
 
 /** Ten non-tab treatments for the asked state. Keys 1-9 and 0 switch. */
 export function AskedStateVartest() {
-  const [variant, setVariant] = useState(0);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      if ((event.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=true]")) return;
-      const index = event.key === "0" ? 9 : Number(event.key) - 1;
-      if (index >= 0 && index < names.length) setVariant(index);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  const { index: variant, direction, goTo: setVariant } = useVartestSwitch(names.length);
 
   return (
     <>
+      <VartestView key={variant} direction={direction}>
       <div className={`edy-asked-panel is-v${variant + 1}`}>
         <div className="edy-asked-head">
           <b>Edits</b>
@@ -120,23 +110,8 @@ export function AskedStateVartest() {
           )}
         </div>
       </div>
-      <nav className="edy-count-vartest edy-asked-vartest" aria-label="Asked state styles">
-        <span className="edy-count-vartest-label">Asked · {variant + 1}/10</span>
-        <div role="group" aria-label="Choose an asked state">
-          {names.map((name, index) => (
-            <button
-              key={name}
-              type="button"
-              aria-label={`${index === 9 ? 0 : index + 1}: ${name}`}
-              aria-pressed={variant === index}
-              onClick={() => setVariant(index)}
-            >
-              {index === 9 ? 0 : index + 1}
-            </button>
-          ))}
-        </div>
-        <span className="edy-count-vartest-name">{names[variant]}</span>
-      </nav>
+      </VartestView>
+      <VartestToolbar label="Asked" index={variant} names={names} onSwitch={setVariant} className="edy-asked-vartest" />
     </>
   );
 }
