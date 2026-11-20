@@ -993,8 +993,9 @@
     ".task-chip{flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.task-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".task-chip:active{transform:scale(.97)}",
-    ".task-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
-    ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
+    ".task-chip:focus,.task-chip:focus-visible{outline:none}",
+    ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15);animation:task-chip-pick var(--tint) var(--standard)}",
+    "@keyframes task-chip-pick{from{transform:scale(.94)}to{transform:scale(1)}}",
     // The popped card from the sketch: a stronger frame, the element name
     // over the variant name, square nav buttons, square number chips sharing
     // one row, and a notes field with square X and tick. It wears the
