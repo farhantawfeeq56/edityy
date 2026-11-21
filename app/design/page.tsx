@@ -3,7 +3,7 @@ import { H1, H2, Lead, Note, P } from "../docs/ui";
 
 export const metadata: Metadata = {
   title: "Design · Edityy",
-  description: "The colors of the app: warm paper, graphite ink, one gold.",
+  description: "The colors of the app, plus warm companions for graphics."
 };
 
 type Swatch = {
@@ -75,6 +75,29 @@ const status: Swatch[] = [
   { name: "Error subtle", hex: "#fcebe9", use: "Error fill, with error ink on it." },
 ];
 
+const graphics: Swatch[] = [
+  { name: "Cream", hex: "#f8eed3", use: "Lightest wash. Graphics backgrounds on paper." },
+  { name: "Sand", hex: "#eedcae", use: "Deeper wash. Shape fills that sit on paper." },
+  { name: "Honey", hex: "#e9c766", use: "Light gold highlight. Same value as the chrome accent." },
+  { name: "Marigold", hex: "#dd9423", use: "Saturated amber pop next to brand gold." },
+  { name: "Clay", hex: "#c06a35", use: "Warm terracotta. The second voice beside gold." },
+  { name: "Rust", hex: "#9a5226", use: "Burnt orange for depth and shadow shapes." },
+  { name: "Umber", hex: "#6b4a1f", use: "Dark warm brown. Line work on light grounds." },
+  { name: "Espresso", hex: "#453a2c", use: "Soft dark for large graphic shapes. Never pure black." },
+  { name: "Sage", hex: "#8b9a7d", use: "Muted green. Fills and foliage next to gold." },
+  { name: "Moss", hex: "#5f6e3f", use: "Deep olive. Depth and line work beside the golds." },
+  { name: "Slate", hex: "#5d7a8c", use: "Dusty blue. The cool note; keep it small next to warm shapes." },
+  { name: "Berry", hex: "#9a4a52", use: "Muted raspberry. The accent when gold is already taken." },
+];
+
+const pairs: { name: string; from: string; to: string }[] = [
+  { name: "Gold → Clay", from: "#d4a72c", to: "#c06a35" },
+  { name: "Honey → Marigold", from: "#e9c766", to: "#dd9423" },
+  { name: "Rust → Umber", from: "#9a5226", to: "#6b4a1f" },
+  { name: "Sage → Moss", from: "#8b9a7d", to: "#5f6e3f" },
+  { name: "Gold → Moss", from: "#d4a72c", to: "#5f6e3f" },
+];
+
 const chrome: Swatch[] = [
   { name: "Chrome ink", hex: "#f5f2e9", use: "Words on the dark editor chrome." },
   { name: "Chrome paper", hex: "#22211c", use: "Chrome base. Paper and ink are swapped from the page." },
@@ -120,6 +143,35 @@ export default function DesignPage() {
         these values, never the page ramp, so a landing theme cannot repaint it.
       </P>
       <Grid items={chrome} />
+
+      <H2>For graphics</H2>
+      <P>
+        Companions to brand gold, for illustrations and site graphics only. Golds and
+        warm browns carry the brand; sage, moss, slate and berry are muted seconds that
+        stay earthy enough to sit on paper next to gold. Nothing here is a UI token;
+        controls keep the ramp above.
+      </P>
+      <Grid items={graphics} />
+      <ul className="mt-2.5 grid gap-2.5 sm:grid-cols-3">
+        {pairs.map((p) => (
+          <li
+            key={p.name}
+            className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100"
+          >
+            <span
+              aria-hidden="true"
+              className="block h-20 border-b border-neutral-200"
+              style={{ backgroundImage: `linear-gradient(120deg, ${p.from}, ${p.to})` }}
+            />
+            <span className="block p-4">
+              <span className="block text-[0.875rem] font-semibold text-neutral-900">{p.name}</span>
+              <span className="mt-0.5 block font-mono text-[0.75rem] text-neutral-500">
+                {p.from} → {p.to}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }
