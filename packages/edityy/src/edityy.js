@@ -10058,9 +10058,20 @@ function decorations() {
       return;
     }
     if (e.key === "Escape") {
-      // One press leaves the whole mode: whatever is open — a control, the
-      // words, a box, the strip — goes with it, unsaved. There is no
-      // unwinding to get stuck in, and the pill is the way back in.
+      // One press backs out one level: an open panel — the edits list or any
+      // open control — closes and the normal toolbar stays. The next press
+      // leaves the whole mode, unsaved. There is no unwinding to get stuck
+      // in, and the pill is the way back in.
+      if (openKey) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (activeTool === "edits" && openKey === "changes") activeTool = "";
+        show("");
+        syncRow();
+        syncElementMenu();
+        syncPointer();
+        return;
+      }
       exit();
       syncRow();
       return;
@@ -10109,6 +10120,23 @@ function decorations() {
     window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
     if (active) exit();
     else enter();
+  });
+
+  // Alt+E opens the toolbar from the page, the way a click on the pill does.
+  // It only opens: once the mode is on, the keys belong to it. A letter in a
+  // page field belongs to the field, so it never opens from there.
+  document.addEventListener("keydown", function (e) {
+    if (active) return;
+    if (e.repeat) return;
+    if (!e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (String(e.key || "").toLowerCase() !== "e") return;
+    if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
+    var tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target && e.target.isContentEditable)) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
+    enter();
   });
 
   // The pill itself drags between the same eight places the bar drags to,

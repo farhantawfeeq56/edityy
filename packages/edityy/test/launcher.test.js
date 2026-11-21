@@ -1654,6 +1654,30 @@ test("the logo pill itself drags, and a drag never opens", () => {
   assert.equal(dock.hidden, false, "a tap still opens");
 });
 
+test("Alt+E opens the toolbar from the page", () => {
+  const { run } = fakeDom();
+  const app = run();
+  assert.equal(app.root.nodes.dock.hidden, true);
+  quiet(() => app.fire("keydown", { key: "e", altKey: true, preventDefault() {}, stopPropagation() {} }));
+  ensureComment(app);
+  assert.equal(app.root.nodes.dock.hidden, false, "the bar stands up");
+  assert.equal(app.launch().hidden, true, "the pill hides while the mode is on");
+});
+
+test("Escape with the edits list open closes the list, not the mode", () => {
+  const { run } = fakeDom();
+  const app = run();
+  quiet(() => app.click());
+  ensureComment(app);
+  quiet(() => press(app, "edits"));
+  assert.equal(app.root.nodes.pop.hidden, false, "the edits list is open");
+  quiet(() => app.fire("keydown", { key: "Escape", preventDefault() {}, stopPropagation() {} }));
+  assert.equal(app.root.nodes.pop.hidden, true, "the list closes");
+  assert.equal(app.root.nodes.dock.hidden, false, "the normal toolbar stays");
+  quiet(() => app.fire("keydown", { key: "Escape", preventDefault() {}, stopPropagation() {} }));
+  assert.equal(app.root.nodes.dock.hidden, true, "the next press leaves the mode");
+});
+
 
 
 

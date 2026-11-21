@@ -127,6 +127,9 @@ export default function DocsEditing() {
           <Code>Shift+A</Code> wraps the selected siblings in a column flex container.
         </LI>
         <LI>
+          <Code>Alt+E</Code> opens the toolbar from the page.
+        </LI>
+        <LI>
           <Code>Escape</Code> closes the open control, then leaves the mode.
         </LI>
         <LI>
