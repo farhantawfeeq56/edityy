@@ -6773,10 +6773,11 @@ function decorations() {
         var request = requestsById[response.requestId];
         if (!request) return;
         if (request.status === "cancelled") return;
-        var el = previewQuery(request.selector);
+        var rsel = request.selector || (request.element && request.element.selector);
+        var el = previewQuery(rsel);
         if (variantList && variantList.length && el === variationFor) return;
         tasks.push({
-          state: "exploring", el: el || null, label: response.name || (el ? nameOf(el) : request.selector || "Element"), origin: "Comment",
+          state: "exploring", el: el || null, label: response.name || (el ? nameOf(el) : rsel || "Element"), origin: "Comment",
           detail: response.variations.length + (response.variations.length === 1 ? " variant" : " variants") + " ready" + (request.prompt ? " · " + request.prompt : ""),
           kind: "server-variants", requestId: response.requestId, list: response.variations, name: response.name || "",
         });
@@ -6787,10 +6788,11 @@ function decorations() {
     (srvVariationRequests || []).forEach(function (request) {
       if (!request || !request.id || request.status !== "pending") return;
       if (responsesById[request.id]) return;
-      var el = previewQuery(request.selector);
+      var sel = request.selector || (request.element && request.element.selector);
+      var el = previewQuery(sel);
       if (variantList && variantList.length && el === variationFor) return;
       tasks.push({
-        state: "sent", el: el || null, label: el ? nameOf(el) : request.selector || "Element", origin: "Comment",
+        state: "sent", el: el || null, label: el ? nameOf(el) : sel || "Element", origin: "Comment",
         detail: "Waiting for agent" + (request.prompt ? " · " + request.prompt : ""),
         kind: "waiting-variants", requestId: request.id,
       });
@@ -6853,7 +6855,7 @@ function decorations() {
     });
     kept.forEach(function (item) {
       if (item.rec && item.rec.el && covered.indexOf(item.rec.el) !== -1) return;
-      if (item.rg && coveredRegions.some(function (rg) { return sameRegion(rg, item.rg); })) return;
+      if (item.rg && coveredRegions.some(function (rg) { var live = matchRegion(rg); return item.rg === live || sameRegion(rg, item.rg); })) return;
       var origin = "Canvas session";
       if (item.region) origin = item.comment ? "Comment" : "Canvas session";
       else if (item.rec && item.rec.origin) origin = item.rec.origin;

@@ -8,6 +8,15 @@ import { test } from "node:test";
 
 const source = readFileSync(new URL("../src/edityy.js", import.meta.url), "utf8");
 
+test.afterEach(() => {
+  // The payload leaves poll and motion timers running, plus idle sockets that
+  // never read a byte: release them, or the file never exits.
+  for (const handle of process._getActiveHandles()) {
+    if (handle?.constructor?.name === "Timeout") clearTimeout(handle);
+    if (handle?.constructor?.name === "Socket" && !handle?.pending && !handle?.connecting && handle?.bytesRead === 0 && typeof handle.unref === "function") handle.unref();
+  }
+});
+
 /**
  * Just enough DOM for the payload: elements with attributes, classes, styles and
  * children, one shadow root keyed by id, document-level events and viewport

@@ -542,7 +542,12 @@ export async function writePreviewRequest(request, root = process.cwd()) {
   const at = items.findIndex((entry) => entry.id === checked.id);
   if (at >= 0) items[at] = checked;
   else items.push(checked);
-  await store(root, PREVIEW_REQUEST_FILE, items);
+  // One stale withdrawal is history enough: older taken-back asks never come back.
+  let last = -1;
+  items.forEach((entry, i) => {
+    if (entry.status === "cancelled") last = i;
+  });
+  await store(root, PREVIEW_REQUEST_FILE, items.filter((entry, i) => entry.status !== "cancelled" || i === last));
   return checked;
 }
 

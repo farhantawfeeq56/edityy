@@ -34,7 +34,7 @@ export default function DocsMcp() {
       <H3 id="get-work">get_work</H3>
       <P>
         Returns every saved edit and every ask in one call, oldest first. Each edit carries an id such as{" "}
-        <Code>c-0</Code>: apply it to the source code, then call <Code>mark_applied</Code>. Each ask carries a kind,
+        <Code>c-1</Code>: apply it to the source code, then call <Code>mark_applied</Code>. Each ask carries a kind,
         an id and a status. A variants ask is answered with <Code>place_variants</Code>, a preview ask with{" "}
         <Code>place_preview</Code>: the user picks one on the card, and the kept pick arrives as a saved edit.
       </P>

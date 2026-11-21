@@ -374,7 +374,8 @@ export async function handle(message, root) {
           const args = params?.arguments ?? {};
           const placed = await placePreview(args, root);
           const options = (placed.targets ?? [placed]).reduce((n, target) => n + (Array.isArray(target.variations) && target.variations.length ? target.variations.length : 1), 0);
-          const warnings = lintPreviewHtml(args.html ?? args.targets?.[0]?.html ?? "");
+          const raws = Array.isArray(args.targets) ? args.targets : [args];
+          const warnings = [...new Set(raws.flatMap((target) => lintPreviewHtml(typeof target?.html === "string" ? target.html : "")))];
           const lines = [
             `Placed preview ${placed.id}${placed.requestId ? ` for ask ${placed.requestId}` : ""} (${placed.linked} of ${placed.needed} options linked).`,
             "The user picks one on the card with the number keys: each pick paints live on the page. The kept paint arrives as a saved edit: read it back with get_work and carry it into the source code.",
