@@ -1994,7 +1994,18 @@
     }
     if (activeTool === "comment" && commentFor) {
       if (!openComment) drawMenu(commentBox(commentForAll ? { els: commentForAll } : { el: commentFor }));
-      if (commentForAll) placeAtRect(unionRect(commentForAll));
+      if (commentForAll) {
+        var at = unionRect(commentForAll);
+        // A set with no measure at all keeps its frames, but no card:
+        // there is nothing on the page to stand under.
+        if (!at) {
+          openComment = null;
+          hideMenu();
+          paintMarks();
+          return;
+        }
+        placeAtRect(at);
+      }
       else placeElementMenu();
       return;
     }
