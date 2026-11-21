@@ -1191,6 +1191,9 @@
   var selected = null;
   var selectedItems = [];
   var extraSelectionFrames = [];
+  // Plain hover boxes for elements the Comment drag only touches: the same
+  // bounding box the hover frame draws, one per touched element.
+  var extraHoverFrames = [];
   // The kind of the current selection: it decides which controls the dock starts
   // with, and root.selection() reports it.
   var selectedKind = null; // "text" | "container" | "media"
@@ -1846,6 +1849,29 @@
     paintMarks();
   }
 
+  // The eight handles every selection frame wears: four corner discs and
+  // four edge bars. The first frame ships with them in markup; later frames
+  // get the same children here, so every picked element wears the same box.
+  function addSelectionMarkers(frame) {
+    var marks = [
+      { cls: "frame-marker corner", corner: "top left" },
+      { cls: "frame-marker corner", corner: "top right" },
+      { cls: "frame-marker corner", corner: "bottom left" },
+      { cls: "frame-marker corner", corner: "bottom right" },
+      { cls: "frame-marker edge", edge: "left" },
+      { cls: "frame-marker edge", edge: "right" },
+      { cls: "frame-marker edge horizontal", edge: "top" },
+      { cls: "frame-marker edge horizontal", edge: "bottom" },
+    ];
+    marks.forEach(function (mark) {
+      var dot = document.createElement("i");
+      dot.className = mark.cls;
+      if (mark.corner && dot.setAttribute) dot.setAttribute("data-corner", mark.corner);
+      if (mark.edge && dot.setAttribute) dot.setAttribute("data-edge", mark.edge);
+      frame.appendChild(dot);
+    });
+  }
+
   function syncSelectionFrames() {
     // Edits reads from its list: the click opens the edit's card, and no
     // box is drawn for the selection, hovered or picked.
@@ -1864,6 +1890,7 @@
       if (!extraSelectionFrames[i - 1]) {
         var frame = document.createElement("div");
         frame.className = "frame";
+        addSelectionMarkers(frame);
         root.appendChild(frame);
         extraSelectionFrames.push(frame);
       }
@@ -1874,6 +1901,34 @@
       var rect = el.getBoundingClientRect();
       frame.className = "frame" + (rect.height < 40 ? " short" : "") + (rect.width < 40 ? " narrow" : "");
       place(frame, rect, el);
+    });
+  }
+
+  // Draw the plain hover box on elements the drag touches but does not hold
+  // yet: the same bounding box a hover draws, one per touched element. Touch
+  // means any overlap; the pick itself still needs most of the element.
+  function syncTouchHover(touched) {
+    var fresh = touched.filter(function (el) { return selectedItems.indexOf(el) === -1; });
+    if (!fresh.length) {
+      hoverBox.hidden = true;
+      extraHoverFrames.forEach(function (frame) { frame.hidden = true; });
+      return;
+    }
+    for (var i = 1; i < fresh.length; i++) {
+      if (!extraHoverFrames[i - 1]) {
+        var frame = document.createElement("div");
+        frame.className = "frame";
+        root.appendChild(frame);
+        extraHoverFrames.push(frame);
+      }
+    }
+    extraHoverFrames.forEach(function (frame, i) { frame.hidden = i + 1 >= fresh.length; });
+    fresh.forEach(function (el, i) {
+      var frame = i === 0 ? hoverBox : extraHoverFrames[i - 1];
+      var rect = el.getBoundingClientRect();
+      frame.className = "frame" + (rect.height < 40 ? " short" : "") + (rect.width < 40 ? " narrow" : "");
+      place(frame, rect, el);
+      frame.hidden = false;
     });
   }
 
@@ -2536,16 +2591,52 @@
 
   /**
    * What the Comment drag holds so far: the frames follow the drag, the
-   * box itself waits for the drop.
+   * box itself waits for the drop. Elements the drag only touches keep the
+   * plain hover box; elements it holds take the selection box with handles.
    */
   function previewLasso(left, top, width, height) {
-    if (width < REGION_MIN || height < REGION_MIN) return;
+    if (width < REGION_MIN || height < REGION_MIN) { hideHover(); return; }
     var picked = lassoSelect(left, top, width, height);
-    if (sameEls(picked, selectedItems)) return;
-    selected = picked[0] || null;
-    selectedItems = picked;
-    selectedKind = selected ? kind(selected) : null;
-    syncSelectionFrames();
+    if (!sameEls(picked, selectedItems)) {
+      selected = picked[0] || null;
+      selectedItems = picked;
+      selectedKind = selected ? kind(selected) : null;
+      syncSelectionFrames();
+    }
+    syncTouchHover(lassoTouch(left, top, width, height));
+  }
+
+  /**
+   * What a Comment drag touches: any overlap counts. The hover box draws on
+   * each touched element the drag does not hold yet, so a touch reads the
+   * same way a hover does. The pick itself still needs most of the element.
+   */
+  function lassoTouch(left, top, width, height) {
+    var right = left + width;
+    var bottom = top + height;
+    var all = null;
+    try { all = document.querySelectorAll("body *"); } catch { return []; }
+    var found = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el === host) continue;
+      if (host.contains && host.contains(el)) continue;
+      var tag = el.tagName ? String(el.tagName).toLowerCase() : "";
+      if (tag === "script" || tag === "style" || tag === "noscript") continue;
+      var r = null;
+      try { r = el.getBoundingClientRect(); } catch { continue; }
+      if (!r || !r.width || !r.height) continue;
+      var ix = Math.min(r.right, right) - Math.max(r.left, left);
+      var iy = Math.min(r.bottom, bottom) - Math.max(r.top, top);
+      if (ix <= 0 || iy <= 0) continue;
+      found.push(el);
+    }
+    return found.filter(function (el) {
+      for (var node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+        if (found.indexOf(node) !== -1) return false;
+      }
+      return true;
+    });
   }
 
   /**
@@ -9280,6 +9371,7 @@ function decorations() {
   /** The hover frame is only meaningful while the pointer is still on it. */
   function hideHover() {
     hoverBox.hidden = true;
+    extraHoverFrames.forEach(function (frame) { frame.hidden = true; });
   }
 
   /**
@@ -9544,9 +9636,10 @@ function decorations() {
       var cwidth = Math.abs(e.clientX - start.x0);
       var cheight = Math.abs(e.clientY - start.y0);
       regionBox.hidden = true;
-      if (cwidth < REGION_MIN || cheight < REGION_MIN) return;
+      if (cwidth < REGION_MIN || cheight < REGION_MIN) { hideHover(); return; }
       lassoed = true;
       selectMany(lassoSelect(cleft, ctop, cwidth, cheight));
+      hideHover();
       return;
     }
     if (activeTool !== "add") {
@@ -9593,7 +9686,6 @@ function decorations() {
       // way they follow the pointer, and the box waits for the drop.
       if (drawing && activeTool === "comment") {
         previewLasso(Math.min(drawing.x0, x), Math.min(drawing.y0, y), Math.abs(x - drawing.x0), Math.abs(y - drawing.y0));
-        hideHover();
         return;
       }
       if (drawing || activeTool === "add" || activeTool === "edits") {
