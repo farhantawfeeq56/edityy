@@ -14,7 +14,7 @@ The product, from the user's view:
 
 - Launcher. One install line puts it on the running site. It lives in an open shadow root, so page CSS cannot restyle it and it leaks no styles out.
 - Editing mode. Click the launcher, point at any element, click it. The dock edits type, colour, spacing, fill, border, shadow, and filters. The user types new words straight into the text. Each edit is one inline style on the live page. Leaving the mode restores the page exactly.
-- Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings. Shift+A stacks them in a column.
+- Arrange. The user adds, moves, and deletes elements. Shift-click selects siblings, and a Comment-tool drag lassos several at once. One comment box writes the same note on each selected element. Shift+A stacks them in a column.
 - Fonts. The user picks from fonts already on the page or browses Google Fonts. Edityy loads a face only on preview or pick.
 - Undo. Undo and redo cover style changes. The edits list reviews, selects, or reverts each edit.
 - Variations. The user picks one element, asks for N variants, and picks one on the popped card. Each variant holds styles, words, or markup with inline elements. The answer names the element in one or two words. Each popped card shows that name over the variant name, a copy-id button, square numbered chips, Notes, and `x`/tick. The picked chip travels from the old slot when the pick changes, by key or by click. A comment ask waits on its own card with a pulsing dot and "Waiting for agent" until the agent answers. The kept variant becomes a normal edit. The pick never paints on a canvas. Variants are answered with `place_variants`: each pick paints live on the element, the kept pick becomes a normal edit, and the agent carries it into the source code.
@@ -122,9 +122,8 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |Path|Role|
 |-|-|
 |`app/layout.tsx`|Root layout. Loads self-hosted Figtree (`app/fonts/Figtree-latin.woff2`). Imports `edityy/motion.css` and `globals.css`.|
-|`app/page.tsx`|Landing page. Centered hero plus a live multi-select comment demo (`app/comment-demo.tsx`). Sections: how it works, features, handoffs, install. Client code: `CopyButton` (`app/copy.tsx`).|
+|`app/page.tsx`|Landing page. Left-aligned hero, a four-stage Run → Point → Change → Hand off loop, a capabilities bento, and install. Covers the whole product; the multi-element comment is one tile, not the hero. Client code: `CopyButton` (`app/copy.tsx`).|
 |`app/copy.tsx`|Copy-to-clipboard button with live region and `say` animation.|
-|`app/comment-demo.tsx`|Live landing demo of the multi-element comment: click selects, Shift-click adds, one note saves onto every selected card with a status line. Client component, no package code.|
 |`app/globals.css`|Tailwind theme. Paper `#faf9f6`, ink `#25241f`, gold `#d4a72c` (fill only), brand-ink `#8a6a10` (readable gold text). Utilities: `tint`, `lift`, `say`. Old `rose`/`blush`/`plum` names kept as aliases.|
 |`app/docs/layout.tsx`|Docs chrome. Header plus sidebar driven by `nav.ts`.|
 |`app/docs/nav.ts`|Docs structure. One list drives the sidebar. Add a page here.|
