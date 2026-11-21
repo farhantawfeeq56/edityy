@@ -17,6 +17,22 @@ test.afterEach(() => {
   }
 });
 
+test.after(() => {
+  // An in-flight poll iteration re-arms its timer after one sweep, so sweep
+  // on an unref'd interval: it starves the chain without holding the loop.
+  const sweep = () => {
+    for (const handle of process._getActiveHandles()) {
+      try {
+        if (handle?.constructor?.name === "Timeout" && handle !== tick) clearTimeout(handle);
+        else if (handle?.constructor?.name === "Socket" && typeof handle.unref === "function") handle.unref();
+      } catch {}
+    }
+  };
+  const tick = setInterval(sweep, 50);
+  tick.unref();
+  sweep();
+});
+
 /**
  * Just enough DOM for the payload: elements with attributes, classes, styles and
  * children, one shadow root keyed by id, document-level events and viewport
