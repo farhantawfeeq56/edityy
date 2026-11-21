@@ -2,30 +2,12 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CopyButton } from "./copy";
+import { CommentDemo } from "./comment-demo";
 import logo from "./logo.png";
 
 const INSTALL = "npx edityy init";
 const NPM = "https://www.npmjs.com/package/edityy";
 const GITHUB = "https://github.com/farhantawfeeq56/edityy";
-
-const selectSteps = [
-  {
-    title: "Shift-click the set",
-    body: "Click one element, then Shift-click the rest. Each one joins the same selection.",
-  },
-  {
-    title: "Or draw one box",
-    body: "The Comment tool draws like Add does. Every element inside the box joins the set.",
-  },
-  {
-    title: "Write a single note",
-    body: "One comment box opens for the set. Save writes the same note on each element.",
-  },
-  {
-    title: "Small drag still clicks",
-    body: "A drag smaller than a click stays a click. One-element comments work as before.",
-  },
-];
 
 const steps = [
   {
@@ -116,13 +98,9 @@ function Icon({ name, className = "size-4" }: { name: string; className?: string
   );
 }
 
-function Eyebrow({ children, inverted = false }: { children: ReactNode; inverted?: boolean }) {
+function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p
-      className={`flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] ${
-        inverted ? "text-neutral-50/60" : "text-neutral-500"
-      }`}
-    >
+    <p className="flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-neutral-500">
       <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />
       {children}
     </p>
@@ -144,66 +122,6 @@ function Install({ note }: { note?: string }) {
   );
 }
 
-/* The hero study: a quiet page with three cards, one dashed box around
-   them, and one comment for the set. Pure markup, no client code — it
-   shows the branch behavior: many elements, one note. */
-function CommentStudy() {
-  return (
-    <div aria-hidden="true" className="layer relative overflow-hidden rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 border-b border-neutral-200 pb-3">
-        <span className="size-2 rounded-full bg-neutral-300" />
-        <span className="size-2 rounded-full bg-neutral-300" />
-        <span className="size-2 rounded-full bg-brand" />
-        <span className="ml-2 h-2 w-24 rounded-full bg-neutral-200" />
-      </div>
-      <div className="relative mt-4 rounded-xl border border-dashed border-brand-ink/60 bg-brand-soft/40 p-2.5">
-        <div className="grid grid-cols-3 gap-2.5">
-          {["Pricing", "Features", "Changelog"].map((card) => (
-            <div key={card} className="rounded-lg border border-neutral-200 bg-neutral-100 p-2.5">
-              <p className="h-1.5 w-2/3 rounded-full bg-neutral-900" />
-              <p className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-200" />
-              <p className="mt-1 h-1.5 w-4/5 rounded-full bg-neutral-200" />
-              <p className="mt-2 font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-brand-ink">{card}</p>
-            </div>
-          ))}
-        </div>
-        <span className="absolute -top-2.5 left-3 rounded-full bg-neutral-900 px-2 py-0.5 font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-neutral-50">
-          3 selected
-        </span>
-      </div>
-      <div className="relative mx-2 -mt-1 rounded-xl border border-neutral-200 bg-neutral-100 p-3 text-left shadow-layer">
-        <p className="font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-neutral-500">
-          One note for the set
-        </p>
-        <p className="mt-1 text-[0.8125rem] font-medium leading-snug text-neutral-900">
-          “Make all three calm — same padding, one quiet border.”
-        </p>
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <span className="rounded-full bg-neutral-900 px-2 py-0.5 font-mono text-[0.5625rem] text-neutral-50">
-            Sent
-          </span>
-          <span aria-hidden="true" className="text-neutral-300">→</span>
-          <span className="rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-mono text-[0.5625rem] text-neutral-600">
-            Select
-          </span>
-          <span aria-hidden="true" className="text-neutral-300">→</span>
-          <span className="rounded-full border border-brand-line bg-brand-soft px-2 py-0.5 font-mono text-[0.5625rem] text-brand-ink">
-            Ready
-          </span>
-          <span className="ml-auto font-mono text-[0.5625rem] text-neutral-500">agent writes code</span>
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-2 px-1 font-mono text-[0.625rem] text-neutral-500">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-brand" />
-          edityy:: instruction
-        </span>
-        <span className="ml-auto">Shift-click · drag a box · one save</span>
-      </div>
-    </div>
-  );
-}
-
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
@@ -219,9 +137,9 @@ export default function Home() {
           <div className="ml-auto hidden items-center gap-1 sm:flex">
             <a
               className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
-              href="#comment"
+              href="#try"
             >
-              Multi-comment
+              Try it
             </a>
             <a
               className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
@@ -254,72 +172,40 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
-        <section className="grid items-center gap-10 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
-          <div className="text-left">
-            <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
-              New — one comment for several elements
-            </span>
-            <h1 className="mt-6 max-w-[30rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[4.5rem] sm:leading-[1.0]">
-              Point at the page. <span className="text-brand-ink">Tell the agent once.</span>
-            </h1>
-            <p className="mt-6 max-w-[28rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
-              Edityy puts a visual editor on the site you already run. Select one element or a whole
-              set, write a single note for all of them, and hand it to your code.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a
-                href="#install"
-                className="rounded-lg bg-neutral-900 px-6 py-3 text-[0.9375rem] font-medium text-neutral-50 tint hover:bg-neutral-700"
-              >
-                Install Edityy — it&apos;s free
-              </a>
-              <Link
-                href="/docs"
-                className="rounded-lg border border-neutral-200 bg-white px-6 py-3 text-[0.9375rem] font-medium text-neutral-900 tint hover:border-neutral-300"
-              >
-                View docs →
-              </Link>
-            </div>
-            <p className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
-              <span className="text-neutral-600">Open source · MIT · zero dependencies</span>
-              <a
-                className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 tint hover:text-neutral-900 hover:decoration-neutral-900"
-                href={GITHUB}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View the source
-              </a>
-            </p>
+        <section className="mx-auto max-w-[44rem] pt-16 text-center sm:pt-24">
+          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
+            New — one comment for several elements
+          </span>
+          <h1 className="mt-6 text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[4.5rem] sm:leading-[1.0]">
+            One note for <span className="text-brand-ink">the whole set.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-[30rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
+            Edityy is a visual editing layer for the site you already run. Select one element or
+            several, write a single note, and your agent reads them as one combined change.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="#try"
+              className="rounded-lg bg-neutral-900 px-6 py-3 text-[0.9375rem] font-medium text-neutral-50 tint hover:bg-neutral-700"
+            >
+              Try it below — it&apos;s live
+            </a>
+            <Link
+              href="/docs"
+              className="rounded-lg border border-neutral-200 bg-white px-6 py-3 text-[0.9375rem] font-medium text-neutral-900 tint hover:border-neutral-300"
+            >
+              View docs →
+            </Link>
           </div>
-          <CommentStudy />
         </section>
 
-        <section id="comment" className="scroll-mt-28 pt-24 sm:pt-28">
-          <Eyebrow>A change that spans several elements</Eyebrow>
-          <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <h2 className="max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
-              One shared note, <span className="text-brand-ink">not one per element</span>
-            </h2>
-            <p className="max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-600">
-              The comment box used to open for one element. Now Shift-click builds a set, or the
-              Comment tool draws a box like Add does — and the set shares a single note.
-            </p>
-          </div>
-          <ol className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-4">
-            {selectSteps.map((step, i) => (
-              <li key={step.title} className="bg-neutral-100 p-6">
-                <span className="font-mono text-[0.75rem] text-brand-ink">{`0${i + 1}`}</span>
-                <h3 className="mt-3 text-[0.9375rem] font-semibold tracking-[-0.02em]">{step.title}</h3>
-                <p className="mt-2 text-[0.875rem] leading-relaxed text-neutral-600">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-5 text-[0.8125rem] leading-relaxed text-neutral-600">
-            Save writes the same note on each selected element, so the agent reads them as one combined
-            change. Variation counts stay single-element, and the Comment tool wears Add&apos;s precision
-            cursor while it is on.
+        <section id="try" className="mx-auto mt-14 max-w-[52rem] scroll-mt-28 sm:mt-16">
+          <CommentDemo />
+          <p className="mt-4 text-center text-[0.8125rem] leading-relaxed text-neutral-600">
+            That is the branch behavior, running on this page: Shift-click builds the set, one box
+            holds the note, and the save lands on every selected element. Open source · MIT · zero
+            dependencies.
           </p>
         </section>
 
@@ -363,31 +249,31 @@ export default function Home() {
         </section>
 
         <section id="agent" className="mt-20 scroll-mt-28 sm:mt-24">
-          <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-neutral-50 sm:px-10 sm:py-14">
+          <div className="layer overflow-hidden rounded-2xl px-6 py-12 sm:px-10 sm:py-14">
             <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-start">
               <div>
-                <Eyebrow inverted>Hand-off</Eyebrow>
+                <Eyebrow>Hand-off</Eyebrow>
                 <h2 className="mt-4 text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
                   Your code stays the source of truth.
                 </h2>
-                <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-50/70">
+                <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-600">
                   Edityy never writes your source. It writes down what changed — the selector, the
                   source line, each value — and your agent makes the change in the file.
                 </p>
-                <ul className="mt-8 divide-y divide-neutral-50/10 border-y border-neutral-50/10">
+                <ul className="mt-8 divide-y divide-neutral-200 border-y border-neutral-200">
                   {handoffs.map((handoff) => (
                     <li key={handoff.label} className="py-4">
                       <p className="text-[0.875rem] font-medium">{handoff.label}</p>
-                      <p className="mt-1 text-[0.875rem] leading-relaxed text-neutral-50/60">{handoff.body}</p>
+                      <p className="mt-1 text-[0.875rem] leading-relaxed text-neutral-600">{handoff.body}</p>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div aria-hidden="true" className="rounded-xl border border-neutral-50/10 bg-neutral-50/[0.04] p-4">
-                <p className="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-neutral-50/50">
+              <div aria-hidden="true" className="rounded-xl border border-neutral-200 bg-neutral-100 p-4">
+                <p className="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-neutral-500">
                   .edityy/changes.json
                 </p>
-                <pre className="mt-3 overflow-x-auto font-mono text-[0.6875rem] leading-relaxed text-neutral-50/80">{`{
+                <pre className="mt-3 overflow-x-auto font-mono text-[0.6875rem] leading-relaxed text-neutral-700">{`{
   "page": "/",
   "changes": [
     {
@@ -401,7 +287,7 @@ export default function Home() {
     }
   ]
 }`}</pre>
-                <p className="mt-3 border-t border-neutral-50/10 pt-3 font-mono text-[0.625rem] text-neutral-50/50">
+                <p className="mt-3 border-t border-neutral-200 pt-3 font-mono text-[0.625rem] text-neutral-500">
                   ×3 — the same note on each selected element
                 </p>
               </div>
