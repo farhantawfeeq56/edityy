@@ -205,6 +205,7 @@ export default function Home() {
               visual → code
             </span>
           </div>
+          <div aria-hidden="true" className="pointer-events-none absolute left-10 top-10" />
           <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
             Open source, MIT licensed
