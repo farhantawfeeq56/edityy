@@ -175,7 +175,17 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
-        <section className="pt-16 text-center sm:pt-24">
+        <section className="relative pt-16 text-center sm:pt-24">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-0 top-10 hidden w-44 select-none lg:block"
+          >
+            <span className="ml-auto block size-3 rounded-full bg-brand" />
+            <span className="ml-auto mt-3 block h-px w-24 bg-neutral-200" />
+            <span className="ml-auto mt-3 block w-28 rounded-full bg-blush px-3 py-1 text-center font-mono text-[0.625rem] uppercase tracking-[0.12em] text-brand-ink">
+              visual → code
+            </span>
+          </div>
           <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
             Open source, MIT licensed
@@ -220,7 +230,7 @@ export default function Home() {
         <section id="how" className="scroll-mt-28 pt-40">
           <Eyebrow>How it works</Eyebrow>
           <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
-            One install and everything is under your control
+            One install and everything is <span className="text-brand-ink">under your control</span>
           </h2>
           <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
             {steps.map((step, i) => (
