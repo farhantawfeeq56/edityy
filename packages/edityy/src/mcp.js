@@ -8,13 +8,12 @@
  * number of variations and an optional comment (`.edityy/variation-request.json`,
  * from variations.js), and comment-box preview asks plus the placed paints
  * (`.edityy/preview-request.json` and `.edityy/previews.json`, from
- * previews.js). This serves all of them through four tools: one read
+ * previews.js). This serves all of them through five tools: one read
  * (get_work) that returns every edit and every ask in one go, oldest first,
- * one placer (place_variants for answers: the user picks one on the card,
- * the pick arrives as a saved edit, and the agent carries it into the
- * source), mark_applied once the code holds an edit, and clear_all to
- * empty the canvas. place_preview stays off the tool list: old clients
- * that still call it get the disabled message.
+ * two placers (place_variants answers a variants ask, place_preview answers
+ * a preview ask: the user picks one on the card, the kept pick arrives as
+ * a saved edit, and the agent carries it into the source), mark_applied
+ * once the code holds an edit, and clear_all to empty the canvas.
  *
  * MCP over stdio is newline-delimited JSON-RPC 2.0, and this server needs four
  * methods of it, so it is written out here rather than pulled in as an SDK: the
@@ -26,7 +25,7 @@ import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE, clearCanvas } from "./index.js";
 import { clearSessionFor } from "./session.js";
-import { previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
+import { lintPreviewHtml, placePreview, previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
 import { store, writeAppliedAt } from "./store.js";
 import { DECLARATION_SCHEMA, placeVariations, readVariationRequests, requestText } from "./variations.js";
 
@@ -36,12 +35,10 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  * of them gets it; any other gets the newest, as the spec says.
  */
 const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
-// The preview canvas stays off. Variants are answered with place_variants:
-// the user picks one on the popped card, each pick paints live on the
-// element, the kept pick arrives as a saved edit, and the agent carries it
+// Every ask moves Sent to Select to Ready. A variants ask is answered with
+// place_variants, a preview ask with place_preview: the user picks one on
+// the card, the kept pick arrives as a saved edit, and the agent carries it
 // into the source code.
-const PREVIEW_DISABLED_TEXT =
-  "The preview canvas is disabled. Write the change directly into the source code, then tell the user it is in. Do not call place_preview.";
 
 const TOOLS = [
   {
@@ -49,8 +46,8 @@ const TOOLS = [
     description:
       "Read the saved visual edits plus every ask, oldest first. Call it once per turn, before any other " +
       "Edityy tool. Each edit has an id such as c-1: apply it to the source, then call mark_applied. " +
-      "Answer a variants ask with place_variants; write every preview ask into the source. " +
-      "Do not call place_preview. Pass {summary: true} for headers only, or {id} for one item.",
+      "Answer a variants ask with place_variants and a preview ask with place_preview. " +
+      "Pass {summary: true} for headers only, or {id} for one item.",
     inputSchema: {
       type: "object",
       properties: {
@@ -82,6 +79,50 @@ const TOOLS = [
       "The open page drops what it holds too, so a removed edit never comes back. " +
       "Use when the user asks to remove or clear all edits. Nothing is kept: apply first what must stay in the code.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "place_preview",
+    description:
+      "Paint a preview ask on the live page, not in the code. Quote the instruction get_work returned: " +
+      "a waiting ask with those words is answered. One ask takes one call: all its options go in it. " +
+      "styles restyles one element and takes a selector plus variations of declarations. " +
+      "insert adds near an anchor (after, before, inside-start or inside-end): omit anchor to accept the ask's suggested spot, or to go at the end of main. " +
+      "It takes html for one option, or 1 to 10 labeled variations of html for a pick. " +
+      "update changes one element by selector, with styles, text, markup, or 1 to 10 labeled variations of markup. " +
+      "remove takes away one element by selector. " +
+      "The user picks one on the card: the kept paint arrives as a saved edit, and you carry it into the source code (read it back with get_work).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instruction: { type: "string", description: "The change the user asked for, quoted." },
+        action: { type: "string", description: "One of styles, insert, update or remove." },
+        selector: { type: "string", description: "The element to change, for styles, update and remove." },
+        anchor: { type: "string", description: "The element the insert goes by; omit to accept the ask's suggested spot, or to go at the end of main." },
+        position: { type: "string", description: "For insert: after, before, inside-start or inside-end; inside-end when untold." },
+        html: { type: "string", description: "For insert and update: the markup." },
+        text: { type: "string", description: "Optional: plain words for styles and update." },
+        props: { type: "array", items: DECLARATION_SCHEMA },
+        variations: {
+          type: "array",
+          minItems: 1,
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "Two or three words the user will see." },
+              html: { type: "string", description: "The markup for this option." },
+              props: { type: "array", items: DECLARATION_SCHEMA },
+              text: { type: "string", description: "Optional: plain words for this option." },
+            },
+            required: ["label"],
+            additionalProperties: false,
+          },
+        },
+        targets: { type: "array", minItems: 1, maxItems: 100, description: "Many elements in one preview, each with its own action, selector or anchor, and payload." },
+      },
+      required: ["instruction"],
+      additionalProperties: false,
+    },
   },
   {
     name: "place_variants",
@@ -193,7 +234,7 @@ async function buildWork(root, opts = {}) {
     const text = `# Work from Edityy (one item)\n\n- [${found.kind}] ${found.entry.id}\n\n---\n\n${found.body}`;
     return { text, structured: { ...structured, edits: [], asks: [{ kind: found.kind, id: found.entry.id, status: found.entry.status || "pending" }] } };
   }
-  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card, and each pick paints live on the element. The kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
+  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants and a preview ask with place_preview: the user picks one on the card. The kept pick arrives as a saved edit to carry into the source code."];
   out.push("", `## Edits (${changes.length})`);
   if (!changes.length) {
     out.push("No saved edits. In the browser, open Edityy's edits list and approve an edit with the tick.");
@@ -329,9 +370,18 @@ export async function handle(message, root) {
           const rest = left.map((_, at) => `c-${at + 1}`).join(", ");
           return reply({ content: [{ type: "text", text: `Marked ${ids.length} applied. Still waiting: ${rest}.` }] });
         }
-        // Old clients may still call it: answer, do not list it.
         if (params?.name === "place_preview") {
-          return reply({ content: [{ type: "text", text: PREVIEW_DISABLED_TEXT }] });
+          const args = params?.arguments ?? {};
+          const placed = await placePreview(args, root);
+          const options = (placed.targets ?? [placed]).reduce((n, target) => n + (Array.isArray(target.variations) && target.variations.length ? target.variations.length : 1), 0);
+          const warnings = lintPreviewHtml(args.html ?? args.targets?.[0]?.html ?? "");
+          const lines = [
+            `Placed preview ${placed.id}${placed.requestId ? ` for ask ${placed.requestId}` : ""} (${placed.linked} of ${placed.needed} options linked).`,
+            "The user picks one on the card with the number keys: each pick paints live on the page. The kept paint arrives as a saved edit: read it back with get_work and carry it into the source code.",
+          ];
+          if (options > 1) lines.push(`Options: ${options}.`);
+          if (warnings.length) lines.push("", "Design warnings (fix what applies before the user decides):", ...warnings.map((warning) => `- ${warning}`));
+          return reply({ content: [{ type: "text", text: lines.join("\n") }] });
         }
         if (params?.name === "clear_all") {
           const cleared = await clearCanvas(root);

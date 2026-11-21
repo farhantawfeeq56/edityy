@@ -29,14 +29,14 @@ export default function DocsMcp() {
       </P>
 
       <H2 id="tools">The tools</H2>
-      <P>There are four: one read, one marker, one clearer, one placer. The preview placer is removed with the canvas.</P>
+      <P>There are five: one read, one marker, one clearer, two placers.</P>
 
       <H3 id="get-work">get_work</H3>
       <P>
         Returns every saved edit and every ask in one call, oldest first. Each edit carries an id such as{" "}
         <Code>c-0</Code>: apply it to the source code, then call <Code>mark_applied</Code>. Each ask carries a kind,
-        an id and a status. The agent answers every ask in the source code: the temporary canvas is removed, so
-        nothing is painted.
+        an id and a status. A variants ask is answered with <Code>place_variants</Code>, a preview ask with{" "}
+        <Code>place_preview</Code>: the user picks one on the card, and the kept pick arrives as a saved edit.
       </P>
       <P>
         The agent calls it once per turn. A kept preview arrives here as an edit of its own, with no save step. A
@@ -56,8 +56,8 @@ export default function DocsMcp() {
         tag, its selector and its current values. The agent never sees your code for this.
       </P>
       <P>
-        Takes the answer: exactly that many variations, each a short label and a list of declarations. Nothing is
-        painted. The user picks one on the popped card, the kept pick arrives as a saved edit, and the agent
+        Takes the answer: exactly that many variations, each a short label and a list of declarations. Each pick
+        paints live on the element. The user picks one on the popped card, the kept pick arrives as a saved edit, and the agent
         carries that edit into the source code. Any pending ask answers by its id, not only the oldest one.
       </P>
       <P>Each variation is a label and a list of declarations.</P>
@@ -90,10 +90,12 @@ export default function DocsMcp() {
         Any other count than the asked one is refused: fewer leaves a slot empty, and more has nowhere to go.
       </Note>
 
-      <H3 id="removed-preview">Removed: place_preview</H3>
+      <H3 id="place-preview">place_preview</H3>
       <P>
-        The preview canvas is removed, and its placer is gone with it. The agent writes every preview change into
-        the source code directly. A client that still calls it gets a message that says so.
+        Paints a preview ask on the live page, not in the code. Quote the instruction <Code>get_work</Code>{" "}
+        returned: the waiting ask with those words is answered. Place every asked option in one call: 1 to 10{" "}
+        labeled html options for a pick, or one option for a single change. The user picks one on the card, the{" "}
+        kept paint arrives as a saved edit, and the agent carries it into the source code.
       </P>
 
       <H2 id="the-files">The files</H2>

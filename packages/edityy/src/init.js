@@ -40,18 +40,17 @@ const RULES = `${BEGIN}
 The user edits the running site with Edityy, not the code. These tools come from
 the Edityy MCP server.
 
+- **Asks move Sent to Select to Ready.** A comment or a drawn box lands in the Edits panel as Sent (Waiting for agent). Answer it, and it moves to Select for the user to pick. The user keeps one on the card, and it moves to Ready. Read the Ready edits with \`get_work\` and write them into the source code.
 - **vartest.** When the user sets more than one variation in the Edityy comment box and presses
   an element, its ask waits in \`get_work\`.
-  The temporary canvas is disabled: pick the best variation and write it directly
-  into the source code. Do not call \`place_variants\`.
-- **Temporary canvas (disabled).** When the user writes a comment in the Edityy comment
+  Answer it with \`place_variants\`, with exactly the asked number of variations. Each pick paints live on the element. The kept pick arrives as a saved edit: read it back with \`get_work\` and carry it into the source code.
+- **Preview ask.** When the user writes a comment in the Edityy comment
   box with "Ask the agent to preview" ticked and presses Save, its ask waits
   in \`get_work\`.
   Read it every message: a preview ask needs no \`edityy::\` typed in the chat.
   A drawn-box ask carries its
   location: document pixels, viewport percent and pixels, and center and
-  parent selectors. Write the change directly into the source code.
-  Do not call \`place_preview\`.
+  parent selectors. Answer it with \`place_preview\`: quote the instruction back, and place every asked option in one call (1 to 10 labeled html options for a pick, or one option for a single change). The kept paint arrives as a saved edit: read it back with \`get_work\` and carry it into the source code.
   If the user names no place and the place is unclear, ask them first.
 - **Work.** Call \`get_work\` once per turn, before any other Edityy tool.
   It returns every saved edit and every ask in one read, oldest first. Each

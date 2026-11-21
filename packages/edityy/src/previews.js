@@ -630,11 +630,11 @@ export function previewRequestText(request) {
   }
   lines.push(
     "",
-    "Temporary canvas is disabled: write this directly into the source code. Do not call place_preview.",
-    "Apply it in the way the project already styles things, then tell the user it is in. If no anchor exists at all, say so instead of guessing."
+    "Answer with place_preview in one call: quote this instruction back. The user picks one on the card, the kept paint arrives as a saved edit, and you carry it into the source code (read it back with get_work).",
+    "If no anchor exists at all, say so instead of guessing."
   );
   if (count > 1) {
-    lines.push("", `The user asked for ${count} variants: pick the best one and write it into the source.`);
+    lines.push("", `The user asked for ${count} variants: place that many labeled html options in one insert or update.`);
   }
   return lines.join("\n");
 }

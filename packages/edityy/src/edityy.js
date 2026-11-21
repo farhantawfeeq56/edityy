@@ -6646,6 +6646,20 @@ function decorations() {
     refreshEditsServer();
   }
 
+  /**
+   * The server forgets a withdrawn preview ask, so no agent answers it late.
+   * The local queue is purged at once, so the card leaves without waiting for a poll.
+   */
+  function forgetPreviewServer(id) {
+    if (!id) return;
+    if (typeof window.fetch === "function") {
+      window.fetch("/__edityy/preview-request?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+    }
+    srvPreviewRequests = (srvPreviewRequests || []).filter(function (request) { return !request || request.id !== id; });
+    editsRefreshedAt = 0;
+    refreshEditsServer();
+  }
+
   /** Two drawn boxes are the same when their page rects match. */
   function sameRegion(a, b) {
     return !!a && !!b && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
@@ -6781,6 +6795,22 @@ function decorations() {
         kind: "waiting-variants", requestId: request.id,
       });
     });
+    // Sent: a preview ask the agent has not answered yet. A box ask
+    // names its box, an element ask its element, so each waits on its own card.
+    (srvPreviewRequests || []).forEach(function (request) {
+      if (!request || !request.id || request.status !== "pending") return;
+      var askEl = null;
+      try {
+        askEl = request.element && request.element.selector ? previewQuery(request.element.selector) : null;
+      } catch {}
+      var askRegion = askEl ? null : request.region || null;
+      tasks.push({
+        state: "sent", el: askEl, region: askRegion,
+        label: askEl ? nameOf(askEl) : askRegion ? addedLabel(askRegion) : "Preview ask", origin: "Comment",
+        detail: "Waiting for agent" + (request.instruction ? " · " + request.instruction : ""),
+        kind: "waiting-preview", requestId: request.id,
+      });
+    });
     // Exploring: every painted preview, then what waits in a list. Previewing is
     // the same state: the agent answered, the user has not ticked yet.
     previewPaints.forEach(function (paint) {
@@ -6811,8 +6841,10 @@ function decorations() {
     // so the edit the pick writes underneath stays off the panel until
     // the ask is kept or dropped. Two asks for one element still show both.
     var covered = [];
+    var coveredRegions = [];
     tasks.forEach(function (task) {
-      if (task.el && (task.kind === "live-variants" || task.kind === "server-variants" || task.kind === "waiting-variants" || task.kind === "preview-current" || task.kind === "preview-listed")) covered.push(task.el);
+      if (task.el && (task.kind === "live-variants" || task.kind === "server-variants" || task.kind === "waiting-variants" || task.kind === "waiting-preview" || task.kind === "preview-current" || task.kind === "preview-listed")) covered.push(task.el);
+      if (task.region && (task.kind === "waiting-preview" || task.kind === "preview-current" || task.kind === "preview-listed")) coveredRegions.push(task.region);
     });
     // Edits: ticked ones are Ready, the rest are Exploring. A comment
     // saves as an edit at once, while its ask runs in the background.
@@ -6821,6 +6853,7 @@ function decorations() {
     });
     kept.forEach(function (item) {
       if (item.rec && item.rec.el && covered.indexOf(item.rec.el) !== -1) return;
+      if (item.rg && coveredRegions.some(function (rg) { return sameRegion(rg, item.rg); })) return;
       var origin = "Canvas session";
       if (item.region) origin = item.comment ? "Comment" : "Canvas session";
       else if (item.rec && item.rec.origin) origin = item.rec.origin;
@@ -7131,17 +7164,22 @@ function decorations() {
       });
       return;
     }
-    if (task.kind === "waiting-variants") {
+    if (task.kind === "waiting-variants" || task.kind === "waiting-preview") {
       // A sent ask waits with no controls: one Withdraw button pulls it back.
       var wrow = document.createElement("div");
       wrow.className = "task-actions";
       wrow.setAttribute("data-ui-actions", "");
       var withdraw = button("mini", "", "Withdraw ask", function () {
-        forgetVariationServer(task.requestId);
-        if (variationId === task.requestId) {
-          variationId = "";
-          variationPolls = 0;
-          variationWords = "";
+        if (task.kind === "waiting-preview") {
+          forgetPreviewServer(task.requestId);
+          if (previewReqId === task.requestId) cancelPreviewRequest();
+        } else {
+          forgetVariationServer(task.requestId);
+          if (variationId === task.requestId) {
+            variationId = "";
+            variationPolls = 0;
+            variationWords = "";
+          }
         }
         tally();
       }, "task-withdraw-" + task.requestId);
@@ -7528,7 +7566,7 @@ function decorations() {
         head.appendChild(name);
       }
       // A waiting ask wears a pulsing dot, so it never reads as ready.
-      if (task.kind === "waiting-variants") card.setAttribute("data-waiting", "true");
+      if (task.kind === "waiting-variants" || task.kind === "waiting-preview") card.setAttribute("data-waiting", "true");
       // Popped card nav holds copy alone; other cards keep the
       // single-line name with the same nav.
       var nav = document.createElement("div");

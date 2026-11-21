@@ -195,7 +195,7 @@ test("a comment-box preview request is answered once place_preview paints", asyn
   );
   assert.equal(varied.count, 5);
   assert.match(previewRequestText(varied), /Variants the user asked for: 5/);
-  assert.match(previewRequestText(varied), /Temporary canvas is disabled/);
+  assert.match(previewRequestText(varied), /place_preview/);
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 0 }), { status: 400 });
   assert.throws(() => checkPreviewRequest({ id: "p-3", instruction: "x", count: 11 }), { status: 400 });
   // The paint quotes the ask's words: only the ask with the same words is answered.
