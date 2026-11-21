@@ -917,20 +917,19 @@
     ".chg{display:flex;align-items:center;gap:2px}",
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
-    // The edits panel: a tall sheet over the dock, with a filter grid for the
-    // Sent, Select and Ready, and one card per task. A card goes to its element on click.
-    // Its text wears the comment box scale: 10px for labels and buttons,
-    // 8px for secondary words, nothing larger.
+    // The edits panel: a tall sheet over the dock, with a filter grid for
+    // Sent, Exploring and Ready, and one card per task. A card goes to its
+    // element on click. Type runs at 10px throughout; weight carries the rank.
     ".pop.changes{width:min(250px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px);background:var(--surface)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
     ".changes-title{font:600 10px/1 inherit;letter-spacing:-.01em}",
-    ".changes-total{margin-left:auto;font:500 8px/1 inherit;color:var(--muted)}",
+    ".changes-total{margin-left:auto;font:500 10px/1 inherit;color:var(--muted)}",
     ".changes-filters{display:flex;flex-wrap:nowrap;gap:8px;margin:0 6px 8px}",
     ".pop.changes>*+*{margin-top:0}",
     // One chip per state, with its count after interior's Filter Grid: each
     // chip wears its own border, and one thumb lives in the checked chip and
     // travels to the next one when the pick changes.
-    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 8px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 8px/1 inherit;letter-spacing:-.02em;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
+    ".changes-filter{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;height:28px;padding:0 8px;border:1px solid var(--ink-10);border-radius:6px;background:transparent;font:500 10px/1 inherit;letter-spacing:-.02em;cursor:pointer;color:var(--ink);white-space:nowrap;transition:border-color var(--tint) var(--standard)}",
     ".changes-filter:hover{background:var(--fill-hover)}",
     ".changes-thumb{position:absolute;inset:0;border-radius:6px;background:var(--ink);z-index:0}",
     // The label is two words in one slot, crossfading as the pick changes:
@@ -945,31 +944,25 @@
     ".changes-filter[aria-checked=true] .lbl-on{opacity:1}",
     ".changes-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}",
     ".changes-list{position:relative;flex:1 1 auto;min-height:180px;max-height:320px;overflow-y:auto;padding:2px 6px 10px;box-sizing:border-box}",
-    ".changes-list .changes-empty{display:grid;place-items:center;min-height:170px;margin:10px 6px;padding:8px 16px;box-sizing:border-box;text-align:center;font-size:13px}",
-    ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:9px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer;box-shadow:0 1px 2px var(--ink-6)}",
+    ".changes-list .changes-empty{display:grid;place-items:center;min-height:170px;margin:10px 6px;padding:8px 16px;box-sizing:border-box;text-align:center;font-size:11px}",
+    ".task{display:flex;flex-direction:column;gap:5px;border:1px solid var(--ink-10);border-radius:12px;padding:9px 10px;margin-bottom:6px;background:var(--paper);cursor:pointer;box-shadow:0 1px 2px var(--ink-6)}",
     ".task:hover{background:var(--fill-hover)}",
     ".task.selected{border-color:var(--ink)}",
     ".task-top{display:flex;align-items:center;gap:7px}",
-    ".task-mark{font:500 8px/1 inherit;color:var(--muted);flex:none}",
+    ".task-mark{font:500 10px/1 inherit;color:var(--muted);flex:none}",
     ".task-name{font:500 10px/1.3 inherit;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".task-nav{display:flex;gap:4px;flex:none}",
     ".task-nav .task-icon{width:24px;height:24px}",
     ".task-nav .task-icon svg{width:11px;height:11px}",
-    ".task-badge{flex:none;font:600 8px/1 inherit;letter-spacing:.02em;padding:4px 7px;border-radius:20px;background:var(--fill-open);color:var(--ink)}",
-    ".task-badge[data-state=sent]{background:var(--accent);color:#1a1915}",
-    ".task-badge[data-state=exploring]{background:#E8EEFF;color:#1E3A8A}",
-    ".task-badge[data-state=ready]{background:var(--ink);color:var(--paper)}",
-    ".task-meta{display:flex;align-items:center;gap:6px;font:400 8px/1.3 inherit;color:var(--muted)}",
+    ".task-meta{display:flex;align-items:center;gap:6px;font:400 10px/1.3 inherit;color:var(--muted)}",
     ".task-origin{padding:2px 6px;border-radius:6px;background:var(--fill-open);font-weight:500}",
-    ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font:400 8px/1.35 inherit;color:var(--muted);margin:0}",
+    ".task-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font:400 10px/1.35 inherit;color:var(--muted);margin:0}",
     // A waiting ask wears a pulsing gold dot before its words, so it never
-    // reads as variants ready. The meta row stays off popped cards anyway.
+    // reads as variants ready.
     ".task[data-waiting=true] .task-detail::before{content:\"\";display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--accent);animation:task-wait 1.6s ease-in-out infinite}",
     "@keyframes task-wait{0%,100%{opacity:1}50%{opacity:.3}}",
-    // Shown by presence: the row is only built when the card is open, so no toggle hides it.
+    // Actions stay on the card; no toggle hides them.
     ".task-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}",
-    ".task-more{font:600 8px/1 inherit;color:var(--muted);flex:none;transition:transform var(--tint) var(--standard)}",
-    ".task[data-open=true] .task-more{transform:rotate(90deg)}",
     ".task-actions .mini[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--rose)}",
     ".task-actions .mini{flex:0 0 auto;border:1px solid var(--ink-10);border-radius:7px;padding:8px 10px;background:transparent;font:500 10px/1 inherit;cursor:pointer;color:var(--ink)}",
     ".task-actions .mini:hover{background:var(--fill-hover)}",
@@ -978,14 +971,14 @@
     // The always-on controls of a card: round icons at the card's corner, a
     // notes field with X and tick, and the number chips for variants.
     ".task-icons{display:flex;gap:8px;flex:none}",
-    ".task-editrow .task-icon{border-radius:7px}",
+    ".task-editrow .task-icon{border-radius:8px}",
     ".task-icon{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ink-10);border-radius:50%;background:transparent;cursor:pointer;color:var(--ink);padding:0}",
     ".task-icon svg{width:13px;height:13px}",
     ".task-icon:hover{background:var(--fill-hover)}",
     ".task-icon:active{background:var(--fill-open)}",
     ".task-icon:disabled{opacity:.35;cursor:default}",
     ".task-editrow{display:flex;align-items:center;gap:8px;margin-top:3px}",
-    ".task-note{flex:1;min-width:0;height:28px;border:1px solid var(--ink-10);border-radius:7px;padding:0 9px;background:transparent;font:400 10px/1 inherit;color:var(--ink)}",
+    ".task-note{flex:1;min-width:0;height:28px;border:1px solid var(--ink-10);border-radius:8px;padding:0 9px;background:transparent;font:400 10px/1 inherit;color:var(--ink)}",
     ".task-note::placeholder{color:var(--muted)}",
     // The variant numbers wear the comment box preset chips: pills that
     // share the row's width, five to a line, the rest on the next.
@@ -1001,21 +994,18 @@
     ".task-variant-thumb{position:absolute;inset:0;border-radius:inherit;background:var(--ink-15);pointer-events:none}",
     ".task-num{position:relative}",
     // The popped card from the sketch: a stronger frame, the element name
-    // over the variant name, square nav buttons, square number chips sharing
-    // one row, and a notes field with square X and tick. It wears the
-    // toolbar's own surface, so the two agree. The meta row stays
-    // off: the subtitle already says what waits.
+    // over the variant name, and the same round controls as other cards.
+    // It wears the toolbar's own surface, so the two agree.
     ".task[data-popped=true]{border-width:1.5px;border-radius:12px;padding:12px;gap:8px;background:var(--surface)}",
     ".task-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}",
     ".task[data-popped=true] .task-name{flex:none;font-size:12px;font-weight:600}",
     ".task-variant{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 10px/1.3 inherit;color:var(--muted)}",
-    ".task[data-popped=true] .task-meta{display:none}",
     ".task[data-popped=true] .task-nav{gap:6px}",
-    ".task[data-popped=true] .task-nav .task-icon{width:30px;height:30px;border-radius:8px}",
+    ".task[data-popped=true] .task-nav .task-icon{width:30px;height:30px}",
     ".task[data-popped=true] .task-chips{gap:6px}",
-    ".task[data-popped=true] .task-chip{flex:1 1 0;min-width:28px;height:34px;padding:0;border-radius:8px}",
-    ".task[data-popped=true] .task-note{height:32px;border-radius:8px}",
-    ".task[data-popped=true] .task-editrow .task-icon{width:32px;height:32px;border-radius:8px}",
+    ".task[data-popped=true] .task-chip{flex:1 1 0;min-width:28px;height:34px;padding:0}",
+    ".task[data-popped=true] .task-note{height:32px}",
+    ".task[data-popped=true] .task-editrow .task-icon{width:32px;height:32px}",
     // A card that is going away slides out in its direction; a new one slides
     // in. Both are quick: the state change is never waited on for long.
     ".task-enter{animation:task-in var(--tint) var(--standard)}",
@@ -6452,23 +6442,22 @@ function decorations() {
   /**
    * The edits panel: every task on the page, in the state it is in.
    *
-   * Select is variants ready, waiting for a pick. Previewing is a paint
+   * Exploring is variants ready, waiting for a pick. Previewing is a paint
    * on the live page, waiting for Keep or Discard. Kept is an ordinary
    * Edityy edit: JSON for the agent, which the agent writes into the
    * source later.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, sent, select, ready
+  var changesFilter = "all"; // all, sent, exploring, ready
   // The filter grid, after interior.dev's Filter Grid: one chip per state
   // with its count, a thumb that travels to the picked chip, and the arrow
   // keys walking the chips. The cards below already travel the same way.
-  var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Select"], ["ready", "Ready"]];
+  var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Exploring"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var chipFlight = null; // the picked chip's old slot, so the new one travels from it
   var chipFlying = null; // the glide now running, finished early when the next pick lands
-  var expandedTasks = Object.create(null); // task key -> true, so clicking a card opens its controls
   var srvVariationRequests = []; // server queue: asks waiting for variants
   var srvVariationResponses = []; // server queue: variants ready to try
   var srvPreviewRequests = []; // server queue: asks waiting for a paint
@@ -6529,7 +6518,7 @@ function decorations() {
 
   /**
    * The server must forget a decided variation request, or its answer
-   * lingers as a Select card next to the new Ready one. The local queues
+   * lingers as an Exploring card next to the new Ready one. The local queues
    * are purged at once, so the card leaves without waiting for a poll.
    */
   function forgetVariationServer(id) {
@@ -6894,6 +6883,7 @@ function decorations() {
     note.placeholder = "Notes";
     note.value = taskNotes[key] || "";
     note.setAttribute("aria-label", "Notes for the agent");
+    note.setAttribute("title", "Notes for the agent");
     note.addEventListener("input", function () {
       taskNotes[key] = note.value;
     });
@@ -6911,6 +6901,7 @@ function decorations() {
       slideOut(card, "up", opts.onKeep);
     }, "task-tick-" + key);
     keep.disabled = !!opts.keepDisabled;
+    if (keep.disabled) keep.setAttribute("title", "Pick a variant first");
     row.appendChild(keep);
     card.appendChild(row);
     return keep;
@@ -7026,6 +7017,25 @@ function decorations() {
       });
       return;
     }
+    if (task.kind === "waiting-variants") {
+      // A sent ask waits with no controls: one Withdraw button pulls it back.
+      var wrow = document.createElement("div");
+      wrow.className = "task-actions";
+      wrow.setAttribute("data-ui-actions", "");
+      var withdraw = button("mini", "", "Withdraw ask", function () {
+        forgetVariationServer(task.requestId);
+        if (variationId === task.requestId) {
+          variationId = "";
+          variationPolls = 0;
+          variationWords = "";
+        }
+        tally();
+      }, "task-withdraw-" + task.requestId);
+      withdraw.appendChild(text("Withdraw ask"));
+      wrow.appendChild(withdraw);
+      card.appendChild(wrow);
+      return;
+    }
     if (task.kind === "live-variants" || task.kind === "server-variants") {
       var list = task.kind === "live-variants" ? (task.list || variantList) : task.list;
       var at = task.kind === "live-variants" ? variantAt : (srvVariantAt[task.requestId] == null ? -1 : srvVariantAt[task.requestId]);
@@ -7119,7 +7129,6 @@ function decorations() {
 
   function addTaskActions(card, task) {
     var key = taskKey(task);
-    if (!expandedTasks[key]) return;
     // Preview cards wear the same box as edits: chips on the card (see
     // previewChips), then notes with x and tick. No Keep/Discard text buttons.
     if (task.kind === "preview-current") {
@@ -7411,15 +7420,14 @@ function decorations() {
       var nav = document.createElement("div");
       nav.className = "task-nav";
       nav.setAttribute("data-ui-actions", "");
-      nav.appendChild(iconButton("copy", "Copy element id", function () {
+      nav.appendChild(iconButton("copy", "Copy card id", function () {
         var id = task.previewId || task.requestId || (task.item && task.item.mark != null ? "mark-" + task.item.mark : taskKey(task));
         copyText(String(id), function () {});
       }, "task-copy-" + taskKey(task)));
       head.appendChild(nav);
-      card.setAttribute("data-open", expandedTasks[taskKey(task)] ? "true" : "false");
       card.appendChild(head);
       // A meta row on every card: where the edit came from, with the
-      // detail line beside it. Select cards show it above their controls,
+      // detail line beside it. Exploring cards show it above their controls,
       // so "1 edit" and "N variants ready" are never hidden.
       var showDetail = !!task.detail;
       if (showDetail || task.origin) {
@@ -7444,17 +7452,8 @@ function decorations() {
       if (task.el || task.region) {
         card.addEventListener("click", function (e) {
           if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
-          var key = taskKey(task);
-          expandedTasks[key] = !expandedTasks[key];
-          // One redraw: gotoTask ends in show("changes") itself.
+          // No expand: the card's controls stay on, a click only goes to the element.
           gotoTask(task);
-        });
-      } else {
-        card.addEventListener("click", function (e) {
-          if (e && e.target && e.target.closest && e.target.closest("button, input, textarea, select")) return;
-          var key = taskKey(task);
-          expandedTasks[key] = !expandedTasks[key];
-          show("changes");
         });
       }
       // A card that was not there before slides in; one that was already
@@ -7527,10 +7526,10 @@ function decorations() {
     // The empty words fade in where the grid would be, like the component's.
     if (!shown.length && list.firstChild) list.firstChild.className += " task-enter";
     changesPanel.copy.disabled = !report().length;
-    // The wireframe order: header, cards, then the pill tabs, then the copy button.
+    // The wireframe order: header, then the pill tabs, then cards, then the copy button.
     pop.appendChild(changesPanel.head);
-    pop.appendChild(list);
     pop.appendChild(changesPanel.filters);
+    pop.appendChild(list);
     pop.appendChild(changesPanel.actions);
     pop.appendChild(changesPanel.live);
     // Variant travel: the fill glides from the old slot to the new one,
@@ -7621,7 +7620,7 @@ function decorations() {
     unstashRec(rec);
     rec.confirmed = true;
     autosave();
-    // The Ready card arrives: the Select card just slid out, so the
+    // The Ready card arrives: the Exploring card just slid out, so the
     // arrival replays for the same element instead of appearing flat.
     if (rec.el) replayArrivalFor(rec.mark);
     tally();
@@ -8380,7 +8379,6 @@ function decorations() {
     current = null;
     taskNotes = {};
     taskSeen = {};
-    expandedTasks = Object.create(null);
     tally();
   }
 
@@ -8701,7 +8699,7 @@ function decorations() {
       if (variationName) record(variationFor).variationName = variationName;
       autosave();
     }
-    // Decided either way, the answer must not linger as a Select card next
+    // Decided either way, the answer must not linger as an Exploring card next
     // to the Ready one: the server forgets it, and the local queues drop it.
     forgetVariationServer(variationServerId || variationId);
     variationServerId = "";
@@ -9740,13 +9738,8 @@ function decorations() {
     cardDoneFor = null;
     if (e.shiftKey) extendSelection(hit && hit.el);
     else select(hit && hit.el, hit);
-    // Edits reads from its list: a click on an edited element opens that
-    // edit's card, so its controls are showing instead of a frame.
+    // Edits reads from its list: a click on an edited element goes to it.
     if (activeTool === "edits" && !e.shiftKey && hit && hit.el) {
-      var found = matchingTasks(editsTasks());
-      for (var fi = 0; fi < found.length; fi++) {
-        if (found[fi].el === hit.el) expandedTasks[taskKey(found[fi])] = true;
-      }
       show("changes");
     }
   }
@@ -9785,16 +9778,13 @@ function decorations() {
       var serverTyping = editing || pageField;
       var serverIndex = e.key === "0" ? 9 : Number(e.key) - 1;
       if (!serverTyping) {
-        var found = null;
-        var open = null;
+        var target = null;
         var all = editsTasks();
         for (var si = 0; si < all.length; si++) {
           var st = all[si];
           if (st.kind !== "server-variants" || !st.list || serverIndex >= st.list.length) continue;
-          if (!found) found = st;
-          if (expandedTasks[taskKey(st)]) open = st;
+          if (!target) target = st;
         }
-        var target = open || found;
         if (target) {
           if (e.preventDefault) e.preventDefault();
           if (e.stopPropagation) e.stopPropagation();
@@ -9807,16 +9797,10 @@ function decorations() {
     if (previewPaints.length && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[0-9]$/.test(String(e.key || ""))) {
       var previewTyping = editing || pageField;
       var previewIndex = e.key === "0" ? 9 : Number(e.key) - 1;
-      var keyed = null;
+      var keyTarget = null;
       previewPaints.forEach(function (paint) {
-        if (!keyed && expandedTasks["preview:" + paint.preview.id] && previewIndex < previewRowVariations(paint.preview).length) keyed = paint;
+        if (!keyTarget && previewIndex < previewRowVariations(paint.preview).length) keyTarget = paint;
       });
-      var keyTarget = keyed || null;
-      if (!keyTarget) {
-        previewPaints.forEach(function (paint) {
-          if (!keyTarget && previewIndex < previewRowVariations(paint.preview).length) keyTarget = paint;
-        });
-      }
       if (!previewTyping && keyTarget) {
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
