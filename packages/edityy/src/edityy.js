@@ -990,12 +990,16 @@
     // The variant numbers wear the comment box preset chips: pills that
     // share the row's width, five to a line, the rest on the next.
     ".task-chips{display:flex;flex-wrap:wrap;width:100%;gap:8px;margin-top:2px}",
-    ".task-chip{flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
+    ".task-chip{position:relative;flex:1 1 calc(20% - 8px);display:grid;place-items:center;height:29px;padding:0 7px;border:1px solid var(--ink-20);border-radius:999px;background:var(--paper);color:var(--muted);font:500 10px/1 inherit;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--tint) var(--standard),color var(--tint) var(--standard),border-color var(--tint) var(--standard),box-shadow var(--tint) var(--standard),transform var(--tint) var(--standard)}",
     "@media (hover:hover){.task-chip:hover{background:var(--ink-6);color:var(--ink);border-color:var(--ink-25)}}",
     ".task-chip:active{transform:scale(.97)}",
     ".task-chip:focus,.task-chip:focus-visible{outline:none}",
-    ".task-chip[aria-pressed=true]{background:var(--ink-15);border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15);animation:task-chip-pick var(--tint) var(--standard)}",
-    "@keyframes task-chip-pick{from{transform:scale(.94)}to{transform:scale(1)}}",
+    ".task-chip[aria-pressed=true]{background:transparent;border-color:var(--ink-35);color:var(--ink);box-shadow:0 1px 3px var(--ink-15)}",
+    // The number stays in its slot and one fill travels between them, after
+    // interior.dev's Pagination: the thumb is the pressed background, and
+    // the number rides above it.
+    ".task-variant-thumb{position:absolute;inset:0;border-radius:inherit;background:var(--ink-15);pointer-events:none}",
+    ".task-num{position:relative}",
     // The popped card from the sketch: a stronger frame, the element name
     // over the variant name, square nav buttons, square number chips sharing
     // one row, and a notes field with square X and tick. It wears the
@@ -6790,11 +6794,25 @@ function decorations() {
     return task.detail || task.label;
   }
 
+  /** The number in its slot, riding above the travelling fill. */
+  function variantNumber(i) {
+    var num = document.createElement("span");
+    num.className = "task-num";
+    num.appendChild(text(String(i + 1)));
+    return num;
+  }
+  /** The travelling fill: the pressed background, moved between slots. */
+  function variantFill() {
+    var fill = document.createElement("span");
+    fill.className = "task-variant-thumb";
+    fill.setAttribute("aria-hidden", "true");
+    return fill;
+  }
   /**
-   * Note the picked chip's slot before a pick rebuilds it, so the new
-   * picked chip travels from the old one (after interior.dev's Pagination:
-   * the window moves, the row does not). Keys and clicks share the pick
-   * functions, so both run the same move.
+   * Note the picked chip's slot before a pick rebuilds it, so the fill
+   * travels from the old one to the new one (after interior.dev's
+   * Pagination: the window moves, the row does not). Keys and clicks
+   * share the pick functions, so both run the same move.
    */
   function armChipFlight(id, prefix, from, to) {
     chipFlight = null;
@@ -7034,7 +7052,8 @@ function decorations() {
         });
         chip.setAttribute("title", variation.label);
         chip.setAttribute("aria-pressed", i === at ? "true" : "false");
-        chip.appendChild(text(String(i + 1)));
+        if (i === at) chip.appendChild(variantFill());
+        chip.appendChild(variantNumber(i));
         chips.appendChild(chip);
       });
       card.appendChild(chips);
@@ -7091,7 +7110,8 @@ function decorations() {
       });
       chip.setAttribute("title", variation.label || ("Option " + (i + 1)));
       chip.setAttribute("aria-pressed", i === at ? "true" : "false");
-      chip.appendChild(text(String(i + 1)));
+      if (i === at) chip.appendChild(variantFill());
+      chip.appendChild(variantNumber(i));
       chips.appendChild(chip);
     });
     card.appendChild(chips);
@@ -7513,26 +7533,28 @@ function decorations() {
     pop.appendChild(changesPanel.filters);
     pop.appendChild(changesPanel.actions);
     pop.appendChild(changesPanel.live);
-    // Variant travel: the new picked chip glides from the old one's slot,
-    // instead of jumping. The flight is armed in the pick, so keys and
-    // clicks land on the same move. Measured here, once the list is back
-    // on the page: mid-render it is detached and every slot reads zero.
+    // Variant travel: the fill glides from the old slot to the new one,
+    // while the numbers stay where they are. The flight is armed in the
+    // pick, so keys and clicks land on the same move. Measured here, once
+    // the list is back on the page: mid-render it is detached and every
+    // slot reads zero.
     if (chipFlight) {
       var flight = chipFlight;
       chipFlight = null;
       try {
         var flightRow = list.querySelector('[data-chiplist="' + flight.id + '"]');
         var flightChip = flightRow ? flightRow.querySelector('[data-key="' + flight.key + '"]') : null;
+        var flightFill = flightChip ? flightChip.getElementsByClassName("task-variant-thumb")[0] || null : null;
         var flightNow = flightChip && flightChip.getBoundingClientRect ? flightChip.getBoundingClientRect() : null;
-        if (flightChip && flightNow && flightNow.width && moves(flightChip) && typeof flightChip.animate === "function") {
+        if (flightFill && flightNow && flightNow.width && moves(flightFill) && typeof flightFill.animate === "function") {
           var dx = flight.left - flightNow.left;
           var dy = flight.top - flightNow.top;
           if (dx || dy) {
             var sx = flight.width / flightNow.width;
             var sy = flight.height / flightNow.height;
-            try { chipFlying = flightChip.animate(
+            try { chipFlying = flightFill.animate(
               [{ transform: "translate(" + dx + "px," + dy + "px) scale(" + sx + "," + sy + ")" }, { transform: "none" }],
-              { duration: T.move, easing: ARRIVE },
+              { duration: T.settle, easing: ARRIVE },
             ); } catch { chipFlying = null; }
           }
         }
