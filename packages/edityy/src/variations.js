@@ -40,6 +40,30 @@ function invalid(message) {
   throw new SaveError(400, `Invalid variation data: ${message}.`);
 }
 
+/**
+ * One CSS declaration as an MCP schema fragment.
+ *
+ * The single source for the shape checkDeclarations() checks: mcp.js reuses
+ * it for the place_variants tool, so the two never drift apart.
+ */
+export const DECLARATION_SCHEMA = {
+  type: "object",
+  properties: {
+    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
+    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
+    on: {
+      type: "string",
+      description: "Optional: a state or pseudo-element on the element, such as :hover, :focus-visible or ::before.",
+    },
+    when: {
+      type: "string",
+      description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint variation.",
+    },
+  },
+  required: ["property", "value"],
+  additionalProperties: false,
+};
+
 /** Plain words for an element, or nothing when the answer leaves the text alone. */
 const MAX_TEXT = 2000;
 export function checkPreviewText(text) {

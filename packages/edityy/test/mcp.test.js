@@ -95,6 +95,51 @@ test("mark_applied clears marked edits, or every edit with all:true", async () =
   assert.equal(existsSync(join(root, CHANGES_FILE)), false);
 });
 
+test("get_work answers one item, headers only, and structured data", async () => {
+  const root = tmp();
+  await writeChanges({ changes: [{ selector: "h1" }, { selector: "p" }] }, root);
+  await writeVariationRequest(
+    { id: "v123abc", count: 2, prompt: "thinner", element: { tag: "div", selector: "main > div", values: [] } },
+    root
+  );
+  const full = await call(root, "tools/call", { name: "get_work", arguments: {} });
+  assert.deepEqual(full.result.structuredContent.edits.map((edit) => edit.id), ["c-1", "c-2"]);
+  assert.deepEqual(full.result.structuredContent.asks.map((ask) => ask.id), ["v123abc"]);
+  assert.equal(full.result.structuredContent.truncated, false);
+
+  const one = await call(root, "tools/call", { name: "get_work", arguments: { id: "v123abc" } });
+  assert.match(one.result.content[0].text, /thinner/);
+  assert.doesNotMatch(one.result.content[0].text, /## Edits \(2\)/);
+  assert.deepEqual(one.result.structuredContent.asks.map((ask) => ask.id), ["v123abc"]);
+
+  const edit = await call(root, "tools/call", { name: "get_work", arguments: { id: "c-2" } });
+  assert.match(edit.result.content[0].text, /## c-2\./);
+  assert.doesNotMatch(edit.result.content[0].text, /## c-1\./);
+
+  const heads = await call(root, "tools/call", { name: "get_work", arguments: { summary: true } });
+  assert.match(heads.result.content[0].text, /v123abc/);
+  assert.doesNotMatch(heads.result.content[0].text, /# Variation request from Edityy/);
+  assert.equal(heads.result.structuredContent.summary, true);
+
+  const unknown = await call(root, "tools/call", { name: "get_work", arguments: { id: "nope" } });
+  assert.equal(unknown.result.isError, true);
+  assert.match(unknown.result.content[0].text, /Unknown id/);
+});
+
+test("get_work stops at the headers when the read is too large", async () => {
+  const root = tmp();
+  const changes = Array.from({ length: 150 }, (_, at) => ({ selector: `.row-${at}-${"x".repeat(180)}` }));
+  await writeChanges({ changes }, root);
+  const got = await call(root, "tools/call", { name: "get_work", arguments: {} });
+  assert.match(got.result.content[0].text, /Too much to list in one read/);
+  assert.match(got.result.content[0].text, /- c-150: `.row-149/);
+  assert.doesNotMatch(got.result.content[0].text, /- Selector: `.row-149/);
+  assert.equal(got.result.structuredContent.truncated, true);
+  assert.equal(got.result.structuredContent.edits.length, 150);
+  const one = await call(root, "tools/call", { name: "get_work", arguments: { id: "c-150" } });
+  assert.match(one.result.content[0].text, /## c-150\./);
+});
+
 test("an unknown tool is an invalid-params error", async () => {
   assert.equal((await call(tmp(), "tools/call", { name: "nope" })).error.code, -32602);
 });

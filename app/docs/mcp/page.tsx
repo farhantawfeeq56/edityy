@@ -29,7 +29,7 @@ export default function DocsMcp() {
       </P>
 
       <H2 id="tools">The tools</H2>
-      <P>There are three: one read, one marker, one clearer. The two placers are removed with the canvas.</P>
+      <P>There are four: one read, one marker, one clearer, one placer. The preview placer is removed with the canvas.</P>
 
       <H3 id="get-work">get_work</H3>
       <P>
@@ -39,13 +39,15 @@ export default function DocsMcp() {
         nothing is painted.
       </P>
       <P>
-        The agent calls it once per turn. A kept preview arrives here as an edit of its own, with no save step.
+        The agent calls it once per turn. A kept preview arrives here as an edit of its own, with no save step. A
+        large read stops at the headers and says so: pass <Code>summary</Code> for headers only, or <Code>id</Code> for
+        one edit or ask. The answer also carries the same list as data.
       </P>
 
       <H3 id="mark-applied">mark_applied</H3>
       <P>
-        Marks saved edits applied, so they are not applied twice. Pass the edit ids that are in the code now. With
-        no ids, every saved edit is marked. That also clears the canvas session.
+        Marks saved edits applied, so they are not applied twice. Pass the edit ids that are in the code now, or{" "}
+        <Code>all</Code> for every saved edit. A call with neither marks nothing. That also clears the canvas session.
       </P>
 
       <H3 id="place-variants">place_variants</H3>
@@ -56,7 +58,7 @@ export default function DocsMcp() {
       <P>
         Takes the answer: exactly that many variations, each a short label and a list of declarations. Nothing is
         painted. The user picks one on the popped card, the kept pick arrives as a saved edit, and the agent
-        carries that edit into the source code.
+        carries that edit into the source code. Any pending ask answers by its id, not only the oldest one.
       </P>
       <P>Each variation is a label and a list of declarations.</P>
       <Pre>{`{

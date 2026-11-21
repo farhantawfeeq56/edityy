@@ -28,7 +28,7 @@ import { CHANGES_FILE, clearCanvas } from "./index.js";
 import { SESSION_FILE } from "./session.js";
 import { previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
 import { store, writeAppliedAt } from "./store.js";
-import { placeVariations, readVariationRequests, requestText } from "./variations.js";
+import { DECLARATION_SCHEMA, placeVariations, readVariationRequests, requestText } from "./variations.js";
 
 const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 /**
@@ -47,14 +47,18 @@ const TOOLS = [
   {
     name: "get_work",
     description:
-      "Read everything Edityy holds in one call: the saved visual edits plus every ask, oldest first. " +
-      "Call it once per turn, before any other Edityy tool. Each edit has an id such as c-1: apply it to the " +
-      "source code, then call mark_applied with the ids that are in the code. Each ask has a kind, an id and a " +
-      "status. Answer a variants ask with place_variants: the user picks one on the popped card, the pick " +
-      "arrives as a saved edit, and you carry it into the source code. The preview canvas is disabled, so " +
-      "write every preview ask directly into the source code. Do not call place_preview. " +
-      "Never re-read for the same turn: this call already lists it all.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      "Read the saved visual edits plus every ask, oldest first. Call it once per turn, before any other " +
+      "Edityy tool. Each edit has an id such as c-1: apply it to the source, then call mark_applied. " +
+      "Answer a variants ask with place_variants; write every preview ask into the source. " +
+      "Do not call place_preview. Pass {summary: true} for headers only, or {id} for one item.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "One edit id such as c-1, or one ask id. Answers that item only." },
+        summary: { type: "boolean", description: "Headers only, no ask bodies." },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: "mark_applied",
@@ -99,26 +103,7 @@ const TOOLS = [
             type: "object",
             properties: {
               label: { type: "string", description: "Two or three words the user will see." },
-              props: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    property: { type: "string", description: "A standard CSS property name, such as scrollbar-color." },
-                    value: { type: "string", description: "The value, such as #8a8a8a transparent." },
-                    on: {
-                      type: "string",
-                      description: "Optional: a state or pseudo-element on the element, such as :hover, :focus-visible or ::before.",
-                    },
-                    when: {
-                      type: "string",
-                      description: "Optional: a media condition, such as (max-width: 640px), for a breakpoint variation.",
-                    },
-                  },
-                  required: ["property", "value"],
-                  additionalProperties: false,
-                },
-              },
+              props: { type: "array", items: DECLARATION_SCHEMA },
               text: { type: "string", description: "Optional: plain words that replace the element's own words." },
               html: { type: "string", description: "Optional: markup that replaces the element's inner content, with inline elements." },
             },
@@ -133,8 +118,12 @@ const TOOLS = [
   },
 ];
 
+/** A full read that no longer fits one message: ask again for one item. */
+const MAX_WORK_CHARS = 20000;
+
 /**
- * Every saved edit and every ask as text for the agent, in one read.
+ * Every saved edit and every ask as text for the agent, plus the same list
+ * as data for the client.
  *
  * Edits carry ids of the form `c-1`: the agent applies them to the code and
  * marks them with mark_applied. Asks carry their kind, id and status: the
@@ -142,9 +131,15 @@ const TOOLS = [
  * preview ask directly into the source. The Markdown is made here from
  * the checked changes. A `markdown` field in the file is never passed on: the
  * agent applies what it reads to the code.
+ *
+ * Pass {summary: true} for headers only, or {id} for one edit or ask. Past
+ * MAX_WORK_CHARS the full read stops at the headers and says so, instead of
+ * flooding the turn: the agent then reads one item at a time.
  */
-async function workText(root) {
-  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card, and each pick paints live on the element. The kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
+async function buildWork(root, opts = {}) {
+  const { id, summary } = opts;
+  if (id !== undefined && typeof id !== "string") throw new Error("id must be an edit id such as \"c-1\" or an ask id.");
+  if (summary !== undefined && typeof summary !== "boolean") throw new Error("summary must be true for headers only.");
   let saved = null;
   try {
     saved = JSON.parse(await readFile(join(root, CHANGES_FILE), "utf8"));
@@ -161,6 +156,44 @@ async function workText(root) {
     }
     page = checkPage(saved.page);
   }
+  const [variationRequests, previewRequests, pendingPreviews] = await Promise.all([
+    readVariationRequests(root),
+    readPreviewRequests(root),
+    readPendingPreviews(root),
+  ]);
+  const pendingVariations = variationRequests.filter((entry) => entry.status === "pending");
+  const pendingPreviewRequests = previewRequests.filter((entry) => entry.status === "pending");
+  const pending = [
+    ...pendingVariations.map((entry) => ({ kind: "variants", entry, body: requestText(entry) })),
+    ...pendingPreviewRequests.map((entry) => ({ kind: "preview-request", entry, body: previewRequestText(entry) })),
+    ...[...pendingPreviews].reverse().map((entry) => ({ kind: "preview", entry, body: previewText(entry) })),
+  ];
+  const structured = {
+    edits: changes.map((change, at) => ({ id: `c-${at + 1}`, selector: change.selector || change.label || "" })),
+    asks: pending.map(({ kind, entry }) => ({ kind, id: entry.id, status: entry.status || (kind === "preview" ? "active" : "pending") })),
+    summary: summary === true,
+    truncated: false,
+  };
+  // One edit only.
+  if (id && /^c-\d+$/.test(id)) {
+    const at = Number(id.slice(2)) - 1;
+    if (at < 0 || at >= changes.length) throw new Error(`Unknown edit id ${JSON.stringify(id)}. get_work lists the ids still waiting.`);
+    const text = `# Work from Edityy (one item)\n\n${markdownFor([changes[at]], page).replace(/^## 1\./m, `## ${id}.`)}`;
+    return { text, structured: { ...structured, edits: [{ id, selector: changes[at].selector || changes[at].label || "" }], asks: [] } };
+  }
+  // One ask only.
+  if (id) {
+    const found = pending.find(({ entry }) => entry.id === id);
+    if (!found) {
+      const known = variationRequests.concat(previewRequests).find((entry) => entry.id === id);
+      if (known?.status === "cancelled") throw new Error("The user withdrew the last ask. Do not answer it.");
+      const valid = [...structured.edits.map((edit) => edit.id), ...structured.asks.map((ask) => ask.id)];
+      throw new Error(`Unknown id ${JSON.stringify(id)}.${valid.length ? ` Waiting: ${valid.join(", ")}.` : " get_work lists nothing."}`);
+    }
+    const text = `# Work from Edityy (one item)\n\n- [${found.kind}] ${found.entry.id}\n\n---\n\n${found.body}`;
+    return { text, structured: { ...structured, edits: [], asks: [{ kind: found.kind, id: found.entry.id, status: found.entry.status || "pending" }] } };
+  }
+  const out = ["# Work from Edityy", "", "Call get_work once per turn. It holds every saved edit and every ask, oldest first.", "", "Answer a variants ask with place_variants: the user picks one on the popped card, and each pick paints live on the element. The kept pick arrives as a saved edit to carry into the source code. " + PREVIEW_DISABLED_TEXT];
   out.push("", `## Edits (${changes.length})`);
   if (!changes.length) {
     out.push("No saved edits. In the browser, open Edityy's edits list and approve an edit with the tick.");
@@ -172,12 +205,32 @@ async function workText(root) {
     const from = page ? ` from ${page}` : "";
     out.push(`${at ? at + from + ".\n\n" : ""}${markdownFor(changes, page).replace(/^## \d+\./gm, () => `## c-${++next}.`)}`);
   }
-  const variationRequests = await readVariationRequests(root);
-  const previewRequests = await readPreviewRequests(root);
-  const pendingPreviews = await readPendingPreviews(root);
-  const pendingVariations = variationRequests.filter((entry) => entry.status === "pending");
-  const pendingPreviewRequests = previewRequests.filter((entry) => entry.status === "pending");
-  const count = pendingVariations.length + pendingPreviewRequests.length + pendingPreviews.length;
+  const count = pending.length;
+  const askLine = ({ kind, entry }) =>
+    kind === "variants"
+      ? `- [variants] ${entry.id} (pending): ${entry.count} variations of \`${entry.element.selector}\``
+      : kind === "preview-request"
+        ? `- [preview-request] ${entry.id} (pending): ${JSON.stringify(entry.instruction)}`
+        : `- [preview] ${entry.id} (active): ${JSON.stringify(entry.instruction)}`;
+  // Past the limit the full read stops at an index: one line per edit and
+  // ask, so the agent can read one item at a time with {"id"}.
+  const compact = (size) => {
+    const note = `Too much to list in one read (${size} chars). Call get_work with {"id"} for one edit or ask, or {"summary": true} for headers only.`;
+    return {
+      text: [
+        "# Work from Edityy",
+        "",
+        `## Edits (${changes.length})`,
+        ...structured.edits.map((edit) => `- ${edit.id}: \`${edit.selector}\``),
+        "",
+        `## Asks (${count}), oldest first`,
+        ...pending.map(askLine),
+        "",
+        note,
+      ].join("\n"),
+      structured: { ...structured, truncated: true },
+    };
+  };
   out.push("", `## Asks (${count}), oldest first`);
   if (!count) {
     const lastVariation = variationRequests[variationRequests.length - 1];
@@ -189,18 +242,16 @@ async function workText(root) {
     } else {
       out.push("No pending asks. In the browser, set more than one variation in the comment box and press an element, or write a comment with \"Ask the agent to preview\" ticked.");
     }
-    return out.join("\n");
+    const text = out.join("\n");
+    if (text.length > MAX_WORK_CHARS) return compact(text.length);
+    return { text, structured };
   }
-  for (const entry of pendingVariations) out.push(`- [variants] ${entry.id} (pending): ${entry.count} variations of \`${entry.element.selector}\``);
-  for (const entry of pendingPreviewRequests) out.push(`- [preview-request] ${entry.id} (pending): ${JSON.stringify(entry.instruction)}`);
-  for (const entry of [...pendingPreviews].reverse()) out.push(`- [preview] ${entry.id} (active): ${JSON.stringify(entry.instruction)}`);
+  for (const item of pending) out.push(askLine(item));
   const head = out.join("\n");
-  const bodies = [
-    ...pendingVariations.map((entry) => requestText(entry)),
-    ...pendingPreviewRequests.map((entry) => previewRequestText(entry)),
-    ...[...pendingPreviews].reverse().map((entry) => previewText(entry)),
-  ];
-  return bodies.length ? `${head}\n\n---\n\n${bodies.join("\n\n---\n\n")}` : head;
+  if (summary === true) return { text: `${head}\n\nPass an ask id to get_work for its body: {\"id\": \"${pending[0].entry.id}\"}.`, structured };
+  const full = `${head}\n\n---\n\n${pending.map(({ body }) => body).join("\n\n---\n\n")}`;
+  if (full.length > MAX_WORK_CHARS) return compact(full.length);
+  return { text: full, structured };
 }
 
 /** Answer one JSON-RPC message; null for a notification, which gets no answer. */
@@ -226,7 +277,9 @@ export async function handle(message, root) {
     case "tools/call": {
       try {
         if (params?.name === "get_work") {
-          return reply({ content: [{ type: "text", text: await workText(root) }] });
+          const args = params?.arguments ?? {};
+          const { text, structured } = await buildWork(root, args);
+          return reply({ content: [{ type: "text", text }], structuredContent: structured });
         }
         if (params?.name === "mark_applied") {
           const args = params?.arguments ?? {};
