@@ -133,12 +133,36 @@ export function checkSession(payload) {
   };
 }
 
-async function write(record, root) {
-  await store(root, SESSION_FILE, record);
+/** Every page canvas in one file, keyed by path. Version 1 held one page. */
+function toSessions(saved) {
+  if (!saved || typeof saved !== "object") return {};
+  if (saved.sessions && typeof saved.sessions === "object" && !Array.isArray(saved.sessions)) {
+    const out = {};
+    for (const key of Object.keys(saved.sessions)) out[checkSessionPath(key)] = checkSession(saved.sessions[key]);
+    return out;
+  }
+  const record = checkSession(saved);
+  return { [record.path]: record };
+}
+
+/** Every kept canvas, oldest write order not kept: one entry per page path. */
+export async function readSessions(root = process.cwd()) {
+  let saved;
+  try {
+    saved = JSON.parse(await readFile(join(root, SESSION_FILE), "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+  return toSessions(saved);
+}
+
+async function writeAll(sessions, root) {
+  await store(root, SESSION_FILE, { version: 2, savedAt: new Date().toISOString(), sessions });
   return SESSION_FILE;
 }
 
-/** Keep the canvas the page just sent. */
+/** Keep the canvas the page just sent, beside every other page's canvas. */
 export async function writeSession(payload, root = process.cwd()) {
   const record = checkSession(payload);
   // A keep that left before the agent cleared must not recreate the canvas
@@ -147,25 +171,25 @@ export async function writeSession(payload, root = process.cwd()) {
   if (clearedAt && (record.honored || "") < clearedAt) {
     throw new SaveError(409, "The canvas was cleared after this state was kept. Read the asks queue and honor the clear, then keep again.");
   }
-  return write(record, root);
+  let sessions = {};
+  try {
+    sessions = await readSessions(root);
+  } catch {
+    sessions = {};
+  }
+  sessions[record.path] = record;
+  return writeAll(sessions, root);
 }
 
 /**
  * The canvas for one page, or null.
  *
  * A session is for the path it was made on: another page must not wear the
- * edits of the one before it.
+ * edits of the one before it. Every page keeps its own entry in one file.
  */
 export async function readSession(path, root = process.cwd()) {
-  let saved;
-  try {
-    saved = JSON.parse(await readFile(join(root, SESSION_FILE), "utf8"));
-  } catch (error) {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  }
-  const record = checkSession(saved);
-  return record.path === checkSessionPath(path) ? record : null;
+  const sessions = await readSessions(root);
+  return sessions[checkSessionPath(path)] ?? null;
 }
 
 /** Forget the canvas: the edits are in the code, or the user left the mode. */
@@ -176,10 +200,10 @@ export async function clearSession(root = process.cwd()) {
 /**
  * Forget the canvas for one page path only; keep another page's canvas.
  *
- * The file holds one page at a time. When the agent applied edits from a
+ * The file holds every page at once. When the agent applied edits from a
  * page the user already left, the new page's canvas must survive. A null
- * path means the page is unknown: clear, as before. Answers whether the
- * file went.
+ * path means the page is unknown: clear, as before. Answers whether an
+ * entry went.
  */
 export async function clearSessionFor(path, root = process.cwd()) {
   if (path === null || path === undefined) {
@@ -193,14 +217,17 @@ export async function clearSessionFor(path, root = process.cwd()) {
     return false;
   }
   if (!saved) return false;
-  let record;
+  let sessions;
   try {
-    record = checkSession(saved);
+    sessions = toSessions(saved);
   } catch {
     await rm(join(root, SESSION_FILE), { force: true });
     return true;
   }
-  if (record.path !== checkSessionPath(path)) return false;
-  await rm(join(root, SESSION_FILE), { force: true });
+  const key = checkSessionPath(path);
+  if (!sessions[key]) return false;
+  delete sessions[key];
+  if (!Object.keys(sessions).length) await rm(join(root, SESSION_FILE), { force: true });
+  else await writeAll(sessions, root);
   return true;
 }

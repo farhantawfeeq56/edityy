@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
 import { PREVIEWS_FILE, PREVIEWS_PATH, PREVIEW_REQUEST_FILE, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, readPreviews, writePreviewRequest } from "./previews.js";
-import { SESSION_FILE, SESSION_PATH, checkSession, clearSession, readSession, writeSession } from "./session.js";
+import { SESSION_FILE, SESSION_PATH, clearSession, clearSessionFor, readSession, readSessions, writeSession } from "./session.js";
 import { APPLIED_FILE, readAppliedAt, readClearedAt, readJson, runNode, runRoute, sameSite, store, writeClearedAt } from "./store.js";
 import { VARIATION_REQUEST_FILE, VARIATION_RESPONSE_FILE, VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
@@ -550,7 +550,9 @@ async function sessionFromNode(req, res, root, allowedHosts) {
       return { ok: true, path: written };
     }
     if (req.method === "DELETE") {
-      await clearSession(root);
+      const path = new URL(req.url ?? "/", "http://localhost").searchParams.get("path");
+      if (path === null) await clearSession(root);
+      else await clearSessionFor(path, root);
       return { ok: true };
     }
     throw new SaveError(405, "GET, POST or DELETE the canvas session.");
@@ -607,10 +609,8 @@ export async function clearCanvas(root = process.cwd()) {
     count(async () => (await readVariationRequests(root)).length),
     count(async () => (await readVariationResponses(root)).length),
     count(async () => {
-      const saved = await readJson(join(root, SESSION_FILE), null);
-      if (!saved) return 0;
-      const checked = checkSession(saved);
-      return checked.edits.length + checked.regions.length;
+      const sessions = await readSessions(root);
+      return Object.values(sessions).reduce((n, entry) => n + entry.edits.length + entry.regions.length, 0);
     }),
     count(async () => {
       const saved = await readJson(join(root, CHANGES_FILE), null);
@@ -859,7 +859,9 @@ export function sessionRoute(options = {}) {
       }),
     DELETE: (request) =>
       run(request, async () => {
-        await clearSession(root);
+        const path = new URL(request.url).searchParams.get("path");
+        if (path === null) await clearSession(root);
+        else await clearSessionFor(path, root);
         return { ok: true };
       }),
   };

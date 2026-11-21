@@ -72,7 +72,7 @@ Source files:
 |`src/previews.js`|Comment-box preview requests and agent previews. Reuses the markup check from `variations.js`. No script, no event attribute, no iframe reaches canvas. Warns on weak paints (spacing, fixed width, raw colour, breakpoints) in the `place_preview` reply.|
 |`src/variations.js`|Style, word, and markup variations for one element. Agent answers with N variants. Each variant holds `props`, `text`, or `html` with inline elements. Holds the shared markup check that `previews.js` reuses. Keys `1`–`9` and `0` switch the pick. Each pick paints live on the element; Keep saves it.|
 |`src/changes.js`|Saved edit list. Validates browser payload. Makes agent Markdown from checked fields only. Never trusts browser Markdown.|
-|`src/session.js`|Canvas session persist. Reload or hot update restores edits from `sessionStorage` plus `.edityy/session.json`. `clearSessionFor` drops one page path only, so `mark_applied` keeps another page's canvas.|
+|`src/session.js`|Canvas session persist. One file holds every page path at once (`{ sessions: { path: record } }`; version 1 single-page file still reads). `clearSessionFor` drops one page path only, so `mark_applied` keeps another page's canvas.|
 |`src/store.js`|Shared store. One atomic write (temp file plus rename), one JSON read, one id maker, wrappers for fetch routes and Node middleware.|
 |`src/index.js`|Middleware plus all route factories. Serves `/\_\_edityy/edityy.js` and `logo.png`. Injects tag before `</head>`. Fails open (calls `next()` on error). `clearCanvas` counts what the checked readers see.|
 |`src/vite.js`|Vite plugin (`apply: "serve"`, `enforce: "pre"`). Stamps each intrinsic JSX element with `data-edityy-src="path:line:col"`. Skips components. Fails open.|
@@ -103,7 +103,7 @@ Data files (all under `<root>/.edityy/`, git-ignored via own `.gitignore`):
 |`.edityy/changes.json`|`{ version: 1, savedAt, page, markdown, changes\[] }`. Each change: `{ label, selector, source, props\[], text, html, comment, added, removed, moved }`. Each prop: `{ prop, before, after, on?, when?, googleFont? }`. `text` and `html` are `{ before, after }`. `source` is `path:line:col` or null.|
 |`.edityy/variation-\*.json`|Variation request (`VARIATION\_REQUEST\_FILE`) and responses (`VARIATION\_RESPONSE\_FILE`).|
 |`.edityy/previews\*.json`|Pending previews (`PREVIEWS\_FILE`) and preview requests (`PREVIEW\_REQUEST\_FILE`).|
-|`.edityy/session.json`|Canvas session (`SESSION\_FILE`).|
+|`.edityy/session.json`|Canvas sessions for every page (`SESSION\_FILE`): `{ version: 2, sessions: { path: record } }` written by merge, read per `?path=`.|
 |`.edityy/cleared.json`|Last clear timestamp (`CLEARED\_FILE`). Open page drops its state on clear.|
 |`.edityy/applied.json`|Last applied timestamp (`APPLIED\_FILE`). Open page adopts its paint on apply, so no refresh is needed.|
 

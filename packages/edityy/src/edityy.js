@@ -9136,7 +9136,7 @@ function decorations() {
     var path = sessionPath();
     if (!active) {
       try {
-        window.fetch(SESSION_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+        window.fetch(SESSION_URL + "?path=" + encodeURIComponent(path), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
       } catch {}
       return;
     }
@@ -9198,7 +9198,7 @@ function decorations() {
         lastClearedAt = cleared;
         // Take the corpse with it, so the next load finds nothing to skip.
         try {
-          window.fetch(SESSION_URL, { method: "DELETE", credentials: "same-origin" }).catch(function () {});
+          window.fetch(SESSION_URL + "?path=" + encodeURIComponent(path), { method: "DELETE", credentials: "same-origin" }).catch(function () {});
         } catch {}
         return;
       }

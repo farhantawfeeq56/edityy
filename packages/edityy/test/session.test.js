@@ -29,6 +29,17 @@ test("a keep that honored the clear is accepted", async () => {
   assert.equal(back.honored, clearedAt);
 });
 
+test("two pages keep their own canvas in one file", async () => {
+  const root = tmp();
+  await writeSession({ path: "/a", edits: [{ selector: "h1" }], regions: [] }, root);
+  await writeSession({ path: "/b", edits: [{ selector: "p" }], regions: [] }, root);
+  assert.equal((await readSession("/a", root)).edits[0].selector, "h1");
+  assert.equal((await readSession("/b", root)).edits[0].selector, "p");
+  assert.equal(await clearSessionFor("/a", root), true);
+  assert.equal(await readSession("/a", root), null);
+  assert.equal((await readSession("/b", root)).edits.length, 1);
+});
+
 test("clearSessionFor keeps another page's canvas", async () => {
   const root = tmp();
   await writeSession({ path: "/other", edits: [edit], regions: [] }, root);
