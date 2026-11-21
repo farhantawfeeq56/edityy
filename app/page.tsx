@@ -34,7 +34,7 @@ const loop = [
   {
     n: "03",
     title: "Change",
-    body: "The dock styles type, colour, spacing, fill, border, shadow and filters. Type words in place, arrange elements, try variants, or write one note for the whole set.",
+    body: "The dock styles type, colour, spacing, fill, border, shadow and filters. Type words in place, try variants, or write one note for the whole set.",
     artifact: <>Type · Colour · Space · Fill · Border · Shadow</>,
     meta: "1–0 switches variants · edityy:: asks from chat · ⌘Z undoes",
   },
@@ -49,47 +49,29 @@ const loop = [
 
 const capabilities = [
   {
-    wide: true,
     icon: "variants",
     title: "Variations, then one keeper",
     body: "Ask for N looks on one element. Keys 1–0 switch the pick live on the page; Keep saves it as an ordinary edit. The shared note stays single-element — comments are for meaning, variants are for looks.",
   },
   {
-    wide: true,
     icon: "chat",
     title: "Ask from agent chat",
     body: "Type edityy:: plus the change you want. The agent writes it into your source directly — no canvas paint, nothing to keep or discard. Sent waits for the agent, Select waits for your pick, Ready waits for the code.",
   },
   {
-    wide: false,
-    icon: "grid",
-    title: "Arrange",
-    body: "Add, move and delete elements. Shift-click siblings, Shift+A stacks them in a column.",
-  },
-  {
-    wide: false,
-    icon: "type",
-    title: "Fonts",
-    body: "Pick from the fonts already on the page, or browse Google Fonts. A face loads only when you preview or pick it.",
-  },
-  {
-    wide: false,
     icon: "undo",
     title: "Undo with trust",
     body: "Undo and redo every change. The edits list reviews, selects, or reverts each one. Leaving the mode restores the page exactly.",
   },
   {
-    wide: false,
     icon: "comment",
     title: "Comment on one — or several",
-    body: "One note travels with the edit. Shift-click builds a set, or draw a box around it; the save lands on every selected element as one combined change.",
+    body: "One note travels with the edit. Shift-click builds a set, or draw a box around it; the save lands once for the whole set as one combined change.",
   },
 ];
 
 const glyphs: Record<string, string> = {
-  grid: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
   undo: "M8 5L4 9l4 4M4 9h10a5 5 0 010 10H8",
-  type: "M5 6h14M12 6v13M9 19h6",
   comment: "M4 5h16v10H9l-5 4z",
   variants: "M4 7h9M4 12h6M4 17h9M15 14l5 5m0-5l-5 5",
   chat: "M4 5h16v11H9l-5 4zM8 9h8M8 12h5",
@@ -241,13 +223,11 @@ export default function Home() {
           <h2 className="mt-4 max-w-[34rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
             Everything the canvas holds.
           </h2>
-          <ul className="mt-10 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-10 grid gap-2.5 sm:grid-cols-2">
             {capabilities.map((cap) => (
               <li
                 key={cap.title}
-                className={`group rounded-2xl border border-neutral-200 bg-neutral-100 p-6 lift hover:border-neutral-300 ${
-                  cap.wide ? "sm:col-span-2" : ""
-                }`}
+                className="group rounded-2xl border border-neutral-200 bg-neutral-100 p-6 lift hover:border-neutral-300"
               >
                 <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-blush text-neutral-900 group-hover:border-neutral-300 group-hover:bg-rose tint">
                   <Icon name={cap.icon} />
