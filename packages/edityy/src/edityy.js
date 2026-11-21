@@ -1850,6 +1850,7 @@
       regionBox.hidden = true;
     }
     if (el) cardDoneFor = null;
+    cardDoneMany = [];
     if (el !== selected) release();
     selected = el;
     selectedItems = el ? [el] : [];
@@ -1900,6 +1901,11 @@
   // buttons. The box and the buttons are the same card, one at a time.
   var commentFor = null;
   var openComment = null;
+  // The set the open box comments on: every picked element, or null while
+  // the box holds one element or a drawn box.
+  var commentForAll = null;
+  // A Comment drag just picked its set: the click that ends it is spent.
+  var lassoed = false;
   // What the comment box keeps between opens. The tick starts on, so a
   // quick note also asks the agent to preview it, and the count keeps
   // its last pick.
@@ -1908,6 +1914,9 @@
   var commentScale = 0.9;
   // The element whose card was closed on purpose. It stays shut until the next click.
   var cardDoneFor = null;
+  // The sets whose shared box was put away on purpose. A dismissed set stays
+  // shut until the next click picks it again.
+  var cardDoneMany = [];
   // The buttons of the card, and the element they belong to. They are kept
   // between redraws: a card that is rebuilt on every scroll throws the row the
   // pointer is on away, and a card that rebuilds itself is a card that blinks.
@@ -1935,22 +1944,37 @@
       placeAtRect(regionView(regionFor));
       return;
     }
-    if (!active || !selected || selectedItems.length !== 1 || moving || dockOpen() || !activeTool) {
+    // Several elements under the Comment tool share one box. Every other
+    // tool keeps one box to one element.
+    var many = activeTool === "comment" && selectedItems.length > 1;
+    if (!active || !selected || moving || dockOpen() || !activeTool || (!many && selectedItems.length !== 1)) {
       commentFor = null;
+      commentForAll = null;
       openComment = null;
       hideMenu();
       paintMarks();
       return;
     }
-    if (cardDoneFor === selected) {
+    if (!many && cardDoneFor === selected) {
       commentFor = null;
+      commentForAll = null;
       openComment = null;
       hideMenu();
       paintMarks();
       return;
     }
-    if (commentFor && commentFor !== selected) {
+    // A dismissed set stays shut until the next click picks it again.
+    if (many && sameEls(cardDoneMany, selectedItems)) {
       commentFor = null;
+      commentForAll = null;
+      openComment = null;
+      hideMenu();
+      paintMarks();
+      return;
+    }
+    if (commentFor && (many || commentForAll ? !sameEls(commentForAll || [], selectedItems) : commentFor !== selected)) {
+      commentFor = null;
+      commentForAll = null;
       openComment = null;
     }
     if (editing) {
@@ -1961,12 +1985,17 @@
       placeElementMenu();
       return;
     }
-    // One box at a time. The click that selected the element opens its box.
-    // While variants are on the canvas, the prompt stays put away.
-    if (activeTool === "comment" && !commentFor && !variantList.length) commentFor = selected;
+    // One box at a time. The click that picked the element opens its box:
+    // one element, or one box for a set picked together. While variants
+    // are on the canvas, the prompt stays put away.
+    if (activeTool === "comment" && !commentFor && !variantList.length) {
+      commentFor = selected;
+      commentForAll = many ? selectedItems.slice() : null;
+    }
     if (activeTool === "comment" && commentFor) {
-      if (!openComment) drawMenu(commentBox({ el: commentFor }));
-      placeElementMenu();
+      if (!openComment) drawMenu(commentBox(commentForAll ? { els: commentForAll } : { el: commentFor }));
+      if (commentForAll) placeAtRect(unionRect(commentForAll));
+      else placeElementMenu();
       return;
     }
     openComment = null;
@@ -2134,8 +2163,12 @@
    * the agent answers.
    */
   function commentBox(target) {
-    var el = target.el || null;
+    var els = target.els || (target.el ? [target.el] : []);
+    var el = els[0] || null;
     var region = target.region || null;
+    // A set picked together shares one box: one note for all of them. The
+    // variation counts stay single-element, so the chips stand down.
+    var many = !region && els.length > 1;
     var box = document.createElement("div");
     box.className = "element-comment";
     var area = document.createElement("textarea");
@@ -2143,7 +2176,7 @@
     area.rows = 3;
     area.placeholder = "Comment";
     area.setAttribute("aria-label", "Comment");
-    area.value = region ? region.comment || "" : (variationPrompt && el === variationPromptEl ? variationPrompt : record(el).comment || "");
+    area.value = region ? region.comment || "" : many ? sharedComment(els) : (variationPrompt && el === variationPromptEl ? variationPrompt : record(el).comment || "");
     box.appendChild(area);
     // The chips decide what Save does. 1 keeps a note; above 1, Save asks
     // the agent to explore that many variations: of the element itself,
@@ -2193,6 +2226,8 @@
       if (next.focus) next.focus();
     });
     // The chips line sits at the top of the card, above the comment field.
+    // A set shares one note, so there is no count to pick.
+    if (many) modes.hidden = true;
     box.insertBefore(modes, area);
     function setCount(next) {
       var idx = counts.indexOf(next);
@@ -2235,6 +2270,7 @@
       save.title = name;
     }
     if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
+    if (many) box.appendChild(noteBox("One note for " + els.length + " elements. It saves on each one."));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -2242,6 +2278,19 @@
       var words = area.value.trim();
       if (!words) return;
       commentCountKept = count;
+      if (many) {
+        // One note for the whole set: it saves on each element, so the
+        // agent reads the set as one combined change.
+        els.forEach(function (one) { record(one).comment = words; });
+        commentFor = null;
+        commentForAll = null;
+        openComment = null;
+        cardDoneFor = null;
+        cardDoneMany = els.slice();
+        syncElementMenu();
+        tally();
+        return;
+      }
       if (region) {
         region.comment = words;
         if (region.mark == null) region.mark = markTop++;
@@ -2289,6 +2338,7 @@
         requestVariations(el, n, words, function (problem) {
           variationWords = problem;
           commentFor = el;
+          commentForAll = null;
           cardDoneFor = null;
           openComment = null;
           syncElementMenu();
@@ -2302,6 +2352,7 @@
       variationPrompt = "";
       variationWords = "";
       commentFor = null;
+      commentForAll = null;
       openComment = null;
       cardDoneFor = el;
       syncElementMenu();
@@ -2320,9 +2371,19 @@
         paintMarks();
         return;
       }
+      if (many) {
+        commentFor = null;
+        commentForAll = null;
+        openComment = null;
+        cardDoneFor = null;
+        cardDoneMany = els.slice();
+        syncElementMenu();
+        return;
+      }
       closeVariants();
       variationPrompt = "";
       commentFor = null;
+      commentForAll = null;
       openComment = null;
       cardDoneFor = el;
       syncElementMenu();
@@ -2411,6 +2472,104 @@
     syncSelectionFrames();
     syncDock();
     syncElementMenu();
+  }
+
+  /** Two sets hold the same elements, whatever their order. */
+  function sameEls(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (b.indexOf(a[i]) === -1) return false;
+    }
+    return true;
+  }
+
+  /** The note a set already shares: the one note, or nothing to show. */
+  function sharedComment(els) {
+    var words = null;
+    for (var i = 0; i < els.length; i++) {
+      var own = record(els[i]).comment || "";
+      if (i === 0) words = own;
+      else if (own !== words) return "";
+    }
+    return words || "";
+  }
+
+  /** One rect around every picked element: the shared box stands under it. */
+  function unionRect(els) {
+    var box = null;
+    els.forEach(function (el) {
+      var r = null;
+      try { r = el.getBoundingClientRect(); } catch { return; }
+      if (!r || (!r.width && !r.height)) return;
+      if (!box) box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      else {
+        if (r.left < box.left) box.left = r.left;
+        if (r.top < box.top) box.top = r.top;
+        if (r.right > box.right) box.right = r.right;
+        if (r.bottom > box.bottom) box.bottom = r.bottom;
+      }
+    });
+    return box;
+  }
+
+  /**
+   * Pick several elements at once: the set a Comment drag holds.
+   *
+   * An empty set clears the pick, the way a click on bare canvas does.
+   */
+  function selectMany(els) {
+    stopEditing();
+    if (selectedRegion) {
+      selectedRegion = null;
+      regionBox.hidden = true;
+    }
+    if (els.length) cardDoneFor = null;
+    cardDoneMany = [];
+    release();
+    selected = els[0] || null;
+    selectedItems = els.slice();
+    selectedKind = selected ? kind(selected) : null;
+    syncSelectionFrames();
+    syncDock();
+    syncElementMenu();
+    paintSwatch();
+  }
+
+  /**
+   * What a Comment drag holds: the frontier of elements mostly inside it.
+   *
+   * An element counts when most of it is in the box, so a wrapper around
+   * the box reads as a small overlap and stays out. Of what is left, only
+   * the outermost stay: a drag around three cards picks the cards, never
+   * their words as well.
+   */
+  function lassoSelect(left, top, width, height) {
+    var right = left + width;
+    var bottom = top + height;
+    var all = null;
+    try { all = document.querySelectorAll("body *"); } catch { return []; }
+    var found = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el === host) continue;
+      if (host.contains && host.contains(el)) continue;
+      var tag = el.tagName ? String(el.tagName).toLowerCase() : "";
+      if (tag === "script" || tag === "style" || tag === "noscript") continue;
+      var r = null;
+      try { r = el.getBoundingClientRect(); } catch { continue; }
+      if (!r || !r.width || !r.height) continue;
+      var ix = Math.min(r.right, right) - Math.max(r.left, left);
+      var iy = Math.min(r.bottom, bottom) - Math.max(r.top, top);
+      if (ix <= 0 || iy <= 0) continue;
+      if ((ix * iy) / (r.width * r.height) < 0.6) continue;
+      found.push(el);
+    }
+    return found.filter(function (el) {
+      for (var node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+        if (found.indexOf(node) !== -1) return false;
+      }
+      return true;
+    });
   }
 
   // What is selected, and what it was classified as. The seam any UI starts
@@ -8022,6 +8181,7 @@ function decorations() {
     variationPrompt = "";
     variationPromptEl = null;
     commentFor = null;
+    commentForAll = null;
     openComment = null;
     variantList = list;
     variationName = name || "";
@@ -8908,6 +9068,7 @@ function decorations() {
     variationPrompt = "";
     variationPromptEl = null;
     commentFor = null;
+    commentForAll = null;
     openComment = null;
     variantList = [];
     variationName = "";
@@ -8954,6 +9115,7 @@ function decorations() {
     variationWords = "";
     variationPrompt = "";
     commentFor = null;
+    commentForAll = null;
     openComment = null;
     variantList = [];
     variationName = "";
@@ -9353,9 +9515,9 @@ function decorations() {
     (document.head || document.documentElement).appendChild(cursorStyleEl);
   }
 
-  /** The pointer the context wears: Add draws with the precision point. */
+  /** The pointer the context wears: Add and Comment draw with the precision point. */
   function syncPointer() {
-    paintPointer(activeTool === "add" ? PRECISION : POINTER);
+    paintPointer(activeTool === "add" || activeTool === "comment" ? PRECISION : POINTER);
   }
 
   /* ----------------------------------------------------------------- mode */
@@ -9843,7 +10005,7 @@ function decorations() {
   }
 
   function onDown(e) {
-    if (!active || activeTool !== "add" || moving || editing) return;
+    if (!active || (activeTool !== "add" && activeTool !== "comment") || moving || editing) return;
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     if (e.button !== undefined && e.button !== 0) return;
     // Stop the browser starting a text selection for this drag.
@@ -9856,6 +10018,19 @@ function decorations() {
     if (!drawing) return;
     var start = drawing;
     drawing = null;
+    if (activeTool === "comment") {
+      // A Comment drag is a lasso, not a box: what it holds joins the
+      // pick, and one box comments on the set.
+      var cleft = Math.min(start.x0, e.clientX);
+      var ctop = Math.min(start.y0, e.clientY);
+      var cwidth = Math.abs(e.clientX - start.x0);
+      var cheight = Math.abs(e.clientY - start.y0);
+      regionBox.hidden = true;
+      if (cwidth < REGION_MIN || cheight < REGION_MIN) return;
+      lassoed = true;
+      selectMany(lassoSelect(cleft, ctop, cwidth, cheight));
+      return;
+    }
     if (activeTool !== "add") {
       regionBox.hidden = true;
       return;
@@ -9923,6 +10098,13 @@ function decorations() {
       var inWords = pickAt(e.clientX, e.clientY);
       if (inWords && (inWords.el === editing || (editing.contains && editing.contains(inWords.el)))) return;
     }
+    // A Comment drag just picked its set: the click that ends it is spent.
+    if (lassoed) {
+      lassoed = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     // Browse keeps every page click: no tool is on, so nothing is picked.
     if (!activeTool) return;
     // Add draws its box with a drag: a click alone picks nothing, so the
@@ -9938,6 +10120,7 @@ function decorations() {
     // A fresh click reopens a dismissed card, even on the same element: the
     // dismissal only stops a reopen without a click, like a scroll refit.
     cardDoneFor = null;
+    cardDoneMany = [];
     if (e.shiftKey) extendSelection(hit && hit.el);
     else select(hit && hit.el, hit);
     // Edits reads from its list: a click on an edited element goes to it.
