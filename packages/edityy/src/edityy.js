@@ -8315,8 +8315,8 @@ function decorations() {
     previewFresh.forEach(function (node) {
       for (var i = previewRecords.length - 1; i >= 0; i--) {
         if (previewRecords[i].el === node) {
-          previewRecords.splice(i, 1);
-          changes = changes.filter(function (other) { return other !== previewRecords[i]; });
+          var rec = previewRecords.splice(i, 1)[0];
+          changes = changes.filter(function (other) { return other !== rec; });
         }
       }
       if (node.parentElement) node.parentElement.removeChild(node);
@@ -8968,7 +8968,7 @@ function decorations() {
       var html = rec.html !== undefined && rec.el.innerHTML !== rec.html && rec.el.children.length ? { before: rec.html, after: rec.el.innerHTML } : null;
       if (!any && !text && !html && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], googleFont: rec.googleFont || null, moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
     });
     // A drawn box comes back only once ticked, like any other edit.
     var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {

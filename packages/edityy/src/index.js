@@ -743,7 +743,8 @@ export function variationsRoute(options = {}) {
       }),
     DELETE: (request) =>
       run(request, async () => {
-        await clearVariations(root);
+        const id = new URL(request.url).searchParams.get("id") ?? null;
+        await clearVariations(root, id);
         return { ok: true };
       }),
   };

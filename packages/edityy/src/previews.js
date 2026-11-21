@@ -292,6 +292,7 @@ export async function placePreview(placed, root = process.cwd()) {
     if (orphan) {
       const fresh = await readPreviewRequests(root);
       const own = fresh.find((entry) => entry.id === waiting.id) ?? waiting;
+      if (own.status !== "pending") return { ...orphan, requestId: own.id, linked: linkedOptions(own.previewIds ?? [], savedItems), needed: own.count || 1, reused: true };
       const ids = own.previewIds?.includes(orphan.id) ? [...own.previewIds] : [...(own.previewIds ?? []), orphan.id];
       own.previewIds = ids;
       own.previewId = ids[0];
@@ -325,6 +326,7 @@ export async function placePreview(placed, root = process.cwd()) {
     const fresh = await readPreviewRequests(root);
     const own = fresh.find((entry) => entry.id === waiting.id);
     if (!own) return { ...preview, requestId: null, linked: 0, needed: 0, reused: false };
+    if (own.status !== "pending") return { ...preview, requestId: own.id, linked: linkedOptions(own.previewIds ?? [], items), needed: own.count || 1, reused: false };
     const ids = own.previewIds?.includes(id) ? [...own.previewIds] : [...(own.previewIds ?? []), id];
     // Adopt same-instruction orphans whose link never landed, oldest first,
     // so a partial write never leaves the count short forever.

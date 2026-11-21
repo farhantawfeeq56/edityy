@@ -75,18 +75,23 @@ function checkEdit(edit, i) {
   const text = edit.text && typeof edit.text === "object" && !Array.isArray(edit.text)
     ? { before: str(edit.text.before, `edits[${i}].text.before`), after: str(edit.text.after, `edits[${i}].text.after`) }
     : null;
+  const html = edit.html && typeof edit.html === "object" && !Array.isArray(edit.html)
+    ? { before: str(edit.html.before, `edits[${i}].html.before`, MAX_VALUE), after: str(edit.html.after, `edits[${i}].html.after`, MAX_VALUE) }
+    : null;
   return {
     selector: str(edit.selector, `edits[${i}].selector`),
     tag: str(edit.tag, `edits[${i}].tag`, 50) || null,
     snippet: str(edit.snippet, `edits[${i}].snippet`, 200) || null,
     props: kept,
     text,
+    html,
     comment: str(edit.comment, `edits[${i}].comment`, MAX_VALUE) || null,
     added: Array.isArray(edit.added) ? edit.added.slice(0, 100).map((key) => str(key, `edits[${i}].added`, 200)) : [],
     googleFont: str(edit.googleFont, `edits[${i}].googleFont`, 200) || null,
     moved: edit.moved === true,
     origin: ["Comment", "Agent", "Canvas session"].includes(edit.origin) ? edit.origin : null,
     variationName: str(edit.variationName, `edits[${i}].variationName`, 30) || null,
+    confirmed: edit.confirmed !== false,
     mark: Math.max(0, count(edit.mark ?? 0, `edits[${i}].mark`, 100000)),
   };
 }

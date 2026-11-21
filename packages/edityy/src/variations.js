@@ -242,7 +242,7 @@ export async function placeVariations(response, root = process.cwd()) {
   // The response stays on file, so the panel still shows it as ready.
   const requests = await readVariationRequests(root);
   const own = requests.find((entry) => entry.id === checked.requestId);
-  if (own) await store(root, VARIATION_REQUEST_FILE, requests.map((entry) => (entry.id === checked.requestId ? { ...entry, status: "answered" } : entry)));
+  if (own && own.status === "pending") await store(root, VARIATION_REQUEST_FILE, requests.map((entry) => (entry.id === checked.requestId ? { ...entry, status: "answered" } : entry)));
   return checked;
 }
 
