@@ -98,10 +98,6 @@ export default function DocsApi() {
           <Code>nonce</Code>.
         </LI>
         <LI>
-          <strong>Google Fonts need network access.</strong> A page whose CSP blocks <Code>api.fontsource.org</Code>,{" "}
-          <Code>fonts.googleapis.com</Code> or <Code>fonts.gstatic.com</Code> shows only its own fonts.
-        </LI>
-        <LI>
           <strong>It fails open.</strong> An error inside the middleware is swallowed, and your page is served
           unchanged, rather than taking the dev server down.
         </LI>

@@ -393,8 +393,7 @@ function fakeDom() {
   function run() {
     // Re-running the payload with the same window is the "loaded twice" case:
     // it guards on `window.__edityy` and must mount nothing the second time.
-    // fetch is passed in, so no test reaches the network: a test that needs the
-    // font catalog sets win.fetch before it runs the payload.
+    // fetch is passed in, so no test reaches the network.
     new Function("window", "document", "CustomEvent", "fetch", source)(win, doc, win.CustomEvent, win.fetch);
     return {
       win,
@@ -408,10 +407,6 @@ function fakeDom() {
       action: (name) => {
         if (name === "Edit text") {
           for (const fn of bucket(doc, "keydown", "capture")) fn({ key: "Enter", target: doc.body, preventDefault() {}, stopPropagation() {} });
-          return;
-        }
-        if (name === "Delete") {
-          for (const fn of bucket(doc, "keydown", "capture")) fn({ key: "Delete", target: doc.body, preventDefault() {}, stopPropagation() {} });
           return;
         }
         if (name === "Comment") return; // the click that selected it opened the box
@@ -1318,26 +1313,6 @@ test("a container gets no caret, because its children are not text to rewrite", 
     app.clickPage();
   });
   assert.equal(card.getAttribute("contenteditable"), undefined);
-});
-
-
-test("delete can be undone and redone with the keyboard", () => {
-  const { run, el } = fakeDom();
-  const app = run();
-  const parent = el("main");
-  const selected = el("section");
-  const sibling = el("aside");
-  parent.appendChild(selected);
-  parent.appendChild(sibling);
-  quiet(() => { app.click(); ensureComment(app); app.hover(selected); app.clickPage(); });
-  app.action("Delete");
-  assert.deepEqual(parent.children, [sibling]);
-  assert.equal(key(app, "z", { ctrlKey: true }), true);
-  assert.deepEqual(parent.children, [selected, sibling]);
-  assert.equal(app.win.__edityy_changes(), "", "undo clears the deleted change");
-  assert.equal(key(app, "z", { ctrlKey: true, shiftKey: true }), true);
-  assert.deepEqual(parent.children, [sibling]);
-  assert.match(app.win.__edityy_changes(), /- Removed: section/);
 });
 
 

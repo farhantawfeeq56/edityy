@@ -1,8 +1,8 @@
-import { H1, Lead, P, H2, H3, UL, LI, Code, Note } from "../ui";
+import { H1, Lead, P, H2, H3, UL, LI, Code } from "../ui";
 
 export const metadata = {
   title: "The editing mode — Edityy Docs",
-  description: "The dock, the element actions, the keyboard, and the fonts.",
+  description: "The dock, the element actions, and the keyboard.",
 };
 
 export default function DocsEditing() {
@@ -26,16 +26,13 @@ export default function DocsEditing() {
 
       <H2 id="element-actions">The element actions</H2>
       <P>
-        Selecting an element opens a card at that element. The card holds <strong>Edit text</strong>,{" "}
-        <strong>Move</strong>, <strong>Comment</strong>, <strong>Variations</strong> and <strong>Delete</strong>.
+        Selecting an element opens its comment box at that element.
       </P>
       <UL>
         <LI>Text is not editable until you choose <strong>Edit text</strong>.</LI>
-        <LI>Move previews a new position among the siblings.</LI>
         <LI>
           A comment travels with the edit. It reaches the saved file and the Markdown your agent reads.
         </LI>
-        <LI>Delete is temporary. It goes away when you leave the mode, and <Code>⌘Z</Code> undoes it.</LI>
       </UL>
 
       <H2 id="the-dock">The dock</H2>
@@ -46,7 +43,7 @@ export default function DocsEditing() {
       </P>
       <P>The controls follow the element you selected.</P>
       <UL>
-        <LI>Text starts with font family, weight, size, line height, letter spacing, alignment, decoration and colour.</LI>
+        <LI>Text starts with weight, size, line height, letter spacing, alignment, decoration and colour.</LI>
         <LI>A container or a media element starts with padding and margin.</LI>
         <LI>
           The <Code>+</Code> adds shadow, fill, border, padding and margin to that one element.
@@ -110,22 +107,8 @@ export default function DocsEditing() {
         alone: a click in the words moves the caret, and <strong>Done</strong> gives the words back.
       </P>
 
-      <H2 id="fonts">Fonts</H2>
-      <P>
-        The font family control lists the fonts the page has, then the Google Fonts catalog, with a search field over
-        both. The button in the dock shows the family name in that family.
-      </P>
-      <Note title="Nothing loads with the page">
-        The first open of the control fetches the catalog of names, about 35 KB, once for each page visit. A pick loads
-        that whole family, and the browser downloads only the weights and styles the page uses. A Google font you pick
-        is not added to your project. Add it to your code when you keep the edit.
-      </Note>
-
       <H2 id="keyboard">The keyboard</H2>
       <UL>
-        <LI>
-          <Code>Shift+A</Code> wraps the selected siblings in a column flex container.
-        </LI>
         <LI>
           <Code>Alt+E</Code> opens and closes the toolbar from the page.
         </LI>

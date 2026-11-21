@@ -14,8 +14,6 @@ const MAX_PROPS = 100;
 const MAX_SET = 50;
 const MAX_SHORT = 2000;
 const MAX_TEXT = 20000;
-/** A font family name as Google Fonts writes it: "Lora", "M PLUS 1p", "Noto Sans JP". */
-const FAMILY = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]*$/u;
 /** A CSS property name, custom properties included. */
 const PROPERTY = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
 /** A state or pseudo-element on the element's own selector: ":hover", "::before". */
@@ -47,8 +45,7 @@ function str(value, name, max, fallback = "") {
  * The changes, cut down to the fields an agent needs, or a 400 SaveError.
  *
  * Each change is `{ label, selector, source, props, text, comment, added, removed, moved }`,
- * the shape the launcher sends. A prop is `{ prop, before, after }`, and a
- * `font-family` prop has `googleFont` when the user picked a Google font.
+ * the shape the launcher sends. A prop is `{ prop, before, after }`.
  * A prop also carries `on` for a state or pseudo-element, and `when` for a
  * media condition: the two things an element cannot hold in its inline style.
  * `comment` is a note the user wrote about the element. `commentSet` names the
@@ -91,11 +88,6 @@ export function checkChanges(changes) {
         if (when !== null) {
           if (!MEDIA.test(when)) throw invalid("when must be a media condition, such as (max-width: 640px)");
           out.when = when;
-        }
-        const googleFont = str(p.googleFont, "googleFont", 200, null);
-        if (googleFont !== null) {
-          if (prop !== "font-family" || !FAMILY.test(googleFont)) throw invalid("googleFont must be a font family on font-family");
-          out.googleFont = googleFont;
         }
         return out;
       }),
@@ -204,10 +196,6 @@ export function markdownFor(changes, page) {
     for (const p of change.props) {
       out.push(`- ${code(p.prop)}` + (p.on ? ` on ${code(p.on)}` : "") + (p.when ? ` in ${code("@media " + p.when)}` : "") +
         `: ${code(p.before || "unset")} → ${code(p.after || "unset")}`);
-      if (p.googleFont) {
-        out.push(`- Font: ${code(p.googleFont)} is a Google font that the project does not load. ` +
-          "Add it to the project the way the project loads its fonts, then use it in `font-family`.");
-      }
     }
     if (change.added) {
       out.push(`- Added: a new ${code(change.added.tag)}` + (change.added.style ? ` with ${code(change.added.style)}` : ""));

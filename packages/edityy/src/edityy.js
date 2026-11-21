@@ -15,8 +15,7 @@
  *    hovering outlines an element, clicking selects it, and the
  *    actions open where it stands.
  *
- * Selecting an element opens its actions in a card at the element — Edit text,
- * Move, Parent, Child and Delete — and the style dock, which drags
+ * A click selects an element and opens its comment box where it stands.
  * between its eight places and settles in one of them; the three across
  * the top and bottom hold it horizontal, the middle edges vertical. An open control comes out
  * toward the open page, over the dock. Text becomes editable only
@@ -98,7 +97,6 @@
     "maximize": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>',
     "message-square": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg>',
     "sparkles": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></svg>',
-    "move": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20" /> <path d="m15 19-3 3-3-3" /> <path d="m19 9 3 3-3 3" /> <path d="M2 12h20" /> <path d="m5 9-3 3 3 3" /> <path d="m9 5 3-3 3 3" /></svg>',
     "move-diagonal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19H5v-6" /> <path d="M13 5h6v6" /> <path d="M19 5 5 19" /></svg>',
     "move-horizontal": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8 4 4-4 4" /> <path d="M2 12h20" /> <path d="m6 8-4 4 4 4" /></svg>',
     "move-vertical": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20" /> <path d="m8 18 4 4 4-4" /> <path d="m8 6 4-4 4 4" /></svg>',
@@ -823,14 +821,6 @@
     ".preview-row[data-open] .more>svg{transform:rotate(180deg)}",
     ".preview-item{display:flex;flex-direction:column}",
     ".preview-detail{margin:0;padding:2px 34px 6px 30px;font:400 11px/1.5 inherit;color:var(--muted)}",
-    // The placement cursor. It fades in where it stands rather than appearing,
-    // because it is a target the pointer is about to aim at.
-    ".insert{position:fixed;z-index:2;height:2px;background:var(--muted);pointer-events:none;opacity:0;",
-    "transition:opacity var(--fade) var(--standard)}",
-    ".insert[data-on]{opacity:1}",
-    ".insert>svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);",
-    "width:22px;height:22px;padding:2px;border:2px solid var(--paper);border-radius:50%;background:var(--muted);",
-    "color:var(--paper);box-shadow:0 0 0 1px var(--muted)}",
     // The reduced-motion policy, in one rule: every duration collapses, every
     // animation runs once and stops, every delay goes. The same rule, in the
     // same words, is in src/motion.css for the site.
@@ -1092,9 +1082,6 @@
     // The chat-initiated preview: one box per agent answer, with Keep and
     // Discard, and the same keys the variant strip answers to.
     '<div class="variants" id="preview" hidden role="group" aria-label="Canvas preview"></div>',
-    '<div class="insert" id="insert" aria-hidden="true">',
-    svg("plus"),
-    "</div>",
     '<div id="docks">',
     '<button type="button" class="dock-spot" data-spot="top-left" aria-label="Dock toolbar at the top left"></button>',
     '<button type="button" class="dock-spot" data-spot="top-center" aria-label="Dock toolbar at the top centre"></button>',
@@ -1141,7 +1128,6 @@
   var elementMenu = $("element-menu");
   var variantsBox = $("variants");
   var previewBox = $("preview");
-  var insertLine = $("insert");
   var dock = $("dock");
   var row = $("row");
   var gripBtn = $("grip");
@@ -1230,10 +1216,6 @@
   var regionFor = null; // the drawn box whose comment box is open
   // A drag smaller than this is a click, not a box.
   var REGION_MIN = 8;
-  var insertion = null;
-  var pointerX = null;
-  var pointerY = null;
-  var moving = null;
 
   /* ------------------------------------------------------------ selection */
 
@@ -1865,11 +1847,9 @@
   }
 
   function syncSelectionFrames() {
-    // The element being moved is off the page until it is placed, so it has no
-    // box to frame: measured, it is a dot in the top-left corner.
-    var items = moving ? [] : selectedItems;
     // Edits reads from its list: the click opens the edit's card, and no
     // box is drawn for the selection, hovered or picked.
+    var items = selectedItems;
     if (activeTool === "edits") items = [];
     watchSelection(items);
     var count = items.length;
@@ -1947,7 +1927,7 @@
     // Several elements under the Comment tool share one box. Every other
     // tool keeps one box to one element.
     var many = activeTool === "comment" && selectedItems.length > 1;
-    if (!active || !selected || moving || dockOpen() || !activeTool || (!many && selectedItems.length !== 1)) {
+    if (!active || !selected || dockOpen() || !activeTool || (!many && selectedItems.length !== 1)) {
       commentFor = null;
       commentForAll = null;
       openComment = null;
@@ -2481,45 +2461,6 @@
     return box;
   }
 
-  function deleteSelected() {
-    if (!selected || !selected.parentElement) return;
-    var el = selected;
-    var rec = record(el);
-    // Where the element was when the page loaded, which is where the code puts
-    // it: a delete after a move must not name the moved place.
-    if (!rec.selector) {
-      rec.selector = selectorFor(el);
-      rec.source = sourceOf(el);
-    }
-    rec.removed = { parent: el.parentElement, before: el.nextSibling };
-    action(rec, "delete", rec.removed, null);
-    // The element leaves the way it came. Only its opacity is touched, and the
-    // value it had is put back, so an undo brings the element back as it was.
-    var was = el.style.opacity;
-    if (!moves(el)) {
-      el.parentElement.removeChild(el);
-      select(null);
-      tally();
-      return;
-    }
-    // The fade is on the record, so an undo can stop it: an element that came
-    // back while it was fading would fade on without the reader's asking.
-    var fade = animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, easing: LEAVE });
-    rec.fade = fade;
-    fade.onfinish = function () {
-      rec.fade = null;
-      // The element came back while it was fading: an undo put it back, and
-      // it stays.
-      if (changes.indexOf(rec) === -1) {
-        el.style.opacity = was;
-        return;
-      }
-      el.style.opacity = was;
-      if (el.parentElement) el.parentElement.removeChild(el);
-      select(null);
-      tally();
-    };
-  }
 
   function extendSelection(el) {
     if (!el) return select(null);
@@ -2653,259 +2594,17 @@
   /* ------------------------------------------------------------ text dock */
 
   /**
-   * The seven type controls, as data.
+   * The six type controls, as data.
    *
    * `open` builds the control for that one key; the rest render nothing. So
    * opening a control is one function call and the popover starts empty, which
    * is why only one can ever be on screen.
    */
-  /** The families a browser can always draw, used only as a floor. */
-var SYSTEM_FONTS = [
-  { label: "System UI", stack: "system-ui,-apple-system,Segoe UI,sans-serif" },
-  { label: "Helvetica", stack: "Helvetica,Arial,sans-serif" },
-  { label: "Georgia", stack: "Georgia,Cambria,serif" },
-  { label: "Times New Roman", stack: '"Times New Roman",Times,serif' },
-  { label: "Courier New", stack: '"Courier New",Courier,monospace' },
-];
-// Generic families and vendor prefixes: never a deliberate choice, never
-// measurable, and not worth a row in the list.
-var GENERIC = /^(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[\w-]+|math|emoji|fangsong)$/;
-
 /** One family name out of a stack: no quotes, no fallbacks. */
 function faceName(stack) {
   return String(stack).split(",")[0].replace(/["']/g, "").trim();
 }
 
-/**
- * The families this page actually has, found by measuring rather than guessing.
- *
- * Edityy runs on other codebases, so no list of fonts can be baked in: the brand
- * face of the site being edited is the one worth offering and it is never the
- * same twice. Every name the page declares is checked against a width probe and
- * dropped unless the browser really draws it, because a name that is declared
- * but not loaded would silently fall back to something else when picked.
- *
- * Whatever the page declares or loads is offered first; the system families are
- * only a floor, so the list is never empty on a page that names no fonts at all.
- */
-function faces() {
-  var out = [];
-  var seen = {};
-  var add = function (label, stack, value) {
-    if (!label || seen[label]) return;
-    seen[label] = true;
-    // `v` is what picking the row writes, so it has to be the full stack and not
-    // the name: "Helvetica" alone resolves differently from "Helvetica,Arial".
-    out.push({ label: label, stack: stack, v: value });
-  };
-
-  // A span of text, measured twice: once in a fallback, once in the candidate. A
-  // different width is proof the face exists. Hidden off-screen so it never
-  // shows and never reflows the page.
-  var probe = document.createElement("span");
-  probe.style.cssText =
-    "position:absolute;left:-9999px;top:-9999px;font-size:100px;white-space:nowrap;visibility:hidden";
-  probe.textContent = "Handgloves 0123";
-  document.body.appendChild(probe);
-
-  var measure = function (stack) {
-    probe.style.fontFamily = stack;
-    return probe.getBoundingClientRect().width;
-  };
-  // Every measure forces a layout, so the fallback is measured once and each
-  // name once: document.fonts holds a face per weight, style and subset, and a
-  // Google family alone can be a hundred of them.
-  var base;
-  var available = function (label) {
-    if (base === undefined) base = measure("monospace");
-    return measure(JSON.stringify(label) + ",monospace") !== base;
-  };
-
-  try {
-    // Declared by the page or by the selected element, loaded webfonts, then the
-    // system floor. Order is what the user sees: the site first, the machine last.
-    var names = String(get("font-family") || "").split(",");
-    var page = viewOf(document.documentElement);
-    names = names.concat(String(page.fontFamily || "").split(","));
-
-    // document.fonts is the reliable list; the stylesheets are read as well
-    // because a cross-origin sheet throws on cssRules and a @font-face is the
-    // one place a loaded face can otherwise hide from the API.
-    try {
-      Array.prototype.forEach.call(document.fonts || [], function (face) {
-        names.push(face.family);
-      });
-    } catch {
-      /* no FontFaceSet: the stylesheets below are the whole story */
-    }
-    for (var i = 0; i < document.styleSheets.length; i++) {
-      var rules;
-      try {
-        rules = document.styleSheets[i].cssRules;
-      } catch {
-        continue; // cross-origin: nothing to read, and nothing to fail on
-      }
-      for (var j = 0; rules && j < rules.length; j++) {
-        if (rules[j].type === 5) names.push(rules[j].style.getPropertyValue("font-family"));
-      }
-    }
-    SYSTEM_FONTS.forEach(function (f) { names.push(f.label); });
-
-    var checked = {};
-    names.forEach(function (name) {
-      var label = faceName(name);
-      // Generics and the vendor prefixes are never a face anyone picked on
-      // purpose, and none of them can be measured.
-      if (!label || GENERIC.test(label) || checked[label]) return;
-      checked[label] = true;
-      // A Google font drawn only as a sample of its own name is not the page's:
-      // it has a few letters and it lives in the catalog below.
-      if (previewed[label] && !loaded[label]) return;
-      if (available(label)) add(label, label, label);
-    });
-  } finally {
-    probe.remove();
-  }
-
-  // The floor, in case a page declares nothing a probe can measure.
-  SYSTEM_FONTS.forEach(function (f) { add(f.label, f.stack, f.stack); });
-  return out;
-}
-
-  /* ------------------------------------------------------- Google Fonts */
-
-  // The Google Fonts catalog, after the page's own faces. None of it loads with
-  // the page: the names are fetched the first time the family control opens,
-  // and a font file only when its row is drawn or picked. Fontsource serves the
-  // names with CORS and no API key; Google serves the files.
-  var CATALOG_URL = "https://api.fontsource.org/v1/fonts?type=google";
-  var FONTS_CSS = "https://fonts.googleapis.com/css2?";
-  // The most rows the list draws at one time. The catalog is near 2,000 names,
-  // and a row is a button and a preview, so the search narrows it instead.
-  var MAX_ROWS = 40;
-  // The generic family for each category, so a face that has not arrived yet
-  // falls back to one of the same kind.
-  var GENERIC_FOR = { serif: "serif", monospace: "monospace", handwriting: "cursive" };
-
-  var catalog = null; // the catalog request, made once per visit
-  var sheets = {}; // stylesheet URL -> its load, so each URL is requested once
-  var previewed = {}; // family -> true once a sample of its name is requested
-  var loaded = {}; // family -> true once the whole family is requested
-  var fontMeta = {}; // family -> available weight metadata
-
-  /** The catalog, fetched once. A failure is forgotten, so the next open tries again. */
-  function googleFonts() {
-    if (!catalog) {
-      catalog = (typeof fetch === "function" ? fetch(CATALOG_URL) : Promise.reject(new Error("no fetch")))
-        .then(function (res) {
-          if (!res.ok) throw new Error("Google Fonts catalog: HTTP " + res.status);
-          return res.json();
-        })
-        .then(function (list) {
-          var out = [];
-          (Array.isArray(list) ? list : []).forEach(function (f) {
-            // Icon fonts draw pictures, not words.
-            if (!f || typeof f.family !== "string" || f.category === "icons") return;
-            var stack = JSON.stringify(f.family) + "," + (GENERIC_FOR[f.category] || "sans-serif");
-            // Only what a row needs. The rest of the record is dropped here.
-            out.push({
-              label: f.family,
-              stack: stack,
-              v: stack,
-              key: f.family.toLowerCase(),
-              google: true,
-              weights: Array.isArray(f.weights) ? f.weights : [400],
-              styles: Array.isArray(f.styles) ? f.styles : ["normal"],
-              axes: Array.isArray(f.axes) ? f.axes : [],
-            });
-          });
-          return out;
-        });
-      catalog.catch(function () {
-        catalog = null;
-      });
-    }
-    return catalog;
-  }
-
-  /** One stylesheet in the page head, requested once however often it is asked for. */
-  function sheet(url) {
-    if (!sheets[url]) {
-      sheets[url] = new Promise(function (resolve, reject) {
-        var link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = url;
-        link.setAttribute("data-edityy-font", "");
-        link.onload = resolve;
-        link.onerror = function () {
-          // Removed, so a later ask makes a new request and not a cached failure.
-          link.remove();
-          delete sheets[url];
-          reject(new Error("Google Fonts stylesheet failed: " + url));
-        };
-        // @font-face has no effect inside a shadow root, so it goes in the page.
-        (document.head || document.documentElement).appendChild(link);
-      });
-    }
-    return sheets[url];
-  }
-
-  /** A family as css2 wants it: spaces as plus signs, the rest escaped. */
-  function familyParam(name) {
-    return "family=" + encodeURIComponent(name).replace(/%20/g, "+");
-  }
-
-  /**
-   * Draw each row in its own face, for the cost of the letters in its name.
-   *
-   * One request for all the rows drawn together, and `text=` asks Google for
-   * only those glyphs, so each file is a small part of the real font.
-   */
-  function previewFaces(items) {
-    var fresh = items.filter(function (f) {
-      return !previewed[f.label] && !loaded[f.label];
-    });
-    if (!fresh.length) return;
-    var letters = {};
-    fresh.forEach(function (f) {
-      // Kept on failure as well: a sample is not worth a second request.
-      previewed[f.label] = true;
-      f.label.split("").forEach(function (c) { letters[c] = true; });
-    });
-    var url =
-      FONTS_CSS +
-      fresh.map(function (f) { return familyParam(f.label); }).join("&") +
-      "&text=" + encodeURIComponent(Object.keys(letters).join("")) +
-      "&display=swap";
-    sheet(url).catch(function () {
-      /* the rows stay in their fallback face */
-    });
-  }
-
-  /**
-   * The whole family, when it is picked: every weight and style it has. The
-   * stylesheet only declares them; the browser downloads the files the page
-   * then uses. If the full request fails, the regular face alone is tried.
-   */
-  function loadFamily(f) {
-    loaded[f.label] = true;
-    var weights = f.weights.slice().sort(function (a, b) { return a - b; });
-    var ital = [];
-    if (f.styles.indexOf("normal") !== -1 || f.styles.indexOf("italic") === -1) ital.push(0);
-    if (f.styles.indexOf("italic") !== -1) ital.push(1);
-    var tuples = [];
-    ital.forEach(function (i) {
-      weights.forEach(function (w) { tuples.push(i + "," + w); });
-    });
-    var axes = ital.indexOf(1) !== -1 ? ":ital,wght@" + tuples.join(";") : ":wght@" + weights.join(";");
-    var family = FONTS_CSS + familyParam(f.label);
-    return sheet(family + axes + "&display=swap")
-      .catch(function () { return sheet(family + "&display=swap"); })
-      .catch(function (e) {
-        delete loaded[f.label];
-        throw e;
-      });
-  }
 
   var ALIGNS = [
     { v: "left", label: "Align left", icon: "align-left" },
@@ -3199,46 +2898,6 @@ function faces() {
     return document.createTextNode(value);
   }
 
-  function canAutoLayout() {
-    if (selectedItems.length < 2) return false;
-    var parent = selectedItems[0].parentElement;
-    return !!parent && selectedItems.every(function (el) { return el.parentElement === parent; });
-  }
-
-  function autoLayout() {
-    if (!canAutoLayout()) return;
-    var parent = selectedItems[0].parentElement;
-    var ordered = Array.prototype.filter.call(parent.children, function (el) { return selectedItems.indexOf(el) !== -1; });
-    // Each element's place in the code is read before the wrapper goes round it:
-    // after, its selector runs through a div that is in no source file.
-    var originalPositions = ordered.map(function (el) {
-      var rec = record(el);
-      if (!rec.selector) {
-        rec.selector = selectorFor(el);
-        rec.source = sourceOf(el);
-      }
-      return { el: el, before: el.nextSibling, selector: rec.selector };
-    });
-    var wrapper = document.createElement("div");
-    wrapper.style.setProperty("display", "flex");
-    wrapper.style.setProperty("flex-direction", "column");
-    parent.insertBefore(wrapper, ordered[0]);
-    ordered.forEach(function (el) { wrapper.appendChild(el); });
-    var rec = record(wrapper);
-    rec.created = true;
-    rec.createdStyle = wrapper.style.cssText;
-    rec.wrapped = originalPositions;
-    show("");
-    select(wrapper, { el: wrapper, kind: "container" });
-    tally();
-  }
-
-  /**
-   * Show one control over the menu, or nothing at all.
-   *
-   * The popover starts empty every time, so a closed control takes its DOM with
-   * it and can never leave a stale listener behind.
-   */
   function show(key) {
     // The panel rises under the control the pointer is on: the tooltip would
     // stand on top of it.
@@ -3275,7 +2934,7 @@ function faces() {
     openKey = key;
     if (typeof syncRow === "function") syncRow();
     // Dressed by data-key, not by position: the row is rebuilt per selection and
-    // the added controls sit in front of the seven, so index i is not icon i.
+    // the added controls sit in front of the six, so index i is not icon i.
     for (var i = 0; i < row.children.length; i++) {
       row.children[i].setAttribute("aria-expanded", row.children[i].dataset.key === key ? "true" : "false");
     }
@@ -3313,7 +2972,7 @@ function faces() {
     while (pop.firstChild) pop.removeChild(pop.firstChild);
     pop.hidden = false;
     // `+` is not a control and is not in ICONS, so it needs its own way in. Every
-    // other key is either one of the seven or one that the `+` just added, and
+    // other key is either one of the six or one that the `+` just added, and
     // both are in CONTROLS by the time the row shows them.
     if (key === "+") addOne();
     else if (key === "changes") listChanges();
@@ -4005,13 +3664,12 @@ function faces() {
 
   /** One row of a list of options. `onPick` gets the value and the item. */
   function option(item, current, onPick) {
-    // Every row writes item.v, whatever the control is: a list of faces and a
-    // list of alignments are both just choices, and one that forgets its value
+    // Every row writes item.v. One that forgets its value
     // silently writes nothing at all.
-    var value = item.v === undefined ? item.stack : item.v;
+    var value = item.v;
     var b = button("opt", "", item.label || value, function () {
       // Picking an option does not close anything. The control stays open on
-      // purpose: comparing two weights or two faces means looking at the page
+      // purpose: comparing two weights means looking at the page
       // with the choices still in view, and a click that dismisses the list is
       // a click you have to make again before trying the next value.
       release();
@@ -4024,152 +3682,20 @@ function faces() {
     // The row says its own name, so a title would say it twice: the second time
     // as a browser tooltip under the row the pointer is already on.
     b.title = "";
-    // cssText rather than the property: a face stack is commas and quotes, and
-    // the shorthand carries them through without the DOM re-parsing anything.
-    // Only a face row has a stack: a weight or an alignment row has none, and
-    // writing the word "undefined" into a style would be a lie either way.
-    if (item.stack) b.style.cssText = "font-family:" + item.stack;
     b.setAttribute("aria-pressed", value === current ? "true" : "false");
     return b;
   }
 
-  /**
-   * The family control: the faces the page has, then the Google Fonts catalog,
-   * with one search field over both.
-   *
-   * The page's faces show at once. The catalog arrives when its one request
-   * does, and the list is drawn again then. At most MAX_ROWS rows are drawn,
-   * and only those rows are previewed, so typing narrows the catalog and a
-   * scroll never starts a download.
-   */
-  function familyControl() {
-    var local = faces();
-    var mine = {};
-    local.forEach(function (f) { mine[f.label] = true; });
-    var current = get("font-family");
-    var google = null;
-    var failed = false;
-    var timer = 0;
-
-    var find = document.createElement("input");
-    find.type = "search";
-    find.placeholder = "Search for more fonts";
-    find.setAttribute("aria-label", "Search for more fonts");
-    find.addEventListener("input", function () {
-      // One draw for each pause in the typing, not for each key: a draw can
-      // request previews.
-      clearTimeout(timer);
-      timer = setTimeout(draw, 120);
-    });
-    var list = document.createElement("div");
-    list.className = "list";
-    var note = document.createElement("p");
-    note.className = "note";
-    pop.appendChild(find);
-    pop.appendChild(list);
-    pop.appendChild(note);
-
-    /** Is this control still the one on screen? A late answer must not draw into another. */
-    function open() {
-      return openKey === "family" && list.parentElement === pop;
-    }
-
-    function say(words) {
-      note.textContent = words;
-      note.hidden = !words;
-    }
-
-    function pick(value, item) {
-      current = value;
-      // The project does not load a Google font, so the report has to say which
-      // pick was one. A later pick of a page or system face clears the mark.
-      record(selected).googleFont = item.google ? item.label : null;
-      set("font-family", value);
-      if (item.google) fontMeta[item.label.toLowerCase()] = item;
-      updateFamilyLabel();
-      updateWeightButton();
-      if (!item.google) return;
-      loadFamily(item).catch(function () {
-        if (open()) say(item.label + " did not load. The text shows in a fallback face.");
-      });
-    }
-
-    function draw() {
-      if (!open()) return;
-      var q = String(find.value || "").trim().toLowerCase();
-      var rows = local.filter(function (f) { return !q || f.label.toLowerCase().indexOf(q) !== -1; });
-      // At rest the list is the faces the page has, and the face the element
-      // wears now, even when the page does not declare it: a list without that
-      // face offers no way back to it.
-      var now = faceName(current);
-      if (!q && now && !GENERIC.test(now) && !rows.some(function (f) { return f.label === now; })) {
-        rows = [{ label: now, stack: current, v: current }].concat(rows);
-      }
-      var drawn = [];
-      // The catalog answers a search, not an open: typing is how a user asks
-      // for more faces than the page already has.
-      for (var i = 0; q && google && i < google.length && rows.length < MAX_ROWS; i++) {
-        var f = google[i];
-        if (mine[f.label] || f.key.indexOf(q) === -1) continue;
-        rows.push(f);
-        drawn.push(f);
-      }
-      while (list.firstChild) list.removeChild(list.firstChild);
-      rows.forEach(function (f) { list.appendChild(option(f, current, pick)); });
-      previewFaces(drawn);
-      if (failed) say("Google Fonts did not load. Close and open this control to try again.");
-      else if (!google && q) say("Loading Google Fonts…");
-      else if (!rows.length) say("No font has that name.");
-      else say("");
-    }
-
-    draw();
-    googleFonts().then(
-      function (items) {
-        google = items;
-        items.forEach(function (item) { fontMeta[item.label.toLowerCase()] = item; });
-        draw();
-      },
-      function () {
-        failed = true;
-        draw();
-      }
-    );
-  }
-
-  /** Update the visible family value without rebuilding the open control. */
-  function updateFamilyLabel() {
-    var b = slot("family");
-    if (!b) return;
-    var stack = get("font-family");
-    var name = faceName(stack) || "System UI";
-    // The button wears the face it names: which family is on is then a thing to
-    // see rather than a thing to read.
-    b.style.fontFamily = stack || "";
-    while (b.firstChild) b.removeChild(b.firstChild);
-    b.appendChild(text(name));
-    b.setAttribute("aria-label", "Font family: " + name);
-  }
 
   /** Return the weight choices the selected face exposes, if known. */
   function weightInfo() {
     var name = faceName(get("font-family")).toLowerCase();
-    var meta = fontMeta[name];
-    var axis;
     var values = [];
     var add = function (value) {
       var labels = { normal: 400, regular: 400, medium: 500, semibold: 600, "semi-bold": 600, bold: 700, heavy: 800, black: 900 };
       var parsed = labels[String(value).toLowerCase()] || Number(value);
       if (parsed > 0 && values.indexOf(parsed) === -1) values.push(parsed);
     };
-    if (meta) {
-      axis = (meta.axes || []).filter(function (item) {
-        return (item.tag || item) === "wght";
-      })[0];
-      if (axis) return { kind: "variable", min: Number(axis.min) || 100, max: Number(axis.max) || 900 };
-      if (meta.variable || meta.variation || meta.fontVariationSettings) return { kind: "variable", min: 100, max: 900 };
-      (meta.weights || []).forEach(add);
-    }
     try {
       Array.prototype.forEach.call(document.fonts || [], function (font) {
         if (String(font.family || "").replace(/[\"']/g, "").toLowerCase() !== name) return;
@@ -4196,15 +3722,6 @@ function faces() {
     return values.length > 1 ? { kind: "fixed", values: values } : { kind: "none" };
   }
 
-  /** Update the weight control state when the selected family changes. */
-  function updateWeightButton() {
-    var b = slot("weight");
-    if (!b) return;
-    var info = weightInfo();
-    b.disabled = info.kind === "none";
-    b.setAttribute("aria-disabled", b.disabled ? "true" : "false");
-    b.setAttribute("aria-label", b.disabled ? "Font weight is not available" : "Font weight");
-  }
 
   /**
    * Paint a cycle button with the value the element has now.
@@ -5269,9 +4786,6 @@ function icons(items, current, onPick, cls) {
       // the box take their own new places under it.
       reflow(selected, remode);
     },
-    family: function () {
-      familyControl();
-    },
     weight: function () {
       var info = weightInfo();
       if (info.kind === "variable") {
@@ -5470,7 +4984,7 @@ function decorations() {
   return on;
 }
 
-/** The dock itself: seven icons, a `+`, and only one control open at a time. */
+/** The dock itself: six icons, a `+`, and only one control open at a time. */
   /** Is this control on show for the selected element? The row itself is the
       only list that matters now that it is rebuilt per element. */
   function icon(key) {
@@ -5679,7 +5193,7 @@ function decorations() {
 
 
 
-  /** The controls on show: the seven (text only), plus whatever was added to this element. */
+  /** The controls on show: the six (text only), plus whatever was added to this element. */
   function buildRow() {
     var focused = within(row, root.activeElement) ? controlOf(root.activeElement) : null;
     var focusKey = focused ? focused.dataset.key : null;
@@ -6484,11 +5998,6 @@ function decorations() {
       var entry = { prop: rule ? rule.property : key, before: rec.was[key] || before, after: after };
       if (rule && rule.on) entry.on = rule.on;
       if (rule && rule.when) entry.when = rule.when;
-      // Only while the family is still the Google font that was picked: an undo
-      // or a later pick puts a different family there.
-      if (!rule && key === "font-family" && rec.googleFont && faceName(after).toLowerCase() === rec.googleFont.toLowerCase()) {
-        entry.googleFont = rec.googleFont;
-      }
       props.push(entry);
     });
     var text = rec.text !== null && (rec.stash ? rec.stash.text : rec.el.textContent) !== rec.text
@@ -6499,12 +6008,8 @@ function decorations() {
       : null;
     // An element added and then deleted in this session leaves nothing to report.
     if (rec.created && rec.removed) return null;
-    // Not moved while it is still in the air, nor once it is deleted: "Removed"
-    // already says where it went.
-    var moved = rec.location && rec.el !== moving && !rec.removed &&
-      (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
-    return props.length || text || html || rec.comment || rec.created || rec.removed || moved
-      ? { props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+    return props.length || text || html || rec.comment || rec.created || rec.removed
+      ? { props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: false, movedTo: null }
       : null;
   }
 
@@ -6652,12 +6157,6 @@ function decorations() {
     return out;
   }
 
-  /** What an agent must do for a Google font, which the project does not load yet. */
-  function googleFontNote(family) {
-    return "`" + family + "` is a Google font that the project does not load. " +
-      "Add it to the project the way the project loads its fonts, then use it in `font-family`.";
-  }
-
   /** The same, as Markdown written for a coding agent to act on. */
   function markdown(items) {
     if (!items.length) return "";
@@ -6686,7 +6185,6 @@ function decorations() {
       item.props.forEach(function (c) {
         out.push("- `" + c.prop + "`" + (c.on ? " on `" + c.on + "`" : "") + (c.when ? " in `@media " + c.when + "`" : "") +
           ": `" + (c.before || "unset") + "` → `" + (c.after || "unset") + "`");
-        if (c.googleFont) out.push("- Font: " + googleFontNote(c.googleFont));
       });
       if (item.added) {
         out.push("- Added: a new `" + item.added.tag + "`" + (item.added.style ? " with `" + item.added.style + "`" : ""));
@@ -6695,7 +6193,6 @@ function decorations() {
         }
       }
       if (item.removed) out.push("- Removed: " + item.label);
-      if (item.moved) out.push("- Moved to: `" + (item.movedTo || "a new position") + "`");
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
       if (item.html) out.push("- Markup: " + JSON.stringify(item.html.before) + " → " + JSON.stringify(item.html.after));
       if (item.comment) out.push("- Comment: " + JSON.stringify(item.comment));
@@ -9413,7 +8910,7 @@ function decorations() {
       var html = rec.html !== undefined && rec.el.innerHTML !== rec.html && rec.el.children.length ? { before: rec.html, after: rec.el.innerHTML } : null;
       if (!any && !text && !html && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, added: rec.added || [], googleFont: rec.googleFont || null, moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, added: rec.added || [], moved: false, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
     });
     // A drawn box comes back only once ticked, like any other edit.
     var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {
@@ -9508,7 +9005,6 @@ function decorations() {
           rec.mark = markTop++;
           usedMarks[rec.mark] = true;
         }
-        if (typeof edit.googleFont === "string") rec.googleFont = edit.googleFont;
       });
       (Array.isArray(saved.regions) ? saved.regions : []).forEach(function (rg) {
         if (!rg || typeof rg !== "object") return;
@@ -9763,26 +9259,17 @@ function decorations() {
     askTimer = 0;
     previewPolls = 0;
     previewSeen = "";
-    if (moving) {
-      var location = record(moving).location;
-      location.parent.insertBefore(moving, location.before && location.before.parentElement === location.parent ? location.before : null);
-    }
     // Quiet: one repaint at the end, not one per edit.
     changes.slice().forEach(function (rec) { revert(rec, true); });
     tally();
     markTop = 1;
     addTop = 1;
-    insertion = null;
-    moving = null;
     drawing = null;
     regionFor = null;
     openComment = null;
     regions = [];
     regionBox.hidden = true;
     menuAway();
-    pointerX = null;
-    pointerY = null;
-    delete insertLine.dataset.on;
     history = [];
     future = [];
     select(null);
@@ -9946,40 +9433,13 @@ function decorations() {
     paintMarks();
     // A comment card put away by the scroll comes back when its element
     // comes back, so a hidden card is synced too.
-    if ((!elementMenu.hidden || commentFor || regionFor || openComment) && !moving) syncElementMenu();
+    if ((!elementMenu.hidden || commentFor || regionFor || openComment)) syncElementMenu();
     // The hover frame was measured when the pointer last moved. Whatever made
     // this re-measure may have resized the element under it, so it is dropped
     // until the next move draws it again where it belongs.
     hideHover();
-    if (moving && pointerX !== null) showMoveInsertion(pointerX, pointerY);
   }
 
-  function showMoveInsertion(x, y) {
-    var hit = pickAt(x, y);
-    var target = hit && hit.el;
-    for (var node = target; node; node = node.parentElement) {
-      if (node === moving) {
-        insertion = null;
-        delete insertLine.dataset.on;
-        return;
-      }
-    }
-    if (!target || !target.parentElement || target.parentElement === host) {
-      insertion = null;
-      delete insertLine.dataset.on;
-      return;
-    }
-    var children = hit.kind === "container"
-      ? Array.prototype.filter.call(target.children || [], function (el) { return el !== moving; })
-      : [];
-    var parent = hit.kind === "container" ? target : target.parentElement;
-    var siblings = children.length || hit.kind === "container"
-      ? children
-      : Array.prototype.filter.call(parent.children, function (el) { return el !== moving; });
-    var spot = spotAmong(siblings, x, y, parent);
-    insertion = { parent: parent, before: spot.before };
-    drawLine(spot.line);
-  }
 
   /**
    * The sibling the pointer is in front of, and the line that shows the gap.
@@ -10050,38 +9510,6 @@ function decorations() {
     };
   }
 
-  function drawLine(line) {
-    insertLine.style.left = line.left + "px";
-    insertLine.style.top = line.top + "px";
-    insertLine.style.width = line.width + "px";
-    insertLine.style.height = line.height + "px";
-    insertLine.dataset.on = "on";
-  }
-
-  function insertElement(x, y) {
-    showMoveInsertion(x, y);
-    if (!insertion || !insertion.parent.insertBefore) return;
-    var rec = record(moving);
-    // Where the page put it, read before the move: the handoff names the
-    // code's place, and undo puts it back there, so the edit leaves the list.
-    if (!rec.selector) {
-      rec.selector = selectorFor(moving);
-      rec.source = sourceOf(moving);
-    }
-    // The code's own place, kept from the first move: a second move still
-    // names where the page put it, not the middle stop.
-    if (!rec.location) rec.location = { parent: moving.parentElement, before: moving.nextSibling };
-    var before = { parent: moving.parentElement, before: moving.nextSibling };
-    insertion.parent.insertBefore(moving, insertion.before || null);
-    action(rec, "move", before, { parent: moving.parentElement, before: moving.nextSibling });
-    moving = null;
-    insertion = null;
-    delete insertLine.dataset.on;
-    syncSelectionFrames();
-    syncElementMenu();
-    syncDock();
-    tally();
-  }
 
   /** The Add drag starts: a box from this point, drawn on the next move. */
   function drawRegion(x1, y1) {
@@ -10095,7 +9523,7 @@ function decorations() {
   }
 
   function onDown(e) {
-    if (!active || (activeTool !== "add" && activeTool !== "comment") || moving || editing) return;
+    if (!active || (activeTool !== "add" && activeTool !== "comment") || editing) return;
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     if (e.button !== undefined && e.button !== 0) return;
     // Stop the browser starting a text selection for this drag.
@@ -10150,8 +9578,6 @@ function decorations() {
   function onMove(e) {
     var x = e.clientX;
     var y = e.clientY;
-    pointerX = x;
-    pointerY = y;
     inFrame("hover", function () {
       // No tool on means browse: the pointer finds nothing and the hover
       // frame stays away.
@@ -10171,11 +9597,6 @@ function decorations() {
         return;
       }
       if (drawing || activeTool === "add" || activeTool === "edits") {
-        hideHover();
-        return;
-      }
-      if (moving) {
-        showMoveInsertion(x, y);
         hideHover();
         return;
       }
@@ -10209,10 +9630,6 @@ function decorations() {
     if (activeTool === "add" || regionFor) return;
     e.preventDefault();
     e.stopPropagation();
-    if (moving) {
-      insertElement(e.clientX, e.clientY);
-      return;
-    }
     var hit = pickAt(e.clientX, e.clientY);
     // A fresh click reopens a dismissed card, even on the same element: the
     // dismissal only stops a reopen without a click, like a scroll refit.
@@ -10290,12 +9707,6 @@ function decorations() {
       }
       return;
     }
-    if (e.shiftKey && !e.metaKey && !e.ctrlKey && !editing && String(e.key || "").toLowerCase() === "a" && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
-      e.preventDefault();
-      e.stopPropagation();
-      autoLayout();
-      return;
-    }
     // C, A and E press the three tools, the way the buttons do: a second
     // press of the one that is on drops to browse. A letter in a field
     // belongs to the field, and one in the dock belongs to the dock, so
@@ -10356,20 +9767,14 @@ function decorations() {
       syncRow();
       return;
     }
-    // Enter edits the words. Delete removes the element. One tool at a time.
-    if ((e.key === "Enter" || e.key === "Delete") && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    // Enter edits the words. One tool at a time.
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       if (!editing && selected && selectedItems.length === 1 && !(e.composedPath && e.composedPath().indexOf(host) !== -1)) {
-        if (e.key === "Enter" && selectedKind === "text" && canEditText(selected)) {
+        if (selectedKind === "text" && canEditText(selected)) {
           if (e.preventDefault) e.preventDefault();
           if (e.stopPropagation) e.stopPropagation();
           editText(selected);
           syncElementMenu();
-          return;
-        }
-        if (e.key === "Delete") {
-          if (e.preventDefault) e.preventDefault();
-          if (e.stopPropagation) e.stopPropagation();
-          deleteSelected();
           return;
         }
       }
