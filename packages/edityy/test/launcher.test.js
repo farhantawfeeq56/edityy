@@ -710,7 +710,9 @@ test("shift-click adds and removes elements, and Shift+Arrow does not extend sel
   const { run, el } = fakeDom();
   const app = run();
   const first = el("div");
+  first.getBoundingClientRect = () => ({ left: 10, top: 10, right: 60, bottom: 30, width: 50, height: 20 });
   const second = el("p", { text: "Second" });
+  second.getBoundingClientRect = () => ({ left: 70, top: 10, right: 150, bottom: 30, width: 80, height: 20 });
   quiet(() => {
     app.click();
     ensureComment(app);
@@ -724,12 +726,80 @@ test("shift-click adds and removes elements, and Shift+Arrow does not extend sel
   assert.equal(app.root.nodes.dock.hidden, false);
   assert.equal(app.root.nodes.row.hidden, false);
   assert.equal(app.root.nodes.sel.hidden, false);
-  assert.equal(app.root.nodes["element-menu"].hidden, true, "no comment box for more than one element");
+  // The set shares one box: one note for all of them, no count to pick.
+  const menu = app.root.nodes["element-menu"];
+  assert.equal(menu.hidden, false, "one comment box opens for the set");
+  const box = menu.children[0];
+  assert.equal(box.className, "element-comment");
+  const modes = box.children.find((c) => c.className === "element-comment-modes");
+  assert.equal(modes.hidden, true, "the count chips stand down for a set");
+  assert.match(shown(box), /One note for 2 elements/);
+  const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
+  area.value = "one note for both";
+  const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
+    .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
+  for (const fn of save.bubbles.click.bubble) fn({});
+  assert.equal(app.win.__edityy_changes().split('- Comment: "one note for both"').length - 1, 2, "the note saves on each element");
   quiet(() => app.fire("keydown", { key: "ArrowRight", shiftKey: true }));
   assert.equal(app.root.nodes.sel.hidden, false, "Shift+Arrow does not add to the selection");
   quiet(() => app.clickPage(1, 1, true));
   assert.equal(app.root.nodes.sel.hidden, false, "one element is still selected");
   assert.equal(app.root.nodes["element-menu"].hidden, false, "and its comment box is back");
+});
+
+test("a Comment drag lassos every element it holds, and one box comments on the set", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const grid = el("div", { rect: { left: 0, top: 0, right: 400, bottom: 200, width: 400, height: 200 } });
+  const a = el("div", { text: "Alpha", rect: { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 } });
+  const b = el("div", { text: "Beta", rect: { left: 70, top: 20, right: 110, bottom: 40, width: 40, height: 20 } });
+  grid.appendChild(a);
+  grid.appendChild(b);
+  // The grid wraps the box, so it reads as a small overlap and stays out.
+  app.doc.querySelectorAll = () => [grid, a, b];
+  const path = () => [];
+  quiet(() => {
+    app.click();
+    ensureComment(app);
+    app.fire("mousedown", { clientX: 10, clientY: 10, button: 0, composedPath: path, preventDefault() {}, stopPropagation() {} });
+  });
+  app.move(120, 60);
+  assert.equal(app.root.nodes.region.hidden, false, "the box is drawn while the drag is still going");
+  quiet(() => app.fire("mouseup", { clientX: 120, clientY: 60, composedPath: path, preventDefault() {}, stopPropagation() {} }));
+  assert.equal(app.root.nodes.region.hidden, true, "the lasso leaves no box: the frames mark the pick");
+  assert.equal(app.root.selection().el, a, "the drag picks what it holds, not the wrapper around it");
+  const menu = app.root.nodes["element-menu"];
+  assert.equal(menu.hidden, false, "one comment box opens for the lassoed set");
+  assert.match(shown(menu.children[0]), /One note for 2 elements/);
+  // The click that ends the drag is spent: it picks nothing new.
+  app.hover(b);
+  quiet(() => app.clickPage());
+  assert.equal(app.root.selection().el, a, "the spent click keeps the set");
+  assert.match(shown(menu.children[0]), /One note for 2 elements/);
+});
+
+test("a Comment drag smaller than a click still clicks", () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const card = el("div", { text: "Solo", rect: { left: 20, top: 20, right: 60, bottom: 40, width: 40, height: 20 } });
+  app.doc.querySelectorAll = () => [card];
+  const path = () => [];
+  quiet(() => {
+    app.click();
+    ensureComment(app);
+    app.hover(card);
+    app.fire("mousedown", { clientX: 30, clientY: 30, button: 0, composedPath: path, preventDefault() {}, stopPropagation() {} });
+  });
+  app.move(33, 32);
+  quiet(() => {
+    app.fire("mouseup", { clientX: 33, clientY: 32, composedPath: path, preventDefault() {}, stopPropagation() {} });
+    app.clickPage();
+  });
+  assert.equal(app.root.selection().el, card, "the small drag stays a click");
+  const box = app.root.nodes["element-menu"].children[0];
+  assert.equal(box.className, "element-comment");
+  const modes = box.children.find((c) => c.className === "element-comment-modes");
+  assert.notEqual(modes.hidden, true, "one element keeps its count chips");
 });
 
 
