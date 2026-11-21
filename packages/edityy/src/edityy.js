@@ -340,7 +340,9 @@
     // The on fill travels between tools, after the popped card's variant
     // chips: the thumb is the pressed background, and the glyph rides above.
     ".row-thumb{position:absolute;inset:0;border-radius:7px;background:var(--ink-6);pointer-events:none}",
-    ".row>.ic>svg{position:relative}",
+    // Both twins share one grid cell while they crossfade, so the glyph
+    // never jumps sideways mid-swap.
+    ".row>.ic>svg{position:relative;grid-area:1/1}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
     // takes the native ring away, and the glide fill alone is too faint to
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
@@ -5344,6 +5346,24 @@ function decorations() {
     if (on) b.insertBefore(rowThumb(), b.firstChild);
   }
 
+  /** The glyphs now stacked in a toolbar button: the showing one is last. */
+  function rowSvgs(b) {
+    var out = [];
+    var kids = b.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      if (String(kids[i].tagName || "").toLowerCase() === "svg") out.push(kids[i]);
+    }
+    return out;
+  }
+  /** A glyph string as a node, or null where the parser keeps none (tests). */
+  function svgNode(markup) {
+    try {
+      var box = document.createElement("span");
+      box.innerHTML = markup;
+      var node = box.firstChild;
+      return node && String(node.tagName || "").toLowerCase() === "svg" ? node : null;
+    } catch { return null; }
+  }
   /** Swap a toolbar button between its outline and its filled twin. Only the
       three tools have twins, and only while a trial family is on: with Lucide
       there is no filled twin, so the markup stays as buildRow painted it. */
@@ -5356,7 +5376,30 @@ function decorations() {
     var thumb = b.getElementsByClassName ? b.getElementsByClassName("row-thumb")[0] || null : null;
     if (badge) b.removeChild(badge);
     if (thumb) b.removeChild(thumb);
-    b.innerHTML = toolSvg(key, "", pressed);
+    var fresh = toolSvg(key, "", pressed);
+    // A swap that lands mid-crossfade drops the fading twin: the showing
+    // glyph is the one the fresh twin fades in over.
+    var olds = rowSvgs(b);
+    while (olds.length > 1) b.removeChild(olds.shift());
+    var old = olds[0] || null;
+    var next = old ? svgNode(fresh) : null;
+    if (old && next && moves(next) && typeof old.animate === "function" && typeof next.animate === "function") {
+      // The twin crossfades on the same beat as the travelling fill: the
+      // glyph fills as the fill arrives.
+      b.appendChild(next);
+      if (b._twinRun) { try { b._twinRun.cancel(); } catch {} }
+      old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.settle, easing: STANDARD });
+      var run = next.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.settle, easing: ARRIVE });
+      b._twinRun = run;
+      run.onfinish = function () {
+        if (b._twinRun !== run) return;
+        b._twinRun = null;
+        if (old.parentElement === b) b.removeChild(old);
+      };
+    } else {
+      if (old) b.removeChild(old);
+      b.innerHTML = fresh;
+    }
     if (thumb) b.insertBefore(thumb, b.firstChild);
     if (badge) b.appendChild(badge);
   }
