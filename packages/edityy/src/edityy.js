@@ -334,9 +334,13 @@
     // The filled icon is what says it is on: its shapes take the fill, so
     // the glyph turns solid while the background stays the hover colour.
     // The icon stays ink: paper on this fill would fail contrast.
-    ".row>.ic[aria-pressed=true]{background:var(--ink-6);color:var(--ink);box-shadow:none;opacity:1;border-color:transparent}",
+    ".row>.ic[aria-pressed=true]{background:transparent;color:var(--ink);box-shadow:none;opacity:1;border-color:transparent}",
     ".row>.ic[aria-pressed=true]:before{display:none}",
     ".row>.ic[aria-pressed=true]>svg{color:var(--ink)}",
+    // The on fill travels between tools, after the popped card's variant
+    // chips: the thumb is the pressed background, and the glyph rides above.
+    ".row-thumb{position:absolute;inset:0;border-radius:7px;background:var(--ink-6);pointer-events:none}",
+    ".row>.ic>svg{position:relative}",
     // The keyboard stop wears the same accent ring the fields do: all:initial
     // takes the native ring away, and the glide fill alone is too faint to
     // mark the stop. Mouse clicks do not match focus-visible on buttons, so
@@ -5225,6 +5229,36 @@ function decorations() {
   // no tool, so a click only looks. One tool at a time. A second click on
   // the active tool drops back to browse.
   var activeTool = "";
+  var toolFlight = null; // the last on tool's slot, so the fill travels to the new one
+  var toolFlying = null; // the glide now running, finished early when the next press lands
+
+  /** The travelling fill: the pressed background, moved between tools. */
+  function rowThumb() {
+    var fill = document.createElement("span");
+    fill.className = "row-thumb";
+    fill.setAttribute("aria-hidden", "true");
+    return fill;
+  }
+  /**
+   * Note the on tool's slot before a press moves it, so the fill
+   * travels from the old one to the new one, after the popped card's
+   * variant chips. Presses share it, so every switch runs the same move.
+   */
+  function armToolFlight(from, to) {
+    toolFlight = null;
+    if (!from || !to || from === to) return;
+    if (toolFlying) {
+      try { toolFlying.finish(); } catch {}
+      toolFlying = null;
+    }
+    try {
+      var old = slot(from);
+      var rect = old && old.getBoundingClientRect ? old.getBoundingClientRect() : null;
+      if (rect && rect.width) {
+        toolFlight = { key: to, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      }
+    } catch {}
+  }
 
   /** Press a tool in the row. A second press drops to browse. */
   function pressTool(key) {
@@ -5240,6 +5274,7 @@ function decorations() {
       syncPointer();
       return;
     }
+    armToolFlight(activeTool, key);
     activeTool = key;
     show(key === "edits" ? "changes" : "");
     // Add is freeform: it starts with nothing selected and no card open, so a
@@ -5268,12 +5303,45 @@ function decorations() {
         var editsOn = activeTool === "edits";
         b.setAttribute("aria-pressed", editsOn ? "true" : "false");
         paintTool(b, "edits", editsOn);
+        keepThumb(b, editsOn);
         continue;
       }
       var on = b.dataset.key === activeTool && !!activeTool;
       b.setAttribute("aria-pressed", on ? "true" : "false");
       paintTool(b, b.dataset.key, on);
+      keepThumb(b, on);
     }
+    // The on fill glides from the old tool to the new one, while the
+    // glyphs stay where they are. The flight is armed in the press, so
+    // every switch lands on the same move as the variant chips.
+    if (toolFlight) {
+      var flight = toolFlight;
+      toolFlight = null;
+      try {
+        var next = slot(flight.key);
+        var fill = next ? next.getElementsByClassName("row-thumb")[0] || null : null;
+        var now = next && next.getBoundingClientRect ? next.getBoundingClientRect() : null;
+        if (fill && now && now.width && moves(fill) && typeof fill.animate === "function") {
+          var dx = flight.left - now.left;
+          var dy = flight.top - now.top;
+          if (dx || dy) {
+            var sx = flight.width / now.width;
+            var sy = flight.height / now.height;
+            try { toolFlying = fill.animate(
+              [{ transform: "translate(" + dx + "px," + dy + "px) scale(" + sx + "," + sy + ")" }, { transform: "none" }],
+              { duration: T.settle, easing: ARRIVE },
+            ); } catch { toolFlying = null; }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  /** Keep one travelling fill on the tool that is on, none elsewhere. */
+  function keepThumb(b, on) {
+    var old = b.getElementsByClassName ? b.getElementsByClassName("row-thumb")[0] || null : null;
+    if (old) b.removeChild(old);
+    if (on) b.insertBefore(rowThumb(), b.firstChild);
   }
 
   /** Swap a toolbar button between its outline and its filled twin. Only the
@@ -5285,8 +5353,11 @@ function decorations() {
     if (b.dataset.twin === want) return;
     b.dataset.twin = want;
     var badge = b === review && countBadge.parentNode === b ? countBadge : null;
+    var thumb = b.getElementsByClassName ? b.getElementsByClassName("row-thumb")[0] || null : null;
     if (badge) b.removeChild(badge);
+    if (thumb) b.removeChild(thumb);
     b.innerHTML = toolSvg(key, "", pressed);
+    if (thumb) b.insertBefore(thumb, b.firstChild);
     if (badge) b.appendChild(badge);
   }
 
