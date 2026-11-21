@@ -176,6 +176,25 @@ export default function Home() {
 
       <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
         <section className="relative pt-16 text-center sm:pt-24">
+          <div aria-hidden="true" className="pointer-events-none absolute left-0 top-10 hidden w-44 select-none lg:block">
+            <svg width="72" height="48" viewBox="0 0 72 48" fill="none" className="opacity-70">
+              <g fill="currentColor" className="text-neutral-300">
+                <circle cx="4" cy="4" r="2" />
+                <circle cx="20" cy="4" r="2" />
+                <circle cx="36" cy="4" r="2" />
+                <circle cx="52" cy="4" r="2" />
+                <circle cx="4" cy="20" r="2" />
+                <circle cx="20" cy="20" r="2" />
+                <circle cx="36" cy="20" r="2" />
+                <circle cx="4" cy="36" r="2" />
+                <circle cx="20" cy="36" r="2" />
+              </g>
+              <circle cx="52" cy="20" r="3" className="fill-brand" />
+            </svg>
+            <span className="mt-4 block h-px w-16 bg-neutral-200" />
+            <span className="mt-2 block h-px w-10 bg-brand" />
+            <span className="mt-2 block h-px w-20 bg-neutral-200" />
+          </div>
           <div
             aria-hidden="true"
             className="pointer-events-none absolute right-0 top-10 hidden w-44 select-none lg:block"
