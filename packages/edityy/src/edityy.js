@@ -3,7 +3,7 @@
  *
  * Runs inside the page it is injected into. Two layers:
  *
- * 1. A brand pill, fixed bottom-right in an open shadow root, so the host
+ * 1. A brand pill, which settles in one of eight places like the dock below, in an
  *    page's CSS cannot reach it and it cannot leak styles back out. It shows
  *    only the mark when the mode is off; clicking it dispatches
  *    `edityy:launcher-click` on window — the seam a host app can listen to —
@@ -293,14 +293,20 @@
     // up out of its controls.
     ".row{position:relative;display:flex;flex-wrap:wrap;min-width:0;gap:2px;padding:3px;min-height:38px;align-items:center;background:transparent;border:0;border-radius:10px;",
     "box-shadow:none}",
-    // The close chip: half on the dock's top-right corner, half out, so it
-    // reads as the corner's own tab and not a fifth tool in the row. Black
-    // fill, round. It shows only on a hover over the bar or the warm zone
-    // around it, so it never waits for a hover first and never drops while
-    // the pointer crosses to it.
-    ".dock-close{position:absolute;top:-10px;right:-10px;z-index:2;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:#000;color:var(--ink);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
+    // The close chip: half on the grip's corner, half out, so it reads as
+    // the handle's own tab and not a fifth tool in the row. Black fill,
+    // round. It shows only on a hover over the grip or the warm zone around
+    // it, never on a hover over the row, so it never sits above the edits
+    // icon. It never drops while the pointer crosses to it.
+    ".dock-close{position:absolute;top:-10px;left:-10px;z-index:2;width:20px;height:20px;border-radius:999px;border:0;padding:0;display:grid;place-items:center;background:#000;color:var(--ink);cursor:pointer;opacity:0;pointer-events:none;transform:scale(.5);transform-origin:center;transition:transform var(--tint) var(--standard),opacity var(--tint) var(--standard);box-shadow:0 1px 2px var(--ink-6)}",
     ".dock-close:hover{background:#000;color:#fff}",
-    "#dock:hover .dock-close,#dock.dock-warm .dock-close,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
+    "#dock:has(.grip:hover) .dock-close,#dock:has(.grip:focus-visible) .dock-close,#dock.dock-warm .dock-close,.dock-close:hover,.dock-close:focus-visible{opacity:1;pointer-events:auto;transform:scale(1)}",
+    // The grip stands on the right edge at the left places: the chip goes
+    // with it, so it stays on the handle's corner and not over the row.
+    "#dock[data-grip=right] .dock-close{left:auto;right:-10px}",
+    // The grip closes the vertical bar at the bottom: the chip sits on the
+    // bottom-left corner, where the handle is.
+    "#dock[data-orient=vertical] .dock-close{top:auto;bottom:-10px;left:-10px;right:auto}",
     ".dock-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}",
     ".dock-close>svg{width:11px;height:11px;display:block;color:inherit}",
     // One hover fill for the whole row, not one per icon: it travels from the
@@ -3379,10 +3385,12 @@ function faces() {
   /**
    * The eight preferred places, as the rect the dock takes in each. The three
    * across the top and bottom hold the row horizontal; the two middle ones
-   * hold it vertical, so their rect swaps the size.
+   * hold it vertical, so their rect swaps the size. A size passed in lays the
+   * same eight places out for that size instead, so the pill docks where the
+   * bar docks.
    */
-  function spotRect(spot) {
-    var size = dockHW();
+  function spotRect(spot, size) {
+    var size = size || dockHW();
     var w = size.w;
     var h = size.h;
     if (spot === "middle-left" || spot === "middle-right") {
@@ -3404,11 +3412,11 @@ function faces() {
   }
 
   /** The place nearest a point, or null beyond the fill distance. */
-  function nearestSpot(x, y, cap) {
+  function nearestSpot(x, y, cap, size) {
     var best = null;
     var near = cap === undefined ? SPOT_NEAR : cap;
     for (var i = 0; i < SPOTS.length; i++) {
-      var rect = spotRect(SPOTS[i]);
+      var rect = spotRect(SPOTS[i], size);
       var dx = x - (rect.left + rect.width / 2);
       var dy = y - (rect.top + rect.height / 2);
       var d = Math.sqrt(dx * dx + dy * dy);
@@ -3455,16 +3463,17 @@ function faces() {
   /**
    * Show or hide the dotted places, each laid out where its toolbar would
    * land. What is near fills: the reader sees the place take the bar before
-   * the bar goes there.
+   * the bar goes there. A size passed in lays the same eight out for that
+   * size instead, so the pill shows its own landing places.
    */
-  function paintSpots(on, hot, drag) {
+  function paintSpots(on, hot, drag, size) {
     if (!docks) return;
     docks.className = on ? (drag ? "docks-on docks-drag" : "docks-on") : "";
     var i;
     if (!on) return;
     for (i = 0; i < dockSpots.length; i++) {
       var el = dockSpots[i];
-      var rect = spotRect(el.getAttribute("data-spot"));
+      var rect = spotRect(el.getAttribute("data-spot"), size);
       el.style.left = rect.left + "px";
       el.style.top = rect.top + "px";
       el.style.width = rect.width + "px";
@@ -3553,6 +3562,36 @@ function faces() {
     launch.style.right = "auto";
     launch.style.bottom = "auto";
   }
+
+  /** The pill's own size, so its eight places fit the pill and not the bar. */
+  function launchHW() {
+    return { w: launch.offsetWidth || 38, h: launch.offsetHeight || 38 };
+  }
+
+  /**
+   * Settle the pill in one preferred place, the way the bar settles: one of
+   * the eight, never between them. The place is shared with the bar, so the
+   * bar stands back up in the same place the pill was left.
+   */
+  function launchTo(spot) {
+    if (!spot) return;
+    var before = !launch.hidden && launch.getBoundingClientRect ? launch.getBoundingClientRect() : null;
+    var rect = spotRect(spot, launchHW());
+    placeLaunch(rect.left, rect.top);
+    dockSnap = spot;
+    paintSpots(false);
+    if (before && moves(launch)) {
+      var now = launch.getBoundingClientRect();
+      var dx = before.left - now.left;
+      var dy = before.top - now.top;
+      if (dx || dy) {
+        launch.animate(
+          [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+          { duration: T.slide, easing: ARRIVE }
+        );
+      }
+    }
+  }
   (function () {
     var held = false;
     var offX = 0;
@@ -3624,9 +3663,12 @@ function faces() {
       paintSpots(false);
     });
     // A dotted place docks on a click: the edge, not the bar, is the target.
+    // While the pill is out the same places take the pill instead.
     if (docks) docks.addEventListener("click", function (e) {
       var spot = e.target && e.target.getAttribute ? e.target.getAttribute("data-spot") : null;
-      if (spot) dockTo(spot);
+      if (!spot) return;
+      if (dock.hidden) launchTo(spot);
+      else dockTo(spot);
     });
     // The places show while the grip or a place is hovered: they are what a
     // drag docks to, and each one is itself a click target. Hovering the bar
@@ -9409,9 +9451,10 @@ function decorations() {
     resnapDock();
   }
   /**
-   * The pill takes the bar's visual place, not its inline one: a hovered
-   * placed dock stands a payback shift left of where its left says. Where
-   * the dock was never moved both keep the corner, so the pill is cleared.
+   * The pill takes the bar's place: the same one of the eight, laid out for
+   * the pill's own size. A hovered placed dock stands a payback shift left
+   * of where its left says, so the visual box is not read. Where the dock was
+   * never moved both keep the corner, so the pill is cleared.
    */
   function launchFromDock() {
     if (!dock.style.left) {
@@ -9419,6 +9462,11 @@ function decorations() {
       launch.style.top = "";
       launch.style.right = "";
       launch.style.bottom = "";
+      return;
+    }
+    if (dockSnap) {
+      var spot = spotRect(dockSnap, launchHW());
+      placeLaunch(spot.left, spot.top);
       return;
     }
     var box = !dock.hidden && dock.getBoundingClientRect ? dock.getBoundingClientRect() : null;
@@ -10063,9 +10111,10 @@ function decorations() {
     else enter();
   });
 
-  // The pill itself drags, with no handle and no special cursor: a press that
-  // travels past a tap moves the pill, a tap still opens. The bar stands up
-  // where a dragged pill is, and the pill comes back where a dragged bar was.
+  // The pill itself drags between the same eight places the bar drags to,
+  // with no handle and no special cursor: a press that travels past a tap
+  // moves the pill, a tap still opens. The bar stands up where a dragged
+  // pill is, and the pill comes back where a dragged bar was.
   var pillMoved = false;
   (function () {
     var down = false;
@@ -10073,6 +10122,15 @@ function decorations() {
     var startY = 0;
     var offX = 0;
     var offY = 0;
+    // The place the pointer is nearest, full and waiting for the release.
+    var hoverSpot = null;
+    var launchHovered = false;
+    var docksHovered = false;
+    function hoverSpots(drag) {
+      if (launch.hidden) return;
+      if (down || launchHovered || docksHovered) paintSpots(true, drag ? hoverSpot : null, down, launchHW());
+      else paintSpots(false);
+    }
     launch.addEventListener("pointerdown", function (e) {
       if (e.button !== undefined && e.button !== 0) return;
       if (launch.setPointerCapture && e.pointerId !== undefined) launch.setPointerCapture(e.pointerId);
@@ -10081,27 +10139,90 @@ function decorations() {
       offY = box ? e.clientY - box.top : 0;
       startX = e.clientX;
       startY = e.clientY;
+      hoverSpot = null;
       down = true;
+      paintSpots(true, null, true, launchHW());
     });
     launch.addEventListener("pointermove", function (e) {
       if (!down) return;
       if (!pillMoved && Math.abs(e.clientX - startX) < 6 && Math.abs(e.clientY - startY) < 6) return;
       pillMoved = true;
-      placeLaunch(e.clientX - offX, e.clientY - offY);
+      var spot = nearestSpot(e.clientX, e.clientY, undefined, launchHW());
+      if (spot !== hoverSpot) hoverSpot = spot;
+      paintSpots(true, hoverSpot, true, launchHW());
+      if (spot) {
+        // Magnetic, the way the bar leans into a place: the release has
+        // somewhere to go and the landing feels pulled, not placed.
+        var rect = spotRect(spot, launchHW());
+        var left = e.clientX - offX;
+        var top = e.clientY - offY;
+        placeLaunch(left + (rect.left - left) * 0.4, top + (rect.top - top) * 0.4);
+      } else {
+        placeLaunch(e.clientX - offX, e.clientY - offY);
+      }
     });
-    function letGo() { down = false; }
+    function letGo(e) {
+      var wasDown = down;
+      down = false;
+      if (wasDown && pillMoved) {
+        // Dropped between places, or on one: the pill only ever stands in
+        // one of the eight, the way the bar does.
+        var px = e && typeof e.clientX === "number" ? e.clientX : startX;
+        var py = e && typeof e.clientY === "number" ? e.clientY : startY;
+        launchTo(hoverSpot || nearestSpot(px, py, 1e9, launchHW()) || "bottom-right");
+      } else if (wasDown) paintSpots(false);
+      hoverSpot = null;
+      hoverSpots(false);
+    }
     launch.addEventListener("pointerup", letGo);
-    launch.addEventListener("pointercancel", letGo);
+    launch.addEventListener("pointercancel", function () { down = false; hoverSpot = null; paintSpots(false); });
+    // The places show while the pill or a place is hovered, and each one is
+    // itself a click target, the way the bar's grip shows them.
+    launch.addEventListener("mouseenter", function () { launchHovered = true; hoverSpots(false); });
+    launch.addEventListener("mouseleave", function () { launchHovered = false; hoverSpots(false); });
+    if (docks) {
+      docks.addEventListener("mouseenter", function () { docksHovered = true; hoverSpots(false); });
+      docks.addEventListener("mouseleave", function () { docksHovered = false; hoverSpots(false); });
+    }
+    launch.addEventListener("focus", function () { paintSpots(true, null, false, launchHW()); });
+    launch.addEventListener("blur", function (e) {
+      var next = e.relatedTarget;
+      if (next && next.getAttribute && next.getAttribute("data-spot")) return;
+      if (!down) paintSpots(false);
+    });
+    // The keyboard moves the pill between places: arrows walk the grid, so
+    // it is not pointer-only, the way the bar is not.
+    launch.addEventListener("keydown", function (e) {
+      var dx = 0;
+      var dy = 0;
+      if (e.key === "ArrowLeft") dx = -1;
+      else if (e.key === "ArrowRight") dx = 1;
+      else if (e.key === "ArrowUp") dy = -1;
+      else if (e.key === "ArrowDown") dy = 1;
+      else return;
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+      var next = dockSnap ? spotNeighbor(dockSnap, dx, dy) : null;
+      if (next) { launchTo(next); return; }
+      if (dockSnap) return;
+      var box = launch.getBoundingClientRect ? launch.getBoundingClientRect() : null;
+      if (box) launchTo(nearestSpot(box.left + box.width / 2, box.top + box.height / 2, 1e9, launchHW()) || "bottom-right");
+    });
+    // A resized page moves the places: a settled pill follows its place.
+    window.addEventListener("resize", function () {
+      if (dockSnap && !active && !launch.hidden) launchTo(dockSnap);
+    });
   })();
 
-  // The close chip shows on a hover over the bar, and stays while the
+  // The close chip shows on a hover over the grip, and stays while the
   // pointer is in a warm zone around the bar: the chip sits half outside
   // the bar, so hover alone would drop it on the way to the X. The zone is
   // the bar padded by WARM_PAD, no timer. A click outside the chrome cools
-  // it at once.
+  // it at once. The row itself never warms it, so the chip never sits above
+  // the edits icon.
   var WARM_PAD = 32;
   function coolDock() { if (dock.classList) dock.classList.remove("dock-warm"); }
-  dock.addEventListener("mouseenter", function () { if (dock.classList) dock.classList.add("dock-warm"); });
+  gripBtn.addEventListener("mouseenter", function () { if (dock.classList) dock.classList.add("dock-warm"); });
   if (document.addEventListener) document.addEventListener("pointermove", function (e) {
     if (!dock.classList.contains("dock-warm")) return;
     if (dock.hidden) { coolDock(); return; }
@@ -10113,6 +10234,14 @@ function decorations() {
     coolDock();
   });
   var closeBtn = $("dock-close");
+  // Leaving the grip cools the chip at once, unless the pointer goes to the
+  // chip itself: the row never keeps it warm, so it never lingers over the
+  // edits icon.
+  gripBtn.addEventListener("mouseleave", function (e) {
+    var next = e && e.relatedTarget;
+    if (next === closeBtn) return;
+    coolDock();
+  });
   closeBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     exit();

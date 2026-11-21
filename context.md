@@ -8,7 +8,7 @@ Refresh this file with every code change that a reader would miss. Add, rename, 
 
 ## What Edityy is
 
-Edityy is a visual editing layer for code-based websites. The user runs their own dev server. Edityy adds a launcher in the bottom-right corner. The user points at an element and edits it in the browser. A coding agent writes the edit into source code. The codebase stays the source of truth.
+Edityy is a visual editing layer for code-based websites. The user runs their own dev server. Edityy adds a launcher. It starts in the bottom-right corner and settles in one of eight places. The user points at an element and edits it in the browser. A coding agent writes the edit into source code. The codebase stays the source of truth.
 
 The product, from the user's view:
 

@@ -1556,6 +1556,8 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   const grip = app.root.nodes.grip;
   const dock = app.root.nodes.dock;
   const launch = app.root.nodes.launch;
+  launch.offsetWidth = 70;
+  launch.offsetHeight = 38;
   // The stub has no layout: the rect follows the inline place, as it would.
   dock.getBoundingClientRect = () => ({ left: parseFloat(dock.style.left) || 900, top: parseFloat(dock.style.top) || 700, right: 0, bottom: 0, width: 270, height: 40 });
   dock.offsetHeight = 40;
@@ -1565,8 +1567,8 @@ test("closing a dragged toolbar leaves the logo where it stood", () => {
   for (const fn of grip.bubbles.pointermove.bubble) fn({ clientX: 1040, clientY: 760 });
   for (const fn of grip.bubbles.pointerup.bubble) fn({ clientX: 1040, clientY: 760 });
   quiet(() => app.fire("keydown", { key: "Escape" }));
-  assert.equal(launch.style.left, "906px", "the pill stays where the bar stood");
-  assert.equal(launch.style.top, "736px");
+  assert.equal(launch.style.left, "1106px", "the pill takes the same place in its own size");
+  assert.equal(launch.style.top, "738px");
   quiet(() => app.click());
   ensureComment(app);
   assert.equal(dock.style.left, "906px", "the bar stands back up where the pill was");
@@ -1633,12 +1635,14 @@ test("the logo pill itself drags, and a drag never opens", () => {
   const app = run();
   const launch = app.root.nodes.launch;
   const dock = app.root.nodes.dock;
-  launch.getBoundingClientRect = () => ({ left: 1130, top: 750, right: 1200, bottom: 788, width: 70, height: 38 });
+  launch.offsetWidth = 70;
+  launch.offsetHeight = 38;
+  launch.getBoundingClientRect = () => ({ left: parseFloat(launch.style.left) || 1130, top: parseFloat(launch.style.top) || 750, right: 0, bottom: 0, width: 70, height: 38 });
   for (const fn of launch.bubbles.pointerdown.bubble) fn({ clientX: 1140, clientY: 760, preventDefault() {} });
   for (const fn of launch.bubbles.pointermove.bubble) fn({ clientX: 500, clientY: 400 });
-  for (const fn of launch.bubbles.pointerup.bubble) fn({});
-  assert.equal(launch.style.left, "490px", "the pill follows the hand");
-  assert.equal(launch.style.top, "390px");
+  for (const fn of launch.bubbles.pointerup.bubble) fn({ clientX: 500, clientY: 400 });
+  assert.equal(launch.style.left, "565px", "the pill settles in the nearest of the eight places");
+  assert.equal(launch.style.top, "24px");
   // The picture never leaves the pill: it cannot start a native image drag.
   assert.match(app.root.innerHTML, /id="label"[^>]*draggable="false"/, "the logo is not natively draggable");
   assert.match(app.root.innerHTML, /#launch img\{[^}]*pointer-events:none/, "presses land on the pill, not the picture");
