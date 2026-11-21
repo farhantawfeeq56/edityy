@@ -732,14 +732,16 @@ test("shift-click adds and removes elements, and Shift+Arrow does not extend sel
   const box = menu.children[0];
   assert.equal(box.className, "element-comment");
   const modes = box.children.find((c) => c.className === "element-comment-modes");
-  assert.equal(modes.hidden, true, "the count chips stand down for a set");
+  assert.notEqual(modes.hidden, true, "the count chips stay up for a set");
   assert.match(shown(box), /One note for 2 elements/);
   const area = box.children.find((c) => c.getAttribute && c.getAttribute("aria-label") === "Comment");
   area.value = "one note for both";
   const save = box.children.flatMap((child) => (child.children.length ? child.children : [child]))
     .find((b) => b.getAttribute && b.getAttribute("aria-label") === "Save comment");
   for (const fn of save.bubbles.click.bubble) fn({});
-  assert.equal(app.win.__edityy_changes().split('- Comment: "one note for both"').length - 1, 2, "the note saves on each element");
+  const md = app.win.__edityy_changes();
+  assert.equal(md.split('- Comment: "one note for both"').length - 1, 1, "the note saves once for the set");
+  assert.match(md, /- Also for: `p`/, "the rest of the set rides on the first edit");
   quiet(() => app.fire("keydown", { key: "ArrowRight", shiftKey: true }));
   assert.equal(app.root.nodes.sel.hidden, false, "Shift+Arrow does not add to the selection");
   quiet(() => app.clickPage(1, 1, true));
@@ -765,6 +767,7 @@ test("a Comment drag lassos every element it holds, and one box comments on the 
   });
   app.move(120, 60);
   assert.equal(app.root.nodes.region.hidden, false, "the box is drawn while the drag is still going");
+  assert.equal(app.root.selection().el, a, "the frames follow the drag, before the drop");
   quiet(() => app.fire("mouseup", { clientX: 120, clientY: 60, composedPath: path, preventDefault() {}, stopPropagation() {} }));
   assert.equal(app.root.nodes.region.hidden, true, "the lasso leaves no box: the frames mark the pick");
   assert.equal(app.root.selection().el, a, "the drag picks what it holds, not the wrapper around it");
@@ -776,6 +779,53 @@ test("a Comment drag lassos every element it holds, and one box comments on the 
   quiet(() => app.clickPage());
   assert.equal(app.root.selection().el, a, "the spent click keeps the set");
   assert.match(shown(menu.children[0]), /One note for 2 elements/);
+});
+
+test("a set asks its own variations per element, like a normal comment", async () => {
+  const { run, el } = fakeDom();
+  const app = run();
+  const first = el("div");
+  first.getBoundingClientRect = () => ({ left: 10, top: 10, right: 60, bottom: 30, width: 50, height: 20 });
+  const second = el("p", { text: "Second" });
+  second.getBoundingClientRect = () => ({ left: 70, top: 10, right: 150, bottom: 30, width: 80, height: 20 });
+  const sent = [];
+  app.win.fetch = async (url, init = {}) => {
+    if (url === "/__edityy/variations" && init.method === "POST") {
+      sent.push(JSON.parse(init.body));
+      return { status: 200, json: async () => ({ ok: true, requestId: "v-" + sent.length }) };
+    }
+    if (url === "/__edityy/asks") return { status: 200, json: async () => ({ ok: true, variations: { requests: [], responses: [] }, previewRequests: [], previews: [] }) };
+    if (String(url).startsWith("/__edityy/session")) return { status: 200, json: async () => ({ ok: true }) };
+    return { status: 200, json: async () => ({ ok: true }) };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  quiet(() => {
+    app.click();
+    ensureComment(app);
+    app.hover(first);
+    app.clickPage();
+    app.hover(second);
+    app.clickPage(1, 1, true);
+  });
+  const menu = app.root.nodes["element-menu"];
+  const box = menu.children[0];
+  const walk = (node) => (node.children || []).flatMap((c) => [c, ...walk(c)]);
+  const inMenu = (label) => (menu.children[0] ? walk(menu.children[0]) : []).find((b) => b.getAttribute && b.getAttribute("aria-label") === label);
+  inMenu("Comment").value = "calmer cards";
+  for (const fn of inMenu("5 variations").bubbles.click.bubble) fn({});
+  for (const fn of inMenu("Ask for 5 variations").bubbles.click.bubble) fn({});
+  await tick();
+  await tick();
+  await tick();
+  assert.equal(sent.length, 2, "every member asks its own variations");
+  assert.equal(sent[0].prompt, "calmer cards", "the same words travel with each ask");
+  assert.equal(sent[1].prompt, "calmer cards");
+  assert.equal(sent[0].count, 5);
+  assert.equal(sent[1].count, 5);
+  assert.deepEqual(sent.map((s) => s.element.selector).sort(), ["div", "p"]);
+  const md = app.win.__edityy_changes();
+  assert.equal(md.split('- Comment: "calmer cards"').length - 1, 1, "the words still save once for the set");
+  assert.match(md, /- Also for: `p`/);
 });
 
 test("a Comment drag smaller than a click still clicks", () => {
