@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { clearCanvas } from "../src/index.js";
-import { readSession, writeSession } from "../src/session.js";
+import { clearSessionFor, readSession, writeSession } from "../src/session.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-session-"));
 const edit = { selector: "main", comment: "try this" };
@@ -27,4 +27,14 @@ test("a keep that honored the clear is accepted", async () => {
   const back = await readSession("/", root);
   assert.equal(back.edits.length, 1);
   assert.equal(back.honored, clearedAt);
+});
+
+test("clearSessionFor keeps another page's canvas", async () => {
+  const root = tmp();
+  await writeSession({ path: "/other", edits: [edit], regions: [] }, root);
+  assert.equal(await clearSessionFor("/", root), false);
+  assert.equal((await readSession("/other", root)).edits.length, 1, "the other page keeps its canvas");
+  assert.equal(await clearSessionFor("/other", root), true);
+  assert.equal(await readSession("/other", root), null);
+  assert.equal(await clearSessionFor("/missing", root), false, "nothing to clear");
 });

@@ -1,6 +1,6 @@
 // Checks for clear_all: one call empties every Edityy file and marks the clear.
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -26,6 +26,18 @@ test("a clear removes every file and marks when it happened", async () => {
   assert.deepEqual(asks.previewRequests, []);
   assert.deepEqual(asks.previews, []);
   assert.equal(asks.clearedAt, cleared.clearedAt, "the page poll carries the mark");
+});
+
+test("a broken file still goes, counted as nothing", async () => {
+  const root = tmp();
+  mkdirSync(join(root, ".edityy"), { recursive: true });
+  writeFileSync(join(root, ".edityy/variation-request.json"), "{broken");
+  writeFileSync(join(root, ".edityy/previews.json"), "[1, 2");
+  const cleared = await clearCanvas(root);
+  assert.equal(cleared.removed.variationRequests, 0);
+  assert.equal(cleared.removed.previews, 0);
+  assert.equal(existsSync(join(root, ".edityy/variation-request.json")), false);
+  assert.equal(existsSync(join(root, ".edityy/previews.json")), false);
 });
 
 test("a second clear on an empty canvas still marks, with zero rows", async () => {

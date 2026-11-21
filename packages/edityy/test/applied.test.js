@@ -1,12 +1,13 @@
 // Checks for the applied mark: a full mark_applied tells the open page to
 // adopt its paint, so the change shows with no refresh. Run: npm test
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { clearCanvas, readAsks, writeChanges } from "../src/index.js";
 import { handle } from "../src/mcp.js";
+import { readSession, writeSession } from "../src/session.js";
 import { readAppliedAt } from "../src/store.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "edityy-applied-"));
@@ -28,6 +29,22 @@ test("a partial mark writes no applied mark", async () => {
   await call(root, "tools/call", { name: "mark_applied", arguments: { ids: ["c-1"] } });
   assert.equal(await readAppliedAt(root), null);
   assert.equal((await readAsks(root)).appliedAt, null);
+});
+
+test("a full mark keeps another page's canvas, clears its own", async () => {
+  const root = tmp();
+  await writeSession({ path: "/other", edits: [{ selector: "main" }], regions: [] }, root);
+  await writeChanges({ page: "http://localhost:5173/", changes: [{ selector: "h1" }] }, root);
+  await call(root, "tools/call", { name: "mark_applied", arguments: { all: true } });
+  assert.equal(
+    existsSync(join(root, ".edityy/session.json")),
+    true,
+    "the canvas belongs to /other, not to the applied page"
+  );
+  await writeChanges({ page: "http://localhost:5173/other", changes: [{ selector: "h1" }] }, root);
+  await call(root, "tools/call", { name: "mark_applied", arguments: { all: true } });
+  assert.equal(existsSync(join(root, ".edityy/session.json")), false);
+  assert.equal(await readSession("/other", root), null);
 });
 
 test("a clear removes a stale applied mark", async () => {

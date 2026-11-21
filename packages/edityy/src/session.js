@@ -13,7 +13,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { SaveError } from "./changes.js";
-import { readClearedAt, store } from "./store.js";
+import { readClearedAt, readJson, store } from "./store.js";
 
 export const SESSION_PATH = "/__edityy/session";
 export const SESSION_FILE = ".edityy/session.json";
@@ -171,4 +171,36 @@ export async function readSession(path, root = process.cwd()) {
 /** Forget the canvas: the edits are in the code, or the user left the mode. */
 export async function clearSession(root = process.cwd()) {
   await rm(join(root, SESSION_FILE), { force: true });
+}
+
+/**
+ * Forget the canvas for one page path only; keep another page's canvas.
+ *
+ * The file holds one page at a time. When the agent applied edits from a
+ * page the user already left, the new page's canvas must survive. A null
+ * path means the page is unknown: clear, as before. Answers whether the
+ * file went.
+ */
+export async function clearSessionFor(path, root = process.cwd()) {
+  if (path === null || path === undefined) {
+    await rm(join(root, SESSION_FILE), { force: true });
+    return true;
+  }
+  let saved;
+  try {
+    saved = await readJson(join(root, SESSION_FILE), null);
+  } catch {
+    return false;
+  }
+  if (!saved) return false;
+  let record;
+  try {
+    record = checkSession(saved);
+  } catch {
+    await rm(join(root, SESSION_FILE), { force: true });
+    return true;
+  }
+  if (record.path !== checkSessionPath(path)) return false;
+  await rm(join(root, SESSION_FILE), { force: true });
+  return true;
 }

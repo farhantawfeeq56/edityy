@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { checkChanges, checkPage, markdownFor } from "./changes.js";
 import { CHANGES_FILE, clearCanvas } from "./index.js";
-import { SESSION_FILE } from "./session.js";
+import { clearSessionFor } from "./session.js";
 import { previewRequestText, previewText, readPendingPreviews, readPreviewRequests } from "./previews.js";
 import { store, writeAppliedAt } from "./store.js";
 import { DECLARATION_SCHEMA, placeVariations, readVariationRequests, requestText } from "./variations.js";
@@ -35,7 +35,7 @@ const VERSION = JSON.parse(await readFile(new URL("../package.json", import.meta
  * The MCP versions this server speaks, newest first. A client that asks for one
  * of them gets it; any other gets the newest, as the spec says.
  */
-const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 // The preview canvas stays off. Variants are answered with place_variants:
 // the user picks one on the popped card, each pick paints live on the
 // element, the kept pick arrives as a saved edit, and the agent carries it
@@ -295,9 +295,19 @@ export async function handle(message, root) {
             throw new Error(`Could not read ${CHANGES_FILE}: ${error.message}`);
           }
           const changes = checkChanges(saved?.changes);
+          // The session belongs to one page path: only drop it when the
+          // applied edits came from that page. A null page clears, as before.
+          const sessionPath = (page) => {
+            if (!page) return null;
+            try {
+              return new URL(page).pathname || "/";
+            } catch {
+              return null;
+            }
+          };
           if (all === true) {
             await rm(join(root, CHANGES_FILE), { force: true });
-            await rm(join(root, SESSION_FILE), { force: true });
+            await clearSessionFor(sessionPath(saved.page), root);
             await writeAppliedAt(root);
             return reply({ content: [{ type: "text", text: `Marked ${changes.length} edit${changes.length === 1 ? "" : "s"} applied. Cleared the saved edits and the canvas session. The page keeps the paint, so no refresh is needed.` }] });
           }
@@ -311,7 +321,7 @@ export async function handle(message, root) {
           const page = checkPage(saved.page);
           if (!left.length) {
             await rm(join(root, CHANGES_FILE), { force: true });
-            await rm(join(root, SESSION_FILE), { force: true });
+            await clearSessionFor(sessionPath(saved.page), root);
             await writeAppliedAt(root);
             return reply({ content: [{ type: "text", text: `Marked ${changes.length} edits applied. Cleared the saved edits and the canvas session. The page keeps the paint, so no refresh is needed.` }] });
           }

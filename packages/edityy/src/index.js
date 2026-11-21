@@ -3,8 +3,8 @@ import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SaveError, checkChanges, checkPage, markdownFor } from "./changes.js";
-import { PREVIEWS_FILE, PREVIEWS_PATH, PREVIEW_REQUEST_FILE, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, writePreviewRequest } from "./previews.js";
-import { SESSION_FILE, SESSION_PATH, clearSession, readSession, writeSession } from "./session.js";
+import { PREVIEWS_FILE, PREVIEWS_PATH, PREVIEW_REQUEST_FILE, PREVIEW_REQUEST_PATH, clearPreviews, clearPreviewRequest, decidePreview, decidePreviews, readPendingPreviews, readPreviewRequests, readPreviews, writePreviewRequest } from "./previews.js";
+import { SESSION_FILE, SESSION_PATH, checkSession, clearSession, readSession, writeSession } from "./session.js";
 import { APPLIED_FILE, readAppliedAt, readClearedAt, readJson, runNode, runRoute, sameSite, store, writeClearedAt } from "./store.js";
 import { VARIATION_REQUEST_FILE, VARIATION_RESPONSE_FILE, VARIATIONS_PATH, clearVariations, readVariationRequests, readVariationResponse, readVariationResponses, writeVariationRequest } from "./variations.js";
 
@@ -592,26 +592,45 @@ export async function readAsks(root = process.cwd()) {
  */
 export async function clearCanvas(root = process.cwd()) {
   const removed = { previews: 0, previewRequests: 0, variationRequests: 0, variationResponses: 0, sessionEdits: 0, savedEdits: 0 };
-  const take = async (file, key) => {
+  // Count what the checked readers see, so a broken row is never reported
+  // as removed. An unreadable file still goes, counted as nothing.
+  const count = async (read) => {
     try {
-      const saved = await readJson(join(root, file), null);
-      const rows = Array.isArray(saved) ? saved : Array.isArray(saved?.items) ? saved.items : Array.isArray(saved?.changes) ? saved.changes : Array.isArray(saved?.edits) ? [...saved.edits, ...(Array.isArray(saved?.regions) ? saved.regions : [])] : [];
-      removed[key] = rows.length;
+      return await read();
     } catch {
-      // an unreadable file still goes, counted as nothing
+      return 0;
     }
+  };
+  const [previews, previewRequests, variationRequests, variationResponses, sessionEdits, savedEdits] = await Promise.all([
+    count(async () => (await readPreviews(root)).history.length),
+    count(async () => (await readPreviewRequests(root)).length),
+    count(async () => (await readVariationRequests(root)).length),
+    count(async () => (await readVariationResponses(root)).length),
+    count(async () => {
+      const saved = await readJson(join(root, SESSION_FILE), null);
+      if (!saved) return 0;
+      const checked = checkSession(saved);
+      return checked.edits.length + checked.regions.length;
+    }),
+    count(async () => {
+      const saved = await readJson(join(root, CHANGES_FILE), null);
+      if (!saved) return 0;
+      return checkChanges(saved.changes).length;
+    }),
+  ]);
+  removed.previews = previews;
+  removed.previewRequests = previewRequests;
+  removed.variationRequests = variationRequests;
+  removed.variationResponses = variationResponses;
+  removed.sessionEdits = sessionEdits;
+  removed.savedEdits = savedEdits;
+  for (const file of [PREVIEWS_FILE, PREVIEW_REQUEST_FILE, VARIATION_REQUEST_FILE, VARIATION_RESPONSE_FILE, SESSION_FILE, CHANGES_FILE]) {
     try {
       await rm(join(root, file), { force: true });
     } catch {
       // already gone
     }
-  };
-  await take(PREVIEWS_FILE, "previews");
-  await take(PREVIEW_REQUEST_FILE, "previewRequests");
-  await take(VARIATION_REQUEST_FILE, "variationRequests");
-  await take(VARIATION_RESPONSE_FILE, "variationResponses");
-  await take(SESSION_FILE, "sessionEdits");
-  await take(CHANGES_FILE, "savedEdits");
+  }
   // A stale applied mark must not adopt a later canvas, so it goes too. Uncounted.
   try {
     await rm(join(root, APPLIED_FILE), { force: true });
