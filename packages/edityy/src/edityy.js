@@ -2237,8 +2237,7 @@
       if (next.focus) next.focus();
     });
     // The chips line sits at the top of the card, above the comment field.
-    // A set shares one note, so there is no count to pick.
-    if (many) modes.hidden = true;
+    // Above 1 every member of a set asks its own variations.
     box.insertBefore(modes, area);
     function setCount(next) {
       var idx = counts.indexOf(next);
@@ -2281,7 +2280,7 @@
       save.title = name;
     }
     if ((el || region) && (variationWords || previewWords)) box.appendChild(noteBox(variationWords || previewWords));
-    if (many) box.appendChild(noteBox("One note for " + els.length + " elements. It saves on each one."));
+    if (many) box.appendChild(noteBox("One note for " + els.length + " elements. It saves as one comment."));
     openComment = box;
     var actions = document.createElement("div");
     actions.className = "element-menu-actions";
@@ -2290,9 +2289,20 @@
       if (!words) return;
       commentCountKept = count;
       if (many) {
-        // One note for the whole set: it saves on each element, so the
-        // agent reads the set as one combined change.
-        els.forEach(function (one) { record(one).comment = words; });
+        // One note for the whole set: the first element carries it, with
+        // the rest named on it, so the agent reads one combined change.
+        var first = els[0];
+        var firstRec = record(first);
+        firstRec.comment = words;
+        firstRec.commentSet = els.slice(1).map(function (one) { return selectorFor(one); });
+        if (count > 1) {
+          variationPrompt = words;
+          variationPromptEl = first;
+          variationWords = "";
+        } else {
+          variationPrompt = "";
+          variationWords = "";
+        }
         commentFor = null;
         commentForAll = null;
         openComment = null;
@@ -2300,6 +2310,45 @@
         cardDoneMany = els.slice();
         syncElementMenu();
         tally();
+        if (count > 1) {
+          // Above 1 every member asks its own variations, like a normal
+          // comment. The first asks through the live strip; the rest are
+          // answered from their own panel cards.
+          if (variationId && variationFor === first) {
+            forgetVariationServer(variationId);
+            variationId = "";
+            variationServerId = "";
+            variationPolls = 0;
+          }
+          var set = els.slice();
+          var failed = [];
+          var waiting = set.length;
+          var firstProblem = "";
+          var setBox = function () {
+            commentFor = set[0];
+            commentForAll = set.slice();
+            cardDoneFor = null;
+            cardDoneMany = [];
+            openComment = null;
+            syncElementMenu();
+          };
+          var oneSettled = function (problem) {
+            if (problem && !firstProblem) firstProblem = problem;
+            if (problem) failed.push(problem);
+            if (--waiting) return;
+            if (!failed.length) return;
+            // One or more asks never went out: the set box comes back
+            // with the reason, and saving again retries the whole set.
+            variationWords = "The ask went out for " + (set.length - failed.length) + " of " + set.length + " elements. " + firstProblem;
+            setBox();
+          };
+          requestVariations(first, count, words, function (problem) { oneSettled(problem); });
+          els.slice(1).forEach(function (one) {
+            var old = pendingVariationId(one);
+            if (old) forgetVariationServer(old);
+            requestVariations(one, count, words, function (problem) { oneSettled(problem); }, true);
+          });
+        }
         return;
       }
       if (region) {
@@ -2494,15 +2543,13 @@
     return true;
   }
 
-  /** The note a set already shares: the one note, or nothing to show. */
+  /** The note a set already carries: the first note found, or nothing. */
   function sharedComment(els) {
-    var words = null;
     for (var i = 0; i < els.length; i++) {
       var own = record(els[i]).comment || "";
-      if (i === 0) words = own;
-      else if (own !== words) return "";
+      if (own) return own;
     }
-    return words || "";
+    return "";
   }
 
   /** One rect around every picked element: the shared box stands under it. */
@@ -2544,6 +2591,20 @@
     syncDock();
     syncElementMenu();
     paintSwatch();
+  }
+
+  /**
+   * What the Comment drag holds so far: the frames follow the drag, the
+   * box itself waits for the drop.
+   */
+  function previewLasso(left, top, width, height) {
+    if (width < REGION_MIN || height < REGION_MIN) return;
+    var picked = lassoSelect(left, top, width, height);
+    if (sameEls(picked, selectedItems)) return;
+    selected = picked[0] || null;
+    selectedItems = picked;
+    selectedKind = selected ? kind(selected) : null;
+    syncSelectionFrames();
   }
 
   /**
@@ -6443,7 +6504,7 @@ function decorations() {
     var moved = rec.location && rec.el !== moving && !rec.removed &&
       (rec.el.parentElement !== rec.location.parent || rec.el.nextSibling !== rec.location.before);
     return props.length || text || html || rec.comment || rec.created || rec.removed || moved
-      ? { props: props, text: text, html: html, comment: rec.comment || null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
+      ? { props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, created: rec.created, added: rec.created ? creation(rec) : null, removed: !!rec.removed, moved: !!moved, movedTo: moved ? selectorFor(rec.el.parentElement) : null }
       : null;
   }
 
@@ -6542,6 +6603,7 @@ function decorations() {
         props: d.props,
         text: d.text,
         comment: d.comment,
+        commentSet: d.commentSet,
         created: d.created,
         added: d.added,
         removed: d.removed,
@@ -6637,6 +6699,7 @@ function decorations() {
       if (item.text) out.push("- Text: " + JSON.stringify(item.text.before) + " → " + JSON.stringify(item.text.after));
       if (item.html) out.push("- Markup: " + JSON.stringify(item.html.before) + " → " + JSON.stringify(item.html.after));
       if (item.comment) out.push("- Comment: " + JSON.stringify(item.comment));
+      if (item.commentSet && item.commentSet.length) out.push("- Also for: " + item.commentSet.map(function (selector) { return "`" + selector + "`"; }).join(", "));
       out.push("");
     });
     return out.join("\n");
@@ -7934,7 +7997,7 @@ function decorations() {
   /** The edits without their live elements: what can go over the wire. */
   function plain(items) {
     return items.map(function (item) {
-      var out = { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, html: item.html || null, comment: item.comment, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
+      var out = { label: item.label, selector: item.selector, source: item.source, props: item.props, text: item.text, html: item.html || null, comment: item.comment, commentSet: item.commentSet || null, created: item.created, added: item.added, removed: item.removed, moved: item.moved, movedTo: item.movedTo };
       if (item.region) out.region = item.region;
       return out;
     });
@@ -8058,9 +8121,10 @@ function decorations() {
   /**
    * Ask the dev server for variations of one element. The agent reads the same
    * request over MCP once the user chose Vartest; `failed` is told why a request
-   * did not go out.
+   * did not go out. A quiet ask leaves the live strip alone: its answer waits
+   * on its own panel card instead.
    */
-  function requestVariations(el, count, prompt, failed) {
+  function requestVariations(el, count, prompt, failed, quiet) {
     if (typeof window.fetch !== "function") return failed("Cannot ask here");
     var id = newId();
     window.fetch(VARIATIONS_URL, {
@@ -8074,14 +8138,28 @@ function decorations() {
       return r.json();
     }).then(function (j) {
       if (!j || !j.ok) throw new Error((j && j.error) || "The request was refused");
-      variationFor = el;
-      variationId = j.requestId || id;
-      variationServerId = variationId;
-      variationPolls = 0;
+      if (!quiet) {
+        variationFor = el;
+        variationId = j.requestId || id;
+        variationServerId = variationId;
+        variationPolls = 0;
+      }
       pollAsks(); // at once: an answer already waiting is not waited for
     }).catch(function (error) {
       failed(error.message || "Could not ask the dev server");
     });
+  }
+
+  /** A pending variations ask for this element, if the last poll saw one. */
+  function pendingVariationId(el) {
+    var sel = "";
+    try { sel = selectorFor(el); } catch { return ""; }
+    var queue = srvVariationRequests || [];
+    for (var i = 0; i < queue.length; i++) {
+      var r = queue[i];
+      if (r && r.status === "pending" && r.element && r.element.selector === sel) return r.id;
+    }
+    return "";
   }
 
   /** Ask once for every answer, and again in a moment while any ask waits. */
@@ -9335,7 +9413,7 @@ function decorations() {
       var html = rec.html !== undefined && rec.el.innerHTML !== rec.html && rec.el.children.length ? { before: rec.html, after: rec.el.innerHTML } : null;
       if (!any && !text && !html && !rec.comment && !rec.created && !(rec.added && rec.added.length) && !rec.location) return;
       if (rec.mark == null) rec.mark = markTop++;
-      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, added: rec.added || [], googleFont: rec.googleFont || null, moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
+      edits.push({ selector: selectorFor(rec.el), tag: rec.el.tagName.toLowerCase(), snippet: snippetOf(rec.el), props: props, text: text, html: html, comment: rec.comment || null, commentSet: rec.commentSet && rec.commentSet.length ? rec.commentSet.slice() : null, added: rec.added || [], googleFont: rec.googleFont || null, moved: !!rec.location, origin: rec.origin || null, mark: rec.mark, confirmed: !!rec.confirmed, variationName: rec.variationName || null });
     });
     // A drawn box comes back only once ticked, like any other edit.
     var savedRegions = regions.filter(function (rg) { return rg.confirmed; }).map(function (rg) {
@@ -9417,6 +9495,7 @@ function decorations() {
         }
         if (edit.added && edit.added.length) rec.added = edit.added.slice();
         if (typeof edit.comment === "string") rec.comment = edit.comment;
+        if (Array.isArray(edit.commentSet)) rec.commentSet = edit.commentSet.filter(function (sel) { return typeof sel === "string"; });
         // An edit saved by an older version had no flag: it was already saved.
         rec.confirmed = edit.confirmed !== false;
         if (edit.origin) rec.origin = edit.origin;
@@ -9526,9 +9605,9 @@ function decorations() {
     (document.head || document.documentElement).appendChild(cursorStyleEl);
   }
 
-  /** The pointer the context wears: Add and Comment draw with the precision point. */
+  /** The pointer the context wears: Add draws with the precision point. */
   function syncPointer() {
-    paintPointer(activeTool === "add" || activeTool === "comment" ? PRECISION : POINTER);
+    paintPointer(activeTool === "add" ? PRECISION : POINTER);
   }
 
   /* ----------------------------------------------------------------- mode */
@@ -10084,6 +10163,13 @@ function decorations() {
       // frame stays away, so the pointer draws its own box unbothered.
       // Edits reads from its list, so its hover frame stays away too.
       if (drawing) drawRegion(x, y);
+      // A Comment drag picks as it goes: the frames follow the drag the
+      // way they follow the pointer, and the box waits for the drop.
+      if (drawing && activeTool === "comment") {
+        previewLasso(Math.min(drawing.x0, x), Math.min(drawing.y0, y), Math.abs(x - drawing.x0), Math.abs(y - drawing.y0));
+        hideHover();
+        return;
+      }
       if (drawing || activeTool === "add" || activeTool === "edits") {
         hideHover();
         return;

@@ -11,6 +11,7 @@
 /** Limits on one saved edit list. Edits are short text; these are generous. */
 const MAX_CHANGES = 500;
 const MAX_PROPS = 100;
+const MAX_SET = 50;
 const MAX_SHORT = 2000;
 const MAX_TEXT = 20000;
 /** A font family name as Google Fonts writes it: "Lora", "M PLUS 1p", "Noto Sans JP". */
@@ -50,7 +51,9 @@ function str(value, name, max, fallback = "") {
  * `font-family` prop has `googleFont` when the user picked a Google font.
  * A prop also carries `on` for a state or pseudo-element, and `when` for a
  * media condition: the two things an element cannot hold in its inline style.
- * `comment` is a note the user wrote about the element.
+ * `comment` is a note the user wrote about the element. `commentSet` names the
+ * other elements the note speaks for, when one comment box covered a set:
+ * the first element carries the note, the rest ride on `commentSet`.
  * `added` is `{ tag, style, wraps }` for an element the user added: its tag,
  * the inline style it was made with, and the selectors of the elements it was
  * put around.
@@ -105,14 +108,24 @@ export function checkChanges(changes) {
     };
     // Only a change that drew a box carries one: the saved file keeps the shape
     // it had for every other edit. Same rule for markup: old edits keep no key.
+    // Same rule for a set comment: one box for several elements keeps its set.
     const region = checkRegion(change.region);
     if (region) checked.region = region;
+    const commentSet = checkCommentSet(change.commentSet);
+    if (commentSet) checked.commentSet = commentSet;
     if (change.html !== undefined && change.html !== null) {
       if (typeof change.html !== "object" || Array.isArray(change.html)) throw invalid("html must be an object");
       checked.html = { before: str(change.html.before, "html.before", MAX_TEXT), after: str(change.html.after, "html.after", MAX_TEXT) };
     }
     return checked;
   });
+}
+
+/** The other selectors one comment speaks for, or null for a single note. */
+function checkCommentSet(set) {
+  if (set === undefined || set === null) return null;
+  if (!Array.isArray(set) || !set.length || set.length > MAX_SET) invalid("commentSet must be a list of 1 to 50 selectors");
+  return set.map((selector) => str(selector, "commentSet", MAX_SHORT));
 }
 
 /** A box the user drew on the page for something to be added inside. */
@@ -207,6 +220,7 @@ export function markdownFor(changes, page) {
     if (change.text) out.push(`- Text: ${line(JSON.stringify(change.text.before))} → ${line(JSON.stringify(change.text.after))}`);
     if (change.html) out.push(`- Markup: ${line(JSON.stringify(change.html.before))} → ${line(JSON.stringify(change.html.after))}`);
     if (change.comment) out.push(`- Comment: ${line(JSON.stringify(change.comment))}`);
+    if (change.commentSet && change.commentSet.length) out.push(`- Also for: ${change.commentSet.map(code).join(", ")}`);
     if (change.removed) out.push("- Removed: this element");
     if (change.moved) out.push(`- Moved to: ${code(change.movedTo || "a new position")}`);
     out.push("");
