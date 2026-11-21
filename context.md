@@ -76,7 +76,7 @@ Source files:
 |`src/store.js`|Shared store. One atomic write (temp file plus rename), one JSON read, one id maker, wrappers for fetch routes and Node middleware.|
 |`src/index.js`|Middleware plus all route factories. Serves `/\_\_edityy/edityy.js` and `logo.png`. Injects tag before `</head>`. Fails open (calls `next()` on error).|
 |`src/vite.js`|Vite plugin (`apply: "serve"`, `enforce: "pre"`). Stamps each intrinsic JSX element with `data-edityy-src="path:line:col"`. Skips components. Fails open.|
-|`src/mcp.js`|MCP server. Exposes saved changes, asks, previews, variations. Agent tools: `get\_work`, `mark\_applied`, `clear\_all`, `place\_preview`, `place\_variants`. `place_variants` takes `label` plus `props`, `text`, or `html` with inline elements.|
+|`src/mcp.js`|MCP server. Exposes saved changes, asks, previews, variations. Agent tools: `get\_work`, `mark\_applied` (`ids` or `all:true`), `clear\_all`, `place\_variants`. `place\_preview` stays off the list (old calls get the disabled message). `place\_variants` answers any pending ask by `requestId`.|
 |`src/init.js`|`npx edityy init`. Detects framework from `package.json`. Writes Vite plugin, or `instrumentation-client.ts` plus `proxy.ts` for Next.js, or prints middleware. Writes MCP config. Appends `vartest` rules to `AGENTS.md`. Idempotent. `--remove` reverts.|
 |`src/cli.js`|CLI entry. Commands: `init`, `doctor`, `mcp`.|
 |`src/client.js`|One import of `edityy.js`. Next.js 15.3+ path via `instrumentation-client` file. Next.js 16.3+ path via `instrumentationClientInject`.|

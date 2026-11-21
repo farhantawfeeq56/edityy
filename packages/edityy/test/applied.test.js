@@ -15,7 +15,7 @@ const call = (root, method, params, id = 1) => handle({ jsonrpc: "2.0", id, meth
 test("a full mark writes the applied mark, and the asks queue carries it", async () => {
   const root = tmp();
   await writeChanges({ changes: [{ selector: "h1" }] }, root);
-  const marked = await call(root, "tools/call", { name: "mark_applied", arguments: {} });
+  const marked = await call(root, "tools/call", { name: "mark_applied", arguments: { all: true } });
   assert.match(marked.result.content[0].text, /no refresh is needed/);
   const at = await readAppliedAt(root);
   assert.match(at, /^\d{4}-\d{2}-\d{2}T/);
@@ -33,7 +33,7 @@ test("a partial mark writes no applied mark", async () => {
 test("a clear removes a stale applied mark", async () => {
   const root = tmp();
   await writeChanges({ changes: [{ selector: "h1" }] }, root);
-  await call(root, "tools/call", { name: "mark_applied", arguments: {} });
+  await call(root, "tools/call", { name: "mark_applied", arguments: { all: true } });
   assert.ok(await readAppliedAt(root));
   await clearCanvas(root);
   assert.equal(await readAppliedAt(root), null);

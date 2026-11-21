@@ -24,7 +24,7 @@ test("initializes as a tools server and lists its four tools", async () => {
   assert.deepEqual(init.result.capabilities, { tools: {} });
   assert.equal(init.result.serverInfo.name, "edityy");
   const list = await call(tmp(), "tools/list");
-  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_work", "mark_applied", "clear_all", "place_preview", "place_variants"]);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_work", "mark_applied", "clear_all", "place_variants"]);
   for (const tool of list.result.tools) assert.equal(tool.inputSchema.type, "object");
 });
 
@@ -72,7 +72,7 @@ test("one get_work call returns every edit and every ask, oldest first", async (
   assert.equal((await call(root, "tools/call", { name: "get_work", arguments: {} })).result.isError, true);
 });
 
-test("mark_applied clears marked edits, or every edit with no ids", async () => {
+test("mark_applied clears marked edits, or every edit with all:true", async () => {
   const root = tmp();
   await writeChanges({ changes: [{ selector: "h1" }, { selector: "p" }] }, root);
   const one = await call(root, "tools/call", { name: "mark_applied", arguments: { ids: ["c-1"] } });
@@ -85,7 +85,12 @@ test("mark_applied clears marked edits, or every edit with no ids", async () => 
   assert.equal(bad.result.isError, true);
   assert.match(bad.result.content[0].text, /Unknown edit id/);
 
-  const all = await call(root, "tools/call", { name: "mark_applied", arguments: {} });
+  const bare = await call(root, "tools/call", { name: "mark_applied", arguments: {} });
+  assert.equal(bare.result.isError, true);
+  assert.match(bare.result.content[0].text, /all/);
+  assert.equal(existsSync(join(root, CHANGES_FILE)), true, "a bare call marks nothing");
+
+  const all = await call(root, "tools/call", { name: "mark_applied", arguments: { all: true } });
   assert.match(all.result.content[0].text, /Cleared the saved edits/);
   assert.equal(existsSync(join(root, CHANGES_FILE)), false);
 });
@@ -154,6 +159,31 @@ test("a variation ask goes out with get_work, and place_variants answers it", as
   assert.equal((await readVariationResponse("v123abc", root)).variations.length, 2, "the answer is stored for the card");
 });
 
+test("place_variants answers any pending ask, not only the oldest", async () => {
+  const root = tmp();
+  const req = (id) => writeVariationRequest(
+    { id, count: 2, prompt: "", element: { tag: "div", selector: `.${id}`, values: [] } },
+    root
+  );
+  await req("v-first");
+  await req("v-second");
+  const placed = await call(root, "tools/call", {
+    name: "place_variants",
+    arguments: {
+      requestId: "v-second",
+      variations: [
+        { label: "one", props: [{ property: "color", value: "red" }] },
+        { label: "two", props: [{ property: "color", value: "blue" }] },
+      ],
+    },
+  });
+  assert.equal(placed.result.isError, undefined);
+  assert.match(placed.result.content[0].text, /Placed 2 variations/);
+  const got = await call(root, "tools/call", { name: "get_work", arguments: {} });
+  assert.match(got.result.content[0].text, /\[variants\] v-first \(pending\)/);
+  assert.doesNotMatch(got.result.content[0].text, /\[variants\] v-second \(pending\)/);
+});
+
 test("a variants answer with no pending ask is refused", async () => {
   const refused = await call(tmp(), "tools/call", {
     name: "place_variants",
@@ -182,7 +212,7 @@ test("a request the user took back is not answered, and says so", async () => {
   assert.match(refused.result.content[0].text, /withdrew/);
 });
 
-test("one get_work lists every pending preview ask, and place_preview is disabled", async () => {
+test("one get_work lists every pending preview ask, and place_preview stays off the list", async () => {
   const root = tmp();
   const { writePreviewRequest } = await import("../src/previews.js");
   await writePreviewRequest({ id: "q-box", instruction: "add some flair here", count: 2, region: { left: 1006, top: 144, width: 111, height: 306 } }, root);

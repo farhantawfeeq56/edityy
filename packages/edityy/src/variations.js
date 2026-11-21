@@ -222,15 +222,16 @@ export async function readVariationRequest(root = process.cwd()) {
 export async function placeVariations(response, root = process.cwd()) {
   const requestId = response?.requestId;
   const items = await readVariationRequests(root);
-  // The oldest ask still waiting is the one to answer. An id for any other
-  // ask is stale: the user asked again while the agent was working.
-  const request = items.find((entry) => entry.status === "pending") || null;
+  // Any ask still waiting can be answered. An id that matches no pending
+  // ask is stale: the user withdrew it or asked again while working.
+  const request = items.find((entry) => entry.status === "pending" && entry.id === requestId) || null;
   if (!request) {
     const known = items.find((entry) => entry.id === requestId);
     if (known?.status === "cancelled") throw new Error("The user withdrew the request. Do not answer it.");
-    throw new Error("There is no pending variation request.");
+    const pending = items.filter((entry) => entry.status === "pending");
+    if (!pending.length) throw new Error("There is no pending variation request.");
+    throw new Error(`Unknown variation request ${JSON.stringify(requestId)}. Pending: ${pending.map((entry) => entry.id).join(", ")}.`);
   }
-  // A stale id falls out here: checkVariations names the ask that waits now.
   const checked = checkVariations(response, request.id, request.count);
   const saved = await readJson(join(root, VARIATION_RESPONSE_FILE), null);
   const rows = Array.isArray(saved) ? saved : saved ? [saved] : [];
