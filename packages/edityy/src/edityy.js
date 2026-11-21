@@ -918,7 +918,7 @@
     ".chg .opt{flex:1}",
     ".chg .ic{width:30px;height:30px;flex:none}",
     // The edits panel: a tall sheet over the dock, with a filter grid for
-    // Sent, Exploring and Ready, and one card per task. A card goes to its
+    // Sent, Select and Ready, and one card per task. A card goes to its
     // element on click. Type runs at 10px throughout; weight carries the rank.
     ".pop.changes{width:min(250px,calc(100vw - 24px));max-inline-size:none;overflow:hidden;display:flex;flex-direction:column;max-height:min(72vh,600px);background:var(--surface)}",
     ".changes-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}",
@@ -935,7 +935,7 @@
     // The label is two words in one slot, crossfading as the pick changes:
     // the dark one for an unpicked chip, the light one for the picked one.
     ".changes-lbl{position:relative;z-index:1;display:grid}",
-    ".changes-name{white-space:nowrap}",
+    ".changes-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
     ".changes-lbl>*{grid-column:1;grid-row:1;transition:opacity var(--tint) var(--standard)}",
     ".lbl-off{opacity:1;color:var(--ink)}",
     ".lbl-on{opacity:0;color:var(--paper)}",
@@ -6442,18 +6442,18 @@ function decorations() {
   /**
    * The edits panel: every task on the page, in the state it is in.
    *
-   * Exploring is variants ready, waiting for a pick. Previewing is a paint
+   * Select is variants ready, waiting for a pick. Previewing is a paint
    * on the live page, waiting for Keep or Discard. Kept is an ordinary
    * Edityy edit: JSON for the agent, which the agent writes into the
    * source later.
    */
   // The edits panel, kept between redraws.
   var changesPanel = null;
-  var changesFilter = "all"; // all, sent, exploring, ready
+  var changesFilter = "all"; // all, sent, select, ready
   // The filter grid, after interior.dev's Filter Grid: one chip per state
   // with its count, a thumb that travels to the picked chip, and the arrow
   // keys walking the chips. The cards below already travel the same way.
-  var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Exploring"], ["ready", "Ready"]];
+  var CHANGES_FILTERS = [["all", "All"], ["sent", "Sent"], ["exploring", "Select"], ["ready", "Ready"]];
   var taskSeen = {}; // task keys already painted, so redraws do not replay arrivals
   var cardPos = {}; // card key -> top in the list, so survivors travel when one leaves
   var chipFlight = null; // the picked chip's old slot, so the new one travels from it
@@ -6518,7 +6518,7 @@ function decorations() {
 
   /**
    * The server must forget a decided variation request, or its answer
-   * lingers as an Exploring card next to the new Ready one. The local queues
+   * lingers as a Select card next to the new Ready one. The local queues
    * are purged at once, so the card leaves without waiting for a poll.
    */
   function forgetVariationServer(id) {
@@ -7427,7 +7427,7 @@ function decorations() {
       head.appendChild(nav);
       card.appendChild(head);
       // A meta row on every card: where the edit came from, with the
-      // detail line beside it. Exploring cards show it above their controls,
+      // detail line beside it. Select cards show it above their controls,
       // so "1 edit" and "N variants ready" are never hidden.
       var showDetail = !!task.detail;
       if (showDetail || task.origin) {
@@ -7620,7 +7620,7 @@ function decorations() {
     unstashRec(rec);
     rec.confirmed = true;
     autosave();
-    // The Ready card arrives: the Exploring card just slid out, so the
+    // The Ready card arrives: the Select card just slid out, so the
     // arrival replays for the same element instead of appearing flat.
     if (rec.el) replayArrivalFor(rec.mark);
     tally();
@@ -8699,7 +8699,7 @@ function decorations() {
       if (variationName) record(variationFor).variationName = variationName;
       autosave();
     }
-    // Decided either way, the answer must not linger as an Exploring card next
+    // Decided either way, the answer must not linger as a Select card next
     // to the Ready one: the server forgets it, and the local queues drop it.
     forgetVariationServer(variationServerId || variationId);
     variationServerId = "";

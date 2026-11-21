@@ -1826,7 +1826,7 @@ test("the edits filter is a radio grid with names, and the arrows walk it", asyn
   assert.equal(filters.getAttribute("role"), "radiogroup", "one radio group");
   assert.equal(filters.getAttribute("aria-label"), "Filter edits");
   const chips = () => filters.children;
-  assert.equal(chips().length, 4, "all, sent, exploring, ready");
+  assert.equal(chips().length, 4, "all, sent, select, ready");
   assert.deepEqual(chips().map((c) => c.getAttribute("role")), ["radio", "radio", "radio", "radio"]);
   assert.equal(chips()[0].getAttribute("aria-checked"), "true", "All starts checked");
   assert.equal(chips()[0].tabIndex, 0, "one tab stop");
@@ -1834,17 +1834,17 @@ test("the edits filter is a radio grid with names, and the arrows walk it", asyn
   assert.match(shown(chips()[0]), /All/, "the All chip");
   assert.match(shown(chips()[0]), /2/, "two edits in All");
   assert.match(shown(chips()[1]), /Sent/, "the Sent chip");
-  assert.match(shown(chips()[2]), /Exploring/, "the Exploring chip");
+  assert.match(shown(chips()[2]), /Select/, "the Select chip");
   assert.ok(chips()[0].children.some((c) => c.className === "changes-thumb"), "the thumb sits in the checked chip");
   const lbl = chips()[0].children.find((c) => c.className === "changes-lbl");
   assert.deepEqual(lbl.children.map((c) => c.className), ["lbl-off", "lbl-on", "changes-sr"], "two stacked labels crossfade");
   assert.match(shown(open.children[4]), /All: 2 of 2 shown/, "the live region says what is shown");
-  // Pick Exploring: only the two cards stay, and the thumb travels.
+  // Pick Select: only the two cards stay, and the thumb travels.
   for (const fn of chips()[2].bubbles.click.bubble) fn({});
   assert.equal(chips()[2].getAttribute("aria-checked"), "true");
   assert.equal(chips()[2].tabIndex, 0);
   assert.ok(chips()[2].children.some((c) => c.className === "changes-thumb"), "the thumb moved");
-  assert.equal(open.children[2].children.length, 2, "both edits are Exploring");
+  assert.equal(open.children[2].children.length, 2, "both edits are Select");
   // The arrow walks to Ready, which is empty, and wraps from the end.
   const send = (k, target) => {
     for (const fn of filters.bubbles.keydown.bubble) fn({ key: k, target, preventDefault() {}, stopPropagation() {} });
@@ -1887,7 +1887,7 @@ test("the edits panel is pinned in viewport pixels, so hover cannot pull it", ()
   assert.equal(open.style.left, left, "hover does not move the panel sideways");
   assert.equal(open.style.top, top, "hover does not move the panel up or down");
   assert.match(source, /\.pop\{position:fixed/, "the panel is viewport pinned");
-  assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Exploring and Ready share one line");
+  assert.match(source, /\.changes-filters\{display:flex;flex-wrap:nowrap/, "All, Select and Ready share one line");
   assert.match(source, /\.pop\.changes\{width:min\(250px/, "the edits panel is 250px");
 });
 
@@ -1899,8 +1899,8 @@ test("the filter chips wear their names, with the count only spoken", () => {
   const open = openEdits(app);
   const chips = open.children[1].children;
   assert.doesNotMatch(shown(chips[0]), /\(1\)/, "no (1) on the All chip");
-  assert.match(shown(chips[2]), /Exploring/, "the Exploring chip");
-  assert.match(chips[2].getAttribute("aria-label"), /Exploring, 1 of 1/, "the count stays spoken");
+  assert.match(shown(chips[2]), /Select/, "the Select chip");
+  assert.match(chips[2].getAttribute("aria-label"), /Select, 1 of 1/, "the count stays spoken");
   assert.equal(app.root.nodes.vartest, undefined, "no variant strip");
   assert.equal(open.dataset.variant, undefined, "no variant pick");
   const css = app.root.innerHTML;
@@ -2537,7 +2537,7 @@ test("a variation request waits for the agent, and keys 1 to 5 switch the elemen
   assert.equal(sheets().length, 0, "and the sheet goes with its edit");
 });
 
-test("keeping a variant forgets its server answer, so no Exploring card lingers", async () => {
+test("keeping a variant forgets its server answer, so no Select card lingers", async () => {
   const { run } = fakeDom();
   const app = run();
   const sent = [];
@@ -2573,7 +2573,7 @@ test("keeping a variant forgets its server answer, so no Exploring card lingers"
   const open = openEdits(app);
   const cards = () => open.children[2].children;
   const exploringCard = () => cards().find((card) => card.getAttribute && card.getAttribute("data-state") === "exploring");
-  // Pick the first variant, then Keep: the Exploring card must turn into one Ready card.
+  // Pick the first variant, then Keep: the Select card must turn into one Ready card.
   quiet(() => app.fire("keydown", { key: "1" }));
   const cardTick = () => exploringCard().children.find((c) => c.className === "task-editrow").children.find((b) => b.getAttribute && b.getAttribute("aria-label") === "Keep this edit");
   assert.equal(cardTick().disabled, false, "a picked variant can be kept");
@@ -2588,7 +2588,7 @@ test("keeping a variant forgets its server answer, so no Exploring card lingers"
   assert.equal(gone.length, 1, "the answered request is cancelled");
   assert.match(gone[0].url, /v1/, "the right request");
   const states = cards().map((card) => card.getAttribute && card.getAttribute("data-state"));
-  assert.deepEqual(states, ["ready"], "one Ready card, no lingering Exploring card");
+  assert.deepEqual(states, ["ready"], "one Ready card, no lingering Select card");
   assert.match(app.win.__edityy_changes(), /thinner and darker\\na touch darker/, "notes add to the comment-box words");
 });
 
