@@ -1662,6 +1662,9 @@ test("Alt+E opens the toolbar from the page", () => {
   ensureComment(app);
   assert.equal(app.root.nodes.dock.hidden, false, "the bar stands up");
   assert.equal(app.launch().hidden, true, "the pill hides while the mode is on");
+  quiet(() => app.fire("keydown", { key: "e", altKey: true, preventDefault() {}, stopPropagation() {} }));
+  assert.equal(app.root.nodes.dock.hidden, true, "the same keys close it again");
+  assert.equal(app.launch().hidden, false, "the pill is back as the way in");
 });
 
 test("Escape with the edits list open closes the list, not the mode", () => {

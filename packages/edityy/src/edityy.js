@@ -10122,21 +10122,23 @@ function decorations() {
     else enter();
   });
 
-  // Alt+E opens the toolbar from the page, the way a click on the pill does.
-  // It only opens: once the mode is on, the keys belong to it. A letter in a
-  // page field belongs to the field, so it never opens from there.
+  // Alt+E toggles the toolbar from the page, the way a click on the pill
+  // does: it opens when the mode is off and closes when it is on. A letter
+  // in a page field belongs to the field, so it never toggles from there,
+  // and never while words are being typed into.
   document.addEventListener("keydown", function (e) {
-    if (active) return;
     if (e.repeat) return;
     if (!e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
     if (String(e.key || "").toLowerCase() !== "e") return;
     if (e.composedPath && e.composedPath().indexOf(host) !== -1) return;
     var tag = e.target && e.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target && e.target.isContentEditable)) return;
+    if (editing) return;
     if (e.preventDefault) e.preventDefault();
     if (e.stopPropagation) e.stopPropagation();
     window.dispatchEvent(new CustomEvent("edityy:launcher-click"));
-    enter();
+    if (active) exit();
+    else enter();
   });
 
   // The pill itself drags between the same eight places the bar drags to,
