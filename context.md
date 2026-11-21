@@ -122,7 +122,7 @@ Stack: TypeScript, Next.js 16 App Router, React 19, Tailwind v4. Deployed on Clo
 |Path|Role|
 |-|-|
 |`app/layout.tsx`|Root layout. Loads self-hosted Figtree (`app/fonts/Figtree-latin.woff2`). Imports `edityy/motion.css` and `globals.css`.|
-|`app/page.tsx`|Landing page. Sections: steps, features, handoffs, install (`npx edityy init`). Client code: `CopyButton` (`app/copy.tsx`). The `#agent` section is copy only, no card.|
+|`app/page.tsx`|Landing page. Hero pairs copy with a static comment study (three cards, one dashed box, one note, Sent → Select → Ready). Sections: multi-element comment, how it works, features, handoffs, install. Client code: `CopyButton` (`app/copy.tsx`).|
 |`app/copy.tsx`|Copy-to-clipboard button with live region and `say` animation.|
 |`app/globals.css`|Tailwind theme. Paper `#faf9f6`, ink `#25241f`, gold `#d4a72c` (fill only), brand-ink `#8a6a10` (readable gold text). Utilities: `tint`, `lift`, `say`. Old `rose`/`blush`/`plum` names kept as aliases.|
 |`app/docs/layout.tsx`|Docs chrome. Header plus sidebar driven by `nav.ts`.|

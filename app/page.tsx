@@ -8,51 +8,70 @@ const INSTALL = "npx edityy init";
 const NPM = "https://www.npmjs.com/package/edityy";
 const GITHUB = "https://github.com/farhantawfeeq56/edityy";
 
+const selectSteps = [
+  {
+    title: "Shift-click the set",
+    body: "Click one element, then Shift-click the rest. Each one joins the same selection.",
+  },
+  {
+    title: "Or draw one box",
+    body: "The Comment tool draws like Add does. Every element inside the box joins the set.",
+  },
+  {
+    title: "Write a single note",
+    body: "One comment box opens for the set. Save writes the same note on each element.",
+  },
+  {
+    title: "Small drag still clicks",
+    body: "A drag smaller than a click stays a click. One-element comments work as before.",
+  },
+];
+
 const steps = [
   {
-    title: "Install Edityy",
-    body: "Add the plugin to your dev server. A launcher appears in the bottom-right corner of the page you already run.",
+    title: "Select on the live page",
+    body: "Click the launcher, point at anything — one card or a whole row. Hover outlines it, a click keeps it.",
   },
   {
-    title: "Point and edit",
-    body: "Pick an element. The dock changes its type, colour, spacing, fill, border and shadow. Each edit is one inline style.",
+    title: "Say what should change",
+    body: "Style it in the dock, or write one note for the set. The note travels with every selected element.",
   },
   {
-    title: "Hand over the edits",
-    body: "Copy the edits as a prompt, save them to the project, or let an agent read them over MCP. Your code does the rest.",
+    title: "Your agent writes the code",
+    body: "Copy the edits, save them to the project, or let the agent read them over MCP. Source stays truth.",
   },
 ];
 
 const features = [
   {
+    icon: "comment",
+    title: "One note, several elements",
+    body: "A change that spans three cards gets one shared note, not three. The agent reads them as one change.",
+  },
+  {
     icon: "cursor",
-    title: "Edit the page",
-    body: "Select text, a container or media. Type new words. Change typography, colour, spacing and box styles.",
+    title: "Edit where it stands",
+    body: "Type new words in place. Change type, colour, spacing, fill, border, shadow and filters.",
   },
   {
     icon: "grid",
-    title: "Arrange elements",
-    body: "Add, move and delete elements. Shift-click siblings and press Shift+A for a column.",
+    title: "Arrange the set",
+    body: "Add, move and delete elements. Shift-click siblings, press Shift+A for a column.",
+  },
+  {
+    icon: "variants",
+    title: "Try N variants, keep one",
+    body: "Ask for variants on one element. Keys 1–0 switch the pick live, Keep saves it as an edit.",
   },
   {
     icon: "undo",
     title: "Undo with trust",
-    body: "Undo and redo style changes. Review each edit, select its element, or revert it before you leave the mode.",
-  },
-  {
-    icon: "type",
-    title: "Use your own fonts",
-    body: "Search the fonts already on the page, or browse Google Fonts. Edityy loads a face only when you preview or pick it.",
-  },
-  {
-    icon: "code",
-    title: "Hand changes to code",
-    body: "Copy the edits as a prompt, or save them to your project. The source code stays the source of truth.",
+    body: "Undo and redo style changes. Review each edit, select its element, or revert it any time.",
   },
   {
     icon: "agent",
     title: "Work with your agent",
-    body: "The Edityy MCP server shares saved changes with coding agents such as Claude Code and Cursor.",
+    body: "Saved edits travel as Markdown, as .edityy/changes.json, or over MCP to Claude Code and Cursor.",
   },
 ];
 
@@ -75,8 +94,8 @@ const glyphs: Record<string, string> = {
   cursor: "M5 4l6.5 15 2.2-6.3L20 10.5z",
   grid: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
   undo: "M8 5L4 9l4 4M4 9h10a5 5 0 010 10H8",
-  type: "M5 6h14M12 6v13M9 19h6",
-  code: "M9 8l-5 4 5 4M15 8l5 4-5 4",
+  comment: "M4 5h16v10H9l-5 4z",
+  variants: "M4 7h9M4 12h6M4 17h9M15 14l5 5m0-5l-5 5",
   agent: "M12 4l1.9 4.3L18 10l-4.1 1.7L12 16l-1.9-4.3L6 10l4.1-1.7z",
 };
 
@@ -125,6 +144,66 @@ function Install({ note }: { note?: string }) {
   );
 }
 
+/* The hero study: a quiet page with three cards, one dashed box around
+   them, and one comment for the set. Pure markup, no client code — it
+   shows the branch behavior: many elements, one note. */
+function CommentStudy() {
+  return (
+    <div aria-hidden="true" className="layer relative overflow-hidden rounded-2xl p-4 sm:p-5">
+      <div className="flex items-center gap-2 border-b border-neutral-200 pb-3">
+        <span className="size-2 rounded-full bg-neutral-300" />
+        <span className="size-2 rounded-full bg-neutral-300" />
+        <span className="size-2 rounded-full bg-brand" />
+        <span className="ml-2 h-2 w-24 rounded-full bg-neutral-200" />
+      </div>
+      <div className="relative mt-4 rounded-xl border border-dashed border-brand-ink/60 bg-brand-soft/40 p-2.5">
+        <div className="grid grid-cols-3 gap-2.5">
+          {["Pricing", "Features", "Changelog"].map((card) => (
+            <div key={card} className="rounded-lg border border-neutral-200 bg-neutral-100 p-2.5">
+              <p className="h-1.5 w-2/3 rounded-full bg-neutral-900" />
+              <p className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-200" />
+              <p className="mt-1 h-1.5 w-4/5 rounded-full bg-neutral-200" />
+              <p className="mt-2 font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-brand-ink">{card}</p>
+            </div>
+          ))}
+        </div>
+        <span className="absolute -top-2.5 left-3 rounded-full bg-neutral-900 px-2 py-0.5 font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-neutral-50">
+          3 selected
+        </span>
+      </div>
+      <div className="relative mx-2 -mt-1 rounded-xl border border-neutral-200 bg-neutral-100 p-3 text-left shadow-layer">
+        <p className="font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-neutral-500">
+          One note for the set
+        </p>
+        <p className="mt-1 text-[0.8125rem] font-medium leading-snug text-neutral-900">
+          “Make all three calm — same padding, one quiet border.”
+        </p>
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="rounded-full bg-neutral-900 px-2 py-0.5 font-mono text-[0.5625rem] text-neutral-50">
+            Sent
+          </span>
+          <span aria-hidden="true" className="text-neutral-300">→</span>
+          <span className="rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-mono text-[0.5625rem] text-neutral-600">
+            Select
+          </span>
+          <span aria-hidden="true" className="text-neutral-300">→</span>
+          <span className="rounded-full border border-brand-line bg-brand-soft px-2 py-0.5 font-mono text-[0.5625rem] text-brand-ink">
+            Ready
+          </span>
+          <span className="ml-auto font-mono text-[0.5625rem] text-neutral-500">agent writes code</span>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2 px-1 font-mono text-[0.625rem] text-neutral-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-brand" />
+          edityy:: instruction
+        </span>
+        <span className="ml-auto">Shift-click · drag a box · one save</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
@@ -140,15 +219,15 @@ export default function Home() {
           <div className="ml-auto hidden items-center gap-1 sm:flex">
             <a
               className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
-              href="#how"
+              href="#comment"
             >
-              How it works
+              Multi-comment
             </a>
             <a
               className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
-              href="#features"
+              href="#how"
             >
-              Features
+              How it works
             </a>
             <Link
               className="rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium text-neutral-600 tint hover:bg-blush hover:text-neutral-900"
@@ -175,84 +254,81 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-[68rem] flex-1 px-5 pb-24 sm:px-8">
-        <section className="relative pt-16 text-center sm:pt-24">
-          <div aria-hidden="true" className="pointer-events-none absolute left-0 top-10 hidden w-44 select-none lg:block">
-            <svg width="72" height="48" viewBox="0 0 72 48" fill="none" className="opacity-70">
-              <g fill="currentColor" className="text-neutral-300">
-                <circle cx="4" cy="4" r="2" />
-                <circle cx="20" cy="4" r="2" />
-                <circle cx="36" cy="4" r="2" />
-                <circle cx="52" cy="4" r="2" />
-                <circle cx="4" cy="20" r="2" />
-                <circle cx="20" cy="20" r="2" />
-                <circle cx="36" cy="20" r="2" />
-                <circle cx="4" cy="36" r="2" />
-                <circle cx="20" cy="36" r="2" />
-              </g>
-              <circle cx="52" cy="20" r="3" className="fill-brand" />
-            </svg>
-            <span className="mt-4 block h-px w-16 bg-neutral-200" />
-            <span className="mt-2 block h-px w-10 bg-brand" />
-            <span className="mt-2 block h-px w-20 bg-neutral-200" />
-          </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute right-0 top-10 hidden w-44 select-none lg:block"
-          >
-            <span className="ml-auto block size-3 rounded-full bg-brand" />
-            <span className="ml-auto mt-3 block h-px w-24 bg-neutral-200" />
-            <span className="ml-auto mt-3 block w-28 rounded-full bg-blush px-3 py-1 text-center font-mono text-[0.625rem] uppercase tracking-[0.12em] text-brand-ink">
-              visual → code
+        <section className="grid items-center gap-10 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div className="text-left">
+            <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
+              New — one comment for several elements
             </span>
+            <h1 className="mt-6 max-w-[30rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[4.5rem] sm:leading-[1.0]">
+              Point at the page. <span className="text-brand-ink">Tell the agent once.</span>
+            </h1>
+            <p className="mt-6 max-w-[28rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
+              Edityy puts a visual editor on the site you already run. Select one element or a whole
+              set, write a single note for all of them, and hand it to your code.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href="#install"
+                className="rounded-lg bg-neutral-900 px-6 py-3 text-[0.9375rem] font-medium text-neutral-50 tint hover:bg-neutral-700"
+              >
+                Install Edityy — it&apos;s free
+              </a>
+              <Link
+                href="/docs"
+                className="rounded-lg border border-neutral-200 bg-white px-6 py-3 text-[0.9375rem] font-medium text-neutral-900 tint hover:border-neutral-300"
+              >
+                View docs →
+              </Link>
+            </div>
+            <p className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
+              <span className="text-neutral-600">Open source · MIT · zero dependencies</span>
+              <a
+                className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 tint hover:text-neutral-900 hover:decoration-neutral-900"
+                href={GITHUB}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View the source
+              </a>
+            </p>
           </div>
-          <div aria-hidden="true" className="pointer-events-none absolute left-10 top-10" />
-          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-[0.75rem] font-medium text-neutral-600">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-rose-500" />
-            Open source, MIT licensed
-          </span>
+          <CommentStudy />
+        </section>
 
-          <h1 className="mx-auto mt-7 max-w-[44rem] text-balance font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[5.25rem] sm:leading-[86px]">
-            Shape the page.
-            <br />
-            <span className="text-brand-ink">Keep the code.</span>
-          </h1>
-
-          <p className="mx-auto mt-6 max-w-[34rem] text-pretty text-[1rem] leading-relaxed text-neutral-600">
-            Edityy puts a visual editor on the site you already run. Point at an element. Change the type, the colour,
-            the spacing and the fill. Then hand the edits to your code.
-          </p>
-
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#install"
-              className="rounded-lg bg-neutral-900 px-6 py-3 text-[0.9375rem] font-medium text-neutral-50 tint hover:bg-neutral-700"
-            >
-              Install Edityy — it&apos;s free
-            </a>
-            <Link
-              href="/docs"
-              className="rounded-lg border border-neutral-200 bg-white px-6 py-3 text-[0.9375rem] font-medium text-neutral-900 tint hover:border-neutral-300"
-            >
-              View docs →
-            </Link>
+        <section id="comment" className="scroll-mt-28 pt-24 sm:pt-28">
+          <Eyebrow>A change that spans several elements</Eyebrow>
+          <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <h2 className="max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
+              One shared note, <span className="text-brand-ink">not one per element</span>
+            </h2>
+            <p className="max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-600">
+              The comment box used to open for one element. Now Shift-click builds a set, or the
+              Comment tool draws a box like Add does — and the set shares a single note.
+            </p>
           </div>
-
-          <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[0.8125rem] font-medium">
-            <Link className="text-neutral-900 underline decoration-neutral-300 underline-offset-4 tint hover:decoration-neutral-900" href="/docs">
-              Setup guide and full details
-            </Link>
-            <a className="text-neutral-600 underline decoration-neutral-300 underline-offset-4 tint hover:text-neutral-900 hover:decoration-neutral-900" href={GITHUB} target="_blank" rel="noreferrer">
-              View the source
-            </a>
+          <ol className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-4">
+            {selectSteps.map((step, i) => (
+              <li key={step.title} className="bg-neutral-100 p-6">
+                <span className="font-mono text-[0.75rem] text-brand-ink">{`0${i + 1}`}</span>
+                <h3 className="mt-3 text-[0.9375rem] font-semibold tracking-[-0.02em]">{step.title}</h3>
+                <p className="mt-2 text-[0.875rem] leading-relaxed text-neutral-600">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-5 text-[0.8125rem] leading-relaxed text-neutral-600">
+            Save writes the same note on each selected element, so the agent reads them as one combined
+            change. Variation counts stay single-element, and the Comment tool wears Add&apos;s precision
+            cursor while it is on.
           </p>
         </section>
 
-        <section id="how" className="scroll-mt-28 pt-40">
+        <section id="how" className="scroll-mt-28 pt-20 sm:pt-24">
           <Eyebrow>How it works</Eyebrow>
           <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
-            One install and everything is <span className="text-brand-ink">under your control</span>
+            Select, say it, <span className="text-brand-ink">ship it as code</span>
           </h2>
-          <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
+          <ol className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
             {steps.map((step, i) => (
               <li key={step.title} className="border-t border-neutral-200 pt-5">
                 <span className="font-mono text-[0.75rem] text-brand-ink">{`0${i + 1}`}</span>
@@ -261,11 +337,16 @@ export default function Home() {
               </li>
             ))}
           </ol>
+          <div className="mt-8 flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 text-[0.8125rem] text-neutral-600">
+            <span className="font-medium text-neutral-900">Sent → Select → Ready</span>
+            <span aria-hidden="true" className="text-neutral-300">·</span>
+            <span>Sent waits for the agent, Select waits for your pick, Ready waits for the agent to write the code.</span>
+          </div>
         </section>
 
         <section id="features" className="mt-20 scroll-mt-28 border-t border-neutral-200 pt-16 sm:mt-24 sm:pt-20">
           <Eyebrow>What you can change</Eyebrow>
-          <h2 className="mt-4 max-w-[32rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
+          <h2 className="mt-4 max-w-[34rem] text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
             The whole page, in the browser you already have open.
           </h2>
           <ul className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
@@ -283,15 +364,15 @@ export default function Home() {
 
         <section id="agent" className="mt-20 scroll-mt-28 sm:mt-24">
           <div className="overflow-hidden rounded-2xl bg-neutral-900 px-6 py-12 text-neutral-50 sm:px-10 sm:py-14">
-            <div className="max-w-[36rem]">
+            <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-start">
               <div>
                 <Eyebrow inverted>Hand-off</Eyebrow>
                 <h2 className="mt-4 text-balance font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">
                   Your code stays the source of truth.
                 </h2>
                 <p className="mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-neutral-50/70">
-                  Edityy does not write to your source. It writes down what you changed. Your agent makes the change in
-                  the file, in the way the project already styles things.
+                  Edityy never writes your source. It writes down what changed — the selector, the
+                  source line, each value — and your agent makes the change in the file.
                 </p>
                 <ul className="mt-8 divide-y divide-neutral-50/10 border-y border-neutral-50/10">
                   {handoffs.map((handoff) => (
@@ -302,6 +383,28 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
+              <div aria-hidden="true" className="rounded-xl border border-neutral-50/10 bg-neutral-50/[0.04] p-4">
+                <p className="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-neutral-50/50">
+                  .edityy/changes.json
+                </p>
+                <pre className="mt-3 overflow-x-auto font-mono text-[0.6875rem] leading-relaxed text-neutral-50/80">{`{
+  "page": "/",
+  "changes": [
+    {
+      "selector": ".card",
+      "source": "app/page.tsx:41:8",
+      "comment": "Make all three calm",
+      "props": [
+        { "prop": "padding", "after": "24px" },
+        { "prop": "border", "after": "1px solid …" }
+      ]
+    }
+  ]
+}`}</pre>
+                <p className="mt-3 border-t border-neutral-50/10 pt-3 font-mono text-[0.625rem] text-neutral-50/50">
+                  ×3 — the same note on each selected element
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -311,7 +414,8 @@ export default function Home() {
             Ready when your dev server is.
           </h2>
           <p className="mx-auto mt-4 max-w-[30rem] text-[0.9375rem] leading-relaxed text-neutral-600">
-            Install the package, add one line, and reload the page. The launcher is in the bottom-right corner.
+            Install the package, add one line, and reload the page. The launcher settles in the
+            bottom-right corner — Alt+E opens it from the keyboard.
           </p>
           <div className="mt-9">
             <Install />
