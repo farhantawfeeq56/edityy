@@ -6727,7 +6727,7 @@ function decorations() {
       tasks.push({
         state: ready ? "ready" : "exploring", el: item.rec ? item.rec.el : null, region: item.rg || null, label: item.label, origin: origin,
         detail: ready
-          ? "Your edit is approved & sent to agent" + (item.comment ? " with notes" : "")
+          ? "Approved & sent" + (item.comment ? " with notes" : "")
           : (n === 1 ? "1 edit" : n + " edits"),
         kind: ready ? "ready" : "exploring-edit", item: item,
       });

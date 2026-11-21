@@ -2318,7 +2318,7 @@ test("ticking an Exploring edit posts it to the dev server, with no save button"
   assert.match(body.markdown, /- Comment: "make it warmer"/);
   const ready = open.children[1].children.find((c) => c.getAttribute("data-state") === "ready");
   assert.ok(ready, "the ticked card is Ready");
-  assert.match(shown(ready), /approved & sent to agent/);
+  assert.match(shown(ready), /Approved & sent/);
 });
 
 test("the comment box starts quiet, remembers its count, and says what Save does", () => {
